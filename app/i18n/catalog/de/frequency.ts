@@ -1,0 +1,21 @@
+/** Frequency coordination board. */
+export const frequencyDe = {
+  "frequency.meta.title": "Frequenzen · Jiangtang",
+  "frequency.title": "Frequenzkoordination",
+  "frequency.subtitle.prefix": "Funkstrecken je Gebäude · gleiche Frequenz im selben Gebäude =",
+  "frequency.subtitle.clash": "Konflikt",
+  "frequency.empty": "Keine Funkstrecken erfasst.",
+  "frequency.count.one": "Frequenz",
+  "frequency.count.other": "Frequenzen",
+  "frequency.clash.one": "Konflikt",
+  "frequency.clash.other": "Konflikte",
+  "frequency.col.frequency": "Frequenz",
+  "frequency.col.band": "Band",
+  "frequency.col.channel": "Kanal",
+  "frequency.col.device": "Gerät",
+  "frequency.col.type": "Typ",
+  "frequency.col.room": "Raum",
+  "frequency.col.status": "Status",
+  "frequency.clash.title": "Frequenzkonflikt mit: {partners}",
+  "frequency.clash.badge": "⚠ Konflikt: {partners}",
+};

@@ -1,0 +1,27 @@
+# Postgres+WAL-G image: pgvector pg18 + the wal-g release binary.
+# Used by BOTH the postgres service (its archive_command runs `wal-g wal-push`
+# inside the db container — the upstream pgvector image has no wal-g, so a
+# pull-only postgres would archive nothing while looking healthy) and the
+# backup sidecar (wal-g backup-push + psql/pg_ctl for the restore path).
+#
+# Built locally because wal-g/wal-g is not pullable from a public registry
+# (Docker Hub removed, ghcr denied); hosts that mirror their own image can
+# override via POSTGRES_IMAGE / BACKUP_IMAGE.
+FROM pgvector/pgvector:0.8.7-pg18-trixie
+
+ARG WALG_VERSION=v3.0.9
+ARG WALG_BIN=wal-g-pg-24.04-amd64
+# SHA-256 published by wal-g alongside the release assets
+# (releases/download/v3.0.9/wal-g-pg-24.04-amd64.sha256). v3.0.9 was published
+# 2026-08-20 — well over 7 days old when pinned (2026-10-08).
+ARG WALG_SHA256=8015836f246a978f27b31a2462eac7765312558ae5b11ac033322b555abf9e22
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl python3 \
+ && curl -fsSL "https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/${WALG_BIN}" \
+      -o /usr/local/bin/wal-g \
+ && echo "${WALG_SHA256}  /usr/local/bin/wal-g" | sha256sum -c - \
+ && chmod +x /usr/local/bin/wal-g \
+ && apt-get purge -y curl && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/* \
+ && wal-g --version

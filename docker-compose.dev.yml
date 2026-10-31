@@ -1,0 +1,31 @@
+# Local development database only. The full production stack (Caddy + app +
+# one-shot migrate job) lives in docker-compose.yml. Keeping the
+# dev DB separate keeps the inner loop fast.
+# Distinct project name so `docker compose down` on the prod stack never touches
+# this dev DB (they would otherwise share the dir-derived project name).
+name: jiangtang
+services:
+  postgres:
+    # pgvector, not stock postgres: `20261023000000_extensions` needs the
+    # control file. Same tag as prod and CI, so the three never disagree.
+    image: pgvector/pgvector:0.8.7-pg18-trixie
+    container_name: jiangtang-dev-db
+    environment:
+      POSTGRES_USER: jiangtang
+      POSTGRES_PASSWORD: jiangtang
+      POSTGRES_DB: jiangtang
+      TZ: Europe/Berlin
+      PGTZ: Europe/Berlin
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # postgres:18+ manages major-version subdirs; mount the parent, NOT .../data.
+      - jiangtang-dev-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jiangtang -d jiangtang"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  jiangtang-dev-pgdata:

@@ -1,0 +1,52 @@
+export const statusDe = {
+  "status.room.ALL_GOOD": "In Ordnung",
+  "status.room.PROVISIONAL": "Provisorium",
+  "status.room.MAINTENANCE_NEEDED": "Wartung nötig",
+  "status.room.TECH_DEFECT": "Technikdefekt",
+  "status.room.OUT_OF_SERVICE": "Außer Betrieb",
+
+  "status.equipment.OPERATIONAL": "Betriebsbereit",
+  "status.equipment.FAULTY": "Defekt",
+  "status.equipment.MAINTENANCE": "Wartung",
+  "status.equipment.RETIRED": "Ausgemustert",
+
+  "status.ticket.OPEN": "Offen",
+  "status.ticket.IN_PROGRESS": "In Arbeit",
+  "status.ticket.RESOLVED": "Gelöst",
+  "status.ticket.CANCELLED": "Abgebrochen",
+
+  "status.event.PLANNED": "Geplant",
+  "status.event.CONFIRMED": "Bestätigt",
+  "status.event.IN_PROGRESS": "Läuft",
+  "status.event.DONE": "Abgeschlossen",
+  "status.event.CANCELLED": "Abgesagt",
+
+  "status.project.REQUESTED": "Angefragt",
+  "status.project.CONFIRMED": "Bestätigt",
+  "status.project.AWAITING_FEEDBACK": "Warten auf Rückmeldung",
+  "status.project.CONSULTATION_SCHEDULED": "Vorgespräch vereinbart",
+  "status.project.COMPLETED": "Erfolgreich beendet",
+  "status.project.FOLLOW_UP_REQUIRED": "Nachgespräch erforderlich",
+  "status.project.REJECTED": "Abgelehnt",
+  "status.project.CANCELLED": "Abgesagt",
+
+  "status.task.BACKLOG": "Backlog",
+  "status.task.TODO": "Offen",
+  "status.task.IN_PROGRESS": "In Arbeit",
+  "status.task.IN_REVIEW": "Im Review",
+  "status.task.BLOCKED": "Blockiert",
+  "status.task.DONE": "Erledigt",
+  "status.task.CANCELLED": "Abgebrochen",
+
+  "status.taskPriority.URGENT": "Dringend",
+  "status.taskPriority.HIGH": "Hoch",
+  "status.taskPriority.MEDIUM": "Mittel",
+  "status.taskPriority.LOW": "Niedrig",
+  "status.taskPriority.LOWEST": "Niedrigste",
+
+  "status.stock.AVAILABLE": "Verfügbar",
+  "status.stock.REQUESTED": "Angefragt",
+  "status.stock.AWAITING_CONFIRMATION": "Wartet auf Bestätigung",
+  "status.stock.ON_LOAN": "Verliehen",
+  "status.stock.RESERVED_FOR_EVENT": "Für Veranstaltung reserviert",
+};

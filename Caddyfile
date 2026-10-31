@@ -1,0 +1,15 @@
+# Reverse proxy → app. Default ":80" (plain HTTP); set APP_DOMAIN to a real
+# hostname for automatic TLS. NO `encode` block: gzip/zstd buffering would break
+# SSE (text/event-stream), which is the live-update transport. `flush_interval -1`
+# streams responses immediately (SSE + streamed SSR pass through unbuffered).
+{$APP_DOMAIN} {
+	# Drop oversized request bodies at the proxy (image uploads cap at 15MB
+	# app-side; 20MB leaves margin for multipart overhead) so a huge POST can't
+	# reach Node and be buffered into memory.
+	request_body {
+		max_size 20MB
+	}
+	reverse_proxy app:3000 {
+		flush_interval -1
+	}
+}

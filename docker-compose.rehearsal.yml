@@ -1,0 +1,171 @@
+# Local production rehearsal override. Runs the REAL production
+# compose file plus the deltas a rehearsal needs: a separate compose project
+# (so volumes are fresh and never collide with dev), Caddy on 8080 instead of
+# the production 80/443, and a MinIO service standing in for the S3 target so
+# WAL-G backups/WAL archiving are exercised end to end.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.rehearsal.yml up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.rehearsal.yml down -v
+#
+# Throwaway wiring rehearsal: `down -v` is safe because every volume belongs to
+# the jiangtang-rehearsal project — it can never touch the dev volume
+# jiangtang-dev-pgdata. A recovery/PITR rehearsal must be preserved instead:
+# `stop` it and keep the project, volumes and images; never `down -v` when this
+# project is the source for restore verification.
+#
+# Credentials are REQUIRED from the private environment, never constants in this
+# file: REHEARSAL_S3_ACCESS_KEY / REHEARSAL_S3_SECRET_KEY for the stand-in S3
+# target, plus the production-required STORAGE_ENCRYPTION_KEY,
+# BETTER_AUTH_SECRET, POSTGRES_PASSWORD and synthetic ADMIN_* values. No real
+# integration endpoint is inherited: CalDAV, AI and GlitchTip are blanked below.
+name: jiangtang-rehearsal
+
+services:
+  # S3-compatible stand-in for the backup target. RustFS — the MinIO fork —
+  # because MinIO no longer publishes to Docker Hub/quay anonymously (the
+  # minio/minio + minio/mc pulls fail with 401). Internal only: nothing
+  # publishes 9000 to the host; wal-g reaches it as http://minio:9000.
+  minio:
+    image: rustfs/rustfs:latest
+    command: ["server", "/data"]
+    environment:
+      RUSTFS_ACCESS_KEY: ${REHEARSAL_S3_ACCESS_KEY:?set REHEARSAL_S3_ACCESS_KEY in the environment}
+      RUSTFS_SECRET_KEY: ${REHEARSAL_S3_SECRET_KEY:?set REHEARSAL_S3_SECRET_KEY in the environment}
+      RUSTFS_CONSOLE_ENABLE: "false"
+    volumes:
+      - minio:/data
+    restart: unless-stopped
+
+  # One-shot bucket creation with a BOUNDED retry window: an existing accessible
+  # bucket is success; otherwise create it; otherwise retry 30 times, 2 seconds
+  # apart, then exit 1. An unreachable or forbidden endpoint can therefore never
+  # report success and never stalls the stack forever. Nothing here prints a key.
+  minio-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      - minio
+    environment:
+      AWS_ACCESS_KEY_ID: ${REHEARSAL_S3_ACCESS_KEY:?set REHEARSAL_S3_ACCESS_KEY in the environment}
+      AWS_SECRET_ACCESS_KEY: ${REHEARSAL_S3_SECRET_KEY:?set REHEARSAL_S3_SECRET_KEY in the environment}
+      AWS_REGION: eu-central-1
+      WALG_BUCKET: jiangtang-rehearsal
+      MINIO_INIT_ATTEMPTS: ${MINIO_INIT_ATTEMPTS:-30}
+      MINIO_INIT_SLEEP_SECONDS: ${MINIO_INIT_SLEEP_SECONDS:-2}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -u
+        attempt=1
+        while [ "$${attempt}" -le "$${MINIO_INIT_ATTEMPTS}" ]; do
+          # Reuse an existing accessible bucket; only create when it is absent.
+          if aws --endpoint-url http://minio:9000 s3api head-bucket --bucket "$${WALG_BUCKET}" >/dev/null 2>&1; then
+            echo "[minio-init] bucket $${WALG_BUCKET} present"
+            exit 0
+          fi
+          if aws --endpoint-url http://minio:9000 s3 mb "s3://$${WALG_BUCKET}" >/dev/null 2>&1; then
+            echo "[minio-init] bucket $${WALG_BUCKET} created"
+            exit 0
+          fi
+          echo "[minio-init] attempt $${attempt}/$${MINIO_INIT_ATTEMPTS}: bucket not available yet"
+          attempt=$$((attempt + 1))
+          if [ "$${attempt}" -le "$${MINIO_INIT_ATTEMPTS}" ]; then
+            sleep "$${MINIO_INIT_SLEEP_SECONDS}"
+          fi
+        done
+        echo "[minio-init] FATAL: bucket $${WALG_BUCKET} still unavailable after $${MINIO_INIT_ATTEMPTS} attempts" >&2
+        exit 1
+    restart: "no"
+
+  postgres:
+    environment:
+      # Same shape production uses via the Coolify store — pointed at the
+      # rehearsal MinIO instead.
+      WALG_S3_PREFIX: s3://jiangtang-rehearsal
+      AWS_ACCESS_KEY_ID: ${REHEARSAL_S3_ACCESS_KEY:?set REHEARSAL_S3_ACCESS_KEY in the environment}
+      AWS_SECRET_ACCESS_KEY: ${REHEARSAL_S3_SECRET_KEY:?set REHEARSAL_S3_SECRET_KEY in the environment}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_REGION: eu-central-1
+      AWS_S3_FORCE_PATH_STYLE: "true"
+    # WAL archiving errors until the bucket exists; Postgres retries WAL pushes
+    # forever, so no ordering dependency is needed here.
+
+  backup:
+    # Inherits the same locally built pg18+wal-g image as postgres (built once
+    # per project — the compose file gives both services the same build).
+    environment:
+      WALG_S3_PREFIX: s3://jiangtang-rehearsal
+      AWS_ACCESS_KEY_ID: ${REHEARSAL_S3_ACCESS_KEY:?set REHEARSAL_S3_ACCESS_KEY in the environment}
+      AWS_SECRET_ACCESS_KEY: ${REHEARSAL_S3_SECRET_KEY:?set REHEARSAL_S3_SECRET_KEY in the environment}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_REGION: eu-central-1
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      RESTORE_DRILL_ENABLED: ""
+    # The first backup-push must not race bucket creation: wait for the bucket
+    # as well as for PostgreSQL itself.
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  # Same S3 target for the profile-gated restore service — the destructive
+  # drill is `stop postgres backup` →
+  # `RESTORE_CONFIRM=empty-target ... --profile restore run --rm --no-deps restore`
+  # → `start postgres` (replays the WAL that holds the post-backup marker).
+  # No postgres dependency: a restore must never auto-start PostgreSQL.
+  restore:
+    environment:
+      WALG_S3_PREFIX: s3://jiangtang-rehearsal
+      AWS_ACCESS_KEY_ID: ${REHEARSAL_S3_ACCESS_KEY:?set REHEARSAL_S3_ACCESS_KEY in the environment}
+      AWS_SECRET_ACCESS_KEY: ${REHEARSAL_S3_SECRET_KEY:?set REHEARSAL_S3_SECRET_KEY in the environment}
+      AWS_ENDPOINT: http://minio:9000
+      AWS_REGION: eu-central-1
+      AWS_S3_FORCE_PATH_STYLE: "true"
+    depends_on:
+      minio-init:
+        condition: service_completed_successfully
+
+  app:
+    environment:
+      # Rehearsal talks plain HTTP through Caddy on :8080.
+      BETTER_AUTH_URL: http://localhost:8080
+      # No real integration configuration may leak into a rehearsal. Blank the
+      # push, AI and error-reporting seams; unset = cleanly degraded.
+      GLITCHTIP_DSN: ""
+      ICAL_FEED_TOKEN: ""
+      CALDAV_URL: ""
+      CALDAV_USERNAME: ""
+      CALDAV_PASSWORD: ""
+      EMBEDDING_BASE_URL: ""
+      EMBEDDING_MODEL: ""
+      EMBEDDING_API_KEY: ""
+      EMBEDDING_DIMENSIONS: ""
+      EMBEDDING_SEND_DIMENSIONS: ""
+      EMBEDDING_QUERY_TEMPLATE: ""
+      EMBEDDING_QUERY_INSTRUCTION: ""
+      EMBEDDING_PASSAGE_TEMPLATE: ""
+      RERANK_BASE_URL: ""
+      RERANK_MODEL: ""
+      RERANK_API_KEY: ""
+      GENERATION_BASE_URL: ""
+      GENERATION_MODEL: ""
+      GENERATION_API_KEY: ""
+      GENERATION_MAX_TOKENS: ""
+      GENERATION_SYSTEM_ROLE: ""
+      # The chunk indexer stays ENABLED (empty is the enabled default; only
+      # "off" disables) so lexical search is reconciled during the rehearsal.
+      SEARCH_INDEXER: ""
+
+  alerting:
+    environment:
+      # Never page a real channel from a rehearsal.
+      ALERT_WEBHOOK: ""
+
+  caddy:
+    ports: !override
+      - "8080:80"
+    environment:
+      APP_DOMAIN: ":80"
+
+volumes:
+  minio:

@@ -1,0 +1,126 @@
+import { Link } from "react-router";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Ticket as TicketIcon } from "lucide-react";
+import { cn } from "~/lib/utils";
+import type { MessageKey } from "~/i18n";
+import { useT } from "~/i18n/use-t";
+import type { TicketStatus, TicketType } from "~/generated/prisma/client";
+
+/**
+ * A ticket card in `/board`'s work mode. Tickets sort **below** the tasks
+ * of a lane, in a fixed view order — they are `useDraggable`, NOT sortable:
+ * dropping one only ever changes its lane (there is no ticket position column),
+ * and a same-lane drop is ignored by the board before any POST.
+ *
+ * The draggable id is namespaced (`ticket:<cuid>`) so it can never collide with
+ * a task id in the DndContext registry and the board can tell the two families
+ * apart by the id alone.
+ */
+export interface BoardTicket {
+  id: string;
+  shortId: string;
+  title: string;
+  type: TicketType;
+  status: TicketStatus;
+  priority: number | null;
+  room: { slug: string; name: string; roomNumber: string | null } | null;
+  assignees: Array<{ id: string; name: string; initials: string | null }>;
+}
+
+export const ticketDragId = (id: string) => `ticket:${id}`;
+export const parseTicketDragId = (id: string): string | null =>
+  id.startsWith("ticket:") ? id.slice("ticket:".length) : null;
+
+/** Ticket priority (1–3) → catalog key; an unknown number falls back to the raw value. */
+const TICKET_PRIORITY_KEYS: Partial<Record<number, MessageKey>> = {
+  1: "board.ticket.priority.1",
+  2: "board.ticket.priority.2",
+  3: "board.ticket.priority.3",
+};
+
+export function TicketCard({ ticket }: { ticket: BoardTicket }) {
+  const t = useT();
+  const priorityKey = ticket.priority != null ? TICKET_PRIORITY_KEYS[ticket.priority] : undefined;
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDraggableNodeRef,
+    transform,
+    isDragging,
+  } = useDraggable({
+    id: ticketDragId(ticket.id),
+  });
+  // The card is also a droppable so keyboard dragging works: the board's
+  // sortableKeyboardCoordinates needs the active item in the droppable
+  // registry, and without it arrow keys move nothing. `onDragEnd` resolves a
+  // ticket target to its lane through the same id.
+  const { setNodeRef: setDroppableNodeRef } = useDroppable({ id: ticketDragId(ticket.id) });
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDraggableNodeRef(node);
+    setDroppableNodeRef(node);
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform) }}
+      className={cn(
+        "border-border bg-muted/60 flex flex-col gap-1.5 rounded-sm border border-dashed p-2 text-sm",
+        isDragging && "border-primary z-10 opacity-80 shadow-md",
+      )}
+      {...listeners}
+    >
+      <div className="flex items-start gap-1.5">
+        {/* Same split as TaskCard: role/tabIndex/aria on the grip handle so
+            the card does not become an interactive parent of the links. */}
+        <button
+          type="button"
+          {...attributes}
+          aria-label={t("board.ticket.gripAria", { title: ticket.title })}
+          className="text-muted-foreground hover:bg-accent mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm focus-visible:outline-1 focus-visible:outline-primary active:cursor-grabbing"
+        >
+          <GripVertical className="size-3.5" aria-hidden />
+        </button>
+        <TicketIcon
+          className="text-muted-foreground mt-0.5 size-3.5 shrink-0"
+          aria-label={t("board.ticket.iconAria")}
+          role="img"
+        />
+        <Link
+          to={`/tickets/${ticket.id}`}
+          className="hover:underline focus-visible:outline-1 focus-visible:outline-primary"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {ticket.title}
+        </Link>
+        {ticket.priority != null ? (
+          <span className="text-muted-foreground ml-auto shrink-0 font-mono text-xs">
+            {priorityKey ? t(priorityKey) : ticket.priority}
+          </span>
+        ) : null}
+      </div>
+      <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+        <span className="font-mono">{ticket.shortId}</span>
+        <span className="border-border rounded-sm border px-1 py-px font-mono text-[10px]">
+          {t(`search.ticketType.${ticket.type}`)}
+        </span>
+        {ticket.room ? (
+          <Link to={`/rooms/${ticket.room.slug}`} className="font-mono hover:underline">
+            {ticket.room.roomNumber ?? ticket.room.name}
+          </Link>
+        ) : null}
+        <span className="ml-auto flex gap-0.5">
+          {ticket.assignees.map((a) => (
+            <span
+              key={a.id}
+              title={a.name}
+              className="border-border bg-secondary text-secondary-foreground inline-flex items-center rounded-sm border px-1 py-0.5 font-mono text-[10px]"
+            >
+              {a.initials ?? a.name}
+            </span>
+          ))}
+        </span>
+      </div>
+    </div>
+  );
+}

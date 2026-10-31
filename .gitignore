@@ -1,0 +1,58 @@
+node_modules/
+/build/
+/.react-router/
+/app/generated/
+/data/
+*.log
+
+# Environment files — real values never enter source control. Only the two
+# checked-in examples are exempt.
+.env
+.env.*
+.envrc
+.envrc.*
+!.env.example
+!.env.production.example
+
+# Local agent / IDE tooling (machine-local config + caches, not part of the product)
+/.claude/
+/.qoder/
+/.codex/
+/.cursor/
+/.aider*
+/.continue/
+/.history/
+/.idea/
+/.vscode/
+*.iml
+
+# Local caches and generated type state
+.cache/
+.turbo/
+.pnpm-store/
+.vitest/
+.eslintcache
+coverage/
+*.tsbuildinfo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary editor / backup files
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+*.tmp
+
+# Playwright — traces/screenshots on failure + saved admin session
+/test-results/
+/playwright-report/
+/e2e/.auth/
+/e2e/.run-id
+
+# Python bytecode from the ops/postgres selector tests
+__pycache__/

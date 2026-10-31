@@ -1,0 +1,204 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: this workflow only reads the repository. It never publishes
+# images, packages or wiki pages, and it needs no repository write token.
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+
+    # Postgres 18 + pgvector — must match dev and production. No volume mount,
+    # so the PG18 data-dir guard never trips. On stock `postgres:18` `vector` is
+    # not even in pg_available_extensions and `pnpm db:deploy` fails.
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg18-trixie
+        env:
+          POSTGRES_USER: jiangtang
+          POSTGRES_PASSWORD: jiangtang
+          POSTGRES_DB: jiangtang
+          TZ: Europe/Berlin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jiangtang -d jiangtang"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Main database. `pnpm test` does not write here: test/global-setup.ts
+      # derives and provisions the isolated `jiangtang_test` sibling from this
+      # URL. The browser gate provisions `jiangtang_e2e` below.
+      DATABASE_URL: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang?schema=public
+      TZ: Europe/Berlin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # pinned (prod parity) — local dev may run newer
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Golden-rule guards (import bans, mutation funnel, EXCLUDE-column drop).
+      - run: bash scripts/guards.sh
+
+      # Negative control for the migration guard: comment-quoted drops must be
+      # ignored, executable (including lowercase) drops must be detected.
+      - run: bash scripts/guards.sh --self-test
+
+      # The time-targeted backup selector tests. Standard library only: no
+      # pip dependencies are installed.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - run: python3 -m unittest discover -s ops/postgres -p test_select_backup.py
+
+      # ── In-image ops checks ───────────────────────────────────────
+      # The suite above tests the RUNNER's Python. The two runs below execute
+      # inside the shipped WAL-G image instead, where the restore guard's real
+      # ownership tools (chown/chmod/stat/gosu and the postgres account) are the
+      # ones under test — only wal-g is stubbed. The image is built once here
+      # from the checkout's public ops/postgres directory and reused by both
+      # runs; the tag is job-scoped and nothing is pushed or published. A
+      # nonzero exit in any of the three fails the job as usual.
+      - name: Build the WALG PostgreSQL image
+        run: docker build --platform linux/amd64 -f ops/postgres/Dockerfile.walg -t jiangtang-postgres-walg:ci ops/postgres
+
+      - name: In-image restore guard suite
+        run: docker run --rm --network none -v "$PWD/ops/postgres:/ops:ro" jiangtang-postgres-walg:ci bash /ops/test-restore-guards.sh
+
+      - name: In-image backup selector suite
+        run: docker run --rm --network none -v "$PWD/ops/postgres:/ops:ro" jiangtang-postgres-walg:ci python3 -m unittest discover -s /ops -p test_select_backup.py
+
+      # app/generated/ is gitignored — regenerate the client before typecheck.
+      - run: pnpm db:generate
+
+      # Apply migrations (incl. the hand-folded EXCLUDE + audit-immutability SQL).
+      - run: pnpm db:deploy
+
+      - run: pnpm typecheck
+
+      # Correctness lint (floating promises, hook deps); formatting is not gated.
+      - run: pnpm lint
+
+      # Load-bearing CI guard: EXCLUDE rejects overlaps (23P01); ActivityLog immutable.
+      - run: pnpm test
+
+      # Catch build-only breakage (e.g. client/server import mixups) before deploy.
+      - run: pnpm build
+
+      # ── Browser gate ─────────────────────────────────────────────────────
+      # A database of its own (`jiangtang_e2e`, required suffix by
+      # playwright.config.ts validation) so the gate never shares the Vitest
+      # database. The service health check has passed before steps run.
+      - name: Create isolated E2E database
+        env:
+          E2E_DATABASE_URL: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang_e2e?schema=public
+        run: |
+          node --input-type=module - <<'JS'
+          import pg from "pg";
+          const target = new URL(process.env.E2E_DATABASE_URL);
+          const name = decodeURIComponent(target.pathname.replace(/^\//, ""));
+          const admin = new URL(process.env.E2E_DATABASE_URL);
+          admin.pathname = "/postgres";
+          admin.search = "";
+          const client = new pg.Client({ connectionString: admin.toString() });
+          await client.connect();
+          try {
+            const { rows } = await client.query(
+              "SELECT 1 FROM pg_database WHERE datname = $1",
+              [name],
+            );
+            if (rows.length === 0) {
+              await client.query(`CREATE DATABASE "${name.replaceAll('"', '""')}"`);
+              console.log(`created database ${name}`);
+            } else {
+              console.log(`database ${name} already exists`);
+            }
+          } finally {
+            await client.end();
+          }
+          JS
+
+      # Migrations + the idempotent demo seed, against the E2E database
+      # explicitly. prisma.config.ts reads DATABASE_URL; `migrate deploy` never
+      # touches a shadow database.
+      - name: Migrate and seed the E2E database
+        env:
+          DATABASE_URL: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang_e2e?schema=public
+          DEFAULT_LOCALE: de
+        run: |
+          pnpm db:deploy
+          pnpm db:seed
+
+      - name: Install Chromium with system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      # The upload-encryption key is generated per job so no key material is
+      # committed; the E2E step below picks it up from the job environment.
+      - name: Generate a throwaway upload-encryption key
+        run: echo "STORAGE_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      # Every value below is synthetic and constructed here; nothing is read
+      # from a .env file. Names follow playwright.config.ts,
+      # e2e/global-setup.ts, test/test-db.ts and the app's boot modules:
+      #   - DATABASE_URL_E2E is validated at config evaluation (suffix `_e2e`).
+      #   - ADMIN_EMAIL/ADMIN_PASSWORD are the login used by global-setup; the
+      #     development seed creates the same account from DEV_ADMIN_*.
+      #   - BETTER_AUTH_SECRET signs sessions; STORAGE_* configures encrypted
+      #     local uploads (64-hex key, synthetic).
+      #   - External integrations (AI endpoints, CalDAV, GlitchTip telemetry)
+      #     are explicitly blank, so the run cannot call an outside service.
+      - name: E2E browser gate (loopback :3100)
+        env:
+          E2E_BASE_URL: http://127.0.0.1:3100
+          DATABASE_URL_E2E: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang_e2e?schema=public
+          DEFAULT_LOCALE: de
+          BETTER_AUTH_URL: http://127.0.0.1:3100
+          BETTER_AUTH_SECRET: e2e-synthetic-better-auth-secret-not-a-real-credential
+          ADMIN_EMAIL: admin@jiangtang.local
+          ADMIN_PASSWORD: e2e-synthetic-admin-password
+          ADMIN_INITIALS: EA
+          DEV_ADMIN_EMAIL: admin@jiangtang.local
+          DEV_ADMIN_PASSWORD: e2e-synthetic-admin-password
+          STORAGE_DIR: ${{ runner.temp }}/jiangtang-e2e-attachments
+          STORAGE_KEY_SALT: e2e-synthetic-salt
+          EMBEDDING_BASE_URL: ""
+          RERANK_BASE_URL: ""
+          GENERATION_BASE_URL: ""
+          GLITCHTIP_DSN: ""
+          CALDAV_URL: ""
+          CALDAV_USERNAME: ""
+          CALDAV_PASSWORD: ""
+        # `pnpm test:e2e` exits non-zero on any test failure, a global-setup
+        # failure (login/route priming) or an incomplete teardown — a browser
+        # failure fails the job.
+        run: pnpm test:e2e
+
+      # Failure diagnostics only. The paths contain Playwright's HTML report and
+      # per-test traces/screenshots from synthetic data; `e2e/.auth` (session
+      # state) and environment files are not uploaded. Short retention.
+      - name: Upload Playwright failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-failure-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 3
+          if-no-files-found: ignore

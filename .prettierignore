@@ -1,0 +1,10 @@
+app/generated/
+build/
+.react-router/
+node_modules/
+coverage/
+.claude/
+pnpm-lock.yaml
+prisma/migrations/
+public/
+*.md

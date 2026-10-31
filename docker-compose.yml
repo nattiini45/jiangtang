@@ -1,0 +1,316 @@
+# Production stack under Coolify: Caddy (auto-TLS) → app, postgres:18, and a
+# one-shot migrate job gated on a healthy DB. Secrets come from the environment /
+# Coolify store (compose interpolates from a .env file locally) — never committed.
+# Distinct project name so it never collides with the dev DB (docker-compose.dev.yml).
+name: jiangtang-prod
+services:
+  postgres:
+    # pgvector: the `vector` extension is NOT in the stock postgres image, and
+    # the extension install in migration `20261023000000_extensions` cannot run
+    # without it. `-trixie` is deliberate - the untagged
+    # 0.8.7-pg18 alias is bookworm, which would silently change the Debian base
+    # of production under a same-volume backup sidecar.
+    #
+    # The image is built locally (ops/postgres/Dockerfile.walg = pgvector pg18
+    # + the wal-g binary): `archive_command` below runs `wal-g wal-push` INSIDE
+    # this container, and the upstream pgvector image carries no wal-g — a
+    # pull-only postgres would archive nothing while appearing healthy.
+    image: ${POSTGRES_IMAGE:-jiangtang-postgres-walg:local}
+    build:
+      context: .
+      dockerfile: ops/postgres/Dockerfile.walg
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jiangtang}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}
+      POSTGRES_DB: ${POSTGRES_DB:-jiangtang}
+      # Explicit (not relying on the image's implicit default) so the backup sidecar,
+      # which mounts the same volume, can target the exact same versioned subdir.
+      PGDATA: /var/lib/postgresql/18/docker
+      TZ: Europe/Berlin
+      PGTZ: Europe/Berlin
+      # PITR / WAL archiving. WAL-G ships WAL segments to S3 as they're
+      # generated; the backup sidecar takes periodic base backups. Both read WALG_*
+      # from the environment. When WALG_S3_PREFIX is unset, archiving is a no-op
+      # (dev/local) — production sets it via the Coolify store.
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      # Path-style S3 addressing — required by self-hosted targets (MinIO & co).
+      AWS_S3_FORCE_PATH_STYLE: ${AWS_S3_FORCE_PATH_STYLE:-}
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "archive_mode=on"
+      # archive_command pushes each WAL segment to the backup target; true (noop)
+      # when WALG_S3_PREFIX is empty so dev/postgres-only runs still work.
+      # $$ so compose leaves a literal $ for the postgres server (running inside the
+      # container) to expand per WAL segment — a bare $VAR here would be interpolated
+      # by `compose config` at render time (host/.env scope, where these secrets are
+      # unset), permanently freezing this into the `else true` no-op branch.
+      - "-c"
+      - 'archive_command=if [ -n "$$WALG_S3_PREFIX" ]; then wal-g wal-push %p; else true; fi'
+    volumes:
+      # PG18 manages major-version subdirs — mount the PARENT, not .../data.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jiangtang} -d ${POSTGRES_DB:-jiangtang}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Scheduled base backup + WAL retention (PITR). Sides with postgres,
+  # shares the WALG_* creds. Runs a base backup daily via cron.
+  backup:
+    # Same locally built pg18+wal-g image as the postgres service (it carries
+    # wal-g plus psql/pg_ctl for the restore path). wal-g/wal-g is no longer
+    # pullable from a public registry, so the default is the local build — set
+    # BACKUP_IMAGE to a mirrored tag if the host prefers a pre-built image.
+    image: ${BACKUP_IMAGE:-jiangtang-postgres-walg:local}
+    build:
+      context: .
+      dockerfile: ops/postgres/Dockerfile.walg
+    environment:
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      AWS_S3_FORCE_PATH_STYLE: ${AWS_S3_FORCE_PATH_STYLE:-}
+      # Number of FULL base backups kept (a count, not days). Unset-only default (`-`,
+      # not `:-`): an explicitly empty value reaches backup.sh and is rejected, not 7.
+      WALG_RETENTION_COUNT: ${WALG_RETENTION_COUNT-7}
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-jiangtang}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}
+      # The restored database name is explicit: the drill must query the same DB
+      # the backup was taken from.
+      PGDATABASE: ${POSTGRES_DB:-jiangtang}
+      # Must match the postgres service's PGDATA above — same volume, same versioned
+      # subdir (PG18 keeps data under .../18/docker, not the mount root).
+      PGDATA: /var/lib/postgresql/18/docker
+      # Opt-in monthly PITR restore drill ("a backup isn't a backup until a
+      # restore is tested"). Default OFF — set to 1 to run inside this sidecar.
+      RESTORE_DRILL_ENABLED: ${RESTORE_DRILL_ENABLED:-}
+    volumes:
+      - pgdata:/var/lib/postgresql:ro
+      - ./ops/postgres:/ops:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        bash /ops/backup.sh || true
+        # daily base backup thereafter; opt-in restore drill runs at most once a
+        # month (first pass on the 1st, guarded by a marker file so a same-day
+        # restart doesn't re-run it). Kept deliberately dumb + readable.
+        while true; do
+          sleep 24h
+          bash /ops/backup.sh || true
+          if [ -n "$${RESTORE_DRILL_ENABLED}" ]; then
+            day="$$(date -u +%d)"
+            marker="/tmp/restore-drill-$$(date -u +%Y-%m)"
+            if [ "$${day}" = "01" ] && [ ! -f "$${marker}" ]; then
+              # The marker is a SUCCESS record: a failed drill must leave it
+              # absent (and stay visible in the logs) rather than go green.
+              if bash /ops/restore-drill.sh; then
+                touch "$${marker}"
+              else
+                echo "[backup] restore drill FAILED — no success marker written" >&2
+              fi
+            fi
+          fi
+        done
+    restart: unless-stopped
+
+  # Disaster restore (PITR). Profile-gated so it never starts with the
+  # stack; the backup service mounts pgdata READ-ONLY, so restores run through
+  # this service with the volume writable:
+  #
+  #   docker compose stop postgres backup
+  #   RESTORE_CONFIRM=empty-target docker compose --profile restore run --rm --no-deps restore
+  #   docker compose start postgres   # replays WAL, promotes, then verify-invariants
+  #
+  # --no-deps keeps the restore command from starting PostgreSQL (or any other
+  # dependency). The data volume must already be missing or completely empty;
+  # restore.sh refuses a populated target and never deletes one.
+  #
+  # Without TARGET_TS the latest available base is fetched (no replay-completeness
+  # claim). TARGET_TS=<iso ts> BACKUP_NAME=base_<24 hex> is a validated PITR
+  # restore: the base must be a full backup finished at or before the target.
+  restore:
+    profiles: ["restore"]
+    image: ${BACKUP_IMAGE:-jiangtang-postgres-walg:local}
+    build:
+      context: .
+      dockerfile: ops/postgres/Dockerfile.walg
+    environment:
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_ENDPOINT: ${AWS_ENDPOINT:-}
+      AWS_REGION: ${AWS_REGION:-eu-central-1}
+      AWS_S3_FORCE_PATH_STYLE: ${AWS_S3_FORCE_PATH_STYLE:-}
+      TARGET_TS: ${TARGET_TS:-}
+      BACKUP_NAME: ${BACKUP_NAME:-}
+      RESTORE_CONFIRM: ${RESTORE_CONFIRM:-}
+      PGDATA: /var/lib/postgresql/18/docker
+    volumes:
+      - pgdata:/var/lib/postgresql
+      - ./ops/postgres:/ops:ro
+    entrypoint: ["/bin/bash", "/ops/restore.sh"]
+    restart: "no"
+
+  # Downtime alerting sidecar. Polls the app's /healthz every 60s and
+  # pages ALERT_WEBHOOK (Mattermost/Slack-compatible) on failure. alpine/curl gives
+  # curl + sh in a tiny image (the backup image is wal-g, no curl). When
+  # ALERT_WEBHOOK is empty it idles cleanly (sleep infinity) — the script hard-
+  # requires the webhook, so we must not invoke it unconfigured.
+  #
+  # healthcheck-alert.sh is a bash script (printf -v / arithmetic loop for the
+  # RFC-8259 JSON escaping of the untrusted healthz body); alpine/curl only ships
+  # busybox sh, so we apk-add bash once at startup and invoke the script via bash
+  # (not its shebang). Idempotent + cached, so restarts are cheap.
+  alerting:
+    image: ${ALERTING_IMAGE:-alpine/curl:latest}
+    environment:
+      HEALTH_URL: ${HEALTH_URL:-http://app:3000/healthz}
+      ALERT_WEBHOOK: ${ALERT_WEBHOOK:-}
+    volumes:
+      - ./ops/alerting:/ops:ro
+    depends_on:
+      - app
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -z "$${ALERT_WEBHOOK}" ]; then
+          echo "[alerting] ALERT_WEBHOOK unset — alerting disabled; idling."
+          exec sleep infinity
+        fi
+        command -v bash >/dev/null 2>&1 || apk add --no-cache bash
+        # || true so a single failed poll (or a paged alert) never kills the loop.
+        while true; do bash /ops/healthcheck-alert.sh || true; sleep 60; done
+    restart: unless-stopped
+
+  # One-shot: applies pending migrations (incl. the hand-folded EXCLUDE + audit
+  # immutability SQL) via `prisma migrate deploy`, then runs the read-only
+  # invariant verification (ops/postgres/verify-invariants.sql). A failed check
+  # fails THIS job, and because `app` depends on service_completed_successfully
+  # the app never starts against a database missing an un-droppable invariant
+  # — the "minimum real net for prod".
+  migrate:
+    build:
+      context: .
+    command:
+      - "sh"
+      - "-c"
+      - "./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/prisma db execute --file /ops/verify-invariants.sql"
+    healthcheck:
+      disable: true # one-shot job; the image's /login healthcheck doesn't apply
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jiangtang}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}@postgres:5432/${POSTGRES_DB:-jiangtang}?schema=public
+      TZ: Europe/Berlin
+    volumes:
+      - ./ops/postgres:/ops:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-jiangtang}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}@postgres:5432/${POSTGRES_DB:-jiangtang}?schema=public
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in the environment}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost}
+      TZ: Europe/Berlin
+      STORAGE_DRIVER: fs
+      STORAGE_DIR: /data/uploads
+      # Upload encryption (AES-256-GCM). Required in production: compose refuses to
+      # render/start without it, and the app fails on the first encrypt/decrypt use.
+      # Generate with `openssl rand -hex 32`; keep a durable copy.
+      STORAGE_ENCRYPTION_KEY: ${STORAGE_ENCRYPTION_KEY:?set STORAGE_ENCRYPTION_KEY in the environment}
+      # Optional scrypt salt override. Only used when STORAGE_ENCRYPTION_KEY is a
+      # passphrase (not 64 hex chars). Fresh installs only; empty = built-in default.
+      STORAGE_KEY_SALT: ${STORAGE_KEY_SALT:-}
+      # Observability: GlitchTip is deployed separately; inject its DSN here.
+      GLITCHTIP_DSN: ${GLITCHTIP_DSN:-}
+      # Workspace UI language for visitors without a language cookie or browser
+      # preference, and for server-generated text: "en" or "de".
+      DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}
+      # Structured-logging level (pino).
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # ActivityLog retention window in days (default ~7 years).
+      ACTIVITY_RETENTION_DAYS: ${ACTIVITY_RETENTION_DAYS:-2555}
+      # Self-hosted iCal feed token (generate a long random; /calendar/<token>.ics).
+      ICAL_FEED_TOKEN: ${ICAL_FEED_TOKEN:-}
+      # First-admin bootstrap (runs once, idempotent). Empty = skip.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_INITIALS: ${ADMIN_INITIALS:-}
+      # Calendar push (CalDAV, output-only). Empty = publisher idle (Noop).
+      CALDAV_URL: ${CALDAV_URL:-}
+      CALDAV_USERNAME: ${CALDAV_USERNAME:-}
+      CALDAV_PASSWORD: ${CALDAV_PASSWORD:-}
+      # AI seams (OpenAI-compatible endpoints; all optional). Unset =
+      # capability degrades cleanly: search stays lexical, Ask answers "kein
+      # Antwortmodell", embeddings aren't produced. A *_BASE_URL without its
+      # *_MODEL is reported "misconfigured" on /admin/index, never a crash.
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-}
+      EMBEDDING_SEND_DIMENSIONS: ${EMBEDDING_SEND_DIMENSIONS:-}
+      EMBEDDING_QUERY_TEMPLATE: ${EMBEDDING_QUERY_TEMPLATE:-}
+      EMBEDDING_QUERY_INSTRUCTION: ${EMBEDDING_QUERY_INSTRUCTION:-}
+      EMBEDDING_PASSAGE_TEMPLATE: ${EMBEDDING_PASSAGE_TEMPLATE:-}
+      RERANK_BASE_URL: ${RERANK_BASE_URL:-}
+      RERANK_MODEL: ${RERANK_MODEL:-}
+      RERANK_API_KEY: ${RERANK_API_KEY:-}
+      GENERATION_BASE_URL: ${GENERATION_BASE_URL:-}
+      GENERATION_MODEL: ${GENERATION_MODEL:-}
+      GENERATION_API_KEY: ${GENERATION_API_KEY:-}
+      GENERATION_MAX_TOKENS: ${GENERATION_MAX_TOKENS:-}
+      GENERATION_SYSTEM_ROLE: ${GENERATION_SYSTEM_ROLE:-}
+      # Background chunk indexer; "off" disables it.
+      SEARCH_INDEXER: ${SEARCH_INDEXER:-}
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Default ":80" → plain HTTP locally; set a real hostname for auto-TLS.
+      APP_DOMAIN: ${APP_DOMAIN:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

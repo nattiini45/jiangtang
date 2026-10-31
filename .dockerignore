@@ -1,0 +1,67 @@
+# Build context for the app/migrate images and the local WAL-G image. Three
+# compose services build from this repository root, so nothing the build or the
+# migrate job consumes may be excluded here.
+
+# Installed dependencies and generated runtime output — recreated inside the image.
+**/node_modules
+/build
+/.react-router
+/app/generated
+/data
+**/coverage
+**/.eslintcache
+**/*.tsbuildinfo
+
+# Git and tool metadata — never part of the image.
+.git
+.github
+.gitignore
+.gitattributes
+.dockerignore
+**/.claude
+**/.qoder
+**/.codex
+**/.cursor
+**/.vscode
+**/.idea
+**/.history
+**/*.iml
+**/.DS_Store
+**/Thumbs.db
+**/desktop.ini
+
+# Environment files — real configuration is supplied at runtime, never baked in.
+**/.env
+**/.env.*
+**/.envrc
+**/.envrc.*
+**/*.pem
+
+# Documentation and agent guides are not needed in the image.
+docs
+AGENTS.md
+CLAUDE.md
+docker
+
+# Test sources, test artefacts and saved browser sessions.
+test
+e2e
+test-results
+playwright-report
+**/*.har
+**/.auth
+**/auth.json
+**/storage-state.json
+**/__pycache__
+**/*.pyc
+
+# Logs and temporary/backup files.
+**/*.log
+**/*.bak
+**/*.orig
+**/*.rej
+**/*.swp
+**/*~
+**/*.tmp
+
+# Keep prisma/ (schema + migrations) and prisma.config.ts — the migrate job needs them.

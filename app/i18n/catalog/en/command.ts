@@ -1,0 +1,40 @@
+import type { commandDe } from "../de/command";
+
+export const commandEn = {
+  "command.label": "Command palette",
+  "command.placeholder": "Command or search, e.g. “Create task”…",
+  "command.searching": "Searching…",
+  "command.noResults": "No results",
+  "command.commands": "Commands",
+  "command.searchFor": "Search for “{query}”",
+
+  "command.group.navigation": "Navigation",
+  "command.group.create": "Create",
+  "command.group.view": "View",
+  "command.group.admin": "Admin",
+  "command.group.task": "Task",
+
+  "command.verb.goto": "Go to {label}",
+  "command.verb.newTask": "Create task",
+  "command.verb.newNote": "Create note",
+  "command.verb.newProject": "Create project",
+  "command.verb.newTicket": "Log ticket",
+  "command.verb.searchQuery": "Search for “…”",
+  "command.verb.toggleTheme": "Switch theme",
+  "command.verb.toggleDensity": "Switch density",
+  "command.verb.reconcileIndex": "Reconcile search index",
+  "command.verb.assignMe": "Assign to me",
+  "command.verb.setStatus": "Set status: {status}",
+  "command.verb.editTitle": "Edit title",
+
+  "command.entity.room": "Rooms",
+  "command.entity.ticket": "Tickets",
+  "command.entity.event": "Events",
+  "command.entity.equipment": "Equipment",
+  "command.entity.inventory-item": "Stock",
+  "command.entity.task": "Tasks",
+  "command.entity.note": "Notes",
+  "command.entity.project": "Projects",
+  "command.entity.location": "Locations",
+  "command.entity.vendor": "Vendors",
+} satisfies Record<keyof typeof commandDe, string>;

@@ -1,0 +1,1026 @@
+// Jiangtang data model — a normalized lecture-hall and AV-equipment inventory.
+// Prisma 7 (Rust-free) + PostgreSQL 18.
+//
+// NOTE: the no-double-booking constraints (room + pooled equipment) are GiST
+// EXCLUDE constraints over a generated tstzrange column. Prisma cannot model
+// range types / exclusion constraints, so they live in the hand-written SQL
+// migration `20261023000200_booking_constraints`, never in this file. A CI
+// test asserts they exist and reject overlaps — never let `prisma db push`
+// reconcile them away.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7 (Rust-free): the connection URL lives in prisma.config.ts (for the
+  // CLI/Migrate) and is passed to PrismaClient via the @prisma/adapter-pg driver
+  // adapter at runtime. `url` is intentionally NOT set here.
+  provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum RoomStatus {
+  ALL_GOOD
+  PROVISIONAL
+  MAINTENANCE_NEEDED
+  TECH_DEFECT
+  OUT_OF_SERVICE
+}
+
+enum EquipmentStatus {
+  OPERATIONAL
+  FAULTY
+  MAINTENANCE
+  RETIRED
+}
+
+enum EquipmentMobility {
+  FIXED
+  POOLED
+}
+
+enum EquipmentCategory {
+  PROJECTOR
+  PC
+  MICROPHONE
+  MEDIA_CONTROL
+  AUDIO
+  RECORDER
+  SMARTBOARD
+  REMOTE
+  SWITCHER
+  OTHER
+}
+
+enum MicKind {
+  HANDHELD // Handsender
+  BODYPACK // Taschensender
+  GOOSENECK // Schwanenhals
+}
+
+enum TicketType {
+  INCIDENT // current problem (legacy: Fehler-/Problembeschreibung)
+  REQUEST // task to do (legacy: Aufgaben)
+  REPAIR // resolution log entry (legacy: Reparaturen u.ä.)
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CANCELLED
+}
+
+enum EventStatus {
+  PLANNED
+  CONFIRMED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum ServiceWindowKind {
+  SETUP
+  STANDBY
+  TEARDOWN
+}
+
+enum AttachmentCategory {
+  ROOM
+  CONTROL_PANEL
+  CONNECTION_PANEL
+  EQUIPMENT
+  TICKET
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+// ── Location ─────────────────────────────────────────────────────────────────
+
+model Campus {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  slug      String     @unique
+  buildings Building[]
+  rooms     Room[]
+  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime   @updatedAt @db.Timestamptz(3)
+}
+
+model Building {
+  id       String  @id @default(cuid())
+  campusId String
+  campus   Campus  @relation(fields: [campusId], references: [id])
+  name     String
+  code     String?
+  rooms    Room[]
+
+  @@unique([campusId, name])
+}
+
+model Room {
+  id         String  @id @default(cuid())
+  slug       String  @unique
+  name       String
+  roomNumber String? // "Raum" e.g. D.11.23
+  campusId   String?
+  campus     Campus?   @relation(fields: [campusId], references: [id])
+  buildingId String?
+  building   Building? @relation(fields: [buildingId], references: [id])
+
+  capacity Int?
+  owner    String? // "Besitzer/-in"
+  status   RoomStatus @default(ALL_GOOD)
+
+  hasProjector     Boolean @default(false)
+  hasMicrophony    Boolean @default(false)
+  hasBlackboard    Boolean @default(false) // Tafel
+  hasWebConference Boolean @default(false)
+  hasAutoRecording Boolean @default(false) // Mediasite
+  mediaKeyRequired Boolean @default(false)
+
+  lastCheckedAt DateTime? @db.Timestamptz(3)
+  videoInputs   String[] // capability list
+  audioOutputs  String[]
+
+  bookingUrl     String? // external room-booking link
+  manualUrl      String?
+  virtualTourUrl String?
+  tipsNotes      String?
+
+  renewalStatus String?
+  renewalFrom   DateTime? @db.Timestamptz(3)
+  renewalTo     DateTime? @db.Timestamptz(3)
+
+  notionPageId String? @unique // migration idempotency
+
+  equipment     Equipment[]
+  tickets       Ticket[]
+  attachments   Attachment[]
+  eventBookings EventRoomBooking[]
+  serviceWindows ServiceWindow[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([campusId])
+  @@index([status])
+}
+
+// ── Equipment ────────────────────────────────────────────────────────────────
+
+model EquipmentModel {
+  id           String            @id @default(cuid())
+  manufacturer String?
+  name         String
+  category     EquipmentCategory
+  specNotes    String?
+  manualUrl    String?
+  instances    Equipment[]
+  createdAt    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
+
+  @@unique([manufacturer, name])
+}
+
+model Equipment {
+  id       String            @id @default(cuid())
+  roomId   String? // null => part of the movable pool
+  room     Room?             @relation(fields: [roomId], references: [id])
+  modelId  String?
+  model    EquipmentModel?   @relation(fields: [modelId], references: [id])
+  category EquipmentCategory
+  status   EquipmentStatus   @default(OPERATIONAL)
+  mobility EquipmentMobility @default(FIXED)
+
+  name          String?
+  assetTag      String?
+  serial        String?
+  lastCheckedAt DateTime? @db.Timestamptz(3)
+
+  // spare/replacement: this unit currently substitutes for a faulty one
+  substitutingForId String?    @unique
+  substitutingFor   Equipment? @relation("Substitution", fields: [substitutingForId], references: [id])
+  substitutedBy     Equipment? @relation("Substitution")
+
+  // per-type attributes (nullable columns + json escape hatch)
+  hostname         String?
+  ipAddress        String?
+  macAddress       String?
+  dellServiceTag   String?
+  dellExpressTag   String?
+  micKind          MicKind?
+  frequencyMhz     Decimal?  @db.Decimal(8, 3)
+  band             String? // e.g. "G-Band"
+  channelLabel     String? // e.g. "Funk 1"
+  lampType         String?
+  lastLampChangeAt DateTime? @db.Timestamptz(3)
+  color            String?
+  attributes       Json?
+
+  notionPageId String? @unique
+
+  tickets     Ticket[]
+  allocations EquipmentAllocation[]
+  attachments Attachment[]
+
+  // A unit can also be stocked (InventoryItem.equipmentId).
+  inventoryItems InventoryItem[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([roomId])
+  @@index([modelId])
+  @@index([category])
+  @@index([status])
+}
+
+// ── People ───────────────────────────────────────────────────────────────────
+// NOTE: Better Auth will manage its own auth tables (Session/Account/Verification)
+// and use this User model (with additionalFields role/initials) when auth is wired.
+
+model User {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  name     String
+  initials String?  @unique // for legacy log attribution + display
+  role     UserRole @default(MEMBER)
+  isActive Boolean  @default(true)
+
+  // Better Auth core fields (it manages these; role/initials/isActive above are
+  // registered as additionalFields in auth.server.ts).
+  emailVerified Boolean @default(false)
+  image         String?
+
+  // the capacity view's denominator. Nullable on purpose — an
+  // unset capacity renders as „keine Kapazität", never as a fake 0 h.
+  weeklyCapacityMinutes Int?
+
+  reportedTickets Ticket[]        @relation("Reporter")
+  assignedTickets Ticket[]        @relation("Assignees")
+  serviceWindows  ServiceWindow[]
+  sessions        Session[]
+  accounts        Account[]
+
+  // Workspace-domain back-references. Named because several
+  // models point at User from more than one field.
+  projectsLed      Project[]         @relation("ProjectLead")
+  projectsCreated  Project[]         @relation("ProjectCreatedBy")
+  tasksCreated     Task[]            @relation("TaskCreatedBy")
+  taskAssignments  TaskAssignees[]
+  notesAuthored    Note[]            @relation("NoteAuthor")
+  locationsCreated Location[]        @relation("LocationCreatedBy")
+  inventoryCreated InventoryItem[]   @relation("InventoryCreatedBy")
+  vendorsCreated   Vendor[]          @relation("VendorCreatedBy")
+  timeEntries      TimeEntry[]       @relation("TimeEntryUser")
+  timeEntriesCreated TimeEntry[]     @relation("TimeEntryCreatedBy")
+  attachmentsCreated Attachment[]    @relation("AttachmentCreatedBy")
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+// ── Better Auth tables (Session / Account / Verification) ─────────────────────
+// Field names match Better Auth's expected schema (@better-auth/core/db). Model
+// names are PascalCase; Better Auth's lowercase modelNames resolve to the
+// camelCase Prisma client accessors (user/session/account/verification).
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime @db.Timestamptz(3)
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(3)
+  scope                 String?
+  password              String? // email/password hash (OIDC fields above are for the later Keycloak path)
+  createdAt             DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([userId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([identifier])
+}
+
+// ── Tickets / work items ─────────────────────────────────────────────────────
+
+model Ticket {
+  id          String       @id @default(cuid())
+  type        TicketType
+  status      TicketStatus @default(OPEN)
+  title       String
+  description String? // "why" / details
+  resolution  String? // "how" (set when resolved; present at creation for born-resolved)
+  priority    Int?
+
+  roomId      String?
+  room        Room?      @relation(fields: [roomId], references: [id])
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id])
+  eventId     String?
+  event       Event?     @relation(fields: [eventId], references: [id])
+
+  // Ticket ⇄ Task harmony. TWO relations between the same
+  // pair, so both are named: `task` is the ticket's own work link, while
+  // `linkedTasks` is the back-reference for a Task that points back here.
+  taskId String?
+  // onDelete: SetNull — deleting one must not destroy the other; the survivor
+  // keeps its own history.
+  task   Task? @relation("TicketPrimaryTask", fields: [taskId], references: [id], onDelete: SetNull)
+  linkedTasks Task[] @relation("TaskLinkedTicket")
+
+  reporterId String?
+  reporter   User?   @relation("Reporter", fields: [reporterId], references: [id])
+  assignees  User[]  @relation("Assignees")
+
+  attachments Attachment[]
+
+  occurredAt   DateTime  @default(now()) @db.Timestamptz(3) // logical time (may be back-dated on import)
+  resolvedAt   DateTime? @db.Timestamptz(3)
+  notionSource String? // provenance of a migrated repair-log line
+  insertedAt   DateTime  @default(now()) @db.Timestamptz(3) // system time
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+
+  @@index([roomId])
+  @@index([equipmentId])
+  @@index([status])
+  @@index([type])
+  @@index([occurredAt])
+}
+
+// ── Events (AV-supported specials) ───────────────────────────────────────────
+
+model Event {
+  id          String      @id @default(cuid())
+  uid         String      @unique @default(cuid()) // stable iCal UID
+  title       String
+  description String?
+  startsAt    DateTime @db.Timestamptz(3)
+  endsAt      DateTime @db.Timestamptz(3)
+  status      EventStatus @default(PLANNED)
+  organizer   String?
+  contact     String?
+
+  rooms          EventRoomBooking[]
+  allocations    EquipmentAllocation[]
+  serviceWindows ServiceWindow[]
+  tickets        Ticket[]
+
+  // An event can belong to a workspace project (Project).
+  projectId String?
+  // onDelete: SetNull — a ticket/Event whose container project was retired is not
+  // deleted (`*.projectId`).
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([startsAt])
+  @@index([status])
+}
+
+// Bookable atom for ROOM conflict detection (one row per room-per-event).
+// A generated `during tstzrange` column + GiST EXCLUDE (per room, where
+// cancelled=false) is added in the custom SQL migration.
+model EventRoomBooking {
+  id        String   @id @default(cuid())
+  eventId   String
+  // onDelete: Restrict — events are never hard-deleted (cancelEvent soft-cancels);
+  // matches the room/equipment Restrict pattern below.
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  roomId    String
+  // onDelete: Restrict (explicit; was the Prisma default) — a room that still has
+  // bookings cannot be hard-deleted. Retire rooms via RoomStatus, never DELETE.
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  startsAt  DateTime @db.Timestamptz(3)
+  endsAt    DateTime @db.Timestamptz(3)
+  cancelled Boolean  @default(false)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([roomId])
+  @@index([eventId])
+}
+
+// Bookable atom for POOLED-EQUIPMENT conflict detection.
+model EquipmentAllocation {
+  id          String    @id @default(cuid())
+  eventId     String
+  // onDelete: Restrict — events are never hard-deleted (cancelEvent soft-cancels);
+  // matches the room/equipment Restrict pattern below.
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  equipmentId String
+  // onDelete: Restrict (explicit; was the Prisma default) — equipment with active
+  // allocations cannot be hard-deleted. Retire units via EquipmentStatus.RETIRED.
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  startsAt    DateTime @db.Timestamptz(3)
+  endsAt      DateTime @db.Timestamptz(3)
+  cancelled   Boolean   @default(false)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([equipmentId])
+  @@index([eventId])
+}
+
+model ServiceWindow {
+  id             String            @id @default(cuid())
+  eventId        String
+  // onDelete: Restrict — events are never hard-deleted (cancelEvent soft-cancels);
+  // matches the room/equipment Restrict pattern below.
+  event          Event             @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  roomId         String?
+  room           Room?             @relation(fields: [roomId], references: [id])
+  kind           ServiceWindowKind
+  startsAt       DateTime @db.Timestamptz(3)
+  endsAt         DateTime @db.Timestamptz(3)
+  coveringUserId String?
+  coveringUser   User?             @relation(fields: [coveringUserId], references: [id])
+  notes          String?
+  createdAt      DateTime          @default(now()) @db.Timestamptz(3)
+
+  @@index([eventId])
+}
+
+// ── Attachments & audit ──────────────────────────────────────────────────────
+
+model Attachment {
+  id          String             @id @default(cuid())
+  objectKey   String             @unique // key in the StorageProvider (bytes are NOT in Postgres)
+  category    AttachmentCategory
+  filename    String
+  contentType String
+  sizeBytes   Int?
+  width       Int?
+  height      Int?
+
+  roomId      String?
+  // onDelete: Restrict — an orphaned Attachment would leak an encrypted blob past
+  // deleteAttachment (the Prisma default for optional relations is SetNull, which
+  // would silently strand the object). Attachments must be deleted explicitly first.
+  room        Room?      @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  equipmentId String?
+  // onDelete: Restrict — see room, above.
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  ticketId    String?
+  // onDelete: Restrict — see room, above.
+  ticket      Ticket?    @relation(fields: [ticketId], references: [id], onDelete: Restrict)
+
+  createdById String?
+  // onDelete: SetNull — the erasure path (gdpr.server.ts) nulls this
+  // link too, so the raw user id cannot survive pseudonymization.
+  createdBy   User? @relation("AttachmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([roomId])
+  @@index([equipmentId])
+  @@index([ticketId])
+}
+
+// Append-only. Written in the same transaction as each mutation.
+// Immutability (REVOKE update/delete + a guard trigger) is enforced in the
+// custom SQL migration — see the 20261023000300_audit_privacy migration.
+model ActivityLog {
+  id            String   @id @default(cuid())
+  action        String // semantic verb, e.g. "TicketResolved", "EquipmentAllocated"
+  entityType    String
+  entityId      String
+  actorId       String?
+  actorSnapshot Json? // name/email at the time (survives user rename/erasure)
+  data          Json?
+  occurredAt    DateTime @default(now()) @db.Timestamptz(3)
+  insertedAt    DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([entityType, entityId])
+  @@index([occurredAt])
+}
+
+// ── Calendar outbox ─────────────────────────────────────────────────────
+// Transactional outbox: a row is enqueued in the SAME transaction as the Event
+// mutation (enqueueCalendarOp). A background worker drains it to CalDAV
+// so calendar downtime never blocks app writes. Idempotent by (eventUid, sequence).
+
+enum CalendarOp {
+  UPSERT
+  REMOVE
+}
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model CalendarOutbox {
+  id          String       @id @default(cuid())
+  op          CalendarOp
+  eventUid    String // stable iCal UID of the target event
+  sequence    Int          @default(0) // iCal SEQUENCE for update/cancel ordering
+  payload     Json // serialized CalendarPublisher payload
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  lastError   String?
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  processedAt DateTime? @db.Timestamptz(3)
+
+  // Idempotency is DB-enforced: one row per (event, iCal SEQUENCE), so a
+  // careless retry can't enqueue a duplicate op. The unique index also serves
+  // eventUid-prefix lookups, so no separate @@index([eventUid]) is needed.
+  @@unique([eventUid, sequence])
+  @@index([status, createdAt])
+}
+
+// ── Workspace domain ──────────────────────────────────────
+// Declared here rather than with the enum block above, matching the
+// CalendarOp/OutboxStatus precedent: enums sit next to the models that use them.
+
+enum LocationKind {
+  SITE
+  BUILDING
+  ROOM
+  STORAGE
+  RACK
+  VEHICLE
+  EXTERNAL
+  VIRTUAL
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  BLOCKED
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOWEST
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// A Project is a department's REQUEST FOR AV SUPPORT carried
+// from first contact to aftercare, not a bag of dated planned work. The set is
+// deliberately NOT modelled on EventStatus — a different model (a scheduled
+// AV-supported event), which stays exactly as it is.
+enum ProjectStatus {
+  REQUESTED // ANGEFRAGT
+  CONFIRMED // BESTÄTIGT
+  AWAITING_FEEDBACK // WARTEN AUF RÜCKMELDUNG
+  CONSULTATION_SCHEDULED // VORGESPRÄCH VEREINBART
+  COMPLETED // ERFOLGREICH BEENDET
+  FOLLOW_UP_REQUIRED // NACHGESPRÄCH ERFORDERLICH
+  REJECTED // ABGELEHNT
+  CANCELLED // ABGESAGT
+}
+
+// The multi-type location spine. Standalone hierarchy; a `Room` is the room-level
+// entity and a `Location` of kind ROOM is a generic room. SUPPLIER is deliberately
+// not a kind — the supplier IS Vendor.
+model Location {
+  id       String       @id @default(cuid())
+  name     String
+  code     String?
+  kind     LocationKind
+  address  String?
+  // Named `description`, not `notes`: `notes` is the Note[] back-reference, and
+  // the field name is free text with no fixed vocabulary.
+  description String?
+
+  parentId String?
+  // onDelete: Restrict — a subtree must be reparented explicitly; deleting a
+  // parent must never orphan its children to root.
+  parent   Location?  @relation("LocationTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Location[] @relation("LocationTree")
+
+  inventoryItems InventoryItem[]
+  tasks          Task[]
+  notes          Note[]
+  vendors        Vendor[]
+
+  createdById String?
+  // onDelete: SetNull — GDPR erasure removes the user, not their work.
+  createdBy   User? @relation("LocationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([parentId])
+  @@index([kind])
+}
+
+// The container that tasks and events live in.
+model Project {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  description String?
+  status      ProjectStatus @default(REQUESTED)
+  color       String?
+  startAt     DateTime?     @db.Timestamptz(3)
+  dueAt       DateTime?     @db.Timestamptz(3)
+
+  leadId String?
+  // onDelete: SetNull — GDPR erasure removes the user, not their work.
+  lead   User? @relation("ProjectLead", fields: [leadId], references: [id], onDelete: SetNull)
+
+  // Same self-hierarchy as Location.parentId: a project tree must be reparented
+  // explicitly rather than collapsed to root. The rationale is identical, so
+  // the same referential action is applied here.
+  parentProjectId String?
+  // onDelete: Restrict — see above.
+  parentProject   Project?  @relation("ProjectTree", fields: [parentProjectId], references: [id], onDelete: Restrict)
+  subProjects     Project[] @relation("ProjectTree")
+
+  tasks   Task[]
+  events  Event[]
+  notes   Note[]
+
+  createdById String?
+  // onDelete: SetNull
+  createdBy   User? @relation("ProjectCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([leadId])
+  @@index([parentProjectId])
+  @@index([status])
+}
+
+// Explicit m-n join for task assignees. Deliberately NOT the implicit mechanism
+// Ticket.assignees uses: the GDPR erasure path has to be able to sever task
+// assignments *by name*, which is not expressible through a table Prisma names
+// for you.
+model TaskAssignees {
+  taskId String
+  // onDelete: Cascade — an edge has no meaning without both endpoints.
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId String
+  // onDelete: Cascade, NOT a literal SetNull, and deliberately. userId is
+  // in the composite primary key, and ON DELETE SET NULL on a NOT NULL key column
+  // deploys cleanly, passes CI, and then fails at runtime — the whole DELETE
+  // aborts and the user is still there, which is the exact opposite of this
+  // table's stated reason. A test carries the probe. Cascade is also what the implicit Ticket.assignees
+  // join already does (_Assignees_A/_Assignees_B are 2 of the 4 CASCADE FKs).
+  // The erasure path severs the assignment explicitly — this repo
+  // pseudonymizes rather than deletes, so no FK action fires on the normal path.
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // This assignee's share of the work. `Task.estimateMinutes`
+  // stays the task's total; no constraint ties the two — an assignee estimate
+  // is a planning hint, not a partition of the total.
+  estimateMinutes Int?
+
+  @@id([taskId, userId])
+  @@index([userId])
+}
+
+// Planned work, sibling to Ticket.
+model Task {
+  id     String       @id @default(cuid())
+  title  String
+  body   String?
+  status TaskStatus   @default(BACKLOG)
+  // Nullable, mirroring Ticket.priority Int?: sorts NULL last so
+  // unprioritised work never outranks prioritised work in the workload view,
+  // which only means something if both arms can be NULL.
+  priority TaskPriority?
+
+  startAt          DateTime? @db.Timestamptz(3)
+  dueAt            DateTime? @db.Timestamptz(3)
+  estimateMinutes  Int?
+
+  // Fractional kanban ordering. Decimal, not Float: ordering must not drift
+  // when a card is moved between two neighbours.
+  position Decimal @default(0) @db.Decimal(20, 10)
+
+  labels String[]
+
+  assignees TaskAssignees[]
+
+  projectId String?
+  // onDelete: SetNull — a task whose container project was retired is detached,
+  // not deleted.
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  // The other half of the harmony pair; see Ticket.task for the same rule.
+  ticketId String?
+  // onDelete: SetNull — deleting one must not destroy the other.
+  ticket   Ticket? @relation("TaskLinkedTicket", fields: [ticketId], references: [id], onDelete: SetNull)
+  primaryForTickets Ticket[] @relation("TicketPrimaryTask")
+
+  parentTaskId String?
+  // onDelete: Restrict — a task tree must be reparented explicitly rather than
+  // orphaned to root; same rationale as Location.parentId (the rule names that
+  // relation, not this one).
+  parentTask   Task?  @relation("TaskTree", fields: [parentTaskId], references: [id], onDelete: Restrict)
+  subtasks     Task[] @relation("TaskTree")
+
+  blockedBy TaskDependency[] @relation("TaskBlockedBy")
+  blocking  TaskDependency[] @relation("TaskBlocking")
+
+  locationId String?
+  // onDelete: SetNull — an item whose place was retired is not deleted.
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  timeEntries TimeEntry[]
+
+  createdById String?
+  // onDelete: SetNull
+  createdBy   User? @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([projectId])
+  @@index([ticketId])
+  @@index([parentTaskId])
+  @@index([locationId])
+  @@index([dueAt])
+}
+
+/**
+ * `TimeEntry` — one logged interval. Per-entry rows, never an
+ * aggregate: a Berlin calendar day is 23 h or 25 h twice a year, and a total
+ * column could not say so. `endsAt` null = a running timer.
+ *
+ * Constraints live in the `20261023000600_time_tracking_constraints`
+ * migration: a CHECK that
+ * `endsAt > startsAt`, and a partial unique index enforcing at most one
+ * running entry per user. **No overlap EXCLUDE** — two of one person's
+ * entries may overlap; the totals merge intervals at read time.
+ */
+model TimeEntry {
+  id       String    @id @default(cuid())
+  startsAt DateTime  @db.Timestamptz(3)
+  // Nullable = running. `endsAt > startsAt` is the folded CHECK, not modelable.
+  endsAt   DateTime? @db.Timestamptz(3)
+  comment  String?
+
+  taskId String?
+  // onDelete: SetNull — a labour record outlives the task it was logged
+  // against.
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  // Mandatory like Note.authorId: a labour record with no author is not a
+  // labour record. onDelete: Restrict — the column is NOT NULL, so
+  // SetNull would be the landmine; the GDPR path pseudonymizes instead of
+  // deleting, so no FK action ever fires on it.
+  userId String
+  user   User   @relation("TimeEntryUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  createdById String?
+  // onDelete: SetNull
+  createdBy   User?   @relation("TimeEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([userId, startsAt])
+  @@index([taskId])
+}
+
+// A real DAG edge, for the critical-path view. Semantics: an edge
+// `(blockedByTaskId = A, blockingTaskId = B)` means **A is blocked by B** — B
+// must finish first. So `Task.blockedBy` are the edges blocking this task, and
+// `Task.blocking` are the edges where this task blocks others.
+model TaskDependency {
+  blockedByTaskId String
+  // onDelete: Cascade — an edge has no meaning without both endpoints.
+  blockedBy       Task @relation("TaskBlockedBy", fields: [blockedByTaskId], references: [id], onDelete: Cascade)
+  blockingTaskId  String
+  // onDelete: Cascade — as above.
+  blocking        Task @relation("TaskBlocking", fields: [blockingTaskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@id([blockedByTaskId, blockingTaskId])
+  @@index([blockingTaskId])
+}
+
+// Markdown. Stored as text, edited as text, chunked for retrieval.
+model Note {
+  id       String  @id @default(cuid())
+  title    String
+  body     String
+  pinned   Boolean @default(false)
+
+  // Mandatory, not an optimisation: ActivityLog.actorId is nullable, so a note
+  // with no author lands every edit with actorId null and quietly guts the audit
+  // spine.
+  authorId String
+  // onDelete: Restrict, and deliberately: the column is NOT NULL, so SetNull is
+  // the landmine (deploys green, then aborts the DELETE at runtime). The
+  // GDPR path pseudonymizes rather than deletes — no FK action fires on it — and
+  // Restrict is the pattern this schema already uses for "never hard-deleted"
+  // relations (Attachment → Room, EventRoomBooking → Event).
+  author   User @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  projectId String?
+  // onDelete: SetNull
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  locationId String?
+  // onDelete: SetNull
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  tags String[]
+
+  archivedAt DateTime? @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([authorId])
+  @@index([projectId])
+  @@index([locationId])
+  @@index([archivedAt])
+}
+
+// Stock lifecycle. IN_STOCK/OUT_OF_STOCK collapse into AVAILABLE —
+// quantity 0 already says "none left".
+enum StockStatus {
+  AVAILABLE              // VERFÜGBAR
+  REQUESTED              // ANGEFRAGT
+  AWAITING_CONFIRMATION  // WARTEN AUF BESTÄTIGUNG
+  ON_LOAN                // VERLIEHEN
+  RESERVED_FOR_EVENT     // BENÖTIGT FÜR VERANSTALTUNG
+}
+
+// General tracked stock, sibling to Equipment. `equipmentId` is what makes the
+// two families live in harmony: an AV mixer IS an Equipment and also an
+// InventoryItem (stock-keeping view).
+model InventoryItem {
+  id       String @id @default(cuid())
+  name     String
+  sku      String?
+  serial   String?
+  quantity Int    @default(1)
+  unit     String?
+  // category and unit stay untyped String — no value set is named
+  // for them. `status` got its own enum; it stays nullable
+  // with no default — "no status recorded" is a real state of loose stock.
+  category String?
+  status   StockStatus?
+
+  purchasedAt       DateTime? @db.Timestamptz(3)
+  purchasePrice     Decimal?   @db.Decimal(10, 2) // money is never a float
+  warrantyExpiresAt DateTime? @db.Timestamptz(3)
+
+  vendorId String?
+  // onDelete: SetNull — the stock outlives the supplier.
+  vendor   Vendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  locationId String?
+  // onDelete: SetNull — an item whose place was retired is not deleted.
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  equipmentId String?
+  // onDelete: Restrict — equipment is never hard-deleted while stock references
+  // it; matches the Restrict pattern already used for Equipment.
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+
+  tags String[]
+
+  createdById String?
+  // onDelete: SetNull
+  createdBy   User? @relation("InventoryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([vendorId])
+  @@index([locationId])
+  @@index([equipmentId])
+
+  // the two identifiers are unique IN THE DATABASE, not in a form check.
+  // Both columns stay NULLABLE, deliberately: plain SQL keeps NULLs distinct
+  // under a unique index, so items that have neither an sku nor a serial —
+  // the ordinary case for loose stock — coexist, and a real duplicate is
+  // rejected with SQLSTATE 23505. Prisma emits
+  // InventoryItemWhereUniqueInput = AtLeast<{ id?; sku?; serial?; ... },
+  // "id"|"sku"|"serial">, so a nullable unique is a legal selector.
+  @@unique([sku])
+  @@unique([serial])
+}
+
+model Vendor {
+  id       String  @id @default(cuid())
+  name     String
+  contact  String?
+  email    String?
+  phone    String?
+  url      String?
+  address  String?
+
+  locationId String?
+  // onDelete: SetNull — where the goods land is not deleted with the vendor.
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  inventoryItems InventoryItem[]
+
+  createdById String?
+  // onDelete: SetNull
+  createdBy   User? @relation("VendorCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([locationId])
+}
+
+// ---------------------------------------------------------------------------
+// Search index. Derived data: every row is rebuilt from
+// audited domain rows by the indexer, so it is written WITHOUT audit rows —
+// it is not a domain mutation.
+// ---------------------------------------------------------------------------
+
+// One retrievable unit of a source record. `(sourceType, sourceId, ordinal)`
+// identifies it; `contentHash` decides whether an edit changed the text;
+// `sourceUpdatedAt` is the source's own version stamp the reconcile sweep
+// compares against.
+model Chunk {
+  id          String   @id @default(cuid())
+  sourceType  String
+  sourceId    String
+  sourceTitle String
+  ordinal     Int
+  headingPath String[]
+  text        String
+  // Identifier variants the tokenizer would split apart (serials, SKUs, IPs,
+  // MACs, e-mail parts, room codes) — folded into `tsv` at weight C so a query
+  // for "ersatzteile" finds "ersatzteile@demo-ersatzteile.example".
+  keywords    String   @default("")
+  tokenCount  Int
+  contentHash String
+  // vector(1024) — the width is fixed for the life of the database;
+  // NULL until the embedding arm has run. Declared Unsupported because Prisma
+  // has no vector type; the column + HNSW index are hand-written SQL in the search_indexes migration.
+  embedding      Unsupported("vector(1024)")?
+  embeddingModel String?
+  // Generated tsvector over title+text+keywords (simple+german configs,
+  // weighted A/B/C) — hand-written SQL in the search_indexes migration; Prisma sees it as an opaque column.
+  tsv             Unsupported("tsvector")?
+  sourceUpdatedAt DateTime @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([sourceType, sourceId, ordinal])
+  @@index([sourceType, sourceId])
+}
+
+// Retry ledger for indexer steps that failed outside a transaction (embedding
+// calls, future rerank warm-ups). `op` names the step; `nextAttemptAt` is the
+// exponential backoff gate.
+model SearchIndexJob {
+  id            String   @id @default(cuid())
+  sourceType    String
+  sourceId      String
+  op            String
+  attempts      Int      @default(0)
+  lastError     String?
+  nextAttemptAt DateTime @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  @@unique([sourceType, sourceId, op])
+  @@index([nextAttemptAt])
+}

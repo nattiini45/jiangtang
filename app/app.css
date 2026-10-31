@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+/* Class-based dark mode (a `.dark` class on <html>, driven by theme.server.ts). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Industrial design tokens. One set drives light + dark and both
+ * surfaces. Near-square corners (2–4px), monospace for data, structural borders,
+ * strong status colors. Values target WCAG-AA contrast in each mode.
+ * shadcn/ui consumes the semantic tokens below; component work adds files and
+ * NEVER edits this file or ui/ primitives.
+ */
+
+:root {
+  --radius: 3px;
+
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.16 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0 0);
+  --primary: oklch(0.2 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.95 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+  --muted: oklch(0.95 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.94 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.87 0 0);
+  --input: oklch(0.87 0 0);
+  --ring: oklch(0.55 0 0);
+
+  /* Frozen status colors (operational / fault / warning / info). */
+  --status-operational: oklch(0.52 0.15 150);
+  --status-operational-foreground: oklch(0.99 0 0);
+  --status-fault: oklch(0.53 0.22 25);
+  --status-fault-foreground: oklch(0.99 0 0);
+  /* 0.58 → 0.53: text-status-warning on white/tinted backgrounds needs ≥4.5:1
+     (axe color-contrast); at 0.58 it measured ~3.7–4.4. */
+  --status-warning: oklch(0.53 0.12 70);
+  --status-warning-foreground: oklch(0.99 0 0);
+  --status-info: oklch(0.52 0.16 250);
+  --status-info-foreground: oklch(0.99 0 0);
+}
+
+.dark {
+  --background: oklch(0.16 0 0);
+  --foreground: oklch(0.95 0 0);
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.19 0 0);
+  --popover-foreground: oklch(0.95 0 0);
+  --primary: oklch(0.92 0 0);
+  --primary-foreground: oklch(0.18 0 0);
+  --secondary: oklch(0.25 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+  --muted: oklch(0.25 0 0);
+  --muted-foreground: oklch(0.68 0 0);
+  --accent: oklch(0.27 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+  --destructive: oklch(0.62 0.2 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.32 0 0);
+  --ring: oklch(0.6 0 0);
+
+  --status-operational: oklch(0.72 0.16 150);
+  --status-operational-foreground: oklch(0.16 0 0);
+  --status-fault: oklch(0.68 0.2 25);
+  --status-fault-foreground: oklch(0.16 0 0);
+  --status-warning: oklch(0.78 0.14 75);
+  --status-warning-foreground: oklch(0.16 0 0);
+  --status-info: oklch(0.7 0.14 250);
+  --status-info-foreground: oklch(0.16 0 0);
+}
+
+/* Map runtime CSS vars to Tailwind utilities (bg-background, text-foreground,
+   border-border, bg-status-warning, rounded-md, font-mono, …). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-status-operational: var(--status-operational);
+  --color-status-operational-foreground: var(--status-operational-foreground);
+  --color-status-fault: var(--status-fault);
+  --color-status-fault-foreground: var(--status-fault-foreground);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-status-info: var(--status-info);
+  --color-status-info-foreground: var(--status-info-foreground);
+
+  --radius-sm: 2px;
+  --radius-md: var(--radius);
+  --radius-lg: 4px;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    ui-monospace, "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html,
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+  /* Dense, technical default; the comfortable/compact toggle overrides it. */
+  body {
+    font-size: 14px;
+  }
+}
