@@ -2,9 +2,8 @@ import * as React from "react";
 import { cn } from "~/lib/utils";
 
 /**
- * Bordered panel shell for an analytics chart. Keeps the industrial
- * aesthetic: structural border, mono header, restrained neutrals. Chart libraries
- * render inside; this wrapper just frames them consistently.
+ * Panel shell for an analytics chart. The panel is a raised surface; chart
+ * libraries render inside it with the theme's color tokens.
  */
 export function ChartCard({
   title,
@@ -18,12 +17,12 @@ export function ChartCard({
   className?: string;
 }) {
   return (
-    <section className={cn("border-border bg-card flex flex-col border", className)}>
-      <header className="border-border border-b px-3 py-2">
-        <h2 className="text-sm font-medium">{title}</h2>
+    <section className={cn("bg-card shadow-surface-2 flex flex-col rounded-lg", className)}>
+      <header className="px-4 pt-4">
+        <h2 className="text-base font-semibold">{title}</h2>
         {subtitle ? <p className="text-muted-foreground text-xs">{subtitle}</p> : null}
       </header>
-      <div className="min-h-[220px] flex-1 p-3">{children}</div>
+      <div className="min-h-[220px] flex-1 p-4">{children}</div>
     </section>
   );
 }

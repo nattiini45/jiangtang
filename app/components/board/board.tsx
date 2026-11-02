@@ -286,7 +286,7 @@ export function TaskBoard({
       {error ? (
         <p
           role="alert"
-          className="border-destructive text-destructive rounded-sm border px-3 py-2 text-sm"
+          className="text-destructive bg-card shadow-surface-2 rounded-lg px-3 py-2 text-sm"
         >
           {error}
         </p>
@@ -294,8 +294,8 @@ export function TaskBoard({
       <div className="flex items-center gap-2">
         <Button
           type="button"
-          variant="outline"
-          size="sm"
+          variant="tertiary"
+          size="compact"
           aria-pressed={showCancelled}
           onClick={() => setShowCancelled((v) => !v)}
         >

@@ -61,7 +61,7 @@ export default function NewProject({ loaderData, actionData }: Route.ComponentPr
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("projects.new.title")}</h1>
+        <h1 className="text-xl font-bold">{t("projects.new.title")}</h1>
         <Link to="/projects" className="text-muted-foreground text-sm hover:underline">
           {t("projects.new.back")}
         </Link>
@@ -76,7 +76,7 @@ export default function NewProject({ loaderData, actionData }: Route.ComponentPr
           defaults={{ parentProjectId: loaderData.defaultParentId }}
         />
         <div className="flex gap-2">
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" variant="primary" disabled={busy}>
             {busy ? t("common.creating") : t("projects.new.submit")}
           </Button>
           <Button asChild variant="ghost">

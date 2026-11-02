@@ -66,17 +66,17 @@ export default function ProjectsIndex({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("projects.list.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("projects.list.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("projects.list.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("projects.list.subtitle")}</p>
         </div>
         <Button asChild>
           <Link to="/projects/new">{t("projects.list.new")}</Link>
         </Button>
       </div>
 
-      <Form method="get" className="flex flex-wrap items-center gap-3">
+      <Form method="get" className="flex flex-wrap items-center gap-2">
         <Input
           name="q"
           defaultValue={filters.q}
@@ -115,7 +115,7 @@ export default function ProjectsIndex({ loaderData }: Route.ComponentProps) {
         {/* A real button, not a `noscript` one: the selects auto-submit via JS,
             so without a visible submit the filter would be unreachable for
             anyone whose JS has not loaded. */}
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="tertiary" size="compact">
           {t("projects.list.filterSubmit")}
         </Button>
       </Form>

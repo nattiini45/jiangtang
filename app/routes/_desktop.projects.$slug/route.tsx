@@ -15,7 +15,7 @@ import { listTaskStatusEvents } from "~/domains/activity/activity.queries.server
 import { listBoardTasks } from "~/domains/tasks/tasks.queries.server";
 import { LANES } from "~/domains/tasks/tasks.lanes";
 import { DateCell } from "~/components/data-grid";
-import { statusToken } from "~/lib/status";
+import { StatusBadge } from "~/components/ui/status-badge";
 import { projectStatusLabel, PROJECT_STATUSES } from "~/components/projects/labels";
 import { ProjectFormErrors } from "~/components/projects/project-form-errors";
 import { NoteList } from "~/components/notes/note-list";
@@ -150,8 +150,8 @@ export async function action({ request, params }: Route.ActionArgs) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-muted-foreground text-xs uppercase tracking-wide">{label}</span>
-      <span className="font-mono text-sm">{children}</span>
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="text-sm">{children}</span>
     </div>
   );
 }
@@ -162,7 +162,6 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
   const locale = useLocale();
   const t = useT();
   const { project, notes, view, lanes, events } = loaderData;
-  const token = statusToken(locale, "project", project.status);
   const currentStatus = actionData?.status ?? project.status;
 
   const ganttTasks = project.tasks.map((t) => ({
@@ -177,8 +176,8 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">
           {project.color ? (
             <span
               aria-hidden
@@ -201,12 +200,8 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
         </div>
       </div>
 
-      <section className="border-border flex flex-wrap items-center gap-3 border p-4">
-        <span
-          className={`inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-xs ${token.className}`}
-        >
-          {token.label}
-        </span>
+      <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
+        <StatusBadge kind="project" value={project.status} />
         {/* Status is its own form: the transition writes `ProjectStatusChanged`,
             so it must not be an editable field on the edit page. */}
         <Form method="post" className="flex items-center gap-2">
@@ -223,7 +218,7 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="tertiary" size="compact">
             {t("projects.detail.setStatus")}
           </Button>
         </Form>
@@ -232,7 +227,7 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
 
       {/* View tabs — plain links so they are keyboard-reachable and the view
           lives in the URL (`?view=`), shareable like every other filter. */}
-      <nav aria-label={t("projects.detail.viewNavAria")} className="border-border flex border-b">
+      <nav aria-label={t("projects.detail.viewNavAria")} className="flex border-b">
         {VIEWS.map((v) => (
           <Link
             key={v.id}
@@ -240,7 +235,7 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
             aria-current={view === v.id ? "page" : undefined}
             className={`-mb-px border-b-2 px-3 py-2 text-sm ${
               view === v.id
-                ? "border-primary text-foreground font-medium"
+                ? "border-primary text-foreground font-semibold"
                 : "text-muted-foreground hover:text-foreground border-transparent"
             }`}
           >
@@ -272,7 +267,7 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
 
       {view !== "overview" ? null : (
         <>
-          <section className="border-border grid grid-cols-2 gap-4 border p-4 sm:grid-cols-3">
+          <section className="bg-card shadow-surface-2 grid grid-cols-2 gap-4 rounded-lg p-4 sm:grid-cols-3">
             <Field label={t("projects.detail.lead")}>
               {project.lead ? project.lead.name : dash}
             </Field>
@@ -294,14 +289,14 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
           </section>
 
           {project.description ? (
-            <section className="border-border border p-4">
-              <h2 className="font-mono text-sm">{t("projects.detail.description")}</h2>
+            <section className="bg-card shadow-surface-2 rounded-lg p-4">
+              <h2 className="text-base font-semibold">{t("projects.detail.description")}</h2>
               <p className="mt-2 whitespace-pre-wrap text-sm">{project.description}</p>
             </section>
           ) : null}
 
-          <section className="border-border border p-4">
-            <h2 className="font-mono text-sm">{t("projects.detail.subProjects")}</h2>
+          <section className="bg-card shadow-surface-2 rounded-lg p-4">
+            <h2 className="text-base font-semibold">{t("projects.detail.subProjects")}</h2>
             {project.subProjects.length === 0 ? (
               <p className="text-muted-foreground mt-2 text-sm">
                 {t("projects.detail.noSubProjects")}
@@ -313,28 +308,26 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
                     <Link to={`/projects/${sub.slug}`} className="text-sm hover:underline">
                       {sub.name}
                     </Link>
-                    <span className="text-muted-foreground ml-2 font-mono text-xs">
-                      {projectStatusLabel(locale, sub.status)}
-                    </span>
+                    <StatusBadge kind="project" value={sub.status} className="ml-2" />
                   </li>
                 ))}
               </ul>
             )}
-            <Button asChild variant="outline" size="sm" className="mt-3">
+            <Button asChild variant="tertiary" size="compact" className="mt-3">
               <Link to={`/projects/new?parent=${project.id}`}>
                 {t("projects.detail.newSubProject")}
               </Link>
             </Button>
           </section>
 
-          <section className="border-border border p-4">
-            <h2 className="font-mono text-sm">{t("projects.detail.tasks")}</h2>
+          <section className="bg-card shadow-surface-2 rounded-lg p-4">
+            <h2 className="text-base font-semibold">{t("projects.detail.tasks")}</h2>
             {project.tasks.length === 0 ? (
               <p className="text-muted-foreground mt-2 text-sm">{t("projects.detail.noTasks")}</p>
             ) : (
               <table className="mt-2 w-full text-sm">
                 <thead>
-                  <tr className="text-muted-foreground text-left text-xs uppercase tracking-wide">
+                  <tr className="text-muted-foreground text-left text-xs font-normal">
                     <th className="py-1 pr-3">{t("projects.detail.taskColumn")}</th>
                     <th className="py-1 pr-3">{t("projects.detail.statusColumn")}</th>
                     <th className="py-1">{t("projects.detail.dueColumn")}</th>
@@ -342,14 +335,14 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
                 </thead>
                 <tbody>
                   {project.tasks.map((task) => (
-                    <tr key={task.id} className="border-border border-t">
+                    <tr key={task.id} className="border-t">
                       <td className="py-1 pr-3">
                         <Link to={`/tasks/${task.id}`} className="hover:underline">
                           {task.title}
                         </Link>
                       </td>
                       <td className="py-1 pr-3">
-                        <span className="font-mono text-xs">{task.status}</span>
+                        <StatusBadge kind="task" value={task.status} />
                       </td>
                       <td className="py-1">
                         <DateCell value={task.dueAt} withTime={false} />
@@ -361,12 +354,12 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
             )}
           </section>
 
-          <section className="border-border border p-4">
-            <h2 className="font-mono text-sm">{t("projects.detail.notes")}</h2>
+          <section className="bg-card shadow-surface-2 rounded-lg p-4">
+            <h2 className="text-base font-semibold">{t("projects.detail.notes")}</h2>
             <div className="mt-2">
               <NoteList notes={notes} emptyMessage={t("projects.detail.noNotes")} />
             </div>
-            <Button asChild variant="outline" size="sm" className="mt-3">
+            <Button asChild variant="tertiary" size="compact" className="mt-3">
               <Link to={`/notes/new?project=${project.slug}`}>{t("projects.detail.newNote")}</Link>
             </Button>
           </section>

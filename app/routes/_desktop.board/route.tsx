@@ -169,10 +169,10 @@ export default function Board({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("board.list.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("board.list.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("board.list.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("board.list.subtitle")}</p>
         </div>
         <Form method="get" className="flex flex-wrap items-center gap-2">
           {work ? <input type="hidden" name="mode" value="work" /> : null}
@@ -205,10 +205,10 @@ export default function Board({ loaderData }: Route.ComponentProps) {
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="tertiary" size="compact">
             {t("board.list.filterSubmit")}
           </Button>
-          <Button type="button" variant={work ? "default" : "outline"} size="sm" asChild>
+          <Button type="button" variant={work ? "primary" : "tertiary"} size="compact" asChild>
             {/* aria-pressed is not allowed on <a>; the pressed state is visual
                 (Button variant) plus an explicit label suffix. */}
             <Link to={modeHref(work ? "tasks" : "work")}>

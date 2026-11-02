@@ -8,7 +8,7 @@ export function ProjectFormErrors({ formErrors }: { formErrors?: string[] }) {
   return (
     <div
       role="alert"
-      className="border-destructive text-destructive rounded-sm border px-3 py-2 text-sm"
+      className="text-destructive bg-card shadow-surface-2 rounded-lg px-3 py-2 text-sm"
     >
       <ul className="flex flex-col gap-1">
         {formErrors.map((message) => (

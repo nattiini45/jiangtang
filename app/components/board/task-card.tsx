@@ -44,8 +44,8 @@ export function TaskCard({ task }: { task: BoardCard }) {
       data-task-card
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "border-border bg-card flex flex-col gap-1.5 rounded-sm border p-2 text-sm",
-        isDragging && "border-primary z-10 opacity-80 shadow-md",
+        "bg-card shadow-surface-2 flex flex-col gap-1.5 rounded-md p-2 text-sm",
+        isDragging && "shadow-surface-3 z-10 opacity-80",
       )}
       {...listeners}
     >
@@ -57,7 +57,7 @@ export function TaskCard({ task }: { task: BoardCard }) {
           type="button"
           {...attributes}
           aria-label={t("board.card.gripAria", { title: task.title })}
-          className="text-muted-foreground hover:bg-accent mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm focus-visible:outline-1 focus-visible:outline-primary active:cursor-grabbing"
+          className="text-muted-foreground hover:bg-hover mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-md focus-visible:outline-1 focus-visible:outline-primary active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" aria-hidden />
         </button>
@@ -76,7 +76,7 @@ export function TaskCard({ task }: { task: BoardCard }) {
           {task.title}
         </Link>
         {task.priority ? (
-          <span className="text-muted-foreground ml-auto shrink-0 font-mono text-xs">
+          <span className="text-muted-foreground ml-auto shrink-0 text-xs">
             {taskPriorityLabel(locale, task.priority)}
           </span>
         ) : null}
@@ -96,22 +96,20 @@ export function TaskCard({ task }: { task: BoardCard }) {
           </span>
         ) : null}
         {task.dueAt ? (
-          <span className={cn("font-mono", overdue && "text-status-fault")}>
+          <span className={cn("nums", overdue && "text-status-fault")}>
             <DateCell value={task.dueAt} withTime={false} />
             {overdue ? " !" : ""}
           </span>
         ) : null}
         {task.labels.slice(0, 2).map((l) => (
-          <span key={l} className="font-mono">
-            {l}
-          </span>
+          <span key={l}>{l}</span>
         ))}
         <span className="ml-auto flex gap-0.5">
           {task.assignees.map((a) => (
             <span
               key={a.userId}
               title={a.user.name}
-              className="border-border bg-secondary text-secondary-foreground inline-flex items-center rounded-sm border px-1 py-0.5 font-mono text-[10px]"
+              className="bg-tint text-foreground type-micro inline-flex items-center rounded-xs px-1 py-0.5 font-semibold"
             >
               {a.user.initials ?? a.user.name}
             </span>
