@@ -24,7 +24,7 @@ export default function Frequencies({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-mono text-xl">{t("frequency.title")}</h1>
+        <h1 className="text-xl font-bold">{t("frequency.title")}</h1>
         <p className="text-muted-foreground text-sm">
           {t("frequency.subtitle.prefix")}{" "}
           <span className={totalClashes > 0 ? "text-status-fault" : undefined}>

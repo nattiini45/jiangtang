@@ -37,12 +37,12 @@ export function LocationTree({
   }
 
   return (
-    <ul className="border-border divide-border divide-y border">
+    <ul className="bg-card shadow-surface-2 divide-border divide-y overflow-hidden rounded-lg">
       {nodes.map((node) => (
         <li key={node.id}>
           <Link
             to={`/locations/${node.id}`}
-            className="hover:bg-accent flex items-center gap-3 px-3 py-2"
+            className="hover:bg-hover flex items-center gap-3 px-3 py-2 transition-colors duration-80"
             // The depth in the hierarchy, not in the rendered list.
             style={{ paddingLeft: `${0.75 + node.depth * 1.25}rem` }}
           >

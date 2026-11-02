@@ -42,10 +42,10 @@ export function LocationKindFilter({ active }: { active: string }) {
             preventScrollReset
             aria-current={isActive ? "true" : undefined}
             className={cn(
-              "border-border rounded-sm border px-2 py-1 font-mono text-xs",
+              "inline-flex h-7 items-center rounded-full px-3 text-xs transition-colors duration-80",
               isActive
-                ? "bg-primary text-primary-foreground"
-                : "hover:bg-accent text-muted-foreground",
+                ? "bg-selected font-semibold text-foreground"
+                : "text-muted-foreground hover:bg-hover hover:text-foreground",
             )}
           >
             {item.label}

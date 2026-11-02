@@ -62,7 +62,7 @@ export default function NewLocation({ loaderData, actionData }: Route.ComponentP
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("locations.new.title")}</h1>
+        <h1 className="text-xl font-bold">{t("locations.new.title")}</h1>
         <Link to="/locations" className="text-muted-foreground text-sm hover:underline">
           {t("locations.new.back")}
         </Link>

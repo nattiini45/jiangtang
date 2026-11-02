@@ -39,8 +39,8 @@ export function CsvImportPanel({
     <div className="mt-4 flex flex-col gap-4">
       <p className="text-muted-foreground text-sm">{description}</p>
 
-      <details className="border-border border p-3">
-        <summary className="text-muted-foreground cursor-pointer text-xs uppercase tracking-wide">
+      <details className="bg-card shadow-surface-2 rounded-lg p-4">
+        <summary className="text-muted-foreground cursor-pointer text-xs">
           {t("common.csv.expectedColumns")}
         </summary>
         <pre className="mt-2 overflow-auto font-mono text-xs">
@@ -58,7 +58,7 @@ export function CsvImportPanel({
           className="font-mono text-xs"
         />
         <div className="flex gap-2">
-          <Button type="submit" name="_action" value="preview" variant="outline" disabled={busy}>
+          <Button type="submit" name="_action" value="preview" variant="tertiary" disabled={busy}>
             {t("common.csv.preview")}
           </Button>
           {preview && preview.validCount > 0 ? (
@@ -76,14 +76,14 @@ export function CsvImportPanel({
       ) : null}
 
       {preview ? (
-        <div className="border-border border">
-          <div className="border-border border-b px-3 py-2 text-sm">
-            <span className="text-status-operational font-mono">{preview.validCount}</span>{" "}
+        <div className="bg-card shadow-surface-2 rounded-lg">
+          <div className="border-border border-b px-4 py-3 text-sm">
+            <span className="text-status-operational nums">{preview.validCount}</span>{" "}
             {t("common.csv.valid")}
             {preview.invalid.length > 0 ? (
               <>
                 {" · "}
-                <span className="text-destructive font-mono">{preview.invalid.length}</span>{" "}
+                <span className="text-destructive nums">{preview.invalid.length}</span>{" "}
                 {t("common.csv.invalid")}
               </>
             ) : null}
@@ -91,8 +91,8 @@ export function CsvImportPanel({
           {preview.invalid.length > 0 ? (
             <ul className="divide-border divide-y text-sm">
               {preview.invalid.map((r) => (
-                <li key={r.line} className="px-3 py-2">
-                  <span className="text-muted-foreground font-mono text-xs">
+                <li key={r.line} className="px-4 py-2">
+                  <span className="text-muted-foreground text-xs">
                     {t("common.csv.line", { line: r.line })}
                   </span>{" "}
                   <span className="text-destructive">{r.messages.join("; ")}</span>

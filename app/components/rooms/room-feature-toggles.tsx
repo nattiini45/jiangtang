@@ -17,10 +17,8 @@ export type RoomFlags = Partial<Record<RoomFlagName, boolean>>;
 export function RoomFeatureToggles({ defaults }: { defaults?: RoomFlags }) {
   const t = useT();
   return (
-    <fieldset className="border-border grid grid-cols-2 gap-2 border p-3 sm:grid-cols-3">
-      <legend className="text-muted-foreground px-1 text-xs uppercase tracking-wide">
-        {t("rooms.features.legend")}
-      </legend>
+    <fieldset className="bg-card shadow-surface-2 grid grid-cols-2 gap-2 rounded-lg p-4 sm:grid-cols-3">
+      <legend className="text-muted-foreground px-1 text-xs">{t("rooms.features.legend")}</legend>
       {FLAGS.map((f) => (
         <label key={f.name} className="flex items-center gap-2 text-sm">
           <Checkbox name={f.name} defaultChecked={defaults?.[f.name] ?? false} />

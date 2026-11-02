@@ -15,7 +15,7 @@ export function FrequencyBoard({ groups }: { groups: FrequencyGroup[] }) {
   const t = useT();
   if (groups.length === 0) {
     return (
-      <div className="rounded-sm border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+      <div className="bg-card shadow-surface-2 text-muted-foreground rounded-lg p-8 text-center text-sm">
         {t("frequency.empty")}
       </div>
     );
@@ -34,9 +34,9 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
   const t = useT();
   const locale = useLocale();
   return (
-    <section className="rounded-sm border border-border bg-card">
+    <section className="bg-card shadow-surface-2 rounded-lg">
       <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-2.5">
-        <h2 className="font-mono text-sm">
+        <h2 className="text-base font-semibold">
           {group.campusName ? (
             <>
               <span className="text-muted-foreground">{group.campusName}</span>
@@ -48,7 +48,7 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
         <p className="text-xs text-muted-foreground">
           {group.frequencyCount}{" "}
           {t(group.frequencyCount === 1 ? "frequency.count.one" : "frequency.count.other")},{" "}
-          <span className={cn(group.clashCount > 0 && "font-medium text-status-fault")}>
+          <span className={cn(group.clashCount > 0 && "font-semibold text-status-fault")}>
             {group.clashCount}{" "}
             {t(group.clashCount === 1 ? "frequency.clash.one" : "frequency.clash.other")}
           </span>
@@ -59,13 +59,13 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.frequency")}</th>
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.band")}</th>
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.channel")}</th>
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.device")}</th>
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.type")}</th>
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.room")}</th>
-              <th className="px-4 py-1.5 font-medium">{t("frequency.col.status")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.frequency")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.band")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.channel")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.device")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.type")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.room")}</th>
+              <th className="px-4 py-1.5">{t("frequency.col.status")}</th>
             </tr>
           </thead>
           <tbody>
@@ -73,17 +73,13 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
               <tr
                 key={row.id}
                 className={cn(
-                  "border-b border-border/60 last:border-b-0",
+                  "border-border border-b last:border-b-0",
                   row.clash && "border-l-2 border-l-status-fault bg-status-fault/5",
                 )}
               >
-                <td className="px-4 py-1.5 font-mono tabular-nums whitespace-nowrap">
-                  {row.frequencyMhz} MHz
-                </td>
-                <td className="px-4 py-1.5 font-mono text-muted-foreground">
-                  {row.band ?? <Dash />}
-                </td>
-                <td className="px-4 py-1.5 font-mono text-muted-foreground">
+                <td className="nums px-4 py-1.5 whitespace-nowrap">{row.frequencyMhz} MHz</td>
+                <td className="nums px-4 py-1.5 text-muted-foreground">{row.band ?? <Dash />}</td>
+                <td className="nums px-4 py-1.5 text-muted-foreground">
                   {row.channelLabel ?? <Dash />}
                 </td>
                 <td className="px-4 py-1.5">
@@ -94,7 +90,7 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
                   </span>
                   {row.clash ? (
                     <span
-                      className="ml-2 inline-flex items-center gap-1 rounded-sm border border-status-fault/30 bg-status-fault/15 px-1.5 py-0.5 font-mono text-[0.65rem] text-status-fault align-middle"
+                      className="ml-2 inline-flex items-center gap-1 rounded-sm border border-status-fault/30 bg-status-fault/15 px-1.5 py-0.5 text-xs text-status-fault align-middle"
                       title={t("frequency.clash.title", { partners: row.clashPartners.join(", ") })}
                     >
                       {t("frequency.clash.badge", { partners: row.clashPartners.join(", ") })}
@@ -104,7 +100,7 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
                 <td className="px-4 py-1.5 text-muted-foreground">
                   {row.micKind ? micKindLabel(locale, row.micKind) : <Dash />}
                 </td>
-                <td className="px-4 py-1.5 font-mono text-muted-foreground whitespace-nowrap">
+                <td className="px-4 py-1.5 text-muted-foreground whitespace-nowrap">
                   {row.roomName ?? <Dash />}
                 </td>
                 <td className="px-4 py-1.5">

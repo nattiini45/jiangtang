@@ -43,7 +43,7 @@ export default function NewRoom({ loaderData, actionData }: Route.ComponentProps
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("rooms.new.title")}</h1>
+        <h1 className="text-xl font-bold">{t("rooms.new.title")}</h1>
         <Link to="/rooms" className="text-muted-foreground text-sm hover:underline">
           {t("rooms.new.back")}
         </Link>

@@ -1,5 +1,7 @@
 import * as React from "react";
 import { X } from "lucide-react";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { useT } from "~/i18n/use-t";
 
@@ -31,27 +33,26 @@ export function CapabilityListInput({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-foreground text-xs font-semibold">{label}</span>
       {items.map((it) => (
         <input key={it} type="hidden" name={name} value={it} />
       ))}
       {items.length > 0 ? (
         <div className="flex flex-wrap gap-1">
           {items.map((it, i) => (
-            <span
-              key={it}
-              className="border-border bg-secondary inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 font-mono text-xs"
-            >
+            <Badge key={it} className="gap-0.5 pr-0.5">
               {it}
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="icon-compact"
                 aria-label={t("rooms.capability.remove", { item: it })}
                 onClick={() => setItems(items.filter((_, idx) => idx !== i))}
-                className="text-muted-foreground hover:text-foreground"
+                className="size-5 [--icon:12px]"
               >
                 <X className="size-3" />
-              </button>
-            </span>
+              </Button>
+            </Badge>
           ))}
         </div>
       ) : null}

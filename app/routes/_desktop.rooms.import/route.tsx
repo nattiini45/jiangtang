@@ -56,7 +56,7 @@ export default function RoomsImport({ actionData }: Route.ComponentProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("rooms.import.title")}</h1>
+        <h1 className="text-xl font-bold">{t("rooms.import.title")}</h1>
         <Link to="/rooms" className="text-muted-foreground text-sm hover:underline">
           {t("rooms.import.back")}
         </Link>
