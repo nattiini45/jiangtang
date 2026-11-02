@@ -44,7 +44,7 @@ export function FileUpload({
           name="file"
           accept="image/jpeg,image/png,image/webp"
           required
-          className="border-border file:bg-secondary file:border-border max-w-[16rem] text-sm file:mr-2 file:rounded-sm file:border file:px-2 file:py-1 file:text-xs"
+          className="max-w-[16rem] text-sm file:mr-2 file:cursor-pointer file:rounded-md file:bg-tint file:px-3 file:py-1 file:text-xs file:font-semibold hover:file:bg-tint-hover"
         />
         {categories.length > 1 ? (
           <Select name="category" defaultValue={categories[0]} className="max-w-[12rem]">
@@ -57,7 +57,7 @@ export function FileUpload({
         ) : (
           <input type="hidden" name="category" value={categories[0]} />
         )}
-        <Button type="submit" size="sm" disabled={busy}>
+        <Button type="submit" size="compact" disabled={busy}>
           {busy ? t("upload.busy") : t("upload.submit")}
         </Button>
       </Form>

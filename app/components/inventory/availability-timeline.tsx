@@ -16,7 +16,7 @@ import type {
 
 function statusColor(status: string): string {
   // Cancelled events shouldn't appear (filtered out), but keep a defensive fall-through.
-  if (status === "CANCELLED") return "bg-muted";
+  if (status === "CANCELLED") return "bg-tint";
   return "bg-status-info/70";
 }
 
@@ -37,13 +37,16 @@ export function AvailabilityTimeline({
   }
 
   return (
-    <div className="border-border flex flex-col border">
-      <div className="border-border border-b px-3 py-2">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("inventory.availability.heading")} · {fmtRange(locale, from, to)}
+    <div className="bg-card shadow-surface-2 flex flex-col rounded-lg">
+      <div className="border-b px-4 py-3">
+        <p className="text-base font-semibold">
+          {t("inventory.availability.heading")}{" "}
+          <span className="text-muted-foreground nums text-xs font-normal">
+            · {fmtRange(locale, from, to)}
+          </span>
         </p>
       </div>
-      <div className="divide-border divide-y">
+      <div className="divide-y">
         {units.map((unit) => (
           <UnitRow key={unit.equipmentId} unit={unit} from={from} span={span} />
         ))}
@@ -55,13 +58,13 @@ export function AvailabilityTimeline({
 
 function UnitRow({ unit, from, span }: { unit: UnitAvailabilityRow; from: Date; span: number }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-2">
+    <div className="flex items-center gap-3 px-4 py-2">
       <div className="w-40 shrink-0 truncate text-sm">
         <Link to={`/inventory/${unit.equipmentId}`} className="hover:underline">
           {unit.equipmentLabel}
         </Link>
       </div>
-      <div className="border-border relative h-5 flex-1 border bg-muted/20">
+      <div className="bg-tint relative h-5 flex-1 rounded-xs">
         {unit.windows.map((w) => (
           <Block key={w.allocationId} w={w} from={from} span={span} />
         ))}
@@ -78,7 +81,7 @@ function Block({ w, from, span }: { w: AllocationWindow; from: Date; span: numbe
     <Link
       to={`/events/${w.eventId}`}
       title={`${w.eventTitle} · ${fmt(locale, w.startsAt)}–${fmt(locale, w.endsAt)}`}
-      className={["absolute top-0 h-full min-w-[2px] rounded-sm", statusColor(w.eventStatus)].join(
+      className={["absolute top-0 h-full min-w-[2px] rounded-xs", statusColor(w.eventStatus)].join(
         " ",
       )}
       style={{
@@ -92,13 +95,13 @@ function Block({ w, from, span }: { w: AllocationWindow; from: Date; span: numbe
 function Legend() {
   const t = useT();
   return (
-    <div className="text-muted-foreground border-border flex items-center gap-3 border-t px-3 py-1.5 text-xs">
+    <div className="text-muted-foreground flex items-center gap-3 border-t px-4 py-2 text-xs">
       <span className="flex items-center gap-1">
-        <span className="bg-status-info/70 inline-block h-2.5 w-4 rounded-sm" />{" "}
+        <span className="bg-status-info/70 inline-block h-2.5 w-4 rounded-xs" />{" "}
         {t("inventory.availability.booked")}
       </span>
       <span className="flex items-center gap-1">
-        <span className="bg-muted border-border inline-block h-2.5 w-4 rounded-sm border" />{" "}
+        <span className="bg-tint inline-block h-2.5 w-4 rounded-xs" />{" "}
         {t("inventory.availability.free")}
       </span>
     </div>

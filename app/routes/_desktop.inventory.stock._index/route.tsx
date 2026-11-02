@@ -87,17 +87,17 @@ export default function StockIndex({ loaderData }: Route.ComponentProps) {
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("inventory.stock.list.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("inventory.stock.list.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("inventory.stock.list.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("inventory.stock.list.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           {/* Equipment keeps its own page: `/inventory` and `/inventory/:id` still mean
               `Equipment`. Cross-linking the two namespaces is what makes that split
               legible from either side. */}
-          <Button asChild variant="outline">
+          <Button asChild variant="tertiary">
             <Link to="/inventory">{t("inventory.stock.list.devices")}</Link>
           </Button>
           <Button asChild>
@@ -158,7 +158,7 @@ export default function StockIndex({ loaderData }: Route.ComponentProps) {
         {/* A real button, not a `noscript` one: the select auto-submits via JS, so without
             a visible submit the filter would be unreachable for anyone whose JS has not
             loaded — and an unreachable control reads as a broken feature. */}
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="tertiary" size="compact">
           {t("inventory.stock.list.filterSubmit")}
         </Button>
       </Form>

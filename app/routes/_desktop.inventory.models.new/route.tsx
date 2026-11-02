@@ -36,9 +36,9 @@ export default function NewModel({ actionData }: Route.ComponentProps) {
   const nav = useNavigation();
   const busy = nav.state !== "idle";
   return (
-    <div className="mx-auto max-w-xl">
-      <h1 className="font-mono text-xl">{t("inventory.models.createTitle")}</h1>
-      <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
+    <div className="mx-auto flex max-w-xl flex-col gap-6">
+      <h1 className="text-xl font-bold">{t("inventory.models.createTitle")}</h1>
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <ModelFormFields />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>

@@ -198,8 +198,8 @@ export async function action({ request, params }: Route.ActionArgs) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-muted-foreground text-xs uppercase tracking-wide">{label}</span>
-      <span className="font-mono text-sm">{children}</span>
+      <span className="text-muted-foreground text-xs">{label}</span>
+      <span className="text-sm">{children}</span>
     </div>
   );
 }
@@ -224,20 +224,24 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
   const linked = Boolean(item.equipmentId);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{item.name}</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">{item.name}</h1>
         <Link to="/inventory/stock" className="text-muted-foreground text-sm hover:underline">
           {t("inventory.stock.detail.back")}
         </Link>
       </div>
 
-      <section className="border-border grid grid-cols-2 gap-4 border p-4 sm:grid-cols-3">
-        <Field
-          label={t("inventory.stock.form.quantity")}
-        >{`${item.quantity}${item.unit ? ` ${item.unit}` : ""}`}</Field>
-        <Field label={t("inventory.stock.form.sku")}>{item.sku ?? dash}</Field>
-        <Field label={t("inventory.stock.form.serial")}>{item.serial ?? dash}</Field>
+      <section className="bg-card shadow-surface-2 grid grid-cols-2 gap-4 rounded-lg p-4 sm:grid-cols-3">
+        <Field label={t("inventory.stock.form.quantity")}>
+          <span className="nums">{`${item.quantity}${item.unit ? ` ${item.unit}` : ""}`}</span>
+        </Field>
+        <Field label={t("inventory.stock.form.sku")}>
+          {item.sku ? <span className="font-mono">{item.sku}</span> : dash}
+        </Field>
+        <Field label={t("inventory.stock.form.serial")}>
+          {item.serial ? <span className="font-mono">{item.serial}</span> : dash}
+        </Field>
         <Field label={t("inventory.stock.form.category")}>{item.category ?? dash}</Field>
         <Field label={t("inventory.stock.form.status")}>
           {item.status ? stockStatusLabel(locale, item.status) : dash}
@@ -245,7 +249,9 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
         <Field label={t("inventory.stock.form.vendor")}>
           {item.vendor ? item.vendor.name : dash}
         </Field>
-        <Field label={t("inventory.stock.form.price")}>{item.purchasePrice ?? dash}</Field>
+        <Field label={t("inventory.stock.form.price")}>
+          <span className="nums">{item.purchasePrice ?? dash}</span>
+        </Field>
         <Field label={t("inventory.stock.form.purchasedAt")}>
           <DateCell value={item.purchasedAt} withTime={false} />
         </Field>
@@ -257,11 +263,9 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
         </Field>
       </section>
 
-      <section className="border-border flex flex-col gap-3 border p-4">
+      <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4">
         <div className="flex flex-col gap-1">
-          <span className="text-muted-foreground text-xs uppercase tracking-wide">
-            {t("inventory.stock.detail.device")}
-          </span>
+          <h2 className="text-base font-semibold">{t("inventory.stock.detail.device")}</h2>
           {item.equipment ? (
             <Link to={`/inventory/${item.equipment.id}`} className="text-sm hover:underline">
               {item.equipment.name ?? item.equipment.assetTag ?? item.equipment.id}
@@ -282,7 +286,7 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
       <ZodForm
         method="post"
         fieldErrors={actionData?.fieldErrors}
-        className="border-border flex flex-col gap-3 border p-4"
+        className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4"
       >
         <input type="hidden" name="_action" value={STOCK_ITEM_INTENTS.save} />
         <StockFormErrors formErrors={actionData?.formErrors} />
@@ -318,7 +322,7 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
 
       <Form
         method="post"
-        className="border-border flex flex-col gap-3 border-t pt-4"
+        className="flex flex-col gap-3 border-t pt-4"
         onSubmit={(e) => {
           if (!confirm(t("inventory.stock.detail.confirmDelete", { name: item.name })))
             e.preventDefault();

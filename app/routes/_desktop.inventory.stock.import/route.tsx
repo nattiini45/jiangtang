@@ -97,9 +97,9 @@ export default function StockImport({ actionData }: Route.ComponentProps) {
   const t = useT();
   const locale = useLocale();
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("inventory.stockImport.title")}</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("inventory.stockImport.title")}</h1>
         <Link to="/inventory/stock" className="text-muted-foreground text-sm hover:underline">
           {t("inventory.stockImport.back")}
         </Link>

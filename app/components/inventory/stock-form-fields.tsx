@@ -157,6 +157,7 @@ export function StockFormFields({
             min={0}
             step={1}
             defaultValue={defaults?.quantity ?? 1}
+            className="nums"
           />
         </FormField>
       </div>
@@ -236,13 +237,19 @@ export function StockFormFields({
             name="warrantyExpiresAt"
             type="date"
             defaultValue={defaults?.warrantyExpiresAt ?? ""}
+            className="nums"
           />
         </FormField>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField name="purchasedAt" label={t("inventory.stock.form.purchasedAt")}>
-          <Input name="purchasedAt" type="date" defaultValue={defaults?.purchasedAt ?? ""} />
+          <Input
+            name="purchasedAt"
+            type="date"
+            defaultValue={defaults?.purchasedAt ?? ""}
+            className="nums"
+          />
         </FormField>
         <FormField
           name="purchasePrice"
@@ -254,7 +261,7 @@ export function StockFormFields({
             inputMode="decimal"
             defaultValue={defaults?.purchasePrice ?? ""}
             placeholder="0.00"
-            className="font-mono"
+            className="nums"
           />
         </FormField>
       </div>
@@ -277,7 +284,6 @@ export function StockFormFields({
                 placeholder={
                   i === tagBoxes.length - 1 ? t("inventory.stock.form.tagPlaceholder") : undefined
                 }
-                className="font-mono"
                 aria-label={
                   i === tagBoxes.length - 1
                     ? t("inventory.stock.form.newTag")

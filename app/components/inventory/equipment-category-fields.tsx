@@ -6,7 +6,8 @@ import { useLocale, useT } from "~/i18n/use-t";
 import { micKindLabel } from "./labels";
 import type { EquipmentDefaults } from "./equipment-form-fields";
 
-const legend = "text-muted-foreground px-1 text-xs uppercase tracking-wide";
+const legend = "text-base font-semibold";
+const group = "bg-card shadow-surface-2 grid gap-4 rounded-lg p-4 sm:grid-cols-2";
 
 /** Per-category attribute groups. The selected category decides which group shows. */
 export function EquipmentCategoryFields({
@@ -20,7 +21,7 @@ export function EquipmentCategoryFields({
   const locale = useLocale();
   if (category === "PC") {
     return (
-      <fieldset className="border-border grid gap-4 border p-3 sm:grid-cols-2">
+      <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.pc")}</legend>
         <FormField name="hostname" label={t("inventory.catFields.hostname")}>
           <Input name="hostname" defaultValue={defaults?.hostname ?? ""} />
@@ -30,6 +31,7 @@ export function EquipmentCategoryFields({
             name="ipAddress"
             defaultValue={defaults?.ipAddress ?? ""}
             placeholder="192.0.2.1"
+            className="font-mono"
           />
         </FormField>
         <FormField name="macAddress" label={t("inventory.catFields.mac")}>
@@ -37,20 +39,29 @@ export function EquipmentCategoryFields({
             name="macAddress"
             defaultValue={defaults?.macAddress ?? ""}
             placeholder="02:00:00:3C:4D:5E"
+            className="font-mono"
           />
         </FormField>
         <FormField name="dellServiceTag" label={t("inventory.catFields.dellService")}>
-          <Input name="dellServiceTag" defaultValue={defaults?.dellServiceTag ?? ""} />
+          <Input
+            name="dellServiceTag"
+            defaultValue={defaults?.dellServiceTag ?? ""}
+            className="font-mono"
+          />
         </FormField>
         <FormField name="dellExpressTag" label={t("inventory.catFields.dellExpress")}>
-          <Input name="dellExpressTag" defaultValue={defaults?.dellExpressTag ?? ""} />
+          <Input
+            name="dellExpressTag"
+            defaultValue={defaults?.dellExpressTag ?? ""}
+            className="font-mono"
+          />
         </FormField>
       </fieldset>
     );
   }
   if (category === "MICROPHONE") {
     return (
-      <fieldset className="border-border grid gap-4 border p-3 sm:grid-cols-2">
+      <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.microphone")}</legend>
         <FormField name="micKind" label={t("inventory.catFields.micKind")}>
           <Select name="micKind" defaultValue={defaults?.micKind ?? ""}>
@@ -68,6 +79,7 @@ export function EquipmentCategoryFields({
             type="number"
             step="0.001"
             defaultValue={defaults?.frequencyMhz ?? ""}
+            className="nums"
           />
         </FormField>
         <FormField name="band" label={t("inventory.catFields.band")}>
@@ -89,7 +101,7 @@ export function EquipmentCategoryFields({
   }
   if (category === "PROJECTOR") {
     return (
-      <fieldset className="border-border grid gap-4 border p-3 sm:grid-cols-2">
+      <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.projector")}</legend>
         <FormField name="lampType" label={t("inventory.catFields.lampType")}>
           <Input name="lampType" defaultValue={defaults?.lampType ?? ""} />
@@ -99,6 +111,7 @@ export function EquipmentCategoryFields({
             name="lastLampChangeAt"
             type="date"
             defaultValue={defaults?.lastLampChangeAt ?? ""}
+            className="nums"
           />
         </FormField>
       </fieldset>
@@ -106,7 +119,7 @@ export function EquipmentCategoryFields({
   }
   if (category === "REMOTE" || category === "MEDIA_CONTROL") {
     return (
-      <fieldset className="border-border grid gap-4 border p-3 sm:grid-cols-2">
+      <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.control")}</legend>
         <FormField name="color" label={t("inventory.catFields.color")}>
           <Input name="color" defaultValue={defaults?.color ?? ""} />

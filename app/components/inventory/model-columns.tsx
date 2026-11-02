@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { MonoCell, type ColumnDef } from "~/components/data-grid";
+import type { ColumnDef } from "~/components/data-grid";
 import type { ModelListRow } from "~/domains/catalog/catalog.queries.server";
 import type { Translate } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
@@ -32,7 +32,7 @@ export function modelColumns(t: Translate, locale: Locale): ColumnDef<ModelListR
     {
       accessorKey: "instanceCount",
       header: t("inventory.col.devices"),
-      cell: ({ row }) => <MonoCell>{row.original.instanceCount}</MonoCell>,
+      cell: ({ row }) => <span className="nums text-sm">{row.original.instanceCount}</span>,
       size: 90,
     },
     {
@@ -41,9 +41,9 @@ export function modelColumns(t: Translate, locale: Locale): ColumnDef<ModelListR
       size: 90,
       cell: ({ row }) =>
         row.original.faultyCount > 0 ? (
-          <span className="text-status-fault font-mono text-xs">{row.original.faultyCount}</span>
+          <span className="text-status-fault nums text-sm">{row.original.faultyCount}</span>
         ) : (
-          <span className="text-muted-foreground font-mono text-xs">0</span>
+          <span className="text-muted-foreground nums text-sm">0</span>
         ),
     },
   ];

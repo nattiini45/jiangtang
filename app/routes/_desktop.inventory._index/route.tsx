@@ -44,14 +44,14 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("inventory.list.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("inventory.list.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("inventory.list.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("inventory.list.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="tertiary">
             <Link to="/inventory/models">{t("inventory.list.models")}</Link>
           </Button>
           <Button asChild>
@@ -104,7 +104,7 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
           ))}
         </Select>
         <noscript>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="tertiary" size="compact">
             {t("inventory.list.filterSubmit")}
           </Button>
         </noscript>

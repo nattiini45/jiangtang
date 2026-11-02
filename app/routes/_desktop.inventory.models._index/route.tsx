@@ -22,11 +22,11 @@ export default function ModelCatalog({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const columns = React.useMemo(() => modelColumns(t, locale), [t, locale]);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("inventory.models.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("inventory.models.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("inventory.models.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("inventory.models.subtitle")}</p>
         </div>
         <Button asChild>
           <Link to="/inventory/models/new">{t("inventory.models.new")}</Link>
