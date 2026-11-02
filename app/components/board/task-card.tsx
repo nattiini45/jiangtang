@@ -57,7 +57,7 @@ export function TaskCard({ task }: { task: BoardCard }) {
           type="button"
           {...attributes}
           aria-label={t("board.card.gripAria", { title: task.title })}
-          className="text-muted-foreground hover:bg-hover mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-md focus-visible:outline-1 focus-visible:outline-primary active:cursor-grabbing"
+          className="text-muted-foreground hover:bg-hover mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" aria-hidden />
         </button>
@@ -70,7 +70,7 @@ export function TaskCard({ task }: { task: BoardCard }) {
         ) : null}
         <Link
           to={`/tasks/${task.id}`}
-          className="hover:underline focus-visible:outline-1 focus-visible:outline-primary"
+          className="min-w-0 break-words hover:underline"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {task.title}

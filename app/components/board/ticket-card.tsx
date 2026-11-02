@@ -77,7 +77,7 @@ export function TicketCard({ ticket }: { ticket: BoardTicket }) {
           type="button"
           {...attributes}
           aria-label={t("board.ticket.gripAria", { title: ticket.title })}
-          className="text-muted-foreground hover:bg-hover mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-md focus-visible:outline-1 focus-visible:outline-primary active:cursor-grabbing"
+          className="text-muted-foreground hover:bg-hover mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" aria-hidden />
         </button>
@@ -88,7 +88,7 @@ export function TicketCard({ ticket }: { ticket: BoardTicket }) {
         />
         <Link
           to={`/tickets/${ticket.id}`}
-          className="hover:underline focus-visible:outline-1 focus-visible:outline-primary"
+          className="min-w-0 break-words hover:underline"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {ticket.title}
