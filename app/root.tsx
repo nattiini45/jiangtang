@@ -99,10 +99,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     detail = error.message;
   }
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-2 p-8">
+    <main className="text-muted-foreground mx-auto flex min-h-screen max-w-md flex-col justify-center gap-2 p-8 [&>h1]:text-xl [&>h1]:font-bold [&>h1]:text-foreground">
       <title>{`${title} · Jiangtang`}</title>
-      <h1 className="text-xl font-bold">{message}</h1>
-      <p className="text-muted-foreground">{detail}</p>
+      <h1>{message}</h1>
+      <p>{detail}</p>
     </main>
   );
 }
