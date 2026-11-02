@@ -98,15 +98,15 @@ export function ConflictCheck({
     return <p className="text-muted-foreground text-xs">{t("events.conflict.none")}</p>;
   }
   return (
-    <div className="border-status-fault/40 bg-status-fault/10 text-status-fault border p-2 text-xs">
-      <p className="font-medium">
+    <div className="bg-destructive/10 text-destructive rounded-md p-2 text-xs">
+      <p className="font-semibold">
         {conflicts.length === 1
           ? t("events.conflict.headingOne")
           : t("events.conflict.headingOther", { count: conflicts.length })}
       </p>
       <ul className="mt-1 flex flex-col gap-0.5">
         {conflicts.map((c) => (
-          <li key={c.eventId + c.startsAt} className="font-mono">
+          <li key={c.eventId + c.startsAt} className="nums">
             {c.eventTitle} · {fmt(locale, c.startsAt)}–{fmt(locale, c.endsAt)}
           </li>
         ))}

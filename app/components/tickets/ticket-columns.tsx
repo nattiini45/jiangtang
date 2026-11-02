@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { DateCell, MonoCell, StatusCell, type ColumnDef } from "~/components/data-grid";
+import { DateCell, StatusCell, type ColumnDef } from "~/components/data-grid";
 import type { TicketListRow } from "~/domains/tickets/tickets.queries.server";
 import type { Translate } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
@@ -14,7 +14,7 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
       header: t("tickets.col.type"),
       size: 110,
       cell: ({ row }) => (
-        <span className="text-muted-foreground font-mono text-xs">
+        <span className="text-muted-foreground text-xs">
           {ticketTypeLabel(locale, row.original.type)}
         </span>
       ),
@@ -54,7 +54,7 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
       size: 90,
       cell: ({ row }) =>
         row.original.priority != null ? (
-          <MonoCell>{priorityLabel(locale, row.original.priority)}</MonoCell>
+          <span className="text-sm">{priorityLabel(locale, row.original.priority)}</span>
         ) : (
           dash
         ),
@@ -66,7 +66,7 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
       accessorFn: (r) => r.assignees.join(" "),
       cell: ({ row }) =>
         row.original.assignees.length ? (
-          <MonoCell>{row.original.assignees.join(", ")}</MonoCell>
+          <span className="text-sm">{row.original.assignees.join(", ")}</span>
         ) : (
           dash
         ),

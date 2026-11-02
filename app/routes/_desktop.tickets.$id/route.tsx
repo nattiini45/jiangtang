@@ -26,8 +26,9 @@ import { FileUpload } from "~/components/upload/file-upload";
 import { AttachmentGallery } from "~/components/upload/attachment-gallery";
 import { AttachmentCategory } from "~/generated/prisma/enums";
 import { StatusBadge } from "~/components/ui/status-badge";
-import { StatusCell } from "~/components/data-grid";
 import { Button } from "~/components/ui/button";
+import { Card, CardHeader, CardTitle } from "~/components/ui/card";
+import { Label } from "~/components/ui/label";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
 import { metaLocale } from "~/i18n/meta";
@@ -135,13 +136,13 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
   };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="text-muted-foreground font-mono text-xs uppercase">
+          <span className="text-muted-foreground text-xs">
             {ticketTypeLabel(locale, ticket.type)}
           </span>
-          <h1 className="font-mono text-xl">{ticket.title}</h1>
+          <h1 className="text-xl font-bold">{ticket.title}</h1>
           <StatusBadge kind="ticket" value={ticket.status} />
         </div>
         <Link to="/tickets" className="text-muted-foreground text-sm hover:underline">
@@ -186,28 +187,26 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
       {/* Task harmony: the ticket's PRIMARY task, any other tasks that
           link here, or the form to raise one — title/body/assignees/priority
           are copied, both link columns are set in one transaction. */}
-      <section className="border-border flex flex-col gap-2 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tickets.detail.tasks")}
-        </p>
+      <Card className="flex flex-col gap-2 p-4">
+        <p className="text-base font-semibold">{t("tickets.detail.tasks")}</p>
         {ticket.task ? (
-          <p className="text-sm">
+          <p className="flex flex-wrap items-center gap-x-1 text-sm">
             {t("tickets.detail.primaryTask")}{" "}
             <Link to={`/tasks/${ticket.task.id}`} className="hover:underline">
               {ticket.task.title}
             </Link>{" "}
-            <StatusCell kind="task" value={ticket.task.status} />
+            <StatusBadge kind="task" value={ticket.task.status} />
           </p>
         ) : null}
         {ticket.linkedTasks
           .filter((linked) => linked.id !== ticket.task?.id)
           .map((linked) => (
-            <p key={linked.id} className="text-sm">
+            <p key={linked.id} className="flex flex-wrap items-center gap-x-1 text-sm">
               {t("tickets.detail.linkedTask")}{" "}
               <Link to={`/tasks/${linked.id}`} className="hover:underline">
                 {linked.title}
               </Link>{" "}
-              <StatusCell kind="task" value={linked.status} />
+              <StatusBadge kind="task" value={linked.status} />
             </p>
           ))}
         {!ticket.task && ticket.linkedTasks.length === 0 ? (
@@ -225,27 +224,23 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
                 </option>
               ))}
             </Select>
-            <Button type="submit" variant="outline" size="sm" disabled={busy}>
+            <Button type="submit" variant="tertiary" size="compact" disabled={busy}>
               {t("tickets.detail.raiseTask")}
             </Button>
           </Form>
         ) : null}
-      </section>
+      </Card>
 
       {ticket.status === "RESOLVED" && ticket.resolution ? (
-        <section className="border-status-operational/40 bg-status-operational/10 border p-3">
-          <p className="text-muted-foreground text-xs uppercase tracking-wide">
-            {t("tickets.detail.resolution")}
-          </p>
+        <section className="bg-status-operational/15 shadow-surface-2 rounded-lg p-4">
+          <p className="text-base font-semibold">{t("tickets.detail.resolution")}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm">{ticket.resolution}</p>
         </section>
       ) : null}
 
       {/* Workflow transitions */}
-      <section className="border-border flex flex-col gap-3 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tickets.detail.changeStatus")}
-        </p>
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="text-base font-semibold">{t("tickets.detail.changeStatus")}</p>
         {actionData && "formError" in actionData && actionData.formError ? (
           <p className="text-destructive text-sm" role="alert">
             {actionData.formError}
@@ -263,7 +258,7 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
             <TransitionButton
               status="CANCELLED"
               label={t("common.cancel")}
-              variant="outline"
+              variant="tertiary"
               busy={busy}
             />
           ) : null}
@@ -271,19 +266,17 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
             <TransitionButton
               status="OPEN"
               label={t("tickets.detail.reopen")}
-              variant="outline"
+              variant="tertiary"
               busy={busy}
             />
           ) : null}
         </div>
 
         {ticket.status === "OPEN" || ticket.status === "IN_PROGRESS" ? (
-          <Form method="post" className="flex flex-col gap-2 border-t border-border pt-3">
+          <Form method="post" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="_action" value="transition" />
             <input type="hidden" name="status" value="RESOLVED" />
-            <label className="text-sm font-medium" htmlFor="resolution">
-              {t("tickets.detail.markResolved")}
-            </label>
+            <Label htmlFor="resolution">{t("tickets.detail.markResolved")}</Label>
             <Textarea
               id="resolution"
               name="resolution"
@@ -300,14 +293,14 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
             </Button>
           </Form>
         ) : null}
-      </section>
+      </Card>
 
       {/* Content edit */}
-      <details className="border-border border p-3">
-        <summary className="text-muted-foreground cursor-pointer text-xs uppercase tracking-wide">
+      <details className="bg-card shadow-surface-2 rounded-lg p-4">
+        <summary className="cursor-pointer text-base font-semibold">
           {t("tickets.detail.edit")}
         </summary>
-        <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-3">
+        <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
           <input type="hidden" name="_action" value="update" />
           <TicketFormFields
             mode="edit"
@@ -323,25 +316,23 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
       </details>
 
       {/* Attachments */}
-      <section className="border-border flex flex-col gap-3 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tickets.detail.photos")}
-        </p>
+      <Card className="flex flex-col gap-3 p-4">
+        <p className="text-base font-semibold">{t("tickets.detail.photos")}</p>
         <AttachmentGallery attachments={attachments} redirectTo={`/tickets/${ticket.id}`} />
         <FileUpload
           target={{ ticketId: ticket.id }}
           categories={[AttachmentCategory.TICKET]}
           redirectTo={`/tickets/${ticket.id}`}
         />
-      </section>
+      </Card>
 
       {/* Per-entity history */}
-      <section className="border-border border">
-        <header className="border-border border-b px-3 py-2">
-          <h2 className="text-sm font-medium">{t("tickets.detail.history")}</h2>
-        </header>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("tickets.detail.history")}</CardTitle>
+        </CardHeader>
         <ActivityFeed entries={history} />
-      </section>
+      </Card>
     </div>
   );
 }
@@ -354,7 +345,7 @@ function TransitionButton({
 }: {
   status: string;
   label: string;
-  variant?: "outline";
+  variant?: "tertiary";
   busy: boolean;
 }) {
   return (

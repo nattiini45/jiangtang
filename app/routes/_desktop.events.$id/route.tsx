@@ -18,6 +18,9 @@ import { formatDateTime } from "~/i18n/format";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 import { syncStatusLabel } from "~/components/events/labels";
+import { Card, CardHeader, CardTitle } from "~/components/ui/card";
+import { cn } from "~/lib/utils";
+import { toneDotClassName, type StatusTone } from "~/lib/status";
 import { getEventDetail, listEventTargets } from "~/domains/events/events.queries.server";
 import {
   allocationSchema,
@@ -177,11 +180,11 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 }
 
-/** Token class for the current outbox status of the newest calendar op. */
-const SYNC_STATUS_CLASS: Record<string, string> = {
-  SENT: "text-status-operational",
-  FAILED: "text-status-fault",
-  PENDING: "text-status-warning",
+/** Status tone of the newest calendar op, drawn as a dot beside its label. */
+const SYNC_TONE: Record<string, StatusTone> = {
+  SENT: "operational",
+  FAILED: "fault",
+  PENDING: "warning",
 };
 
 /** Read-only calendar-sync panel: state of the latest CalendarOutbox op for this
@@ -200,39 +203,41 @@ function CalendarSyncPanel({
   const t = useT();
   const processed = sync.processedAt ? formatDateTime(locale, sync.processedAt) : null;
   return (
-    <section className="border-border border">
-      <header className="border-border border-b px-3 py-2">
-        <h2 className="text-sm font-medium">{t("events.sync.title")}</h2>
-      </header>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3 text-sm">
-        <span className={`font-mono ${SYNC_STATUS_CLASS[sync.status] ?? "text-muted-foreground"}`}>
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("events.sync.title")}</CardTitle>
+      </CardHeader>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-4 text-sm">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className={cn(
+              "size-1.5 shrink-0 rounded-full",
+              toneDotClassName(SYNC_TONE[sync.status] ?? "neutral"),
+            )}
+          />
           {syncStatusLabel(locale, sync.status)}
         </span>
-        {processed ? (
-          <span className="text-muted-foreground font-mono text-xs">{processed}</span>
-        ) : null}
+        {processed ? <span className="text-muted-foreground nums text-xs">{processed}</span> : null}
         {sync.attempts > 0 ? (
-          <span className="text-muted-foreground font-mono text-xs">
+          <span className="text-muted-foreground nums text-xs">
             {t("events.sync.attempts", { attempts: sync.attempts })}
           </span>
         ) : null}
         {sync.status === "FAILED" && sync.lastError ? (
-          <span
-            className="text-status-fault w-full truncate font-mono text-xs"
-            title={sync.lastError}
-          >
+          <span className="text-destructive w-full truncate text-xs" title={sync.lastError}>
             {sync.lastError.slice(0, 200)}
           </span>
         ) : null}
       </div>
-    </section>
+    </Card>
   );
 }
 
 export default function EventDetailRoute({ loaderData, actionData }: Route.ComponentProps) {
   const { detail, targets, editDefaults, slotStart, slotEnd, calendarSync } = loaderData;
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <EventDetailView
         detail={detail}
         targets={targets}

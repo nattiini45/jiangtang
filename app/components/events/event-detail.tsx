@@ -1,6 +1,8 @@
 import { Form, Link } from "react-router";
 import { ZodForm, FormField, type FieldErrors } from "~/components/forms";
 import { DateCell } from "~/components/data-grid";
+import { Badge } from "~/components/ui/badge";
+import { Card, CardHeader, CardTitle } from "~/components/ui/card";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -27,10 +29,7 @@ export interface EventActionData {
 function FormError({ when, actionData }: { when: string; actionData?: EventActionData }) {
   if (actionData?.form !== when || !actionData.error) return null;
   return (
-    <p
-      className="border-status-fault/40 bg-status-fault/10 text-status-fault border p-2 text-sm"
-      role="alert"
-    >
+    <p className="bg-destructive/10 text-destructive rounded-md p-2 text-sm" role="alert">
       {actionData.error}
     </p>
   );
@@ -61,10 +60,10 @@ export function EventDetailView({
   const cancelled = event.status === "CANCELLED";
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="font-mono text-xl">{event.title}</h1>
+          <h1 className="text-xl font-bold">{event.title}</h1>
           <StatusBadge kind="event" value={event.status} />
         </div>
         <Link to="/events" className="text-muted-foreground text-sm hover:underline">
@@ -84,45 +83,40 @@ export function EventDetailView({
       ) : null}
 
       {actionData?.error && !actionData.form ? (
-        <p
-          className="border-status-fault/40 bg-status-fault/10 text-status-fault border p-2 text-sm"
-          role="alert"
-        >
+        <p className="bg-destructive/10 text-destructive rounded-md p-2 text-sm" role="alert">
           {actionData.error}
         </p>
       ) : null}
 
       {/* Timeline */}
       {rooms.length > 0 || serviceWindows.length > 0 ? (
-        <section className="border-border border p-3">
-          <p className="text-muted-foreground mb-2 text-xs uppercase tracking-wide">
-            {t("events.detail.timeline")}
-          </p>
+        <Card className="p-4">
+          <p className="mb-3 text-base font-semibold">{t("events.detail.timeline")}</p>
           <EventTimeline
             start={event.startsAt}
             end={event.endsAt}
             rooms={rooms}
             serviceWindows={serviceWindows}
           />
-        </section>
+        </Card>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Rooms */}
-        <section className="border-border border">
-          <header className="border-border border-b px-3 py-2">
-            <h2 className="text-sm font-medium">{t("events.detail.rooms")}</h2>
-          </header>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("events.detail.rooms")}</CardTitle>
+          </CardHeader>
           {rooms.length === 0 ? (
-            <p className="text-muted-foreground p-3 text-sm">{t("events.detail.noRooms")}</p>
+            <p className="text-muted-foreground px-4 pb-4 text-sm">{t("events.detail.noRooms")}</p>
           ) : (
-            <ul className="divide-border divide-y">
+            <ul className="divide-y">
               {rooms.map((b) => (
-                <li key={b.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <li key={b.id} className="flex items-center gap-2 px-4 py-2 text-sm">
                   <Link to={`/rooms/${b.roomSlug}`} className="hover:underline">
                     {b.roomName}
                   </Link>
-                  <span className="text-muted-foreground ml-auto flex items-center gap-1 font-mono text-xs">
+                  <span className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
                     <DateCell value={b.startsAt} /> – <DateCell value={b.endsAt} />
                   </span>
                   {!cancelled ? (
@@ -132,7 +126,7 @@ export function EventDetailView({
                       <Button
                         type="submit"
                         variant="ghost"
-                        size="sm"
+                        size="compact"
                         title={t("events.detail.cancelRoom")}
                       >
                         ✕
@@ -144,7 +138,7 @@ export function EventDetailView({
             </ul>
           )}
           {!cancelled ? (
-            <div className="border-border border-t p-3">
+            <div className="border-t p-4">
               <FormError when="addRoom" actionData={actionData} />
               <ZodForm
                 id="add-room-form"
@@ -172,29 +166,31 @@ export function EventDetailView({
                   </FormField>
                 </div>
                 <ConflictCheck kind="room" formId="add-room-form" />
-                <Button type="submit" size="sm" className="self-start">
+                <Button type="submit" size="compact" className="self-start">
                   {t("events.detail.bookRoom")}
                 </Button>
               </ZodForm>
             </div>
           ) : null}
-        </section>
+        </Card>
 
         {/* Allocations */}
-        <section className="border-border border">
-          <header className="border-border border-b px-3 py-2">
-            <h2 className="text-sm font-medium">{t("events.detail.pooledEquipment")}</h2>
-          </header>
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("events.detail.pooledEquipment")}</CardTitle>
+          </CardHeader>
           {allocations.length === 0 ? (
-            <p className="text-muted-foreground p-3 text-sm">{t("events.detail.noAllocations")}</p>
+            <p className="text-muted-foreground px-4 pb-4 text-sm">
+              {t("events.detail.noAllocations")}
+            </p>
           ) : (
-            <ul className="divide-border divide-y">
+            <ul className="divide-y">
               {allocations.map((a) => (
-                <li key={a.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                <li key={a.id} className="flex items-center gap-2 px-4 py-2 text-sm">
                   <Link to={`/inventory/${a.equipmentId}`} className="hover:underline">
                     {a.equipmentName}
                   </Link>
-                  <span className="text-muted-foreground ml-auto flex items-center gap-1 font-mono text-xs">
+                  <span className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
                     <DateCell value={a.startsAt} /> – <DateCell value={a.endsAt} />
                   </span>
                   {!cancelled ? (
@@ -204,7 +200,7 @@ export function EventDetailView({
                       <Button
                         type="submit"
                         variant="ghost"
-                        size="sm"
+                        size="compact"
                         title={t("events.detail.cancelAllocation")}
                       >
                         ✕
@@ -216,7 +212,7 @@ export function EventDetailView({
             </ul>
           )}
           {!cancelled ? (
-            <div className="border-border border-t p-3">
+            <div className="border-t p-4">
               <FormError when="addAllocation" actionData={actionData} />
               <ZodForm
                 id="add-allocation-form"
@@ -244,33 +240,33 @@ export function EventDetailView({
                   </FormField>
                 </div>
                 <ConflictCheck kind="equipment" formId="add-allocation-form" />
-                <Button type="submit" size="sm" className="self-start">
+                <Button type="submit" size="compact" className="self-start">
                   {t("events.detail.allocateEquipment")}
                 </Button>
               </ZodForm>
             </div>
           ) : null}
-        </section>
+        </Card>
       </div>
 
       {/* Service windows */}
-      <section className="border-border border">
-        <header className="border-border border-b px-3 py-2">
-          <h2 className="text-sm font-medium">{t("events.detail.serviceWindows")}</h2>
-        </header>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("events.detail.serviceWindows")}</CardTitle>
+        </CardHeader>
         {serviceWindows.length === 0 ? (
-          <p className="text-muted-foreground p-3 text-sm">{t("events.detail.noServiceWindows")}</p>
+          <p className="text-muted-foreground px-4 pb-4 text-sm">
+            {t("events.detail.noServiceWindows")}
+          </p>
         ) : (
-          <ul className="divide-border divide-y">
+          <ul className="divide-y">
             {serviceWindows.map((w) => (
-              <li key={w.id} className="flex flex-wrap items-center gap-2 px-3 py-2 text-sm">
-                <span className="border-border bg-secondary rounded-sm border px-1.5 py-0.5 text-xs">
-                  {serviceWindowKindLabel(locale, w.kind)}
-                </span>
+              <li key={w.id} className="flex flex-wrap items-center gap-2 px-4 py-2 text-sm">
+                <Badge>{serviceWindowKindLabel(locale, w.kind)}</Badge>
                 {w.roomName ? <span>{w.roomName}</span> : null}
-                {w.covering ? <span className="font-mono text-xs">{w.covering}</span> : null}
+                {w.covering ? <span>{w.covering}</span> : null}
                 {w.notes ? <span className="text-muted-foreground">— {w.notes}</span> : null}
-                <span className="text-muted-foreground ml-auto flex items-center gap-1 font-mono text-xs">
+                <span className="text-muted-foreground ml-auto flex items-center gap-1 text-xs">
                   <DateCell value={w.startsAt} /> – <DateCell value={w.endsAt} />
                 </span>
                 {!cancelled ? (
@@ -280,7 +276,7 @@ export function EventDetailView({
                     <Button
                       type="submit"
                       variant="ghost"
-                      size="sm"
+                      size="compact"
                       title={t("events.detail.removeServiceWindow")}
                     >
                       ✕
@@ -292,7 +288,7 @@ export function EventDetailView({
           </ul>
         )}
         {!cancelled ? (
-          <div className="border-border border-t p-3">
+          <div className="border-t p-4">
             <ZodForm
               method="post"
               fieldErrors={errorsFor("addServiceWindow", actionData)}
@@ -354,29 +350,29 @@ export function EventDetailView({
                   <Input name="notes" />
                 </FormField>
               </div>
-              <Button type="submit" size="sm" className="self-start">
+              <Button type="submit" size="compact" className="self-start">
                 {t("events.detail.addServiceWindow")}
               </Button>
             </ZodForm>
           </div>
         ) : null}
-      </section>
+      </Card>
 
       {/* Tickets */}
-      <section className="border-border border">
-        <header className="border-border flex items-center justify-between border-b px-3 py-2">
-          <h2 className="text-sm font-medium">{t("events.detail.tickets")}</h2>
-          <Button asChild size="sm" variant="ghost">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("events.detail.tickets")}</CardTitle>
+          <Button asChild size="compact" variant="ghost">
             <Link to={`/tickets/new?eventId=${event.id}`}>{t("events.detail.addTicket")}</Link>
           </Button>
-        </header>
+        </CardHeader>
         {tickets.length === 0 ? (
-          <p className="text-muted-foreground p-3 text-sm">{t("events.detail.noTickets")}</p>
+          <p className="text-muted-foreground px-4 pb-4 text-sm">{t("events.detail.noTickets")}</p>
         ) : (
-          <ul className="divide-border divide-y">
+          <ul className="divide-y">
             {tickets.map((ticket) => (
-              <li key={ticket.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                <span className="text-muted-foreground font-mono text-xs">
+              <li key={ticket.id} className="flex items-center gap-2 px-4 py-2 text-sm">
+                <span className="text-muted-foreground text-xs">
                   {ticketTypeLabel(locale, ticket.type)}
                 </span>
                 <Link to={`/tickets/${ticket.id}`} className="truncate hover:underline">
@@ -389,18 +385,18 @@ export function EventDetailView({
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
       {/* Edit + cancel */}
       {!cancelled ? (
-        <details className="border-border border p-3">
-          <summary className="text-muted-foreground cursor-pointer text-xs uppercase tracking-wide">
+        <details className="bg-card shadow-surface-2 rounded-lg p-4">
+          <summary className="cursor-pointer text-base font-semibold">
             {t("events.detail.edit")}
           </summary>
           <ZodForm
             method="post"
             fieldErrors={errorsFor("updateEvent", actionData)}
-            className="mt-3"
+            className="mt-4"
           >
             <input type="hidden" name="_action" value="updateEvent" />
             <EventFormFields defaults={editDefaults} />
@@ -409,7 +405,7 @@ export function EventDetailView({
 
           <Form
             method="post"
-            className="border-border mt-4 border-t pt-4"
+            className="mt-4 border-t pt-4"
             onSubmit={(e) => {
               if (!confirm(t("events.detail.confirmCancel", { title: event.title })))
                 e.preventDefault();

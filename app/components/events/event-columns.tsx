@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { DateCell, MonoCell, StatusCell, type ColumnDef } from "~/components/data-grid";
+import { DateCell, StatusCell, type ColumnDef } from "~/components/data-grid";
 import type { EventListRow } from "~/domains/events/events.queries.server";
 import type { Translate } from "~/i18n";
 
@@ -39,7 +39,7 @@ export function eventColumns(t: Translate): ColumnDef<EventListRow>[] {
       accessorKey: "roomCount",
       header: t("events.col.rooms"),
       size: 90,
-      cell: ({ row }) => <MonoCell>{row.original.roomCount}</MonoCell>,
+      cell: ({ row }) => <span className="nums text-sm">{row.original.roomCount}</span>,
     },
     {
       accessorKey: "organizer",

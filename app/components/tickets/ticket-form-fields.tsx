@@ -162,14 +162,14 @@ export function TicketFormFields({
 
       {users.length > 0 ? (
         <FormField name="assigneeIds" label={t("tickets.form.assignees")}>
-          <div className="border-border grid gap-1.5 rounded-sm border p-2 sm:grid-cols-2">
+          <div className="bg-card shadow-surface-2 grid gap-1.5 rounded-lg p-3 sm:grid-cols-2">
             {users.map((u) => (
               <label key={u.id} className="flex items-center gap-2 text-sm">
                 <Checkbox name="assigneeIds" value={u.id} defaultChecked={assigned.has(u.id)} />
                 <span>
                   {u.name}
                   {u.initials ? (
-                    <span className="text-muted-foreground font-mono text-xs"> {u.initials}</span>
+                    <span className="text-muted-foreground text-xs"> {u.initials}</span>
                   ) : null}
                 </span>
               </label>
@@ -179,8 +179,8 @@ export function TicketFormFields({
       ) : null}
 
       {mode === "create" ? (
-        <fieldset className="border-border flex flex-col gap-4 border p-3">
-          <legend className="text-muted-foreground px-1 text-xs uppercase tracking-wide">
+        <fieldset className="bg-card shadow-surface-2 flex flex-col gap-4 rounded-lg p-4">
+          <legend className="text-base font-semibold">
             {t("tickets.form.createStatusLegend")}
           </legend>
           <FormField

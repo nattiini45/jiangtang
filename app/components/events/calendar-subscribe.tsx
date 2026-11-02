@@ -37,7 +37,7 @@ export function CalendarSubscribe({ url }: { url: string }) {
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" onClick={copy} title={url}>
+    <Button type="button" variant="tertiary" size="compact" onClick={copy} title={url}>
       <CalendarPlus className="size-4" />
       {copied ? t("events.subscribe.copied") : t("events.subscribe.button")}
     </Button>
