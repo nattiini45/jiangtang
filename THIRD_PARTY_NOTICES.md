@@ -58,6 +58,7 @@ registry under its own license.
 | --- | --- |
 | Apache-2.0 | `@prisma/adapter-pg` 7.8.0, `@prisma/client` 7.8.0, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
 | ISC | `lucide-react` 0.460.0, `yaml` 2.9.1 |
+| OFL-1.1 | `@fontsource-variable/inter` 5.3.0 (the Inter typeface by Rasmus Andersson, self-hosted and bundled into the client build; the package ships the license text) |
 | MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.2.3, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 8.55.2, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.3, `better-auth` 1.6.22, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.0.0, `motion` 12.42.0, `pg` 8.22.0, `pino` 9.14.0, `react` 19.2.7, `react-dom` 19.2.7, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.9.0, `remark-gfm` 4.0.1, `tailwind-merge` 3.6.0, `tailwindcss` 4.3.1, `tsx` 4.22.4, `zod` 3.25.76 |
 
 ## Development dependencies

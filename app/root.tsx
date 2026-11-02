@@ -7,6 +7,7 @@ import {
   isRouteErrorResponse,
   useRouteLoaderData,
 } from "react-router";
+import { MotionConfig } from "motion/react";
 import type { Route } from "./+types/root";
 import { resolveLocale } from "~/i18n/locale.server";
 import { useT } from "~/i18n/use-t";
@@ -28,22 +29,37 @@ export function loader({ request }: Route.LoaderArgs) {
   };
 }
 
+// Resolves the `system` theme before first paint and keeps following the OS
+// setting. It owns the `.dark` class: a revalidated root loader re-rendering
+// <html> cannot know the OS preference, so the class is re-applied whenever it or
+// `data-theme` changes.
+const THEME_SCRIPT = `(function(){var d=document.documentElement,m=window.matchMedia("(prefers-color-scheme: dark)");function a(){var t=d.dataset.theme,k=t==="dark"||(t!=="light"&&m.matches);if(d.classList.contains("dark")!==k)d.classList.toggle("dark",k)}a();m.addEventListener("change",a);new MutationObserver(a).observe(d,{attributes:true,attributeFilter:["class","data-theme"]})})()`;
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const data = useRouteLoaderData<typeof loader>("root");
-  const theme = data?.theme ?? "dark";
-  const density = data?.density ?? "compact";
+  const theme = data?.theme ?? "system";
+  const density = data?.density ?? "comfortable";
   const locale = data?.locale ?? "en";
   return (
     <html
       lang={locale}
       className={theme === "dark" ? "dark" : ""}
+      data-theme={theme}
       data-density={density}
       suppressHydrationWarning
     >
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#0a0a0a" />
+        {theme === "system" ? (
+          <>
+            <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />
+            <meta name="theme-color" content="#171717" media="(prefers-color-scheme: dark)" />
+          </>
+        ) : (
+          <meta name="theme-color" content={theme === "dark" ? "#171717" : "#fafafa"} />
+        )}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <Meta />
         <Links />
       </head>
@@ -57,7 +73,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  // Reduced motion means fewer and gentler: transforms and layout animation drop,
+  // opacity and color fades stay.
+  return (
+    <MotionConfig reducedMotion="user">
+      <Outlet />
+    </MotionConfig>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -77,10 +99,10 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
     detail = error.message;
   }
   return (
-    <main style={{ padding: "2rem", fontFamily: "monospace" }}>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-2 p-8">
       <title>{`${title} · Jiangtang`}</title>
-      <h1>{message}</h1>
-      <p>{detail}</p>
+      <h1 className="text-xl font-bold">{message}</h1>
+      <p className="text-muted-foreground">{detail}</p>
     </main>
   );
 }

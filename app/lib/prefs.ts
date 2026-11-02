@@ -18,17 +18,27 @@ function writePrefCookie(name: string, value: string): void {
   document.cookie = `${name}=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
 }
 
+/** The chosen theme, `system` included; the `.dark` class only says what is shown. */
 export function currentTheme(): Theme {
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  const value = document.documentElement.dataset.theme;
+  return value === "light" || value === "dark" ? value : "system";
 }
 
 export function currentDensity(): Density {
   return document.documentElement.dataset.density === "compact" ? "compact" : "comfortable";
 }
 
+export function systemPrefersDark(): boolean {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+/** Light, then dark, then back to following the system. */
 export function cycleTheme(): void {
-  const next: Theme = currentTheme() === "dark" ? "light" : "dark";
-  document.documentElement.classList.toggle("dark", next === "dark");
+  const current = currentTheme();
+  const next: Theme = current === "light" ? "dark" : current === "dark" ? "system" : "light";
+  const root = document.documentElement;
+  root.dataset.theme = next;
+  root.classList.toggle("dark", next === "dark" || (next === "system" && systemPrefersDark()));
   writePrefCookie("theme", next);
   window.dispatchEvent(new CustomEvent(PREF_CHANGED_EVENT));
 }

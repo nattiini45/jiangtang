@@ -30,21 +30,35 @@ export interface StatusToken {
   tone: StatusTone;
   label: string;
   className: string;
+  /** Full-strength fill for a status dot beside the label. */
+  dotClassName: string;
 }
 
-/* Solid fills, not tinted backgrounds: colored text on its own 15% tint cannot
-   reach 4.5:1 on the dark canvas (axe color-contrast) — the fill carries
-   the status color and the paired -foreground token carries the label. */
+/* A 15% tint of the status color with foreground text: the color marks the
+   status while the label keeps body contrast on either theme. Colored text on
+   its own tint cannot reach 4.5:1 on the dark canvas (axe color-contrast). */
 const TONE_CLASS: Record<StatusTone, string> = {
-  operational: "bg-status-operational text-status-operational-foreground border-transparent",
-  fault: "bg-status-fault text-status-fault-foreground border-transparent",
-  warning: "bg-status-warning text-status-warning-foreground border-transparent",
-  info: "bg-status-info text-status-info-foreground border-transparent",
-  neutral: "bg-muted text-muted-foreground border-border",
+  operational: "bg-status-operational/15 text-foreground border-transparent",
+  fault: "bg-status-fault/15 text-foreground border-transparent",
+  warning: "bg-status-warning/15 text-foreground border-transparent",
+  info: "bg-status-info/15 text-foreground border-transparent",
+  neutral: "bg-tint text-foreground border-transparent",
+};
+
+const DOT_CLASS: Record<StatusTone, string> = {
+  operational: "bg-status-operational",
+  fault: "bg-status-fault",
+  warning: "bg-status-warning",
+  info: "bg-status-info",
+  neutral: "bg-muted-foreground",
 };
 
 export function toneClassName(tone: StatusTone): string {
   return TONE_CLASS[tone];
+}
+
+export function toneDotClassName(tone: StatusTone): string {
+  return DOT_CLASS[tone];
 }
 
 const ROOM: Record<RoomStatus, StatusTone> = {
@@ -134,7 +148,12 @@ export function statusToken<K extends StatusKind>(
   value: StatusValue[K],
 ): StatusToken {
   const tone = (TONES[kind] as Record<string, StatusTone>)[value] ?? "neutral";
-  return { tone, label: statusLabel(locale, kind, value), className: toneClassName(tone) };
+  return {
+    tone,
+    label: statusLabel(locale, kind, value),
+    className: toneClassName(tone),
+    dotClassName: toneDotClassName(tone),
+  };
 }
 
 /*
