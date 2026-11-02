@@ -14,7 +14,7 @@ import { Pool, type PoolClient } from "pg";
  *
  * The version assertions are FLOORS, not pinned values: a patch bump of the
  * pgvector image must not fail this suite, but a drop below the floor removes
- * a capability the roadmap depends on (HNSW at 1024-d) and must.
+ * a capability the application depends on (HNSW at 1024-d) and must.
  */
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });

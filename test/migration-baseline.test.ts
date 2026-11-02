@@ -63,7 +63,7 @@ type Counts = {
   createTrigger: number;
 };
 
-/** Counted from the seven files on 2026-10-27; each one is re-measured below. */
+/** Counted from the seven migration files; each count is re-derived below. */
 const EXPECTED_COUNTS: Counts = {
   createType: 18,
   createTable: 30,
@@ -370,11 +370,11 @@ describe("migration baseline (seven files, filesystem only — no database)", ()
     expect(LIVE.emptySql).toEqual([]);
   });
 
-  it("matches the measured baseline-wide statement counts", () => {
+  it("matches the baseline-wide statement counts", () => {
     expect(LIVE.counts).toEqual(EXPECTED_COUNTS);
   });
 
-  it("ships exactly five reference lanes, and IN_REVIEW maps no ticket status", () => {
+  it("ships exactly five lanes, and IN_REVIEW maps no ticket status", () => {
     expect(LIVE.laneStatements).toBe(1);
     expect(LIVE.laneRows.map((row) => row.lane)).toEqual([...CANONICAL_LANES]);
     const inReview = LIVE.laneRows.find((row) => row.lane === "IN_REVIEW");
@@ -389,7 +389,7 @@ describe("migration baseline (seven files, filesystem only — no database)", ()
 
   it("has no prisma/sql directory and no executable reference to one", () => {
     expect(LIVE.sqlDirPresent).toBe(false);
-    // No header names `prisma/sql` any more, but comment-stripping is still what
+    // Headers do not name `prisma/sql`, but comment-stripping is still what
     // separates a comment that mentions the path from a live dependency on it.
     expect(LIVE.codeReferences).toEqual([]);
   });

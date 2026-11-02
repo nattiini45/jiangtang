@@ -11,7 +11,7 @@ import { afterAll, describe, expect, it } from "vitest";
  * Prisma Migrate ignores views in BOTH directions (`migrate diff` emits
  * no `CREATE VIEW`, and from a database that has the view, no `DROP VIEW`
  * either), so this object cannot be generated, cannot be introspected by
- * `db:generate`, and — the half that matters — a slice can pass every gate and
+ * `db:generate`, and — the half that matters — a change can pass every gate and
  * still ship no view. Two of these tests therefore read the committed migration
  * text off disk instead of trusting the database: the database can have the
  * view because somebody applied it by hand, which is not the same as the
@@ -86,7 +86,7 @@ async function inRolledBackTx<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> 
 }
 
 let seq = 0;
-const uid = (p: string) => `b4_${p}_${Date.now()}_${seq++}`;
+const uid = (p: string) => `workitem_${p}_${Date.now()}_${seq++}`;
 
 async function insertTask(
   c: PoolClient,
@@ -105,7 +105,7 @@ async function insertTicket(
 ): Promise<string> {
   await c.query(
     `INSERT INTO "Ticket"(id,type,status,title,priority,"updatedAt") VALUES($1,'INCIDENT',$2::"TicketStatus",$3,$4,now())`,
-    [over.id, over.status ?? "OPEN", over.title ?? "b4 ticket", over.priority ?? null],
+    [over.id, over.status ?? "OPEN", over.title ?? "view ticket", over.priority ?? null],
   );
   return over.id;
 }
@@ -136,7 +136,7 @@ describe("workitem view (the committed history reaches the full schema)", () => 
       .map((r) => r.migration_name)
       .sort();
 
-    // Not ">=" and not "contains": the criterion is that the committed history
+    // Not ">=" and not "contains": the requirement is that the committed history
     // ALONE reaches the full schema, so an unapplied migration is a failure.
     expect(applied).toEqual(onDisk);
 
@@ -155,7 +155,7 @@ describe("workitem view (the committed history reaches the full schema)", () => 
     expect(trg.map((r) => r.tgname)).toEqual(["activitylog_no_update_delete"]);
 
     // The third invariant — the EXIF/GPS strip — is not a database object; it is
-    // asserted by its own test in the same suite, and both were measured against
+    // asserted by its own test in the same suite, and both were checked against
     // a clean room built from this history alone.
   });
 });
@@ -265,7 +265,7 @@ describe("workitem view (the coverage guarantee)", () => {
     const { rows } = await pool.query<{ nulls: string; total: string }>(
       `SELECT count(*) FILTER (WHERE lane IS NULL)::text AS nulls, count(*)::text AS total FROM workitem`,
     );
-    // 0 === 0 on an empty database, so the coverage half of this criterion is
+    // 0 === 0 on an empty database, so the coverage half of this check is
     // asserted separately below — that is the half that fires when someone adds
     // an enum value and forgets the mapping row.
     expect(Number(rows[0]?.nulls)).toBe(0);
@@ -384,7 +384,7 @@ describe("workitem view (the lane table ships its rows)", () => {
     }>(`SELECT lane, task_statuses, ticket_statuses FROM "workitem_lane" ORDER BY lane`);
 
     // A mapping table with no rows answers NULL for every status, which is
-    // precisely criterion (5)'s failure — so the rows are asserted, not assumed.
+    // precisely the failure this suite guards against — so the rows are asserted, not assumed.
     expect(rows.map((r) => [r.lane, r.task_statuses, r.ticket_statuses])).toEqual([
       ["BACKLOG", ["BACKLOG", "TODO"], ["OPEN"]],
       ["CANCELLED", ["CANCELLED"], ["CANCELLED"]],
@@ -395,10 +395,10 @@ describe("workitem view (the lane table ships its rows)", () => {
   });
 });
 
-describe("workitem view (beyond the numbered criteria — the arms' own data survives the union)", () => {
+describe("workitem view (the arms' own data survives the union)", () => {
   it("(extra) assignee_ids is projected from BOTH arms' m-n joins, empty rather than NULL when unassigned", async () => {
-    // Not a numbered criterion, and deliberately so: the seeded corpus assigns
-    // NOBODY (measured 10:0x — 0 of 52 rows carry an assignee), so without this
+    // Kept outside the main checks on purpose: the seeded corpus assigns
+    // NOBODY (0 of 52 rows carry an assignee), so without this
     // the two LATERAL joins would be unexercised on every machine that runs the
     // suite, and a view that answered `{}` for everybody would stay green.
     await inRolledBackTx(async (c) => {
@@ -413,7 +413,7 @@ describe("workitem view (beyond the numbered criteria — the arms' own data sur
         user,
       ]);
       // Ticket.assignees is Prisma's IMPLICIT m-n: table "_Assignees", columns
-      // A (Ticket) and B (User) — measured on the database, not assumed.
+      // A (Ticket) and B (User), as the database reports them.
       // Quoted: the columns are literally "A" and "B", and an unquoted
       // identifier folds to lower case and does not exist.
       await c.query(`INSERT INTO "_Assignees"("A","B") VALUES($1,$2)`, [tickOne, user]);

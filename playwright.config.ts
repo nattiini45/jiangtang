@@ -2,13 +2,13 @@ import { defineConfig, devices } from "@playwright/test";
 import { validateTestDatabaseUrl } from "./test/test-db";
 
 /**
- * Playwright — e2e against the real dev server + dev DB. One worker:
- * every spec shares the same database. `pnpm test:e2e` only — separate from
- * `pnpm test`, and run in CI by the E2E browser gate on `main` and PRs.
+ * Playwright end-to-end suite: a real server on a loopback port, backed by its
+ * own `*_e2e` database. One worker, because every spec shares that database.
+ * `pnpm test:e2e` is separate from `pnpm test`; CI runs it as the E2E browser
+ * gate on `main` and pull requests.
  *
- * Require DATABASE_URL_E2E and validate at CONFIG EVALUATION (before
- * webServer starts). Use E2E_BASE_URL for loopback-only origins. Never reuse
- * an existing server — fail if port is occupied.
+ * DATABASE_URL_E2E is validated at config evaluation, before webServer starts.
+ * E2E_BASE_URL must be a loopback origin. A running server is never reused.
  */
 
 // Validate DATABASE_URL_E2E at config evaluation time (before webServer)
@@ -28,18 +28,12 @@ process.env.DATABASE_URL = e2eDbUrl;
 
 const E2E_BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:3100";
 
-// The default gate (`pnpm test:e2e`) must only run tests that actually
-// assert. The
-// `@screens` suite (e2e/screens.spec.ts) is review material — ~42 full-page
-// screenshots that historically made no assertions and passed even against a
-// 404 — so it is excluded from the default gate via grepInvert.
-//
-// The exclusion stays discoverable and reversible from the CLI: naming
-// `@screens` in any argument (the documented form is
-// `pnpm test:e2e --grep @screens`) lifts grepInvert for that invocation, so
-// the screenshot suite remains runnable without editing this file. A custom
-// env-var switch is NOT used because the run's environment is fixed and must
-// not be widened.
+// The default gate only runs specs that assert. The @screens suite
+// (e2e/screens.spec.ts) takes about 42 full-page screenshots and asserts little,
+// so it is excluded unless the invocation names it (`pnpm test:e2e --grep @screens`).
+// Naming @screens on the command line lifts the exclusion for that run only. A
+// custom environment switch is not used, because the environment of the run is
+// kept fixed.
 const wantsScreens = process.argv.some((arg) => arg.includes("@screens"));
 
 // Validate E2E_BASE_URL is loopback HTTP only
@@ -77,42 +71,49 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    // NOT `pnpm dev`. That script is
-    //   cross-env NODE_ENV=development tsx watch ./server.ts
-    // and `tsx watch` is a *supervisor*: under Playwright's own launch
-    // (shell + piped stdio on Windows) it never reaches httpServer.listen, so
-    // the run dies with "Timed out waiting 120000ms from config.webServer".
-    // This is the non-watch equivalent of the same script, measured on this
-    // host against `${E2E_BASE_URL}/login`:
-    //   HTTP 200 in 13.1s / 21.4s (generated caches cleared) / 25.2s.
-    // NODE_ENV is pinned explicitly in `env` below rather than through
-    // cross-env, so development semantics never depend on ambient environment
-    // (the environment is constructed, not inherited).
+    // Not `pnpm dev`, which runs `cross-env NODE_ENV=development tsx watch
+    // ./server.ts`. `tsx watch` supervises a child process, and under Playwright's
+    // shell-and-pipes launch that child did not reach httpServer.listen, so the
+    // run failed with a webServer timeout. This command is the same server
+    // without the watcher.
     command: "pnpm exec tsx ./server.ts",
     url: `${E2E_BASE_URL}/login`,
     reuseExistingServer: false,
-    // 120s -> 240s, a timing bound, not a retry. Measured on this host on
-    // 2026-10-18: a legitimate cold start consumed ~85s from
-    // command start to the FIRST server boot log (compile/startup dominates;
-    // app-internal boot itself is only ~1.2s) on a machine concurrently
-    // running several heavy background processes. One run overran the old
-    // 120s bound ("Timed out waiting 120000ms from config.webServer",
-    // 2026-10-18, one-off, never reproduced; no code exception observed).
-    // 240s is ~2.8x the measured cold start: margin for a slow-but-legitimate
-    // start, while a genuinely hung server that never binds still fails the
-    // run — and the piped stdout/stderr below now show where it stopped.
+    // A timing bound, not a retry. On a loaded machine a cold start (empty
+    // compile and dependency caches) took about 85 seconds before the first boot
+    // log; the application's own boot takes about 1.2 seconds. The bound leaves
+    // margin for a slow start, while a server that never binds still fails.
     timeout: 240_000,
-    // Capture webServer stdout/stderr. A webServer startup timeout currently
-    // yields NO boot evidence — the 2026-10-18 one-off "Timed out waiting
-    // 120000ms from config.webServer" could not be diagnosed for that reason.
+    // Keep the server's output: a webServer timeout is otherwise undiagnosable.
     stdout: "pipe",
     stderr: "pipe",
+    // Playwright merges the parent process environment into the server's, so a
+    // developer's exported variables would reach the run unless they are set here.
+    // The server also loads `.env` for names the environment does not set, and it
+    // never overrides a name that is already set. The blanks below therefore switch
+    // off the outbound endpoints, their credentials and models for the run; the
+    // database, base URL and locale are pinned as well.
     env: {
       NODE_ENV: "development",
       PORT: new URL(E2E_BASE_URL).port || "3100",
       BETTER_AUTH_URL: E2E_BASE_URL,
       DATABASE_URL: e2eDbUrl,
       DEFAULT_LOCALE: "de",
+      EMBEDDING_BASE_URL: "",
+      EMBEDDING_MODEL: "",
+      EMBEDDING_API_KEY: "",
+      RERANK_BASE_URL: "",
+      RERANK_MODEL: "",
+      RERANK_API_KEY: "",
+      GENERATION_BASE_URL: "",
+      GENERATION_MODEL: "",
+      GENERATION_API_KEY: "",
+      CALDAV_URL: "",
+      CALDAV_USERNAME: "",
+      CALDAV_PASSWORD: "",
+      GLITCHTIP_DSN: "",
+      ALERT_WEBHOOK: "",
+      ICAL_FEED_TOKEN: "",
     },
   },
 });

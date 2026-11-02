@@ -4,6 +4,7 @@ import express from "express";
 import type { Express } from "express";
 import type { ViteDevServer } from "vite";
 import type { BootContext } from "./app/server/boot";
+import { resolveRuntimeMode } from "./app/server/runtime-mode";
 
 // The shape of the React Router server build we rely on (loosely typed: the
 // dev build comes from a Vite virtual module that has no static types).
@@ -11,17 +12,31 @@ type ServerBuild = {
   entry: { module: { runBootModules: (app: Express, ctx: BootContext) => Promise<void> } };
 };
 
-const PROD = process.env.NODE_ENV === "production";
+// Load .env before anything reads the environment. Node never overwrites a
+// variable that is already set, so exported values and the container environment
+// still win over the file. A missing .env is normal (CI and production inject
+// the environment directly).
+try {
+  process.loadEnvFile();
+} catch (error) {
+  if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+}
+
+// The mode is decided before Express reads NODE_ENV, so every module sees the same
+// answer. See resolveRuntimeMode for what an unset or unexpected value means.
+const runtime = resolveRuntimeMode(process.env);
+const DEVELOPMENT = runtime.development;
+process.env.NODE_ENV = runtime.nodeEnv;
+
 const PORT = Number(process.env.PORT ?? 3000);
 
 const app = express();
 app.disable("x-powered-by");
 
-// Trust the reverse proxy (Caddy) for correct protocol/host in prod.
-if (PROD) app.set("trust proxy", true);
+if (runtime.trustProxy !== false) app.set("trust proxy", runtime.trustProxy);
 
 let viteDevServer: ViteDevServer | undefined;
-if (!PROD) {
+if (DEVELOPMENT) {
   const vite = await import("vite");
   viteDevServer = await vite.createServer({
     server: { middlewareMode: true },
@@ -51,7 +66,7 @@ const shutdownHooks: Array<() => Promise<void> | void> = [];
 
 const build = (typeof loadBuild === "function" ? await loadBuild() : loadBuild) as ServerBuild;
 await build.entry.module.runBootModules(app, {
-  env: PROD ? "production" : "development",
+  env: DEVELOPMENT ? "development" : "production",
   server: httpServer,
   onShutdown: (hook) => shutdownHooks.push(hook),
 });
@@ -61,13 +76,13 @@ app.all(
   createRequestHandler({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     build: loadBuild as any,
-    mode: PROD ? "production" : "development",
+    mode: DEVELOPMENT ? "development" : "production",
   }),
 );
 
 // Fail fast and loud on a bind error (e.g. EADDRINUSE). Without a handler the
 // 'error' event becomes an uncaught exception with a raw stack trace; this prints
-// an actionable message and exits non-zero (Docker/Coolify restart policies see it).
+// an actionable message and exits non-zero (container restart policies see it).
 httpServer.on("error", (err: NodeJS.ErrnoException) => {
   if (err.code === "EADDRINUSE") {
     console.error(`Jiangtang: port ${PORT} is already in use — set PORT or free it.`);
@@ -78,22 +93,22 @@ httpServer.on("error", (err: NodeJS.ErrnoException) => {
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`Jiangtang ${PROD ? "(prod)" : "(dev)"} → http://localhost:${PORT}`);
+  console.log(`Jiangtang ${DEVELOPMENT ? "(dev)" : "(prod)"} → http://localhost:${PORT}`);
 });
 
-// Graceful shutdown: SIGTERM (Docker/Coolify `stop`) and SIGINT (Ctrl-C)
-// must close the HTTP server so its 'close' event fires — that event is what
-// the realtime boot module listens on to stop the pg LISTEN client, and what
-// the observability boot module listens on to flush Sentry. Without this, a
-// container stop kills the process before either cleanup runs.
+// Graceful shutdown: SIGTERM (`docker stop`, or the platform's equivalent) and
+// SIGINT (Ctrl-C) must close the HTTP server so its 'close' event fires — that
+// event is what the realtime boot module listens on to stop the pg LISTEN client,
+// and what the observability boot module listens on to flush Sentry. Without
+// this, a container stop kills the process before either cleanup runs.
 let shuttingDown = false;
 function shutdown(signal: NodeJS.Signals): void {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`Jiangtang: ${signal} received, shutting down…`);
   // Backstop: never hang past the container's SIGKILL grace. 8s stays safely
-  // under Docker/Coolify's default 10s stop_grace_period, so this "forcing exit"
-  // line still lands before the kernel sends SIGKILL. unref() so this timer alone
+  // under Docker's default 10s stop_grace_period, so this "forcing exit" line
+  // still lands before the kernel sends SIGKILL. unref() so this timer alone
   // doesn't keep the loop alive once close() + the cleanup hooks have finished.
   const force = setTimeout(() => {
     console.error("Jiangtang: shutdown timed out, forcing exit.");

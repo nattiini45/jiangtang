@@ -8,7 +8,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * where its time says, not where it was inserted), filters degrade safely,
  * and the `(occurredAt, id)` cursor never skips or repeats a row.
  */
-const RUN = `b52act_${Date.now().toString(36)}`;
+const RUN = `activity_${Date.now().toString(36)}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,

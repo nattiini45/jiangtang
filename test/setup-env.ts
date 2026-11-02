@@ -1,26 +1,10 @@
 import { inject } from "vitest";
 
-// This worker deliberately does NOT read an ambient `.env`.
-// The Node env-file loader call that used to sit here — wrapped in a
-// try/catch that swallowed its failure — has been DELETED. The test environment
-// must be explicitly constructed rather than inherited from whatever `.env`
-// happens to sit in the cwd. The caller owns that construction: it passes a
-// fixed set of names and refuses to start at all if a `.env` file exists.
-//
-// Removing the call is not cosmetic. The env-file loader does not override a
-// variable that is already set, but it DOES add absent names — so it could
-// inject exactly the names the caller omits on purpose (proxy and provider
-// credentials) into every Vitest worker.
-//
-// The environment must therefore be SUPPLIED to the test run; the caller
-// supplies it. Nothing is read here as a fallback, and nothing else in this file
-// depended on the removed try/catch: the only other input is
-// `inject("testDatabaseUrl")`, which fails closed below when absent.
-//
-// NOTE: the removed API is intentionally not named in this comment, so that the
-// structural grep for it over this directory stays empty and remains a
-// machine-checkable proof that no such call survives here. Do not re-add the
-// call, and do not name it in prose.
+// Each Vitest worker does not read a `.env` file: the test environment is the one
+// the process was started with. An env-file loader would add every name the
+// caller left out, including proxy and provider credentials, to every worker.
+// Nothing is read here as a fallback; the only other input is
+// `inject("testDatabaseUrl")`, which fails closed below when it is absent.
 
 // Receive the validated test database URL from global-setup via Vitest's inject mechanism.
 // This ensures exactly-once distribution with no re-derivation or double suffix.

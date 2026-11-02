@@ -7,7 +7,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * `move` intent: `{ok}` on success, `{error}` on refusal, never a redirect
  * (the board already moved the card visually).
  */
-const RUN = `b48_board_${Date.now().toString(36)}`;
+const RUN = `board_${Date.now().toString(36)}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,

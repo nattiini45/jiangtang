@@ -115,7 +115,7 @@ BEGIN
 
   -- ── 8. The applied ledger is exactly the seven-file baseline ──
   -- A deploy that half-applied, or a database still carrying a name from the
-  -- historical chain, is not the schema these invariants were measured on.
+  -- historical chain, is not the schema these invariants are written for.
   SELECT to_regclass('public._prisma_migrations') IS NOT NULL INTO have;
   IF NOT have THEN
     missing := array_append(missing, 'table "_prisma_migrations" (the migration ledger — run prisma migrate deploy first)');
@@ -266,8 +266,8 @@ BEGIN
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
   -- catalog total is NOT derivable from the migration text. 77 is the number the
-  -- text itself creates; the exact total is measured on the first executed
-  -- baseline and this floor replaced then.
+  -- text itself creates. The database's own constraint indexes also count, so
+  -- the check stays a floor rather than an exact total.
   SELECT count(*) >= 77 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN

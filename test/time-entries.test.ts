@@ -22,7 +22,7 @@ import { runWithLocale } from "~/i18n/request-locale.server";
  * row hitting P2002 → friendly ValidationError.
  */
 
-const RUN = `b64_${Date.now().toString(36)}`;
+const RUN = `time_entries_${Date.now().toString(36)}`;
 const B = berlinLocalToUtc;
 
 const member: AuditActor & { role: "MEMBER" } = {

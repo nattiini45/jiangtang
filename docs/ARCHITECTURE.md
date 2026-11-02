@@ -183,11 +183,13 @@ job fails, and the app never starts, if one is missing.
 Better Auth (`app/lib/auth.server.ts`) provides email and password sign-in with cookie sessions.
 Access is invitation-only: the public `/sign-up/email` path is disabled, and admins create one-time
 invitation links in `/admin/users` (`accept-invite.$token`). The two roles are `ADMIN` (also
-manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the small permission matrix and
-`requireUser` / `requirePermission` guard loaders and actions. `sanitizeNext` restricts post-login
-redirects to local paths. The first admin of a fresh production installation comes from
-`ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`); in development a seeded
-admin is created. Erasing a user pseudonymizes the account instead of deleting history; see
+manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission matrix (`can`, `roleRequiredFor`); `requireUser` and
+`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. `sanitizeNext` restricts
+post-login redirects to local paths. The first admin of a production installation comes from
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
+while no active admin exists, so a fresh installation and a full lockout can both be recovered from
+the environment (recovering an existing account needs `ADMIN_PASSWORD` to match its current
+password); in development a seeded admin is created. Erasing a user pseudonymizes the account instead of deleting history; see
 [GDPR.md](GDPR.md) and `app/domains/auth/gdpr.server.ts`.
 
 ## Storage
@@ -235,7 +237,9 @@ channel with `{ entityType, id, op, ts }`. One shared `pg` client (`app/lib/real
 of the Prisma pool) listens and fans events out to per-session Server-Sent Events streams mounted at
 `/api/realtime` (`app/lib/realtime/realtime.boot.server.ts`, session-gated). A short ring buffer supports
 `Last-Event-ID` resume. Browsers use `app/lib/realtime/use-live-refetch.ts` to refetch affected data; live updates
-are an accelerator, and a reconnect refetches everything.
+are an accelerator, and a reconnect refetches everything. An open stream is re-checked on each
+heartbeat and ends once its account is deactivated or erased, so revocation does not wait for a
+reconnect.
 
 ## Internationalisation
 

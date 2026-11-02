@@ -250,8 +250,8 @@ describe("attachment erasure (Attachment.createdById)", () => {
 });
 
 describe("session_replication_role='replica' cannot bypass the guard", () => {
-  // The old guard was a default-enabled trigger, which Postgres skips under
-  // session_replication_role='replica'. The trigger is now ENABLE ALWAYS, so even
+  // A default-enabled trigger is skipped under
+  // session_replication_role='replica'. The trigger is ENABLE ALWAYS, so even
   // a superuser flipping that knob is still blocked — only the transaction-local
   // `jiangtang.audit_bypass` flag (set solely by the privileged functions) lets a
   // write through. The app DB role is superuser locally; that is the point.
@@ -273,6 +273,46 @@ describe("session_replication_role='replica' cannot bypass the guard", () => {
         ]),
       ).rejects.toMatchObject({ code: "23001" });
     });
+  });
+});
+
+describe("session revocation on erasure", () => {
+  it("deletes the erased user's sessions and leaves other users' sessions alone", async () => {
+    const stamp = Date.now();
+    const target = await db.user.create({
+      data: {
+        name: "Erase Session",
+        email: `erase_sess_${stamp}@jiangtang.local`,
+        initials: "ES",
+        role: "MEMBER",
+      },
+    });
+    createdUserIds.push(target.id);
+    const bystander = await db.user.create({
+      data: {
+        name: "Erase Bystander",
+        email: `erase_by_${stamp}@jiangtang.local`,
+        initials: "EB",
+        role: "MEMBER",
+      },
+    });
+    createdUserIds.push(bystander.id);
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.session.create({
+      data: { token: `erase_${stamp}_target`, userId: target.id, expiresAt },
+    });
+    await db.session.create({
+      data: { token: `erase_${stamp}_bystander`, userId: bystander.id, expiresAt },
+    });
+    expect(await db.session.count({ where: { userId: target.id } })).toBe(1);
+
+    await pseudonymizeUser(
+      { id: "test-admin", name: "Admin", email: "a@a", initials: "AD" },
+      target.id,
+    );
+
+    expect(await db.session.count({ where: { userId: target.id } })).toBe(0);
+    expect(await db.session.count({ where: { userId: bystander.id } })).toBe(1);
   });
 });
 

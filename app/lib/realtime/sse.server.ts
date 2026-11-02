@@ -13,12 +13,40 @@ import { broker } from "~/lib/realtime/listener.server";
  */
 
 const PING_INTERVAL_MS = 15_000;
+/**
+ * A hung database query must not keep a revoked stream open, and must not leave
+ * the stream request unanswered. The check is abandoned after this long and
+ * counts as failed; it is shorter than the ping interval so the next tick never
+ * finds a check still pending.
+ */
+export const CHECK_TIMEOUT_MS = 5_000;
+
+/**
+ * Runs `check` and rejects if it has not settled within `ms`. The timer is
+ * cleared as soon as the race settles, so no timer outlives the check.
+ */
+export function checkWithTimeout<T>(check: () => Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`timed out after ${ms} ms`)), ms);
+  });
+  const settled = new Promise<T>((resolve) => resolve(check()));
+  return Promise.race([settled, timeout]).finally(() => clearTimeout(timer));
+}
 
 /**
  * Start an SSE stream on `res`. Auth is the caller's responsibility (the boot
  * module gates on a Better Auth session before calling this). Resolves when the
  * connection closes (client disconnect, res close, or error). Sets the sticky
  * headers Caddy/HTTP-2 need to disable buffering.
+ *
+ * `isStillActive`, when given, is re-checked on every heartbeat. The stream ends
+ * as soon as it resolves false. A check that rejects, or does not settle within
+ * `CHECK_TIMEOUT_MS`, also ends the stream (fail closed) and the error is logged.
+ * A revoked account therefore loses an open stream within one ping interval plus
+ * that timeout. The browser then reconnects: the boot route answers 401 for an
+ * inactive account, and while the database is failing it answers an empty stream
+ * with a retry hint.
  */
 export function startSseStream(
   req: { headers: Record<string, string | string[] | undefined> },
@@ -28,6 +56,7 @@ export function startSseStream(
     on: (event: "close", cb: () => void) => void;
     end: (chunk?: string | Buffer) => void;
   },
+  isStillActive?: () => Promise<boolean>,
 ): void {
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
@@ -62,9 +91,26 @@ export function startSseStream(
   const unsubscribe = broker.subscribe(sessionId, send);
 
   // Heartbeat: proxies may drop an idle connection; a `:` comment keeps it alive
-  // without producing a client-visible message event.
+  // without producing a client-visible message event. The liveness check shares
+  // the tick, and `checking` stops a slow check from stacking up behind itself.
+  let checking = false;
   const ping = setInterval(() => {
     res.write(`: ping ${Date.now()}\n\n`);
+    if (!isStillActive || checking) return;
+    checking = true;
+    void checkWithTimeout(isStillActive, CHECK_TIMEOUT_MS)
+      .catch((err: unknown) => {
+        console.error("[realtime] liveness check failed, ending stream:", (err as Error).message);
+        return false;
+      })
+      .then((active) => {
+        if (active) return;
+        cleanup();
+        res.end();
+      })
+      .finally(() => {
+        checking = false;
+      });
   }, PING_INTERVAL_MS);
 
   const cleanup = (): void => {

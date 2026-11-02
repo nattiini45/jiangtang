@@ -5,7 +5,7 @@ import type { TicketCreateInput } from "~/domains/tickets/tickets.schema";
 import type { AuthUser } from "~/lib/auth.server";
 
 /**
- * Loader/action tests for the mobile ticket routes (track T-MOBILE):
+ * Loader/action tests for the mobile ticket routes:
  *  - the list loader ignores a garbage ?status (validated against the enum);
  *  - the detail action performs a legal transition through the domain (asserted
  *    against DB state) and rejects an illegal one.

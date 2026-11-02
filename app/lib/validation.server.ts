@@ -82,7 +82,7 @@ export function formDataToObject(formData: FormData): Record<string, unknown> {
  * | N, some whitespace | `["kabel", "  "]` | `["kabel"]` — `trim()` decides, not a length check |
  *
  * ⚠️ **The single-input case is the one a control written only for 2+ would miss.** Measured
- * 2026-10-06 through the real `formDataToObject` + the real `stockCreateSchema`: a create
+ * through the real `formDataToObject` + the real `stockCreateSchema`: a create
  * form with one blank box sends `"kabel"` as a **bare string**, and `z.array()` alone
  * rejects it as *"Expected array, received string"*. So a filter written as
  * `Array.isArray(x) ? … : [x]` is what turns a green multi-tag test into a working

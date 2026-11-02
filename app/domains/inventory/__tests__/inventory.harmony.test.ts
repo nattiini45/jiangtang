@@ -24,7 +24,7 @@ import {
 } from "~/domains/inventory/inventory.stock.schema";
 
 /**
- * The harmony link's guards, one per acceptance criterion:
+ * The harmony link's guards, by property:
  *
  *   (1) a link and an unlink each append TWO rows, one per side, each naming
  *       the counterpart — and the shipped equipment feed can see the link  → tests 1–5
@@ -372,12 +372,10 @@ describe("the link write cannot dangle", () => {
     expect(cause.kind).toBe("ForeignKeyConstraintViolation");
     expect(cause.constraint).toMatchObject({ index: "InventoryItem_equipmentId_fkey" });
 
-    // 🔴 THE INSTRUMENT FINDING, asserted so it cannot be re-broken: `hasSqlState`
-    // walks `.cause` and compares `code`/`meta.code`, and the SQLSTATE sits two
-    // levels down. A backstop written as `hasSqlState(error, "23503")` catches
-    // NOTHING and lets a raw driver error reach the caller as a 500 — the same
-    // hole `23505` had, arriving through the foreign-key door (that one has the
-    // same shape on this stack; this is its sibling).
+    // 🔴 `hasSqlState` walks `.cause` and compares `code`/`meta.code`, and the SQLSTATE sits
+    // two levels down. A backstop written as `hasSqlState(error, "23503")` would catch nothing
+    // and let a raw driver error reach the caller as a 500. The same shape applies to `23505`
+    // on this stack, so the foreign-key path is asserted separately.
     expect(hasSqlState(caught, "23503"), "hasSqlState cannot reach 23503 on this stack").toBe(
       false,
     );
@@ -502,7 +500,7 @@ describe("the Restrict constraint is a property of the database", () => {
 
   it("(3b) CONTROL in the opposite direction: unlink, then the IDENTICAL delete succeeds", async () => {
     // Without this arm, test 13 is equally consistent with "the FK refuses" and
-    // "DELETE on this table always fails" — the pair is what makes it a finding.
+    // "DELETE on this table always fails" — the pair is what makes the refusal meaningful.
     const item = await make({ name: `${RUN}-free` });
     const eq = await makeEquipment(`${RUN}-free-eq`);
     await linkStockItemToEquipment(actor, item.id, eq.id);

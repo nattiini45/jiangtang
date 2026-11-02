@@ -44,17 +44,22 @@ pnpm db:deploy                       # apply the migration chain
 pnpm dev                             # http://localhost:3000
 ```
 
+`pnpm dev` reads `.env` at startup; a variable already set in your shell takes precedence.
+
 `.env.example` already matches the development database. Replace `BETTER_AUTH_SECRET` and
 `ICAL_FEED_TOKEN`; leave the optional integration variables empty unless you are testing that
 integration. Development-only admin defaults (`admin@jiangtang.local`) are created on the first
-`pnpm dev` and are not safe for any public exposure. See the [README](README.md) for the full
-variable list and [docs/DEPLOY.md](docs/DEPLOY.md) for a production installation.
+`pnpm dev`, which sets `NODE_ENV=development`. An unset `NODE_ENV` runs as production, so the
+defaults are never created there. They are not safe for any public exposure. [`.env.example`](.env.example) lists every
+development variable, and [`.env.production.example`](.env.production.example) lists the production
+ones; [docs/DEPLOY.md](docs/DEPLOY.md) describes a production installation.
 
 ## Tests and test data
 
 Never use production data, a production `.env`, real uploads or a shared database for tests. All
-fixtures must be synthetic. The Vitest and Playwright harnesses do not read `.env` for test
-configuration; supply values in the process environment.
+fixtures must be synthetic. The Vitest harness does not read `.env`; supply its values in the process
+environment. The Playwright run starts the application server, which loads `.env` for any name the run
+does not set, so `playwright.config.ts` sets the outbound integration names itself.
 
 ### Vitest (unit, integration and guard tests)
 
@@ -112,6 +117,7 @@ disposable database.
 ### Other checks
 
 ```bash
+pnpm db:generate                     # once after a fresh install: typecheck reads app/generated/
 pnpm typecheck
 pnpm lint
 bash scripts/guards.sh
@@ -120,8 +126,9 @@ pnpm build
 ```
 
 CI (`.github/workflows/ci.yml`) runs on `main` and pull requests. It runs the guards and their
-self-test, the Python backup-selector tests, client generation, migrations to its own database,
-then typecheck, lint, Vitest and the production build. It then runs the Playwright E2E browser
+self-test, the Python backup-selector tests and the in-image WAL-G checks, builds the production
+application image without pushing it, generates the client, migrates its own database, then runs
+typecheck, lint, Vitest and the production build. It then runs the Playwright E2E browser
 gate: it installs Chromium and runs `pnpm test:e2e` against an isolated E2E database. The live
 retrieval evaluation (`pnpm eval:live`) is not part of CI.
 

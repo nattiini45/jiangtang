@@ -10,7 +10,7 @@ import {
 import type { LocationCreateInput, LocationEditInput } from "~/domains/locations/locations.schema";
 
 /**
- * Location mutation guards, one per acceptance criterion:
+ * Location mutation guards, by property:
  *
  *   (1) every mutation is `txWithAudit` and writes its ActivityLog row in the same
  *       transaction  → the "exactly one row" assertions below
@@ -156,7 +156,7 @@ describe("location mutations — refusals write nothing", () => {
     expect(await db.location.findUnique({ where: { id: building.id } })).not.toBeNull();
     expect(await db.location.findUnique({ where: { id: room.id } })).not.toBeNull();
     expect(await db.location.findUnique({ where: { id: second.id } })).not.toBeNull();
-    // … and no ActivityLog row was added. This is criterion (2): the audit records
+    // … and no ActivityLog row was added: the audit records
     // what happened, and "nothing happened" is not an event.
     expect(await auditFor(site.id)).toHaveLength(auditBefore);
     expect((await auditFor(site.id)).some((row) => row.action === "LocationDeleted")).toBe(false);
@@ -176,10 +176,9 @@ describe("location mutations — refusals write nothing", () => {
 
     // ⚠️ On this stack a Restrict violation is NOT Prisma's
     // `P2003`. `@prisma/adapter-pg` raises a `DriverAdapterError` with SQLSTATE
-    // `23001` in `.cause.code`, so the error
-    // criterion (4) names cannot occur here at all — and a handler that matched on
-    // "P2003" would let the raw driver error through. The guard still holds, and more
-    // strongly than as written: the caller sees a ValidationError, never a driver error.
+    // `23001` in `.cause.code`, so the P2003 error cannot occur here at all, and a handler
+    // that matched on "P2003" would let the raw driver error through. The guard still holds,
+    // and more strongly: the caller sees a ValidationError, never a driver error.
     expect(thrown).toBeDefined();
     expect(hasSqlState(thrown, "23001")).toBe(true);
     expect((thrown as { message?: string }).message).toContain("Location_parentId_fkey");

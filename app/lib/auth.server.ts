@@ -4,6 +4,13 @@ import { redirect } from "react-router";
 import { db } from "~/lib/db.server";
 
 /**
+ * Shortest password Better Auth accepts on sign-up and password change. The
+ * production boot gate reads the same value, so a shorter ADMIN_PASSWORD fails
+ * at boot instead of leaving the first admin uncreated.
+ */
+export const MIN_PASSWORD_LENGTH = 8;
+
+/**
  * Better Auth bootstrap. Email/password authentication; the Account table
  * already carries the OIDC columns. Our domain fields role/initials/isActive
  * are registered as additionalFields so they live on the same User row Better
@@ -25,13 +32,16 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
-    minPasswordLength: 8,
+    minPasswordLength: MIN_PASSWORD_LENGTH,
   },
   user: {
     additionalFields: {
       // input:false → cannot be self-assigned at sign-up (no privilege escalation).
       role: { type: "string", required: false, defaultValue: "MEMBER", input: false },
-      initials: { type: "string", required: false },
+      // Set by admins through the audited user-management path (and at invite
+      // acceptance), which validates it. input:false keeps it out of the Better
+      // Auth update path, where the initials rules would not apply.
+      initials: { type: "string", required: false, input: false },
       isActive: { type: "boolean", required: false, defaultValue: true, input: false },
       // Set by admins on the user edit form only (input: false → no
       // self-assignment at sign-up), stored in minutes.

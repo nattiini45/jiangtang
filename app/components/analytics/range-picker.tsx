@@ -3,7 +3,7 @@ import { cn } from "~/lib/utils";
 import { useT } from "~/i18n/use-t";
 
 /**
- * Preset date-range picker for the analytics dashboard (track T-Analytics).
+ * Preset date-range picker for the analytics dashboard.
  * Renders link-chips that set `?days=N` on the current route — presets only
  * (operational simplicity, no free-form date inputs). The active preset is
  * marked so the URL-only window is visible in the UI.

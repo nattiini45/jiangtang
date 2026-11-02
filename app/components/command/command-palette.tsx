@@ -24,7 +24,7 @@ import { scoreVerb, verbsFor, type Verb } from "~/components/command/verbs";
  * ⚠️ **A new `SearchResultType` member reaches this file whether or not the
  * change that adds it names this file.** `GROUP_LABEL` is a `Record` over that
  * union, so the compiler *forces* this file: without the new key the typecheck
- * is red and the slice cannot ship.
+ * is red and the change cannot ship.
  * `GROUP_ORDER` then has a second, quieter obligation — a result whose type is
  * not in this list is filtered out and **never renders**, so a key that
  * satisfies the compiler while missing here produces a working search nobody

@@ -14,7 +14,7 @@ import type { AuditActor } from "~/lib/audit.server";
  * (hours → minutes round-trip through `updateUser`).
  */
 
-const RUN = `b65_${Date.now().toString(36)}`;
+const RUN = `capacity_${Date.now().toString(36)}`;
 
 const member: AuditActor & { role: "MEMBER" } = {
   id: "",

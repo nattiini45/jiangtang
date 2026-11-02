@@ -21,7 +21,7 @@ import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
 
 /**
- * Mobile ticket detail + close (track T-MOBILE). Read-only projection of the
+ * Mobile ticket detail + close. Read-only projection of the
  * desktop detail (title, links, description, resolution, timestamps, photos) plus
  * the SAME guarded status transitions — the action mirrors the desktop action
  * exactly (ticketTransitionSchema → transitionTicket → emitChange) so audit + SSE

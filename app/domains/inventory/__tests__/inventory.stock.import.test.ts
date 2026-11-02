@@ -134,8 +134,8 @@ describe("the shipped path, and it is the form's own schema", () => {
   });
 
   it("(1) an imported row is byte-for-byte the same write as a form-created one", async () => {
-    // The strongest available proof of criterion (1)'s "the same `stockData()`
-    // mapping" that does not depend on reading the import's source: the same input
+    // The strongest available proof that the import uses the same `stockData()`
+    // mapping as the form, without reading the import's source: the same input
     // through `createStockItem` and through the import must produce the same row.
     // A second `data` mapping in the importer drifts from the first the day a column
     // is added, and this is what would notice.

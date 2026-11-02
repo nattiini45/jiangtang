@@ -18,7 +18,7 @@ import { STOCK_STATUS_ALIASES } from "~/lib/status";
  * `/inventory/stock/import` — bulk stock ingest.
  *
  * **The Equipment importer's shape** — paste, preview, commit — with two
- * deliberate differences, both of them the row's criteria rather than taste:
+ * deliberate differences, both of them rules rather than taste:
  *
  * 1. **Validation is `previewCsv` + `stockCreateSchema`**, not a CSV-specific row
  *    schema. The Equipment side needs `equipmentCsvRowSchema` because its columns
@@ -30,7 +30,7 @@ import { STOCK_STATUS_ALIASES } from "~/lib/status";
  *    would have been bypassed on the very path that motivated it.
  * 2. **A file with any invalid row cannot be committed at all.** The Equipment
  *    route commits `preview.valid` and ignores `preview.invalid` — a partial
- *    import. Criterion (3) is all-or-nothing per file, so the refusal below names
+ *    import. The stock import is all-or-nothing per file, so the refusal below names
  *    the first bad line and the user fixes the file rather than importing the
  *    rows that happened to be clean.
  */
@@ -55,7 +55,7 @@ export async function action({ request }: Route.ActionArgs) {
   };
 
   if (intent === "commit") {
-    // Criterion (3): all-or-nothing. Naming the FIRST bad line is deliberate — a
+    // All-or-nothing: naming the FIRST bad line is deliberate — a
     // 30-row file with 12 bad lines gets one place to start, and the full list is
     // still rendered by the panel below.
     if (preview.invalid.length > 0) {

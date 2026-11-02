@@ -14,8 +14,8 @@ import { useLocale, useT } from "~/i18n/use-t";
  * `/m/inventory/stock` — the stock list on the phone (read-only).
  *
  * **No `action` export, deliberately, and the absence is asserted.**
- * Criterion (3) names it, so `test/routes/inventory-stock-routes.test.ts` checks the
- * export is *missing*: adding one later has to update a test that states the reason, which
+ * The route test in `test/routes/inventory-stock-routes.test.ts` checks that the export is
+ * *missing*: adding one later has to update a test that states the reason, which
  * is what stops a "just add a quick move button" edit from arriving unremarked. The
  * precedent and the reasoning are `m.locations`' — capture flows on mobile are task, note
  * and ticket triage, and a warehouse move is done where the shelf is.

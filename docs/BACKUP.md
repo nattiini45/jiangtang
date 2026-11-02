@@ -25,6 +25,16 @@ promise attachment PITR or "all data from WAL-G".
 deployment requires the key it was encrypted with; create a new key only for a
 new, empty deployment.
 
+## Restore prerequisites
+
+Every `docker compose` command in this runbook reads the deployment's `.env` (or
+the file passed with `--env-file`), so that file must also define `APP_DOMAIN` and
+`BETTER_AUTH_URL` (see `.env.production.example`). `docker-compose.yml` requires
+both when the file loads, so an env file that lacks them makes every command in
+this runbook abort with a "set ... in the environment" error. A recovery host can
+hold an older env file that predates these keys: check for them before you start.
+The abort happens before any restore step runs, so no data is touched.
+
 ## Capability 1 — WAL-G database PITR
 
 WAL-G writes WAL continuously (the postgres `archive_command`) and a base

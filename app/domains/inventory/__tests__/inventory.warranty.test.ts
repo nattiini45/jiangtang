@@ -12,19 +12,19 @@ import {
 import { register, runWarrantySweep } from "~/lib/warranty.boot.server";
 
 /**
- * Warranty expiry sweep guards, one block per acceptance criterion:
+ * Warranty expiry sweep guards, one block per property:
  *
  *   (1) `listExpiringWarranties` window, order, default, env override, and the
  *       `null` exclusion                                  → tests 3, 4, 5, 6, 7, 8, 12, 13
  *   (2) the boot module ticks at boot then daily and WRITES NOTHING
  *                                                      → tests 14, 15, 16
- *   (3) the rot-check control: remove the date filter and criterion (1) must go red
+ *   (3) the rot-check control: remove the date filter and the arm for (1) must go red
  *                                                        → test 11 (a control nobody
  *       has ever fired is a comment, not a control)
  *
  * ⚠️ **Fixtures are created with raw `db.inventoryItem.create`, not through
  * `createStockItem`** — deliberately. The domain's create writes an `ActivityLog`
- * row, and criterion (2)'s assertion is that the sweep writes *nothing*. Building
+ * row, and the assertion for (2) is that the sweep writes *nothing*. Building
  * the fixture through the audited path would put rows in the log that the sweep
  * did not write, and the assertion would then be measuring the wrong thing. Raw
  * inserts are also what the non-vacuity control (test 11) needs.
@@ -182,11 +182,9 @@ describe("the sweep answer", () => {
   it("treats both window bounds as inclusive, and the exact set is what survives", async () => {
     const atFrom = await makeItem("at-from", NOW);
     const atTo = await makeItem("at-to", atBerlinNoon(30));
-    // ⚠️ **The exact list, not `toContain`.** This assertion was `toContain` on
-    // the first run, and the criterion-(3) control caught the difference:
-    // removing the date filter returns *more* rows, so a presence-only assertion
-    // still passes. A boundary test that can only fail on a *narrower* filter is
-    // not testing the boundary.
+    // ⚠️ **The exact list, not `toContain`.** Removing the date filter returns *more* rows,
+    // so a presence-only assertion would still pass. A boundary test that can only fail on a
+    // *narrower* filter is not testing the boundary.
     const ids = mine(await listExpiringWarranties({ withinDays: 30, now: NOW })).map((r) => r.id);
     expect(ids).toEqual([atFrom.id, soon.id, later.id, atTo.id]);
   });

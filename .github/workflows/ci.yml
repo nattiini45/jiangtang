@@ -10,9 +10,19 @@ on:
 permissions:
   contents: read
 
+# A newer push cancels an older run of the same pull request. Runs on main are
+# never cancelled, so every merged commit keeps its own result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # The browser gate can wait on the dev server and the database for minutes;
+    # a hung run must not hold the required check open for the GitHub default
+    # of six hours.
+    timeout-minutes: 45
 
     # Postgres 18 + pgvector — must match dev and production. No volume mount,
     # so the PG18 data-dir guard never trips. On stock `postgres:18` `vector` is
@@ -41,9 +51,13 @@ jobs:
       TZ: Europe/Berlin
 
     steps:
+      # No later step pushes, so the checkout does not keep the token in .git/config.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      # Third-party action, pinned to a commit so a moved v4 tag cannot change what runs.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
 
       - uses: actions/setup-node@v4
         with:
@@ -83,6 +97,12 @@ jobs:
 
       - name: In-image backup selector suite
         run: docker run --rm --network none -v "$PWD/ops/postgres:/ops:ro" jiangtang-postgres-walg:ci python3 -m unittest discover -s /ops -p test_select_backup.py
+
+      # The production application image (root Dockerfile) is built here and
+      # never pushed. Nothing else in this workflow builds it, so a broken
+      # Dockerfile would otherwise surface only at deploy time.
+      - name: Build the application image
+        run: docker build --platform linux/amd64 -t jiangtang:ci .
 
       # app/generated/ is gitignored — regenerate the client before typecheck.
       - run: pnpm db:generate
@@ -153,8 +173,8 @@ jobs:
       - name: Generate a throwaway upload-encryption key
         run: echo "STORAGE_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
 
-      # Every value below is synthetic and constructed here; nothing is read
-      # from a .env file. Names follow playwright.config.ts,
+      # Every value below is synthetic and set here. The checkout has no .env
+      # file (it is gitignored), so none is read. Names follow playwright.config.ts,
       # e2e/global-setup.ts, test/test-db.ts and the app's boot modules:
       #   - DATABASE_URL_E2E is validated at config evaluation (suffix `_e2e`).
       #   - ADMIN_EMAIL/ADMIN_PASSWORD are the login used by global-setup; the

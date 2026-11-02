@@ -37,8 +37,8 @@ import {
  *
  * What this proves, and — more importantly — what it CANNOT: it runs the seed
  * inside ONE transaction that is then rolled back, so `pnpm test` leaves the
- * database exactly as it found it and CI needs no extra step ('s precedent:
- * point a criterion at the step that already performs the work).
+ * database exactly as it found it and CI needs no extra step: each check points at the step that already performs
+ * the work.
  *
  * The claims are deliberately phrased so that each one can go red:
  *
@@ -54,9 +54,9 @@ import {
  *    drifting away from behind a green suite.
  *
  * What it cannot prove, and what was proved by hand instead: that
- * `pnpm db:seed` reports FAILURE when the seed fails. That is criterion (3), a
- * spawned CLI being too slow and too fragile to assert in-suite; it was run
- * deliberately against a failing seed.
+ * `pnpm db:seed` reports FAILURE when the seed fails. That check is not in the suite: a
+ * spawned CLI is too slow and too fragile to assert in-suite, so it is run by hand against a
+ * failing seed.
  */
 
 afterAll(async () => {
@@ -230,7 +230,7 @@ const ORPHAN_PROBES: ReadonlyArray<{ label: string; sql: string }> = [
     label: "InventoryItem.createdById",
     sql: `SELECT count(*)::bigint AS n FROM "InventoryItem" c LEFT JOIN "User" p ON p.id=c."createdById" WHERE starts_with(c.id,'seed_') AND c."createdById" IS NOT NULL AND p.id IS NULL`,
   },
-  // Criterion (2) names this one specifically: "every Task.projectId resolves",
+  // This entry checks "every Task.projectId resolves",
   // which is only a claim if every task has one.
   {
     label: "Task.projectId missing",
@@ -583,8 +583,8 @@ describe("demo seed integrity", () => {
 
     expect(got.before).toBeGreaterThanOrEqual(0);
     // Audit rows are written for mutations only, and a mutation is only a
-    // mutation if the row was actually absent. Once dev has been seeded the
-    // correct expectation is ZERO new audit rows, not 108 — which is exactly
+    // mutation if the row was actually absent. Once a database is seeded, the
+    // correct expectation is ZERO new audit rows, not the seed's row count — which is exactly
     // what makes this a test of the audit rule rather than of the seed's size.
     expect(got.afterFirst).toBe(got.before + got.summary.auditRows);
     expect(got.summary.auditRows).toBe(

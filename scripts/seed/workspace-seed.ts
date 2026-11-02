@@ -18,7 +18,7 @@
  * WHY IT IS SAFE TO RUN TWICE: every row carries an explicit stable id
  * and a row is written **only when that id is absent**. Never an update, never
  * a delete: both delete-then-insert and a full-update upsert were rejected for
- * the same reason: a demo seed exists to be played with, and a second run must
+ * the same reason: a demo workspace exists to be played with, and a second run must
  * not wipe the edits someone made to it. Because a re-run performs no mutation,
  * it also writes no audit row, which is what keeps the append-only log a record
  * of things that actually happened rather than of runs.
@@ -60,8 +60,8 @@ export const SEED_ACTOR = {
 };
 
 /**
- * Tables the seed must NOT touch — criterion (7): "the counts in (2) and nothing
- * else". These are **Postgres table names as quoted SQL identifiers**, not
+ * Tables the seed must NOT touch: the counts of these tables are checked to be
+ * unchanged by a run, and nothing else is. These are **Postgres table names as quoted SQL identifiers**, not
  * Prisma delegate names, because the guard that reads them queries them as raw
  * SQL and `SELECT count(*) FROM "equipmentModel"` resolves to nothing.
  *
@@ -90,7 +90,7 @@ export type SeedSummary = {
   skipped: Record<CountKey, number>;
   /**
    * How many of the three demo `User`s this run created. Reported rather than
-   * inferred: the users are not one of the counted models, and once dev has
+   * inferred: the users are not one of the counted models, and once a database has
    * been seeded they are already there, so "was it written" is a real
    * question with a real answer instead of an assumption baked into an
    * arithmetic expression.
@@ -378,7 +378,6 @@ export async function seedWorkspace(
             reporterId: DEMO_USER.id,
             occurredAt,
             resolvedAt: resolved ? atBerlinHour(row.occurredOffsetDays + 1, 15) : null,
-            notionSource: "demo seed",
           },
           select: { id: true },
         }),
@@ -412,8 +411,8 @@ export async function seedWorkspace(
   }
 
   // 8. Stock. `equipmentId` stays null: the seed creates no Equipment, and a
-  //    link to a row that does not exist is exactly the orphan criterion (2)
-  //    forbids.
+  //    link to a row that does not exist is an orphan, which the seed-integrity
+  //    checks reject.
   for (const row of INVENTORY) {
     const wrote = await writeOnce(
       () => tx.inventoryItem.findUnique({ where: { id: row.id }, select: { id: true } }),

@@ -25,7 +25,7 @@ import { useLocale, useT } from "~/i18n/use-t";
  * router falls through to the dynamic sibling `/inventory/:id` and renders the
  * **Equipment detail page** at the canonical stock URL. Silently, because a cursed link
  * renders a real page rather than an error. `test/routes/route-resolution.test.ts` is the
- * guard, and it measured both ends of this fix: `$id` before, `stock._index` after.
+ * guard, and it asserts that the stock URL resolves to `stock._index`, not to the equipment page.
  *
  * **No `requireUser` here**, for the reason every other `_desktop` route omits it: the
  * tree is auth-guarded at `app/routes/_desktop/route.tsx`, and a second copy would be a

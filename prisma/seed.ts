@@ -44,7 +44,7 @@ async function main(): Promise<void> {
   // MUST precede any module that constructs the Prisma client — ESM imports are
   // hoisted, so the DB modules below are imported dynamically after this point.
   // `prisma db seed` already provides
-  // DATABASE_URL through the CLI's own environment (measured); this is
+  // DATABASE_URL through the CLI's own environment; this is
   // for a direct `tsx prisma/seed.ts`.
   try {
     process.loadEnvFile();

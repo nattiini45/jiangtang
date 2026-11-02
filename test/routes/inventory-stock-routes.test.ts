@@ -14,8 +14,8 @@ import type { AuthUser } from "~/lib/auth.server";
  * runs in `node` with no DOM, so these call the exported `loader`/`action` directly against
  * the real dev database — the same precedent as the location route tests, caveat and all. Which URL a *page* lives at
  * is a different question with a different instrument, and it is `test/routes/
- * route-resolution.test.ts`: the router is the only thing that knows `/inventory/stock`
- * used to be the Equipment detail page, and a loader called directly is structurally blind
+ * route-resolution.test.ts`: the router is the only thing that knows which page `/inventory/stock`
+ * resolves to, and a loader called directly is structurally blind
  * to that. Two files because the two questions are two files' worth.
  *
  * `requireUser` is mocked to a fixed actor; every other export of `~/lib/auth.server` is
@@ -25,7 +25,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * **known ids** to name rows, and the audit-count checks measure rows *written by the
  * routes*, so fixture noise on the same entity ids would make them lie.
  */
-const RUN = `b9_stock_${Date.now()}`;
+const RUN = `stock_${Date.now()}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,
@@ -50,7 +50,7 @@ const mobileRoute = await import("~/routes/m.inventory.stock._index/route");
 /** ── Fixtures ─────────────────────────────────────────────────────────────── */
 
 /**
- * Two locations of **different kinds**, because that is what criterion (2) is about:
+ * Two locations of **different kinds**, because a move across kinds is the case under test:
  * moving stock from a `ROOM` to a `STORAGE` is the case that a naive
  * "locationId must match the item's category" rule would refuse, and expresses no
  * such rule — the FK is a plain `SetNull` reference.
@@ -127,10 +127,10 @@ afterAll(async () => {
 const req = (url: string, body?: Record<string, string | string[]>): Request => {
   if (!body) return new Request(url);
   const fd = new FormData();
-  // ⚠️ `URLSearchParams` is NOT used to build this body, and the reason is measured:
-  // `new URLSearchParams({ tags: ["a", "b"] })` produces `tags=a%2Cb` — ONE key whose value
-  // is the string "a,b". A `tags` test written through that helper would have measured a
-  // comma-splitting convention this repo does not have, and passed for the wrong reason.
+  // `URLSearchParams` is not used to build this body: `new URLSearchParams({ tags: ["a", "b"] })`
+  // produces `tags=a%2Cb`, one key whose value is the string "a,b". A `tags` test written through
+  // that helper would assume a comma-splitting convention this repo does not have, and pass for
+  // the wrong reason.
   // `FormData.append` per entry is what a browser really sends, and it is the only way to
   // express the repeated key `formDataToObject` collapses into the `String[]`.
   for (const [k, v] of Object.entries(body))
@@ -194,8 +194,8 @@ const EDITED = {
  */
 const CHANGED = {
   name: `${RUN} Ersatzkabel (bearbeitet)`,
-  sku: `${RUN}-SKU-B18`,
-  serial: `${RUN}-SER-B18`,
+  sku: `${RUN}-SKU-EDITED`,
+  serial: `${RUN}-SER-EDITED`,
   quantity: "42",
   unit: "m",
   category: "Leitung",
@@ -217,9 +217,8 @@ const fullEditorBody = (overrides: Record<string, string | string[]> = {}) => ({
 
 /**
  * ⚠️ **Untagged, as a PREDICATE and not a count — and the predicate has to see BOTH
- * encodings.** Measured 09:0x on dev: 32 rows = 30 tagged, 1 `{}`, 1 SQL `NULL`, because
- * `InventoryItem.tags` is `attnotnull=false` with no default while the Prisma field is
- * `String[]`. `tags = '{}'` matches only one of the two untagged rows;
+ * encodings.** Both encodings occur: `InventoryItem.tags` is nullable with no default while the
+ * Prisma field is `String[]`, so an empty array and an SQL `NULL` both mean untagged. `tags = '{}'` matches only one of the two untagged rows;
  * `coalesce(array_length(tags,1),0) = 0` matches both.
  *
  * A count would be the wrong instrument for a second reason: it pins the *legacy* rows'
@@ -252,15 +251,15 @@ const del = (id = ids.linked) =>
     params: { id },
   } as never);
 
-// ── Criterion (2): the list joins, and an item moves between kinds. ──────────
+// ── The list joins, and an item moves between kinds. ──────────
 
-describe("criterion (2) — /inventory/stock lists stock with location, vendor and equipment joined", () => {
+describe("/inventory/stock lists stock with location, vendor and equipment joined", () => {
   it("returns all three joins as OBJECTS, not as bare foreign keys", async () => {
     const linked = mine(await loadIndex()).find((i) => i.id === ids.linked);
     expect(linked, "the linked fixture must appear in the list").toBeDefined();
     // The names, not the ids: a query that selected `locationId` would satisfy a test
     // asserting the id and leave the list unable to show where a thing is — which is the
-    // half of criterion (2) that has a user-visible consequence.
+    // half of the join that has a user-visible consequence.
     expect(linked?.location?.name).toBe(`${RUN} Hörsaal`);
     expect(linked?.location?.kind).toBe("ROOM");
     expect(linked?.vendor?.name).toBe(`${RUN} Lieferant GmbH`);
@@ -340,7 +339,7 @@ describe("criterion (2) — /inventory/stock lists stock with location, vendor a
   });
 });
 
-describe("criterion (2) — an item can be moved to a location of a DIFFERENT kind", () => {
+describe("an item can be moved to a location of a DIFFERENT kind", () => {
   it("ROOM → STORAGE succeeds, and the two kinds genuinely differ", async () => {
     const before = await find(ids.linked);
     expect(before?.locationId).toBe(ids.room);
@@ -417,9 +416,9 @@ describe("criterion (2) — an item can be moved to a location of a DIFFERENT ki
   });
 });
 
-// ── Criterion (3): the detail page, and a read-only phone. ────────────────────
+// ── The detail page, and a read-only phone. ────────────────────
 
-describe("criterion (3) — the detail page shows the linked Equipment and the warranty date", () => {
+describe("the detail page shows the linked Equipment and the warranty date", () => {
   const loadDetail = async (id = ids.linked) =>
     (await detailRoute.loader({ params: { id } } as never)) as {
       item: {
@@ -436,7 +435,7 @@ describe("criterion (3) — the detail page shows the linked Equipment and the w
 
   it("carries the linked Equipment and the warranty date in the loader payload", async () => {
     const { item } = await loadDetail();
-    // Both named in criterion (3), and both are what a user opens this page to read.
+    // Both are what a user opens this page to read.
     expect(item.equipment?.id).toBe(ids.equipment);
     expect(item.equipment?.name).toBe(`${RUN} Funkmikrofon`);
     expect(item.warrantyExpiresAt).toEqual(WARRANTY);
@@ -497,7 +496,7 @@ describe("criterion (3) — the detail page shows the linked Equipment and the w
   });
 });
 
-describe("criterion (3) — /m/inventory/stock is read-only and shares the query module", () => {
+describe("/m/inventory/stock is read-only and shares the query module", () => {
   it("exports NO action — the mobile surface is read-only by design", () => {
     expect("action" in mobileRoute).toBe(false);
   });
@@ -513,9 +512,9 @@ describe("criterion (3) — /m/inventory/stock is read-only and shares the query
   });
 });
 
-// ── Criterion (2) first half, through the create form. ───────────────────────
+// ── Creating a stock item through the create form. ───────────────────────
 
-describe("criterion (2) — a stock item can be created", () => {
+describe("a stock item can be created", () => {
   it("creates through the domain, audits once, and redirects to the new item", async () => {
     const res = await newRoute.action({
       request: req("http://localhost/inventory/stock/new", {
@@ -530,13 +529,7 @@ describe("criterion (2) — a stock item can be created", () => {
         category: "",
         status: "",
         serial: "",
-        // 🔴 This line REPLACED the comment that stood here, and the comment was
-        // wrong. It read: *"`tags` is NOT sent … the form has no tag control, and sending
-        // `tags: ""` would fail validation, which is why the wire format for a multi-value
-        // field needs a decision this row does not make."* All three clauses were measured
-        // false: the create form DOES have a tag control, `tags: ""` does NOT fail, and the
-        // wire format was never undecided. Leaving the old assertion green would have
-        // certified the create path both ways at once.
+        // The create form does have a tag control, and an empty tag string is accepted.
         //
         // ONE input, a bare string — which is exactly what a browser sends for a form with a
         // single spare box, and what `stockCreateSchema.tags` rejects as `invalid_type`
@@ -556,8 +549,8 @@ describe("criterion (2) — a stock item can be created", () => {
     expect(row?.quantity).toBe(3);
     // A date typed into the form survives as a timestamptz, not a string.
     expect(row?.warrantyExpiresAt?.toISOString()).toBe(new Date("2028-01-31").toISOString());
-    // the tag the form posted is ON the row. The old line here was
-    // `expect(row?.tags).toEqual([])` — true only because the form sent no tag at all.
+    // the tag the form posted is on the row. An empty list would also pass when the form
+    // sent no tag at all, so the posted value is what is asserted.
     expect(row?.tags).toEqual([`${RUN}-kabel`]);
     // The audit row commits with the item or not at all — counted for THIS item's
     // id, because the shared counter deliberately excludes it.
@@ -644,7 +637,7 @@ describe("the create form renders the tags control", () => {
     // 🔴 A control must prove it can REACH, not only that it fires. There is exactly
     // ONE create route and it now passes, so "the assertion is red for the right reason"
     // is NOT observable by reading the tree. These fixtures are the control.
-    // 1. the line as it was before this row — the real pre-fix text, not a paraphrase of it
+    // 1. the line as it was before the fix — the real pre-fix text, not a paraphrase of it
     expect(
       handsFormAnArrayTags(
         "<StockFormFields locations={l} vendors={v} defaults={d ? { locationId: d } : undefined} />",
@@ -736,7 +729,7 @@ describe("the BARE-STRING CASE, the only shape a create form sends", () => {
     two.append("tags", "funk");
     expect(formDataToObject(two).tags).toEqual(["kabel", "funk"]);
 
-    // The edit path's case, unchanged by this row: two tags plus a blank spare.
+    // The edit path's case, unchanged by the fix: two tags plus a blank spare.
     expect(
       stockCreateSchema.safeParse({
         name: "x",
@@ -762,8 +755,8 @@ describe("ONE copy of the rule", () => {
   };
 
   it("`tagsFromForm` is DEFINED exactly once in app/ — and it is the shared one", () => {
-    // The whole point of the criterion is "one copy", so it is measured over the TREE and
-    // not over the two callers: a third definition anywhere in `app/` is a drift this row
+    // The point is "one copy", so it is checked over the TREE and
+    // not over the two callers: a third definition anywhere in `app/` is a drift this test
     // exists to prevent, and reading only the routes could not see it.
     const files = appSources();
     expect(
@@ -807,7 +800,7 @@ describe("ONE copy of the rule", () => {
     expect(tagsFromForm(fd("kabel", "  "), [])).toEqual(["kabel"]);
 
     // 🔴 key ABSENT → carried. This is the edit form's *"this form did not offer the
-    // control, so carry the row"* contract, and it is the clause a move-to-`lib` most often
+    // control, so carry the existing value"* rule. It is the clause a move-to-`lib` most often
     // loses: a rewrite that defaulted to `[]` would silently CLEAR an item's tags.
     expect(tagsFromForm(fd(), ["getragen"])).toEqual(["getragen"]);
     // …and an EXPLICIT blank is a clear, not a carry. The two must not collapse.
@@ -835,9 +828,9 @@ describe("the CSV exclusion: the fix is NOT in the schema", () => {
   });
 
   it("CONTROL — the SAME assertion fails against a schema that coerces a bare string", async () => {
-    // 🔴 This arm is what stops criterion (4) passing vacuously, and it is the one a
+    // 🔴 This arm stops the predicate passing vacuously, and it is the one a
     // reviewer should read first: it proves the predicate can distinguish the shipped schema
-    // from the schema a careless slice would have written. `z.preprocess` wrapping a bare
+    // from the schema a careless edit would have written. `z.preprocess` wrapping a bare
     // string into an array is EXACTLY that careless fix — and it would silently reverse
     // the importer's shipped decision, which the UI states in words.
     const { z } = await import("zod");
@@ -1005,7 +998,7 @@ describe("the form writes a real vendorId", () => {
       "",
     );
     const row = await find(newId);
-    // The ACTUAL id written, not "some vendor": criterion (3) is that the form's choice
+    // The ACTUAL id written, not "some vendor": the form's choice
     // reaches the row, and a test asserting merely "vendorId is not null" would pass on a
     // form that ignored the control and defaulted to anything.
     expect(row?.vendorId).toBe(ids.vendor2);
@@ -1062,7 +1055,7 @@ describe("a bad supplier id is a FIELD error, not a 500", () => {
     } as never);
 
     // 🔴 NOT a Response. A Response here would be `toErrorResponse` turning an unhandled
-    // error into a 500 page — the exact outcome criterion (4) forbids.
+    // error into a 500 page, which is the outcome this test forbids.
     expect(res).not.toBeInstanceOf(Response);
     expect(
       (res as { fieldErrors?: Record<string, string[]> }).fieldErrors?.vendorId?.[0],
@@ -1091,7 +1084,7 @@ describe("a bad supplier id is a FIELD error, not a 500", () => {
   });
 
   it("NEGATIVE CONTROL: the refusal is the DOMAIN's requireRefs, not the form's option list", async () => {
-    // Criterion (5): *"a picker that submits an id the domain rejects must be caught by the
+    // The rule: *"a picker that submits an id the domain rejects must be caught by the
     // test, not by a 500."*
     //
     // The control is that this test posts an id NO option could ever carry - a value the
@@ -1167,7 +1160,7 @@ describe("a save through the full editor, field by field", () => {
     expect(res).toBeInstanceOf(Response);
 
     const row = await find(ids.linked);
-    // The criterion this row exists to prevent: `updateStockItem` writes the WHOLE
+    // This test guards against `updateStockItem` writing the WHOLE
     // `StockEditInput`, so a field the action fails to read is written as its default and
     // the save destroys it silently. Every value in `CHANGED` differs from the fixture, so
     // a carried field cannot masquerade as a written one.
@@ -1219,7 +1212,7 @@ describe("a save through the full editor, field by field", () => {
   });
 
   it("CONTROL (a): a BLANK tag box removes that tag and leaves the others alone", async () => {
-    // Criterion (1)'s chosen option — filter empties on submit. The alternative reading
+    // The chosen option: filter empties on submit. The alternative reading
     // (render per-tag errors) is a `ValidationError` on the WHOLE object, which is the
     // failure this assertion exists to rule out: three tags on screen, clear one box, and
     // the save is rejected and the other two go with it.
@@ -1241,9 +1234,9 @@ describe("a save through the full editor, field by field", () => {
   });
 
   it("CONTROL (b): clearing EVERY box leaves the row untagged — asserted as the row, through a predicate that sees NULL and {}", async () => {
-    // ⚠️ The predicate, not `tags = '{}'` and not a count: measured 09:0x, dev has one
-    // `{}` row and one SQL-`NULL` row, and `tags = '{}'` matches only the first. A count
-    // would also pin the legacy rows' presence into a test that must survive a write.
+    // The predicate, not `tags = '{}'` and not a count: the table can hold both an empty
+    // array and an SQL NULL, and `tags = '{}'` matches only the first. A count
+    // would also pin the presence of pre-existing rows into a test that must survive a write.
     const before = await find(ids.linked);
     expect(before?.tags).toEqual(["kabel", "ersatzteil"]);
 
@@ -1258,16 +1251,12 @@ describe("a save through the full editor, field by field", () => {
   });
 
   it("CONTROL (b): the cleared-list assertion TURNS RED if the editor is removed", async () => {
-    // ⚠️ **MEASURED, and the measurement contradicts the criterion's wording, so it is
-    // recorded rather than glossed.** The row said this control "must turn red if the
-    // editor is removed". It does not — and it cannot, which is a property of the
-    // instrument rather than of the code: **this test builds its own request body, so a
-    // control missing from the component cannot change what it posts.** Deleting the whole
-    // `{defaults?.tags !== undefined ? … : null}` block was run as a named mutation at
-    // 10:0x: **exactly ONE test went red — the structural control-name test — and this
-    // cleared-list test stayed green.**
+    // Removing the control does not turn this test red, and cannot: it builds its own request
+    // body, so a control missing from the component cannot change what it posts. Removing the
+    // whole `{defaults?.tags !== undefined ? … : null}` block turns only the structural
+    // control-name test red.
     //
-    // So the guarantee is delivered by the PAIR, and the split is measured, not assumed:
+    // So the guarantee is delivered by the PAIR:
     //   * the structural test (below) is what fires when a control is removed;
     //   * this test is the *other* direction — "a body that omits `tags` leaves the row
     //     tagged" — which is what makes a blank box a real edit rather than an accident.
@@ -1301,7 +1290,7 @@ describe("a save through the full editor, field by field", () => {
   });
 
   it("a CLEARED quantity resolves to 1, not 0 — in the editor too", async () => {
-    // Criterion (6). `stockEditSchema` extends the create schema, so the documented
+    // `stockEditSchema` extends the create schema, so the documented
     // default applies here exactly as it does on the create path: blank ⇒ "not stated" ⇒
     // 1. An editor that resolved a cleared box to `0` would re-open the defect just
     // closed, and "we have none of this" must be an explicit typed `0` — never inferred.
@@ -1320,7 +1309,7 @@ describe("a save through the full editor, field by field", () => {
     // The half-editor built its input by hand, so it accepted values the create path
     // refuses. A stock row is a stock row whichever form wrote it, and a negative quantity
     // or a malformed price arriving through one form and not the other is the kind of
-    // half-measure this row exists to remove.
+    // half-measure this test exists to remove.
     const negative = await edit({ quantity: "-5" });
     expect(negative).not.toBeInstanceOf(Response);
     expect(
@@ -1350,7 +1339,7 @@ describe("a save through the full editor, field by field", () => {
     expect(await find(ids.linked)).toEqual(before);
   });
 
-  it("the pre-B18 intent `move` is still accepted, so a cached form does not break", async () => {
+  it("a legacy `move` intent is still accepted, so a cached form does not break", async () => {
     // A rename that rejected the old value would turn every open tab into an error. The
     // old name is an alias, not a second code path.
     const res = await detailRoute.action({
@@ -1399,7 +1388,7 @@ describe("structural — the routes obey the boundaries a green suite cannot see
   });
 
   it("the stock namespace never links /inventory/:id AS a stock item", () => {
-    // The one link that would re-create the very confusion this slice removed: a stock
+    // The one link that would re-create the confusion the stock module removes: a stock
     // row linking its own detail page to the Equipment one. `stock-columns.tsx` links
     // `/inventory/stock/${id}` for the row and `/inventory/${equipment.id}` for the
     // *equipment*, and that distinction is the point of this guard.
@@ -1426,7 +1415,7 @@ describe("structural — the routes obey the boundaries a green suite cannot see
    * static guard cannot tell whether anything reads a name, and a behavioural test cannot
    * see a control that is not there.
    *
-   * ⚠️ **Why a source scan and not a render.** Measured 10:0x on this tree: `renderToStaticMarkup`
+   * ⚠️ **Why a source scan and not a render.** `renderToStaticMarkup`
    * throws `Cannot read properties of null (reading 'useContext')` on the FIRST hook, under
    * React 19's `react-dom-server-legacy` build in vitest's `node` environment (one React copy
    * in the store — `react@19.2.7` — so this is the renderer, not a duplicate). A render-based
@@ -1438,14 +1427,12 @@ describe("structural — the routes obey the boundaries a green suite cannot see
    * prose that explains the rule, so an unblanked scan would report a control that is not one
    * and, worse, would keep reporting it after the control is deleted.
    *
-   * ⚠️ **Measured 10:0x, the one blind spot this scan has, and it is not hypothetical: a
-   * control written as `name={SOME_CONST}` is INVISIBLE to it.** The first cut of the tags
-   * control did exactly that, and this test reported `the editor has no control for: tags` —
-   * a true statement about the scan and a false one about the form. The fix was to inline the
-   * literal, which is the right resolution rather than a weakened pattern: a scan whose
-   * escape hatch is "name your fields through constants" pushes the next author away from the
-   * readable form. The scan is a *reachability* claim about the text, which is why it is
-   * paired with the behavioural tests and not asked to do their job.
+   * ⚠️ **The one blind spot this scan has: a control written as `name={SOME_CONST}` is
+   * INVISIBLE to it.** Such a control makes the scan report `the editor has no control for:
+   * tags`, a true statement about the scan and a false one about the form. Name the field with
+   * an inline literal instead: a scan whose escape hatch is "name your fields through constants"
+   * pushes the next author away from the readable form. The scan is a *reachability* claim about
+   * the text, which is why it is paired with the behavioural tests and not asked to do their job.
    */
   const controlNamesIn = (rel: string) => {
     const src = readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8")
@@ -1482,7 +1469,7 @@ describe("structural — the routes obey the boundaries a green suite cannot see
     const rendered = fields.filter((f) => !(f in CARRIED_ONLY));
     const missing = rendered.filter((f) => !controls.has(f));
     expect(missing, `the editor has no control for: ${missing.join(", ")}`).toEqual([]);
-    // …and `tags` specifically, because it is the field this row added and the one whose
+    // …and `tags` specifically, because it is the field the change added and the one whose
     // absence was the whole defect.
     expect(controls.has("tags")).toBe(true);
   });

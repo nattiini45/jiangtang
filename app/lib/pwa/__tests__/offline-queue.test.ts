@@ -29,7 +29,7 @@ function fakeFetch(outcomes: (Response | Error)[], calls: string[] = []): typeof
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-// Exact single-fetch framing measured from the running app on 2026-10-20
+// Exact single-fetch framing, as the running app sends it
 // (POST /m/tasks/new.data): `text/x-script` with a turbo-stream body whose
 // unflattened value is `{ data: <action result> }`.
 const turbo = (body: string, status = 200) =>

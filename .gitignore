@@ -56,3 +56,19 @@ desktop.ini
 
 # Python bytecode from the ops/postgres selector tests
 __pycache__/
+
+# Key material, database dumps, archives and exported inventories. Never a bare *.sql:
+# migration files and ops/postgres/verify-invariants.sql are tracked.
+*.pem
+*.key
+*.p12
+*.pfx
+*.dump
+*.sql.gz
+*.tar.gz
+/backups/
+/backup/
+/uploads/
+/private/
+/imports/
+*.inventory.csv

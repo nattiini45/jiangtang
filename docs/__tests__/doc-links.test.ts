@@ -12,11 +12,11 @@
  *  1. Negative controls. Synthetic fixtures prove that a missing required document, an empty
  *     required document, a case-wrong link, a repository escape and an undeclared external link
  *     all produce findings. A checker that cannot report a finding always passes.
- *  2. Case-exact resolution. Resolved through directory listings, not `existsSync`, because this
- *     development host is Windows (case-insensitive) while CI and GitHub's renderer are Linux
- *     (case-sensitive).
+ *  2. Case-exact resolution. Resolved through directory listings, not `existsSync`, because
+ *     case-insensitive filesystems accept a wrong-case name that GitHub's renderer and CI's
+ *     case-sensitive filesystem reject.
  *  3. Corpus-bound, not directory-bound. Only the declared public documents are scanned, so the
- *     test passes when private planning documents are physically absent.
+ *     test does not depend on any Markdown file outside the declared corpus.
  *  4. Closed external set. Every external reference is declared with a reason; a new one fails,
  *     and a declaration that no document uses fails too.
  *
@@ -144,6 +144,41 @@ const ALLOWED_EXTERNAL_LINKS: ReadonlyArray<ExternalDeclaration> = [
     from: "THIRD_PARTY_NOTICES.md",
     target: "https://www.debian.org/legal/licenses/",
     why: "Debian license source",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://github.com/feathericons/feather",
+    why: "Feather upstream, whose LICENSE carries the MIT copyright line for the lucide-react icons",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://github.com/lovell/sharp-libvips",
+    why: "sharp-libvips upstream, whose THIRD-PARTY-NOTICES and versions.properties list the bundled LGPL components",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://www.gnu.org/licenses/lgpl-3.0.txt",
+    why: "LGPL-3.0 text that redistributors of the libvips shared object must ship",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://www.gnu.org/licenses/gpl-3.0.txt",
+    why: "GPL-3.0 text that the LGPL-3.0 terms refer to",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://github.com/parcel-bundler/lightningcss",
+    why: "lightningcss upstream, the source for the MPL-2.0 platform binaries in the runtime image",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://github.com/browserslist/caniuse-lite",
+    why: "caniuse-lite repository, named by its package metadata as the CC-BY-4.0 source",
+  },
+  {
+    from: "THIRD_PARTY_NOTICES.md",
+    target: "https://creativecommons.org/licenses/by/4.0/legalcode",
+    why: "CC-BY-4.0 legal code that the caniuse-lite data is licensed under",
   },
 ];
 
@@ -467,7 +502,8 @@ describe("public documentation links", () => {
         if (document === "SECURITY.md") continue;
         writeFixture(fixtureRoot, document, `# ${document}\n`);
       }
-      // Windows would resolve this name for `SECURITY.md`; the directory listing must not.
+      // A case-insensitive filesystem would resolve this name for `SECURITY.md`; the directory
+      // listing must not.
       writeFixture(fixtureRoot, "security.md", "# lower-case impostor\n");
       for (const legal of LEGAL_FILES) writeFixture(fixtureRoot, legal, "fixture\n");
 

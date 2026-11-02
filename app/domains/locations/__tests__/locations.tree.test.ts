@@ -5,7 +5,7 @@ import { listLocationTree, type LocationTreeNode } from "~/domains/locations/loc
 import type { LocationCreateInput } from "~/domains/locations/locations.schema";
 
 /**
- * The location tree, one test per acceptance criterion:
+ * The location tree, one test per property:
  * every descendant, with depth and a stable order, from ONE recursive CTE — and
  * `kind` filtering the RESULT without truncating the TRAVERSAL.
  *

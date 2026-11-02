@@ -17,7 +17,8 @@ desktop surface (pathless `_desktop` layout, renders at `/`) and the mobile PWA 
 
 Run from the repository root. Use pnpm 10.26.2 (`corepack enable`).
 
-- `pnpm dev` — dev server (loads `.env`). `pnpm build` / `pnpm start` — production build / serve.
+- `pnpm dev` — dev server (reads `.env`; a variable already set in the shell wins). `pnpm build` /
+  `pnpm start` — production build / serve.
 - `pnpm typecheck` — `react-router typegen` plus `tsc`. `pnpm lint` — ESLint.
 - `pnpm format` — `prettier --check .`. `pnpm format:fix` rewrites; run it only on files you changed.
 - `pnpm test` — Vitest against an isolated `<dbname>_test` database derived from `DATABASE_URL` (or
@@ -26,7 +27,8 @@ Run from the repository root. Use pnpm 10.26.2 (`corepack enable`).
 - `pnpm test:e2e` — Playwright against its own `_e2e` database and loopback port (see
   [CONTRIBUTING.md](CONTRIBUTING.md)).
 - `bash scripts/guards.sh` (and `--self-test` when editing the guard) — architectural guards.
-- `pnpm db:generate` — Prisma client into `app/generated/`. `pnpm db:deploy` — apply migrations.
+- `pnpm db:generate` — Prisma client into `app/generated/` (run once after a fresh install, before
+  `pnpm typecheck`). `pnpm db:deploy` — apply migrations.
   `pnpm db:seed` — demo data in the installation language. `pnpm db:studio` — Prisma Studio.
 - `pnpm eval:live` — optional retrieval evaluation against real AI endpoints; not part of the checks.
 

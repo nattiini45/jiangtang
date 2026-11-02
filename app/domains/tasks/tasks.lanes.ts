@@ -6,8 +6,8 @@ import type { TaskStatus, TicketStatus } from "~/generated/prisma/client";
  *
  * This is the TypeScript mirror of the `workitem_lane` TABLE, which is
  * hand-folded SQL (`20261023000500_workitem_view`) and deliberately editable
- * data — not schema. The mirror is the honest
- * compromise the row's tests enforce: `tasks.lanes.test.ts` reads the table and
+ * data — not schema. The mirror is a deliberate compromise, and
+ * `tasks.lanes.test.ts` enforces it: that test reads the table and
  * asserts this file equals it exactly, so a re-mapped lane row reddens the
  * suite instead of drifting silently.
  *

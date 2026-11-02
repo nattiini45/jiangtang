@@ -139,7 +139,7 @@ function toShellPath(p: string): string {
 }
 
 describe("Retention: executable deletion gate with a fake wal-g", () => {
-  const tmpRoot = mkdtempSync(join(tmpdir(), "b05-walg-fake-"));
+  const tmpRoot = mkdtempSync(join(tmpdir(), "walg-fake-"));
   const fakeBin = join(tmpRoot, "bin");
   const argvLog = join(tmpRoot, "argv.log");
   const pgdata = join(tmpRoot, "pgdata");
@@ -373,11 +373,11 @@ describe("Rehearsal: bounded, private startup (static)", () => {
  * CLI as the only reachable `aws`. No Docker, no network, no real credentials.
  */
 describe("Rehearsal: bucket bootstrap with a fake aws CLI", () => {
-  const tmpRoot = mkdtempSync(join(tmpdir(), "b06-aws-fake-"));
+  const tmpRoot = mkdtempSync(join(tmpdir(), "aws-fake-"));
   const fakeBin = join(tmpRoot, "bin");
   const argvLog = join(tmpRoot, "argv.log");
   const scriptPath = join(tmpRoot, "minio-init.sh");
-  const SECRET_SENTINEL = "b06-secret-sentinel-do-not-log";
+  const SECRET_SENTINEL = "secret-sentinel-do-not-log";
 
   beforeAll(async () => {
     mkdirSync(fakeBin);
@@ -558,7 +558,7 @@ describe("Restore: confirmation and destination guards (static)", () => {
 });
 
 describe("Restore: executable guards with stub wal-g", () => {
-  const tmpRoot = mkdtempSync(join(tmpdir(), "b07a-restore-"));
+  const tmpRoot = mkdtempSync(join(tmpdir(), "restore-guard-"));
   const fakeBin = join(tmpRoot, "bin");
   const walLog = join(tmpRoot, "wal.log");
   const ownLog = join(tmpRoot, "own.log");
@@ -818,7 +818,7 @@ describe("Targeted restore: wiring and selector use (static)", () => {
 });
 
 describe("Targeted restore: executable selector gate", () => {
-  const tmpRoot = mkdtempSync(join(tmpdir(), "b07c-restore-"));
+  const tmpRoot = mkdtempSync(join(tmpdir(), "restore-selector-"));
   const fakeBin = join(tmpRoot, "bin");
   const walLog = join(tmpRoot, "wal.log");
   const ownLog = join(tmpRoot, "own.log");
@@ -1129,7 +1129,7 @@ describe("Drill: honest, private, non-root (static)", () => {
 });
 
 describe("Drill: executable control flow with stub pg tools", () => {
-  const tmpRoot = mkdtempSync(join(tmpdir(), "b10-drill-"));
+  const tmpRoot = mkdtempSync(join(tmpdir(), "drill-"));
   const fakeBin = join(tmpRoot, "bin");
   const tempRoot = join(tmpRoot, "tmp");
   const fixtures = join(tmpRoot, "fixtures");
@@ -1381,8 +1381,8 @@ exec /usr/bin/rm "$@"
  * Why this parses the workflow: `ops/postgres/test-restore-guards.sh` documents
  * the container invocation in its own header, and the "ships the in-image guard
  * run" assertion above reads that script's TEXT. A text mention proves nothing
- * about what CI executes — the plan's review history records exactly that
- * failure, a promised in-image guard that was never wired. These assertions
+ * about what CI executes: a guard can be documented in a script and never wired
+ * into the workflow. These assertions
  * parse `.github/workflows/ci.yml` and inspect only executable `run` steps and
  * their structured keys, so a YAML comment or a script comment cannot satisfy
  * them.
@@ -1490,12 +1490,66 @@ function inImageSteps(workflow: CIWorkflow, argv: string): CIRunStep[] {
   );
 }
 
+/** Every `docker build` that targets the WAL-G image. The application image has its own step. */
 function buildCommands(workflow: CIWorkflow): BuildRef[] {
   return ciRunSteps(workflow).flatMap((step) =>
     shellCommands(step.run)
-      .filter((command) => command.startsWith("docker build "))
+      .filter((command) => isWalgBuild(command))
       .map((command) => ({ step, command, tag: IMAGE_BUILD.exec(command)?.[1] })),
   );
+}
+
+function isWalgBuild(command: string): boolean {
+  return command.startsWith("docker build ") && /\bops\/postgres\b|Dockerfile\.walg/.test(command);
+}
+
+/**
+ * Joins backslash-continued lines into one command, so a publication spread over several lines
+ * is matched whole. Comment lines go first: a backslash at the end of a comment continues nothing.
+ */
+function joinContinuedLines(script: string): string {
+  return script
+    .split(/\r?\n/)
+    .filter((line) => !line.trim().startsWith("#"))
+    .join("\n")
+    .replace(/[ \t]*\\\n[ \t]*/g, " ");
+}
+
+/**
+ * The publication forms this guard recognises: a registry push (docker, podman, buildah, crane,
+ * oras, skopeo), a manifest or tag publication (`docker manifest push`, `buildx imagetools
+ * create`), a compose build or push that pushes (`docker compose build --push`, `docker compose
+ * push`, and the same with compose global options such as `-f` or `--profile` before the
+ * subcommand), a buildx build or bake that pushes (`--push`, or an output to the registry), and a
+ * build-push action. A publishing tool outside this list needs its own pattern.
+ */
+const IMAGE_PUBLISH =
+  /\bdocker\s+(push|image\s+push|manifest\s+push)\b|\bdocker\s+buildx\s+imagetools\s+create\b|\bbuildx\s+(build|bake)\b.*(\s--push(=\S+)?(\s|$)|(--output|\s-o)[= ]?\S*(type=registry|push=true))|\bcompose\b(?:\s+(?:-[fp]|--(?:file|project-name|profile|env-file|project-directory|ansi|parallel|progress))(?:=|\s+)\S+|\s+--\S+)*\s+(?:build\b.*\s--push(\s|$)|push\b)|\b(crane|oras)\s+(push|copy|tag)\b|\bskopeo\s+copy\b|\b(podman|buildah)\s+((image|manifest)\s+)?push\b/;
+
+/**
+ * Every image publication in the workflow that IMAGE_PUBLISH recognises, in any job, plus every
+ * build-push action. Scanning every job means a publication added to a new job fails the same
+ * check as one added to `ci`.
+ */
+function imagePublicationSites(workflow: CIWorkflow): string[] {
+  const sites: string[] = [];
+  for (const [jobId, job] of Object.entries(workflow.jobs ?? {})) {
+    for (const step of job.steps ?? []) {
+      if (typeof step.uses === "string" && step.uses.startsWith("docker/build-push-action")) {
+        sites.push(`${jobId}: uses ${step.uses}`);
+      }
+      if (typeof step.run !== "string") continue;
+      for (const command of shellCommands(joinContinuedLines(step.run))) {
+        if (IMAGE_PUBLISH.test(command)) sites.push(`${jobId}: ${command}`);
+      }
+    }
+  }
+  return sites;
+}
+
+/** The publication sites of one run block, as a single-step `ci` job. */
+function publicationsIn(run: string): string[] {
+  return imagePublicationSites({ jobs: { ci: { steps: [{ name: "Fixture", run }] } } });
 }
 
 /**
@@ -1733,6 +1787,24 @@ describe("CI: in-image restore guards are wired", () => {
     expect(unconditionalDefects(build.step)).toEqual([]);
   });
 
+  it("builds the application image once, in a named, unconditional step, and never pushes it", async () => {
+    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
+    const appBuilds = ciRunSteps(workflow).flatMap((step) =>
+      shellCommands(step.run)
+        .filter((command) => command.startsWith("docker build ") && !isWalgBuild(command))
+        .map((command) => ({ step, command })),
+    );
+    expect(appBuilds.map((build) => build.command)).toEqual([
+      "docker build --platform linux/amd64 -t jiangtang:ci .",
+    ]);
+    const app = appBuilds[0] as (typeof appBuilds)[number];
+    expect(app.step.name).not.toBe("");
+    expect(app.step.step.if).toBeUndefined();
+    expect(app.step.step["continue-on-error"]).toBeUndefined();
+    expect(unconditionalDefects(app.step)).toEqual([]);
+    expect(imagePublicationSites(workflow)).toEqual([]);
+  });
+
   it("runs the restore guards inside the built image, offline and read-only", async () => {
     const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
     const buildTag = (buildCommands(workflow)[0] as BuildRef | undefined)?.tag;
@@ -1801,6 +1873,112 @@ describe("CI: in-image restore guards are wired", () => {
       expect(lines, command).toContain(command);
     }
     expect(ciRunSteps(workflow).some((step) => step.run.includes("CREATE DATABASE"))).toBe(true);
+  });
+
+  it("rejects a docker push added to the application build step", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withLineSuffix(
+      live,
+      "run: docker build --platform linux/amd64 -t jiangtang:ci .",
+      "&& docker push jiangtang:ci",
+    );
+    expect(fixture).toContain("docker push jiangtang:ci");
+    expect(imagePublicationSites(parseWorkflow(fixture))).toEqual(["ci: docker push jiangtang:ci"]);
+  });
+
+  it("rejects an image publication in a job other than ci", async () => {
+    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
+    expect(imagePublicationSites(workflow)).toEqual([]);
+    workflow.jobs = {
+      ...workflow.jobs,
+      publish: { steps: [{ name: "Publish", run: "docker push jiangtang:ci" }] },
+    };
+    expect(imagePublicationSites(workflow)).toEqual(["publish: docker push jiangtang:ci"]);
+  });
+
+  it("rejects a buildx build that pushes when its flags are backslash-continued", () => {
+    expect(
+      publicationsIn(
+        "docker buildx build \\\n  --platform linux/amd64 \\\n  --push \\\n  -t jiangtang:ci .",
+      ),
+    ).toEqual(["ci: docker buildx build --platform linux/amd64 --push -t jiangtang:ci ."]);
+    expect(
+      publicationsIn(
+        "docker buildx build \\\n  --platform linux/amd64 \\\n  --output type=registry \\\n  -t jiangtang:ci .",
+      ),
+    ).toEqual([
+      "ci: docker buildx build --platform linux/amd64 --output type=registry -t jiangtang:ci .",
+    ]);
+  });
+
+  it("rejects publications outside docker push, including compose, manifests, imagetools, bake and other tools", () => {
+    for (const run of [
+      "docker manifest push jiangtang:ci",
+      "docker buildx imagetools create -t registry.example.org/jiangtang:ci jiangtang:ci",
+      "docker buildx bake --push app",
+      "docker buildx build --output type=image,name=registry.example.org/jiangtang,push=true .",
+      "docker compose build --push",
+      "docker compose build app --push",
+      "docker-compose build --push app",
+      "docker compose push app",
+      "podman push jiangtang:ci",
+      "podman image push jiangtang:ci",
+      "podman manifest push jiangtang:ci",
+      "buildah push jiangtang:ci",
+      "buildah manifest push jiangtang:ci",
+      "crane push image.tar registry.example.org/jiangtang:ci",
+      "oras push registry.example.org/jiangtang:ci app.tar",
+      "skopeo copy docker-archive:image.tar docker://registry.example.org/jiangtang:ci",
+    ]) {
+      expect(publicationsIn(run), run).toEqual([`ci: ${run}`]);
+    }
+  });
+
+  it("rejects compose publications with global options before the subcommand", () => {
+    for (const run of [
+      "docker compose -f docker-compose.prod.yml build --push",
+      "docker compose --profile x push app",
+      "docker compose -p jt -f compose.yml push",
+      "docker compose --project-name=jt --file=compose.yml build app --push",
+      "docker compose --env-file .env.prod --project-directory ops build --push",
+      "docker compose --progress plain build --push app",
+      "docker-compose -f compose.yml push app",
+    ]) {
+      expect(publicationsIn(run), run).toEqual([`ci: ${run}`]);
+    }
+  });
+
+  it("does not flag builds, pulls or runs that do not publish, in compose, podman or buildah", () => {
+    for (const run of [
+      "docker compose build app",
+      "docker compose build",
+      "docker compose build --no-cache app",
+      "docker compose build app --progress=plain",
+      "docker-compose build app",
+      "docker compose up --build -d",
+      "docker compose -f x.yml build app",
+      "docker compose --profile p up -d",
+      "docker compose --project-name=jt --file=compose.yml build --no-cache app",
+      "docker build -t x .",
+      "podman build -t x .",
+      "buildah bud -t x .",
+      "buildah from alpine",
+      "podman pull alpine",
+      "podman images",
+      "podman run --rm jiangtang:ci push",
+    ]) {
+      expect(publicationsIn(run), run).toEqual([]);
+    }
+  });
+
+  it("does not flag a local build, and a comment's trailing backslash does not hide a push", () => {
+    expect(publicationsIn("docker buildx build --output type=local,dest=out .")).toEqual([]);
+    expect(
+      publicationsIn("docker buildx build \\\n  --output type=local,dest=out \\\n  ."),
+    ).toEqual([]);
+    expect(publicationsIn("# keep the push disabled \\\ndocker push jiangtang:ci")).toEqual([
+      "ci: docker push jiangtang:ci",
+    ]);
   });
 
   // ── Negative controls. Each runs the SAME checker over a mutated copy of the

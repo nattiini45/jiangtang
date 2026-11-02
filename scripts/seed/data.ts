@@ -9,8 +9,8 @@
  *     only ever append, which is precisely the silent duplication this avoids.
  *  2. **Natural keys are rejected**, because inventing one per model is a
  *     migration plus five unique indexes that this seed does not own
- *     (`InventoryItem` has no candidate yet — the stock slice adds its unique
- *     keys), and delete-then-insert was rejected because it destroys hand-made
+ *     (`InventoryItem` has no candidate key yet, so it is seeded by id only),
+ *     and delete-then-insert was rejected because it destroys hand-made
  *     demo edits on a second run. `prisma/seed.ts` therefore writes a row only
  *     when its id is absent and never rewrites one that is present.
  *
@@ -46,7 +46,7 @@ export const EXPECTED_COUNTS = {
   timeEntry: 6,
 } as const;
 
-/** One row per `LocationKind` value — the enum has 8, not the roadmap's 9. */
+/** One row per `LocationKind` value. */
 export const EXPECTED_LOCATION_KIND_COUNT = 8;
 
 /**
@@ -69,8 +69,8 @@ export const SEED_ID_PREFIX = "seed_";
  * in the repository. The no-Account barrier is what makes them inert, not the
  * flags; `isActive` now reflects that they are *supposed* to appear as staff.
  *
- * `DEMO_USER` keeps its original id `seed_user_demo` (now Demo Alex) so
- * every reference written by an older seed run still resolves.
+ * `DEMO_USER` has the stable fixture id `seed_user_demo`, which other seed
+ * rows reference.
  */
 export const DEMO_USER = {
   id: "seed_user_demo",

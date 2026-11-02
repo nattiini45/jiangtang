@@ -19,11 +19,10 @@ const RUN = runPrefix();
  * Scope the `theme` cookie to the SAME origin the fixture navigates against,
  * derived from Playwright's own `baseURL` fixture rather than a fixed port.
  *
- * Measured impact of the old literal (Chromium, `context.cookies()`): it was
- * stored as `Domain=localhost, Path=/`, and cookies are NOT port-isolated
- * (RFC 6265 8.5), so it was still sent to `http://localhost:3100`. The old code
- * therefore did not break the default configuration. It DID break one this repo
- * explicitly allows: `playwright.config.ts` accepts `127.0.0.1` as the loopback
+ * Why the origin is derived: a cookie for `localhost` is stored as `Domain=localhost, Path=/`,
+ * and cookies are NOT port-isolated (RFC 6265 8.5), so it is still sent to
+ * `http://localhost:3100`. A literal origin therefore works in the default configuration but breaks
+ * one configuration this repo explicitly allows: `playwright.config.ts` accepts `127.0.0.1` as the loopback
  * host, and a `Domain=localhost` cookie is not sent to
  * `http://127.0.0.1:3100` — so under `E2E_BASE_URL=http://127.0.0.1:3100` both
  * theme suites would silently measure a single theme and still pass. Deriving

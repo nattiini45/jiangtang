@@ -24,7 +24,7 @@ import {
  * deleted in afterAll, chunks included.
  */
 
-const RUN = `b56_${Date.now().toString(36)}`;
+const RUN = `indexer_${Date.now().toString(36)}`;
 
 const ids: Partial<Record<SourceType, string>> = {};
 let userId = "";

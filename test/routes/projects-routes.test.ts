@@ -14,7 +14,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * `requireUser` is mocked to a fixed actor; every other export of
  * `~/lib/auth.server` is preserved.
  */
-const RUN = `b44_proj_${Date.now().toString(36)}`;
+const RUN = `projects_${Date.now().toString(36)}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,
