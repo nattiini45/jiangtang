@@ -64,7 +64,7 @@ export function TaskAssigneesEditor({
     });
   }, [assignees]);
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       {rows.map((row, i) => (
         <div key={i} className="flex items-center gap-2">
           <Select
@@ -89,13 +89,13 @@ export function TaskAssigneesEditor({
             step={1}
             defaultValue={row.estimateMinutes ?? ""}
             placeholder={t("tasks.assignees.minutesPlaceholder")}
-            className="w-24"
+            className="nums w-24"
             aria-label={t("tasks.assignees.minutesAria", { n: i + 1 })}
           />
           <Button
             type="button"
             variant="ghost"
-            size="sm"
+            size="icon-compact"
             aria-label={t("tasks.assignees.removeRow")}
             onClick={() => setRows(rows.filter((_, j) => j !== i))}
           >
@@ -105,8 +105,8 @@ export function TaskAssigneesEditor({
       ))}
       <Button
         type="button"
-        variant="outline"
-        size="sm"
+        variant="secondary"
+        size="compact"
         className="self-start"
         onClick={() => setRows([...rows, { userId: "", estimateMinutes: null }])}
       >

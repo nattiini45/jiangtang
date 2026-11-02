@@ -125,14 +125,14 @@ export default function TasksIndex({ loaderData }: Route.ComponentProps) {
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("tasks.list.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("tasks.list.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("tasks.list.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("tasks.list.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" asChild>
             <Link to="/tasks/import">{t("tasks.list.import")}</Link>
           </Button>
           <Button asChild>
@@ -141,7 +141,7 @@ export default function TasksIndex({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <Form method="get" className="flex flex-wrap items-center gap-3">
+      <Form method="get" className="flex flex-wrap items-center gap-2">
         <Input
           name="q"
           defaultValue={filters.q}
@@ -212,7 +212,7 @@ export default function TasksIndex({ loaderData }: Route.ComponentProps) {
           <option value="today">{t("tasks.list.dueToday")}</option>
           <option value="week">{t("tasks.list.dueWeek")}</option>
         </Select>
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="secondary" size="compact">
           {t("tasks.list.filterSubmit")}
         </Button>
       </Form>

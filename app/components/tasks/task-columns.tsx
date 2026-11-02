@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { OctagonAlert } from "lucide-react";
 import { DateCell, StatusCell, type ColumnDef } from "~/components/data-grid";
 import { TaskPriorityText } from "~/components/i18n/enum-text";
+import { Badge } from "~/components/ui/badge";
 import { isTaskOverdue } from "~/domains/tasks/tasks.dates";
 import type { TaskPriority, TaskStatus } from "~/generated/prisma/client";
 import type { Translate } from "~/i18n";
@@ -65,7 +66,7 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
       size: 100,
       cell: ({ row }) =>
         row.original.priority ? (
-          <span className="font-mono text-xs">
+          <span>
             <TaskPriorityText value={row.original.priority} />
           </span>
         ) : (
@@ -80,13 +81,13 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
         row.original.assignees.length > 0 ? (
           <span className="flex gap-1">
             {row.original.assignees.map((a) => (
-              <span
+              <Badge
                 key={a.userId}
                 title={a.user.name}
-                className="border-border bg-secondary text-secondary-foreground inline-flex items-center rounded-sm border px-1.5 py-0.5 font-mono text-xs"
+                className="type-micro h-5 rounded-full px-1.5 font-semibold"
               >
                 {a.user.initials ?? a.user.name}
-              </span>
+              </Badge>
             ))}
           </span>
         ) : (
@@ -138,9 +139,7 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
       size: 160,
       cell: ({ row }) =>
         row.original.labels.length > 0 ? (
-          <span className="text-muted-foreground font-mono text-xs">
-            {row.original.labels.join(", ")}
-          </span>
+          <span className="text-muted-foreground">{row.original.labels.join(", ")}</span>
         ) : (
           dash
         ),

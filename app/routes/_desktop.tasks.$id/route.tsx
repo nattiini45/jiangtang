@@ -248,13 +248,15 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
   const overdue = isTaskOverdue(task.dueAt, task.status);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="font-mono text-xl">{task.title}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-bold">{task.title}</h1>
           <StatusCell kind="task" value={task.status} />
           {task.priority ? (
-            <span className="font-mono text-xs">{taskPriorityLabel(locale, task.priority)}</span>
+            <span className="text-muted-foreground text-xs">
+              {taskPriorityLabel(locale, task.priority)}
+            </span>
           ) : null}
         </div>
         <Link to="/tasks" className="text-muted-foreground text-sm hover:underline">
@@ -290,9 +292,7 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
             {overdue ? t("tasks.detail.overdue") : ""}
           </span>
         ) : null}
-        {task.labels.length > 0 ? (
-          <span className="font-mono text-xs">{task.labels.join(", ")}</span>
-        ) : null}
+        {task.labels.length > 0 ? <span>{task.labels.join(", ")}</span> : null}
       </div>
 
       {task.body ? <p className="whitespace-pre-wrap text-sm">{task.body}</p> : null}
@@ -301,17 +301,15 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
 
       {/* Timer: start/stop from the task. A timer already running on a
           different task is named — starting here is refused server-side. */}
-      <section className="border-border flex items-center gap-3 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tasks.detail.timer.title")}
-        </p>
+      <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("tasks.detail.timer.title")}</h2>
         {runningTimer?.taskId === task.id ? (
           <Form method="post" className="flex items-center gap-2">
             <input type="hidden" name="_action" value="stop-timer" />
-            <Button type="submit" variant="outline" size="sm" disabled={busy}>
+            <Button type="submit" variant="secondary" size="compact" disabled={busy}>
               {t("tasks.detail.timer.stop")}
             </Button>
-            <span className="text-muted-foreground font-mono text-xs">
+            <span className="text-muted-foreground nums text-xs">
               {t("tasks.detail.timer.runningSince", {
                 time: berlinLocalString(runningTimer.startsAt).slice(11),
               })}
@@ -320,7 +318,7 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
         ) : (
           <Form method="post" className="flex items-center gap-2">
             <input type="hidden" name="_action" value="start-timer" />
-            <Button type="submit" variant="outline" size="sm" disabled={busy}>
+            <Button type="submit" variant="secondary" size="compact" disabled={busy}>
               {t("tasks.detail.timer.start")}
             </Button>
             {runningTimer ? (
@@ -336,10 +334,8 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
       </section>
 
       {/* Workflow transition */}
-      <section className="border-border flex items-center gap-3 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tasks.detail.status.title")}
-        </p>
+      <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("tasks.detail.status.title")}</h2>
         <Form method="post" className="flex items-center gap-2">
           <input type="hidden" name="_action" value="status" />
           <Select
@@ -354,17 +350,15 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="outline" size="sm" disabled={busy}>
+          <Button type="submit" variant="secondary" size="compact" disabled={busy}>
             {t("tasks.detail.status.submit")}
           </Button>
         </Form>
       </section>
 
       {/* Assignees */}
-      <section className="border-border flex flex-col gap-2 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tasks.detail.assignees.title")}
-        </p>
+      <section className="bg-card shadow-surface-2 flex flex-col gap-2 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("tasks.detail.assignees.title")}</h2>
         <Form method="post" className="flex flex-col gap-2">
           <input type="hidden" name="_action" value="assignees" />
           <TaskAssigneesEditor
@@ -374,14 +368,20 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
               estimateMinutes: a.estimateMinutes,
             }))}
           />
-          <Button type="submit" variant="outline" size="sm" className="self-start" disabled={busy}>
+          <Button
+            type="submit"
+            variant="secondary"
+            size="compact"
+            className="self-start"
+            disabled={busy}
+          >
             {t("tasks.detail.assignees.submit")}
           </Button>
         </Form>
       </section>
 
       {/* Dependencies */}
-      <section className="border-border border p-3">
+      <section className="bg-card shadow-surface-2 rounded-lg p-4">
         <TaskDependencies
           taskId={task.id}
           blockers={task.blockedBy.map((e) => e.blocking)}
@@ -393,11 +393,9 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
       </section>
 
       {/* Subtasks */}
-      <section className="border-border flex flex-col gap-2 border p-3">
+      <section className="bg-card shadow-surface-2 flex flex-col gap-2 rounded-lg p-4">
         <div className="flex items-center justify-between">
-          <p className="text-muted-foreground text-xs uppercase tracking-wide">
-            {t("tasks.detail.subtasks.title")}
-          </p>
+          <h2 className="text-base font-semibold">{t("tasks.detail.subtasks.title")}</h2>
           <Link to={`/tasks/new?parent=${task.id}`} className="text-sm hover:underline">
             {t("tasks.detail.subtasks.new")}
           </Link>
@@ -405,9 +403,9 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
         {task.subtasks.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("tasks.detail.subtasks.empty")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <ul className="divide-y">
             {task.subtasks.map((sub) => (
-              <li key={sub.id} className="flex items-center gap-2 text-sm">
+              <li key={sub.id} className="flex items-center gap-2 py-2 text-sm">
                 <Link to={`/tasks/${sub.id}`} className="hover:underline">
                   {sub.title}
                 </Link>
@@ -419,10 +417,8 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
       </section>
 
       {/* Ticket harmony */}
-      <section className="border-border flex flex-col gap-2 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tasks.detail.ticket.title")}
-        </p>
+      <section className="bg-card shadow-surface-2 flex flex-col gap-2 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("tasks.detail.ticket.title")}</h2>
         {task.primaryForTickets.length > 0 ? (
           <p className="text-muted-foreground text-sm">
             {t("tasks.detail.ticket.primaryFor")}{" "}
@@ -441,8 +437,8 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
       </section>
 
       {/* Content edit */}
-      <details className="border-border border p-3">
-        <summary className="text-muted-foreground cursor-pointer text-xs uppercase tracking-wide">
+      <details className="bg-card shadow-surface-2 rounded-lg p-4">
+        <summary className="cursor-pointer text-base font-semibold">
           {t("tasks.detail.edit.title")}
         </summary>
         <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-3">
@@ -471,7 +467,7 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
       </details>
 
       {/* Delete */}
-      <section className="border-border border p-3">
+      <section className="bg-card shadow-surface-2 rounded-lg p-4">
         <Form
           method="post"
           onSubmit={(e) => {
@@ -479,16 +475,16 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
           }}
         >
           <input type="hidden" name="_action" value="delete" />
-          <Button type="submit" variant="outline" disabled={busy}>
+          <Button type="submit" variant="destructive" disabled={busy}>
             {t("tasks.detail.delete.submit")}
           </Button>
         </Form>
       </section>
 
       {/* Per-entity history */}
-      <section className="border-border border">
-        <header className="border-border border-b px-3 py-2">
-          <h2 className="text-sm font-medium">{t("tasks.detail.history.title")}</h2>
+      <section className="bg-card shadow-surface-2 rounded-lg">
+        <header className="flex h-12 items-center px-4">
+          <h2 className="text-base font-semibold">{t("tasks.detail.history.title")}</h2>
         </header>
         <ActivityFeed entries={history} />
       </section>

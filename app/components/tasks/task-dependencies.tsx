@@ -46,22 +46,20 @@ export function TaskDependencies({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tasks.deps.blockedBy")}
-        </p>
+        <h3 className="text-base font-semibold">{t("tasks.deps.blockedBy")}</h3>
         {blockers.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("tasks.deps.none")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <ul className="divide-y">
             {blockers.map((b) => (
-              <li key={b.id} className="flex items-center gap-2 text-sm">
+              <li key={b.id} className="flex items-center gap-2 py-2 text-sm">
                 <Form method="post">
                   <input type="hidden" name="_action" value="blocker-remove" />
                   <input type="hidden" name="blockerTaskId" value={b.id} />
                   <Button
                     type="submit"
                     variant="ghost"
-                    size="sm"
+                    size="icon-compact"
                     disabled={busy}
                     aria-label={t("tasks.deps.removeAria", { title: b.title })}
                   >
@@ -92,7 +90,7 @@ export function TaskDependencies({
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="outline" size="sm" disabled={busy}>
+          <Button type="submit" variant="secondary" size="compact" disabled={busy}>
             {t("tasks.deps.add")}
           </Button>
         </Form>
@@ -104,15 +102,13 @@ export function TaskDependencies({
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tasks.deps.blocks")}
-        </p>
+        <h3 className="text-base font-semibold">{t("tasks.deps.blocks")}</h3>
         {blockedTasks.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("tasks.deps.blocksNone")}</p>
         ) : (
-          <ul className="flex flex-col gap-1">
+          <ul className="divide-y">
             {blockedTasks.map((b) => (
-              <li key={b.id} className="flex items-center gap-2 text-sm">
+              <li key={b.id} className="flex items-center gap-2 py-2 text-sm">
                 <Link to={`/tasks/${b.id}`} className="hover:underline">
                   {b.title}
                 </Link>
