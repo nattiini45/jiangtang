@@ -317,6 +317,9 @@
 @utility px-control {
   padding-inline: var(--control-px);
 }
+@utility pl-control {
+  padding-left: var(--control-px);
+}
 @utility px-button {
   padding-inline: var(--button-px);
 }
