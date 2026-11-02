@@ -3,8 +3,8 @@ import { db } from "~/lib/db.server";
 import { loader } from "~/routes/healthz/route";
 
 /**
- * healthz readiness probe (deferred; TOPS). Asserts the 503 branch: when
- * the DB scalar check throws, the loader must return a 503 (so Coolify / the load
+ * healthz readiness probe. Asserts the 503 branch: when the DB scalar check
+ * throws, the loader must return a 503 (so the container platform or the load
  * balancer stops routing to a broken instance) — the happy path already returns
  * 200. We drive both branches by spying on the shared `db.$queryRaw`.
  *
@@ -36,17 +36,17 @@ describe("healthz loader", () => {
     await expect(res.json()).resolves.toMatchObject({ status: "degraded", db: "down" });
   });
 
-  it("in production does NOT leak the raw error message to the unauthenticated caller", async () => {
+  it("outside development does NOT leak the raw error message to the unauthenticated caller", async () => {
     const prev = process.env.NODE_ENV;
     // NODE_ENV is read-only-typed; assign through a cast for the duration of the test.
     (process.env as Record<string, string>).NODE_ENV = "production";
     try {
-      vi.spyOn(db, "$queryRaw").mockRejectedValue(new Error("postgres://secret@internal-host/db"));
+      vi.spyOn(db, "$queryRaw").mockRejectedValue(new Error("synthetic-leak-sentinel"));
       const res = await call();
       expect(res.status).toBe(503);
       const body = (await res.json()) as Record<string, unknown>;
       expect(body).not.toHaveProperty("error");
-      expect(JSON.stringify(body)).not.toContain("secret");
+      expect(JSON.stringify(body)).not.toContain("synthetic-leak-sentinel");
     } finally {
       (process.env as Record<string, string>).NODE_ENV = prev ?? "test";
     }

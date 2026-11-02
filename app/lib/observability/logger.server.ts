@@ -45,6 +45,17 @@ export const logger = pino({
   },
 });
 
+/**
+ * Replaces the token segment of token-bearing routes (the iCal feed and the invite
+ * link) so a request log line never carries the token. Other paths and the query
+ * string are returned unchanged.
+ */
+const TOKEN_SEGMENT = /(\/(?:calendar|accept-invite)\/)[^/?#]+/gi;
+
+export function redactTokenSegments(url: string): string {
+  return url.replace(TOKEN_SEGMENT, "$1:token");
+}
+
 /** Create a request-scoped child logger carrying a request id. */
 export function requestLogger(requestId: string, method: string, url: string) {
   return logger.child({ requestId, method, url });

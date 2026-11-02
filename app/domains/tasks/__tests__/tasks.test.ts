@@ -16,7 +16,7 @@ import type { TaskCreateInput, TaskEditInput } from "~/domains/tasks/tasks.schem
 import { LANES, TASK_LANE_DEFAULT_STATUS } from "~/domains/tasks/tasks.lanes";
 
 /**
- * Tasks-domain mutation guards, one per acceptance criterion — the
+ * Tasks-domain mutation guards, one per property — the
  * `locations.mutations.test.ts`/`projects.test.ts` shape, one folder over:
  *
  *   - every mutation runs through `txWithAudit` and writes its ActivityLog row

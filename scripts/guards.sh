@@ -57,7 +57,7 @@ strip_sql_comments() {
   # literals, so a '...' containing -- or /* cannot corrupt the scan.
   #
   # The delimiter characters are built with sprintf("%c", n) rather than written
-  # as literals, for a measured reason: gawk honours /* */ as a comment even
+  # as literals, because gawk honours /* */ as a comment even
   # inside what looks like a string context, and an awk program that compares
   # against a literal delimiter is one refactor away from being silently eaten.
   awk '

@@ -5,7 +5,7 @@ import { loader } from "~/routes/api.search/route";
 import { runSearch } from "~/routes/api.search/search.server";
 
 /**
- * T-CMD — api.search loader + runSearch helper.
+ * api.search loader + runSearch helper.
  *
  * Seeds a room, an equipment instance and a ticket under a unique run prefix,
  * then asserts the search returns them with the right {type,href} shape. Also
@@ -14,12 +14,10 @@ import { runSearch } from "~/routes/api.search/search.server";
  * ActivityLog is append-only, so we never touch it, and to avoid its guard
  * trigger the ticket is created directly via Prisma (no audit row written).
  *
- * **The identifier arm extended this file; it did not replace it.** The six pre-existing
- * cases above the marker are unchanged from before the identifier arm,
- * and criterion (4) is *extended, never replaced* — so the case count only
- * grows, and the old arms are pinned by the old cases rather than by a new
- * assertion about them. `afterAll` keeps its empty-filter guard, and now also
- * removes this tick's stock and location rows.
+ * **The identifier arm is additive.** The cases above the marker pin the existing arms, and
+ * the identifier cases only add to them: the case count only grows, and the old arms stay
+ * pinned by their own cases rather than by a new assertion about them. `afterAll` keeps its
+ * empty-filter guard and also removes this run's stock and location rows.
  *
  * ⚠️ **Every assertion below is id-scoped to a row this file created.** The dev
  * database is shared and seeded, and seeded rows are dated relative to `now`, so
@@ -166,9 +164,9 @@ describe("loader auth guard", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The identifier arm. The type + the href; the
-// four existing arms are untouched and the new one is APPENDED;
-// exact, not contains, with the negative control the row demands.
+// The identifier arm: the type and the href. The four existing arms are untouched and the
+// new one is APPENDED; exact, not contains, with a negative control for a serial that merely
+// contains the query.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** One `STORAGE` location, so the sublabel assertion has a real name to carry. */
@@ -261,7 +259,7 @@ describe("runSearch — exact, not contains", () => {
     };
 
     // The exact serial: ONE row, and specifically the base — not the longer one
-    // whose serial *contains* it. This is the row's own negative control, and it
+    // whose serial *contains* it. This is the negative control for the serial arm, and it
     // is an exact ordered list precisely so a `contains` filter (which would
     // return both, base first) turns it red.
     expect(await stockHits(SERIAL_BASE)).toEqual([base.id]);
@@ -274,7 +272,7 @@ describe("runSearch — exact, not contains", () => {
   });
 
   it("does NOT match a stock item by its NAME — the arm is identifiers only", async () => {
-    // A deliberate scope decision, pinned so a later slice that adds a
+    // A deliberate scope decision, pinned so a later change that adds a
     // name arm has to meet it rather than slip in unnoticed. `listStock` already
     // does `contains` on the name for the stock page; the palette's job here is
     // the identifier, which the page's own search box cannot do.
@@ -293,7 +291,7 @@ describe("runSearch — exact, not contains", () => {
   });
 });
 
-describe("runSearch — the four existing arms are untouched, the fifth is appended (criterion 2)", () => {
+describe("runSearch — the four existing arms are untouched, the fifth is appended", () => {
   it("returns room, ticket, event, equipment and then inventory-item, in that order", async () => {
     // One token, one row of each kind, so the ORDER is an assertion rather than
     // an accident of four independent `contains` filters. The new arm is last:
@@ -359,7 +357,7 @@ describe("runSearch — the four existing arms are untouched, the fifth is appen
  * it is one. `/inventory/stock` is a static segment; a static segment with no
  * route behind it does not 404, it falls through to the dynamic sibling
  * `/inventory/:id` and renders the **Equipment detail page** — silently, and
- * with a real page rather than an error. A slice
+ * with a real page rather than an error. An implementation
  * that pointed the stock arm at `/inventory/${id}` would leave
  * `test/routes/route-resolution.test.ts` perfectly green, because that guard
  * compares route FILES and a search result is not a route file.
@@ -400,7 +398,7 @@ describe("runSearch — the stock href is a URL the router agrees with", () => {
     expect(winnerOf(hit!.href)).toBe("routes/_desktop.inventory.stock.$id");
     // The control: the URL this guard exists to catch resolves to a DIFFERENT,
     // equally real page. Without it, the assertion above would also pass if the
-    // instrument simply reported the same winner for everything.
+    // resolver simply reported the same winner for everything.
     expect(winnerOf(`/inventory/${item.id}`)).toBe("routes/_desktop.inventory.$id");
   });
 });

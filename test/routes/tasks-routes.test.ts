@@ -11,7 +11,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * database. What is provable here is that the routes compute the right
  * answer, refuse the right things, and write nothing when they refuse.
  */
-const RUN = `b47_task_${Date.now().toString(36)}`;
+const RUN = `tasks_${Date.now().toString(36)}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,

@@ -22,7 +22,7 @@ import {
 } from "~/domains/inventory/inventory.stock.schema";
 
 /**
- * Stock-domain guards, one per acceptance criterion:
+ * Stock-domain guards, by property:
  *
  *   (1) a second item with the same non-null `sku`/`serial` raises
  *       `ValidationError`, not a raw `P2002`   → tests 3, 4 + the 23505 control
@@ -96,10 +96,10 @@ async function makeVendor(name: string) {
 
 describe("the constraint is in the DATABASE, not in the domain", () => {
   it("(1) CONTROL: a raw duplicate insert is refused by Postgres, and the error is NOT findable by SQLSTATE lookup", async () => {
-    // Deliberately NOT createStockItem. This is the question the whole slice rests
-    // on: does the *database* refuse a duplicate sku, so that the ValidationError
-    // in test 3 is a translation of a real refusal rather than a form check that
-    // happens to agree with the database?
+    // Deliberately NOT createStockItem. The question this control answers: does the
+    // *database* refuse a duplicate sku, so that the ValidationError in test 3 is a
+    // translation of a real refusal rather than a form check that happens to agree with
+    // the database?
     const item = await make({ name: `${RUN}-control`, sku: `${RUN}-CTRL-SKU` });
     let caught: unknown;
     try {
@@ -124,7 +124,7 @@ describe("the constraint is in the DATABASE, not in the domain", () => {
     // field without regexing a message.
     expect((adapterCause.constraint as { fields?: string[] } | undefined)?.fields).toEqual(["sku"]);
 
-    // ⚠️ THE INSTRUMENT FINDING, asserted so it cannot be re-broken: the repo's
+    // ⚠️ The repo's
     // general SQLSTATE helper does NOT see this error. `hasSqlState` walks
     // `.cause` (null here) and compares `code`/`meta.code` (P2002 and undefined),
     // while the SQLSTATE sits at `meta.driverAdapterError.cause.originalCode`.
@@ -139,7 +139,7 @@ describe("the constraint is in the DATABASE, not in the domain", () => {
   });
 
   it("(2) CONTROL: repeated NULLs coexist — the unique index keeps NULLs distinct", async () => {
-    // The other half of the trap: a slice that "solved" the
+    // The other half of the trap: an implementation that "solved" the
     // constraint by making sku/serial non-nullable would fail here, and would
     // also be wrong — most loose stock has neither identifier.
     const rows = [];
@@ -304,7 +304,7 @@ describe("status is `StockStatus?`; category/unit stay free text", () => {
       schema.indexOf("model InventoryItem {"),
       schema.indexOf("model Vendor {"),
     );
-    // Same capture-the-type reading the earlier test used — declared type
+    // Same capture-the-type reading as the other schema checks — declared type
     // compared exactly, not pattern-matched loosely.
     expect(model.match(/^\s*status\s+(\S+)/m)?.[1]).toBe("StockStatus?");
     for (const field of ["category", "unit"]) {

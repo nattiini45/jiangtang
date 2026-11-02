@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # WAL-G environment for the Jiangtang Postgres backup sidecar.
 # Source this in the backup/restore container. All values come from the environment
-# (compose interpolates from Coolify/Coolify store secrets) — nothing is committed.
+# (compose interpolates from the environment or the host's secret store) — nothing is committed.
 #
 # WAL-G is FOSS, S3-compatible (the deployment's storage backend target). The backend is
 # env-parametrized so it works against any S3-compatible target (Garage, RustFS,
-# SeaweedFS, AWS S3, MinIO…) once the hosting/backup-target decision is made.
+# SeaweedFS, AWS S3, MinIO…).
 #
-# Required env (set in the compose service / Coolify):
+# Required env (set in the compose service or the secret store):
 #   WALG_S3_PREFIX            e.g. s3://jiangtang-backups/postgres
 #   AWS_ACCESS_KEY_ID
 #   AWS_SECRET_ACCESS_KEY

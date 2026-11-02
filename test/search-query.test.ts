@@ -14,7 +14,7 @@ import { hybridSearch } from "~/lib/search/query.server";
  * the column is `Unsupported` — Prisma's create cannot carry it.
  */
 
-const RUN = `b57_${Date.now().toString(36)}`;
+const RUN = `search_query_${Date.now().toString(36)}`;
 const STYPE = "QTEST";
 
 const SRC = {

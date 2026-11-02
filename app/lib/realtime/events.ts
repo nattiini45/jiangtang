@@ -14,14 +14,14 @@ export const REALTIME_CHANNEL = "jiangtang_changes";
  * THE one entity-type vocabulary.
  *
  * It is a runtime array rather than a bare `type` union so that three things
- * which were previously impossible become possible:
+ * become possible:
  *
  *  1. `audit()` can be typed by it, so a wrong spelling is a COMPILE error
- *     rather than a row no reader can find (the 1,989-row defect).
+ *     rather than a row no reader can find.
  *  2. A test can enumerate it without parsing TypeScript source.
  *  3. `ENTITY_TYPE` in `app/domains/tickets/tickets.history.server.ts` can be
- *     checked for completeness against it, so the "single source of truth" map
- *     cannot be stale when written to — which is exactly how it went stale.
+ *     checked for completeness against it, so the map cannot fall behind the
+ *     vocabulary the writers use.
  *
  * ⚠️ **This is a permission list, not a mirror of the schema**. It is
  * "the things a client may need to refetch after they change", which is

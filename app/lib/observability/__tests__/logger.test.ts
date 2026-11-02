@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { logger, requestLogger } from "~/lib/observability/logger.server";
+import { logger, redactTokenSegments, requestLogger } from "~/lib/observability/logger.server";
 
 /**
  * Structured-logger smoke test. Captures a pino sink's output to
@@ -107,7 +107,7 @@ describe("structured logger", () => {
         password: "top-level-secret",
         secret: "shh",
         token: "abc123",
-        DATABASE_URL: "postgres://user:pw@host/db",
+        DATABASE_URL: "synthetic-database-url",
         nested: { password: "nested-secret" },
       },
       "cfg",
@@ -131,5 +131,44 @@ describe("structured logger", () => {
     expect(typeof logger.info).toBe("function");
     const child = requestLogger("req-123", "GET", "/healthz");
     expect(typeof child.info).toBe("function");
+  });
+});
+
+describe("request-log URL redaction", () => {
+  const FEED_TOKEN = "synthetic-feed-token-0123456789";
+  const INVITE_TOKEN = "synthetic-invite-token-abcdef";
+
+  it("replaces the iCal feed token segment and keeps the rest of the path", () => {
+    const redacted = redactTokenSegments(`/calendar/${FEED_TOKEN}/ics`);
+    expect(redacted).toBe("/calendar/:token/ics");
+    expect(redacted).not.toContain(FEED_TOKEN);
+  });
+
+  it("replaces the invite token segment", () => {
+    const redacted = redactTokenSegments(`/accept-invite/${INVITE_TOKEN}`);
+    expect(redacted).toBe("/accept-invite/:token");
+    expect(redacted).not.toContain(INVITE_TOKEN);
+  });
+
+  it("redacts the token when the route prefix is upper or mixed case", () => {
+    // React Router matches route paths case-insensitively, so these reach the same handlers.
+    const upper = redactTokenSegments(`/CALENDAR/${FEED_TOKEN}/ics`);
+    expect(upper).toBe("/CALENDAR/:token/ics");
+    expect(upper).not.toContain(FEED_TOKEN);
+
+    const mixed = redactTokenSegments(`/Accept-Invite/${INVITE_TOKEN}`);
+    expect(mixed).toBe("/Accept-Invite/:token");
+    expect(mixed).not.toContain(INVITE_TOKEN);
+  });
+
+  it("keeps the query string of a token-bearing URL", () => {
+    expect(redactTokenSegments(`/calendar/${FEED_TOKEN}/ics?x=1`)).toBe("/calendar/:token/ics?x=1");
+  });
+
+  it("leaves unrelated paths untouched", () => {
+    expect(redactTokenSegments("/healthz")).toBe("/healthz");
+    expect(redactTokenSegments("/events/calendar-view?page=2")).toBe(
+      "/events/calendar-view?page=2",
+    );
   });
 });

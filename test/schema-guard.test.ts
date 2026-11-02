@@ -6,7 +6,7 @@ import { deriveShadowUrl } from "../prisma.config";
 /**
  * CI GUARD.
  *
- * Two rules, both scoped to what this slice added:
+ * Two rules, both scoped to what is new relative to the baseline schema:
  *   1. every new `DateTime` carries `@db.Timestamptz(3)`;
  *   2. every NEW relation carries an explicit `onDelete` on its owning side.
  *
@@ -263,7 +263,7 @@ describe("schema guard", () => {
 
   it("catches a new relation with no onDelete inside an EXISTING block", () => {
     // The negative control the old scope could not produce: Event.projectId
-    // lives in a block this slice did not add, and it is the class names.
+    // lives in a block that predates the change, and it is the class names.
     const broken = mutateInModel(
       SCHEMA,
       "Event",
@@ -324,15 +324,13 @@ describe("schema guard", () => {
   });
 
   it("adds 25 owning-side relations, counts the +1, and leaves the 12 pre-existing omissions untouched", () => {
-    // Re-measured by this test so drift surfaces as a number rather than as a
-    // quiet widening of what the guard silently skips. Pre-B3 the census was
-    // 22 owning-side relations, 10 carrying onDelete, 12 omitting it — those 12
-    // are the baseline and NOT this slice's
-    // debt. The newer models add 25, all carrying an action, so the omissions must not move.
-    // Since then, TimeEntry added its taskId/userId/createdById (3), and
-    // the later Attachment.createdBy relation — the +1 named here — carries
-    // `onDelete: SetNull`, so BOTH counters rise by one and the 12 pre-existing
-    // omissions are unchanged (the new relation is not an omission).
+    // Counted by this test, so drift surfaces as a number rather than as a quiet widening of
+    // what the guard silently skips. The baseline had 22 owning-side relations, 10 carrying
+    // onDelete and 12 omitting it. Those 12 are the baseline's and are not part of this change.
+    // The newer models add 25, all carrying an action, so the omissions must not move. TimeEntry
+    // later added its taskId/userId/createdById (3), and the later Attachment.createdBy relation,
+    // the +1 counted here, carries `onDelete: SetNull`, so BOTH counters rise by one and the 12
+    // pre-existing omissions are unchanged (the new relation is not an omission).
     const blocks = parseBlocks(SCHEMA);
     let owning = 0;
     let withAction = 0;
@@ -350,7 +348,7 @@ describe("schema guard", () => {
 });
 
 describe("shadow database url", () => {
-  // The setting that stood between this slice and the landmine. The rule is not
+  // The setting that guards against the landmine. The rule is not
   // "a shadow URL exists" but "it can never be the database `migrate dev` would
   // otherwise reset", so the equality case is the one that matters.
   const DEV = "postgresql://jiangtang:jiangtang@localhost:5432/jiangtang";

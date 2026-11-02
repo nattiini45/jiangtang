@@ -1,14 +1,15 @@
 import type { AuthUser, AppRole } from "~/lib/auth.server";
 
 /**
- * Role-based access control. A small permissions matrix over the two
- * frozen roles (ADMIN / MEMBER). Both roles can do the day-to-day AV work; ADMIN
- * additionally manages accounts. `requirePermission` layers on the frozen
- * `requireUser` (so it still redirects anonymous users and blocks deactivated
- * ones) and throws 403 for an under-privileged signed-in user.
+ * Role-based access control: a small permission matrix over the two roles
+ * (ADMIN / MEMBER). Both roles can do the day-to-day AV work; ADMIN additionally
+ * manages accounts. This module only answers whether a user may do something
+ * (`can`, `roleRequiredFor`). The route guards live in `auth.server.ts`:
+ * `requireUser` redirects anonymous and deactivated users, and `requireRole`
+ * throws 403 for an under-privileged signed-in user.
  *
- * Kept deliberately coarse (just admin/member) — a verb set is easy to widen later without changing
- * call sites (`can(user, verb)`).
+ * Kept deliberately coarse (admin and member only). A verb set is easy to widen
+ * later without changing call sites (`can(user, verb)`).
  */
 
 export type Permission =

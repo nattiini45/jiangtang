@@ -28,7 +28,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * through a mutation would write audit rows the count assertions would then
  * measure.
  */
-const RUN = `b14_stock_${Date.now()}`;
+const RUN = `loc_stock_${Date.now()}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,
@@ -61,7 +61,7 @@ const stockIndexRoute = await import("~/routes/_desktop.inventory.stock._index/r
  *     ${RUN}_store     STORAGE       ← 1, a sibling: not a descendant of the building
  *   ${RUN}_outside    ROOM          ← unrelated root
  *
- * That shape is the whole point of criterion (3): a building whose *rooms* hold
+ * That shape is the point of the test: a building whose *rooms* hold
  * stock must not read as a stocked building, and must not read as empty either.
  */
 const loc = {
@@ -77,7 +77,7 @@ const item = {
   inRoom2: `${RUN}_in_room_2`,
   inBuilding: `${RUN}_in_building`,
   inStore: `${RUN}_in_store`,
-  /** `locationId = null` — the row criterion (2) exists for. */
+  /** `locationId = null`: stock that is not assigned to any location. */
   loose: `${RUN}_loose`,
 };
 
@@ -182,19 +182,16 @@ const idSet = (rows: Array<{ id: string }>) => new Set(rows.map((r) => r.id));
 
 const src = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 
-/** The two files this row owns — the scope of every structural assertion below. */
+/** The two files under test — the scope of every structural assertion below. */
 const ROUTE_FILE = "../../app/routes/_desktop.locations.$id/route.tsx";
 const PANEL_FILE = "../../app/components/locations/location-stock.tsx";
 
 /**
- * Import specifiers of a source file — **a hole in the older import-boundary net, closed for this row's files.**
+ * Import specifiers of a source file — **a hole in the import-boundary net, closed for these two files.**
  *
- * It was measured, on an earlier version of this net, that `/(?:from|import)\s+["']…/`
- * requires a quote after the keyword, so `await import("~/lib/db.server")` — the
- * next character is `(` — is invisible to it: 21/21 green with the banned module
- * imported. That net is not this row's to repair, and it is still the one that runs
- * in CI; what this row *can* do is hold its own two files to the stricter rule, so
- * criterion (1) is verified by a test instead of by reading.
+ * The broader net matches `/(?:from|import)\s+["']…/`, which requires a quote after the keyword, so `await import("~/lib/db.server")` — the
+ * next character is `(` — is invisible to it: a banned module imported that way passes. That net is not this file's to repair, and it is still the one that runs
+ * in CI; these two files hold themselves to the stricter rule, so the boundary is verified by a test instead of by reading.
  *
  * The `\(?` is the whole difference, and the first test below proves it: a dynamic
  * import is matched here, which is precisely what the older net cannot see.
@@ -204,9 +201,9 @@ const specifiersOf = (source: string): string[] =>
 
 const BANNED = ["~/lib/db.server", "~/generated/prisma/client"];
 
-// ── Criterion (1): the boundary, and the count that is not a second query.
+// ── The boundary, and the count that is not a second query.
 
-describe("criterion (1) — the panel reads stock through the domain module", () => {
+describe("the panel reads stock through the domain module", () => {
   it("CONTROL: the extractor sees the dynamic import spelling", () => {
     // If this test could not fail, every assertion built on `specifiersOf` would be
     // green for the same reason the older net is green: the file was never read.
@@ -220,11 +217,11 @@ describe("criterion (1) — the panel reads stock through the domain module", ()
     expect(specifiersOf(staticBare)).toContain("~/generated/prisma/client");
     expect(specifiersOf(typeOnly)).toContain("~/generated/prisma/client");
     // …and it is not a `/db\./` scan in disguise: prose naming the module is not a
-    // hit, which is the trap an earlier version of this net hit on its own explanation.
+    // hit, which is the trap a bare keyword scan falls into when it reads its own explanation.
     expect(specifiersOf("this route imports the db module itself")).toEqual([]);
   });
 
-  it("neither file this row owns reaches for the client or the db module", () => {
+  it("neither file under test reaches for the client or the db module", () => {
     for (const rel of [ROUTE_FILE, PANEL_FILE]) {
       const specifiers = specifiersOf(src(rel));
       for (const banned of BANNED)
@@ -243,7 +240,7 @@ describe("criterion (1) — the panel reads stock through the domain module", ()
   });
 
   it("the loader asks the query for THIS node, and the panel's number is the rows it draws", () => {
-    // Criterion (1) names the function; criterion (3) is the argument. Both are
+    // The first check names the function; the second checks the argument. Both are
     // structural because a behavioural test cannot tell "the same set" from "the
     // same set for the wrong reason" — a subtree walk returns a superset, not a
     // different set, when the node itself happens to be stocked.
@@ -309,7 +306,7 @@ describe("criteria (2) + (3) — a stocked building reads its own stock, not its
         false,
       );
     }
-    // The other half of criterion (2), and the row's own goal ("an item assigned
+    // The other half of the stock list contract, and the panel's own goal ("an item assigned
     // nowhere is not silently invisible"): the panel never claims it, and the stock
     // list still shows it. An exclusion nobody can find the excluded thing in is
     // a different defect from a wrong count.
@@ -330,9 +327,9 @@ describe("criteria (2) + (3) — a stocked building reads its own stock, not its
   });
 });
 
-// ── Criterion (4): nothing else moves, and the link the panel offers is true.
+// ── Nothing else moves, and the link the panel offers is true.
 
-describe("criterion (4) — the mobile surface stays read-only, and the cross-link does not lie", () => {
+describe("the mobile surface stays read-only, and the cross-link does not lie", () => {
   it("/m/locations does not grow the panel", () => {
     const mobile = src("../../app/routes/m.locations._index/route.tsx");
     expect(mobile).not.toContain("listStockAtLocation");
@@ -354,7 +351,7 @@ describe("criterion (4) — the mobile surface stays read-only, and the cross-li
     //
     // That is what makes the panel's scope note a fact instead of a disclaimer: the
     // excluded rows are exactly the ones the link then shows, marked "Nicht
-    // zugeordnet" (`stock-columns.tsx`). Criterion (2) and the "flag does
+    // zugeordnet" (`stock-columns.tsx`). The stock list and the "flag does
     // bite … pinned by a test" are therefore both satisfied — by the *surface the
     // panel hands over to*, not by counting an unassigned row as being at this node.
     const panel = idSet((await loadDetail(loc.building)).stock);

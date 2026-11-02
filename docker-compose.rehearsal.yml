@@ -4,6 +4,7 @@
 # the production 80/443, and a MinIO service standing in for the S3 target so
 # WAL-G backups/WAL archiving are exercised end to end.
 #
+#   export APP_DOMAIN=:80 BETTER_AUTH_URL=http://localhost:8080
 #   docker compose -f docker-compose.yml -f docker-compose.rehearsal.yml up -d --build
 #   docker compose -f docker-compose.yml -f docker-compose.rehearsal.yml down -v
 #
@@ -16,8 +17,18 @@
 # Credentials are REQUIRED from the private environment, never constants in this
 # file: REHEARSAL_S3_ACCESS_KEY / REHEARSAL_S3_SECRET_KEY for the stand-in S3
 # target, plus the production-required STORAGE_ENCRYPTION_KEY,
-# BETTER_AUTH_SECRET, POSTGRES_PASSWORD and synthetic ADMIN_* values. No real
-# integration endpoint is inherited: CalDAV, AI and GlitchTip are blanked below.
+# BETTER_AUTH_SECRET, POSTGRES_PASSWORD and synthetic ADMIN_* values. BETTER_AUTH_SECRET
+# is host-supplied and must be at least 32 characters, or the rehearsal stack refuses to
+# boot in production mode. No real integration endpoint is inherited: CalDAV, AI and
+# GlitchTip are blanked below.
+#
+# The base file also requires APP_DOMAIN and BETTER_AUTH_URL. Its required variables are
+# checked when the file loads, before this override applies, so export the plain-HTTP
+# values for the rehearsal as well:
+#   APP_DOMAIN=:80 BETTER_AUTH_URL=http://localhost:8080
+#
+# The rehearsal serves plain HTTP with a synthetic admin. Caddy publishes only on
+# 127.0.0.1:8080; the rehearsal must never run on an internet-reachable host.
 name: jiangtang-rehearsal
 
 services:
@@ -78,8 +89,8 @@ services:
 
   postgres:
     environment:
-      # Same shape production uses via the Coolify store — pointed at the
-      # rehearsal MinIO instead.
+      # Same shape production uses (set in the environment or secret store) — pointed
+      # at the rehearsal MinIO instead.
       WALG_S3_PREFIX: s3://jiangtang-rehearsal
       AWS_ACCESS_KEY_ID: ${REHEARSAL_S3_ACCESS_KEY:?set REHEARSAL_S3_ACCESS_KEY in the environment}
       AWS_SECRET_ACCESS_KEY: ${REHEARSAL_S3_SECRET_KEY:?set REHEARSAL_S3_SECRET_KEY in the environment}
@@ -163,7 +174,7 @@ services:
 
   caddy:
     ports: !override
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     environment:
       APP_DOMAIN: ":80"
 

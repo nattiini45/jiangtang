@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { randomUUID } from "node:crypto";
 import type { BootContext } from "~/server/boot";
-import { logger } from "~/lib/observability/logger.server";
+import { logger, redactTokenSegments } from "~/lib/observability/logger.server";
 import { initSentry, captureException, flushSentry } from "~/lib/observability/sentry.server";
 
 /**
@@ -31,7 +31,11 @@ export async function register(app: Express, ctx: BootContext): Promise<void> {
 
     res.on("finish", () => {
       const duration = Date.now() - start;
-      const log = logger.child({ requestId, method: req.method, url: req.url });
+      const log = logger.child({
+        requestId,
+        method: req.method,
+        url: redactTokenSegments(req.url),
+      });
       const level = res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info";
       log[level]({ statusCode: res.statusCode, durationMs: duration }, "request");
     });
@@ -50,7 +54,7 @@ export async function register(app: Express, ctx: BootContext): Promise<void> {
     // Node docs: after an uncaughtException the process is in an undefined state
     // and must not keep serving — continuing could mask the audit / no-double-
     // booking guarantees behind a half-broken process. Flush telemetry, then exit
-    // non-zero so the supervisor (Docker/Coolify) restarts a clean process. An
+    // non-zero so the supervisor (the container platform) restarts a clean process. An
     // unref'd backstop guarantees exit even if the flush hangs.
     setTimeout(() => process.exit(1), 3_000).unref();
     void flushSentry().finally(() => process.exit(1));

@@ -17,8 +17,8 @@ import globalSetup from "./global-setup";
 // `vi.hoisted` is REQUIRED here: `vi.mock` factories are hoisted above the
 // module body, so a factory closing over a plain `const spy = vi.fn()` dies with
 // "ReferenceError: spy is not defined". Declaring the spies inside `vi.hoisted`
-// puts them in the hoisted scope too. (An earlier revision hit exactly that
-// error by deleting these mocks; the fix is hoisting, not removal.)
+// puts them in the hoisted scope too. (Deleting the mocks instead of hoisting
+// them produces the same error; the fix is hoisting, not removal.)
 //
 // Nothing below touches a database: `pg`'s Client constructor and
 // `node:child_process`'s execFileSync are both replaced by spies, so a "pass"
@@ -243,7 +243,7 @@ describe("query-key allowlist accepts ONLY schema/sslmode/application_name", () 
     });
   }
 
-  // The six routing keys an earlier implementation wrongly accepted.
+  // Query keys the validator must reject.
   for (const key of [
     "foo",
     "target_session_attrs",
@@ -757,8 +757,6 @@ describe("every refusal happens before any connection or provisioning (mocks)", 
 // Both provisioning calls must receive the validated URL, worker setup must
 // receive the same value, and invalid input must call neither function.
 //
-// An earlier describe block titled "provisioning functions receive validated
-// URL" never referenced `ensureTestDatabase` or `provisionTestDatabase` at all.
 // These cases call both, through the real global setup.
 // ---------------------------------------------------------------------------
 describe("provisioning functions receive the validated URL (mocks)", () => {
@@ -927,8 +925,7 @@ describe("provisioning functions receive the validated URL (mocks)", () => {
 
 // ---------------------------------------------------------------------------
 // The global setup uses Vitest 3's `project.provide("testDatabaseUrl", url)`
-// and the worker uses `inject("testDatabaseUrl")`. No prior test in the
-// repository referenced provide/inject at all. These cases drive
+// and the worker uses `inject("testDatabaseUrl")`. These cases drive
 // the real producer (`test/global-setup.ts`) and the real consumer
 // (`test/setup-env.ts`) and compare the two values.
 // ---------------------------------------------------------------------------

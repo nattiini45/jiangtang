@@ -62,9 +62,9 @@ enum MicKind {
 }
 
 enum TicketType {
-  INCIDENT // current problem (legacy: Fehler-/Problembeschreibung)
-  REQUEST // task to do (legacy: Aufgaben)
-  REPAIR // resolution log entry (legacy: Reparaturen u.ä.)
+  INCIDENT // a reported problem that needs attention
+  REQUEST // a task to be done
+  REPAIR // a record of how a problem was resolved
 }
 
 enum TicketStatus {
@@ -158,7 +158,7 @@ model Room {
   renewalFrom   DateTime? @db.Timestamptz(3)
   renewalTo     DateTime? @db.Timestamptz(3)
 
-  notionPageId String? @unique // migration idempotency
+  notionPageId String? @unique // import idempotency: source identifier of an imported record
 
   equipment     Equipment[]
   tickets       Ticket[]
@@ -250,7 +250,7 @@ model User {
   id       String   @id @default(cuid())
   email    String   @unique
   name     String
-  initials String?  @unique // for legacy log attribution + display
+  initials String?  @unique // short label shown next to this user's log entries
   role     UserRole @default(MEMBER)
   isActive Boolean  @default(true)
 
@@ -371,7 +371,7 @@ model Ticket {
 
   occurredAt   DateTime  @default(now()) @db.Timestamptz(3) // logical time (may be back-dated on import)
   resolvedAt   DateTime? @db.Timestamptz(3)
-  notionSource String? // provenance of a migrated repair-log line
+  notionSource String? // import provenance: source label of an imported log line
   insertedAt   DateTime  @default(now()) @db.Timestamptz(3) // system time
   updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
 

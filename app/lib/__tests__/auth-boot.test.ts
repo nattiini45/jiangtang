@@ -14,9 +14,10 @@ import type { BootContext } from "~/server/boot";
  * inherited values in afterEach.
  */
 
-const { signUpEmail, findUnique, update, bootstrapFirstAdmin } = vi.hoisted(() => ({
+const { signUpEmail, findUnique, findFirst, update, bootstrapFirstAdmin } = vi.hoisted(() => ({
   signUpEmail: vi.fn(),
   findUnique: vi.fn(),
+  findFirst: vi.fn(),
   update: vi.fn(),
   bootstrapFirstAdmin: vi.fn(),
 }));
@@ -27,10 +28,11 @@ vi.mock("better-auth/node", () => ({
 
 vi.mock("~/lib/auth.server", () => ({
   auth: { api: { signUpEmail } },
+  MIN_PASSWORD_LENGTH: 8,
 }));
 
 vi.mock("~/lib/db.server", () => ({
-  db: { user: { findUnique, update } },
+  db: { user: { findUnique, findFirst, update } },
 }));
 
 vi.mock("~/lib/auth-bootstrap.server", () => ({
@@ -41,6 +43,7 @@ import { register } from "~/lib/auth.boot.server";
 
 const DEFAULT_PASSWORD = "jiangtang-admin";
 const DEFAULT_EMAIL = "admin@jiangtang.local";
+const STRONG_SECRET = "0123456789abcdef0123456789abcdef";
 const SENTINEL_PASSWORD = `probe-${randomBytes(12).toString("hex")}`;
 const SENTINEL_EMAIL = "seed-probe@example.test";
 
@@ -88,6 +91,7 @@ function setSignupOk() {
 beforeEach(() => {
   vi.clearAllMocks();
   findUnique.mockResolvedValue(null);
+  findFirst.mockResolvedValue(null);
   update.mockResolvedValue({});
   bootstrapFirstAdmin.mockResolvedValue(undefined);
   setSignupOk();
@@ -185,6 +189,9 @@ describe("register — development seed log hygiene", () => {
 
   it("does not seed in production but still runs the production bootstrap", async () => {
     vi.stubEnv("DEV_ADMIN_PASSWORD", SENTINEL_PASSWORD);
+    vi.stubEnv("BETTER_AUTH_SECRET", STRONG_SECRET);
+    vi.stubEnv("ICAL_FEED_TOKEN", "");
+    vi.stubEnv("ADMIN_PASSWORD", "");
 
     const logged = await captureConsole(() => register(fakeApp(), prodContext()));
 
@@ -192,5 +199,83 @@ describe("register — development seed log hygiene", () => {
     expect(findUnique).not.toHaveBeenCalled();
     expect(bootstrapFirstAdmin).toHaveBeenCalledTimes(1);
     expect(logged.flat().join("\n")).not.toContain(SENTINEL_PASSWORD);
+  });
+
+  it("refuses to boot in production with a placeholder secret, before anything else runs", async () => {
+    vi.stubEnv("BETTER_AUTH_SECRET", "change-me-generate-a-long-random-string");
+
+    await expect(register(fakeApp(), prodContext())).rejects.toThrow(/BETTER_AUTH_SECRET/);
+    expect(bootstrapFirstAdmin).not.toHaveBeenCalled();
+    expect(signUpEmail).not.toHaveBeenCalled();
+  });
+
+  it("runs the first-admin bootstrap before the development seed", async () => {
+    vi.stubEnv("DEV_ADMIN_PASSWORD", SENTINEL_PASSWORD);
+    vi.stubEnv("DEV_ADMIN_EMAIL", SENTINEL_EMAIL);
+
+    await captureConsole(() => register(fakeApp(), devContext()));
+
+    expect(bootstrapFirstAdmin).toHaveBeenCalledTimes(1);
+    expect(signUpEmail).toHaveBeenCalledTimes(1);
+    const bootstrapOrder = bootstrapFirstAdmin.mock.invocationCallOrder[0] ?? Infinity;
+    const seedOrder = signUpEmail.mock.invocationCallOrder[0] ?? -Infinity;
+    expect(bootstrapOrder).toBeLessThan(seedOrder);
+  });
+
+  it("still promotes the dev admin when the bootstrap admin already holds the AD initials", async () => {
+    vi.stubEnv("DEV_ADMIN_PASSWORD", SENTINEL_PASSWORD);
+    vi.stubEnv("DEV_ADMIN_EMAIL", SENTINEL_EMAIL);
+    // bootstrapFirstAdmin is mocked in this file, so the holder is modelled here.
+    // The real bootstrap takes these initials from ADMIN_INITIALS="AD".
+    vi.stubEnv("ADMIN_INITIALS", "AD");
+    findFirst.mockImplementation(async ({ where }: { where: { initials: string } }) =>
+      where.initials === "AD" ? { id: "bootstrap-admin" } : null,
+    );
+
+    await captureConsole(() => register(fakeApp(), devContext()));
+
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { initials: "AD", id: { not: "user-1" } },
+      select: { id: true },
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { role: "ADMIN", emailVerified: true },
+    });
+    expect(update.mock.calls[0]?.[0].data).not.toHaveProperty("initials");
+  });
+
+  it("gives the dev admin the AD initials when no other account holds them", async () => {
+    vi.stubEnv("DEV_ADMIN_PASSWORD", SENTINEL_PASSWORD);
+    vi.stubEnv("DEV_ADMIN_EMAIL", SENTINEL_EMAIL);
+
+    await captureConsole(() => register(fakeApp(), devContext()));
+
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: { role: "ADMIN", initials: "AD", emailVerified: true },
+    });
+  });
+
+  it("refuses to boot in production with a placeholder ADMIN_PASSWORD, before the bootstrap runs", async () => {
+    vi.stubEnv("BETTER_AUTH_SECRET", STRONG_SECRET);
+    vi.stubEnv("ICAL_FEED_TOKEN", "");
+    vi.stubEnv("ADMIN_PASSWORD", "change-me-a-strong-password");
+
+    await expect(register(fakeApp(), prodContext())).rejects.toThrow(/ADMIN_PASSWORD/);
+    expect(bootstrapFirstAdmin).not.toHaveBeenCalled();
+    expect(signUpEmail).not.toHaveBeenCalled();
+  });
+
+  it("refuses to boot in production with an ADMIN_PASSWORD below the minimum length, before the bootstrap runs", async () => {
+    vi.stubEnv("BETTER_AUTH_SECRET", STRONG_SECRET);
+    vi.stubEnv("ICAL_FEED_TOKEN", "");
+    vi.stubEnv("ADMIN_PASSWORD", "abcdefg");
+
+    await expect(register(fakeApp(), prodContext())).rejects.toThrow(
+      /ADMIN_PASSWORD must be at least 8 characters/,
+    );
+    expect(bootstrapFirstAdmin).not.toHaveBeenCalled();
+    expect(signUpEmail).not.toHaveBeenCalled();
   });
 });

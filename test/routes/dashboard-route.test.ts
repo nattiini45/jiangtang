@@ -7,7 +7,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * card; the action runs the demo seed through `txWithAudit`, admin-only, and
  * idempotent by stable ids — a second POST writes nothing.
  */
-const RUN = `b53rt_${Date.now().toString(36)}`;
+const RUN = `dashboard_route_${Date.now().toString(36)}`;
 
 const TEST_USER: AuthUser = {
   id: `${RUN}-user`,

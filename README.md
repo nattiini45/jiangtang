@@ -77,6 +77,9 @@ pnpm db:deploy                          # apply the migration chain
 pnpm dev                                # http://localhost:3000
 ```
 
+`pnpm dev` reads `.env` at startup. A variable that is already set in your shell takes precedence
+over the file.
+
 If `.env` already exists, edit it — do not copy over it. Values you have to look at:
 
 | Variable                                                                                | What to do                                                                                                                                                                        |
@@ -85,7 +88,7 @@ If `.env` already exists, edit it — do not copy over it. Values you have to lo
 | `DATABASE_URL`                                                                          | Already matches `docker-compose.dev.yml` (`jiangtang:jiangtang` on `localhost:5432`). Change it only if you run your own database.                                                |
 | `ICAL_FEED_TOKEN`                                                                       | The example ships a guessable placeholder. Replace it with `openssl rand -hex 32`, or set it empty to disable the iCal feed.                                                      |
 | `DEFAULT_LOCALE`                                                                        | `en` (default) or `de`: the installation language. See [Language](#language).                                                                                                     |
-| `TZ`                                                                                    | `Europe/Berlin`; this is what the display layer uses.                                                                                                                             |
+| `TZ`                                                                                    | Sets only the process and container clock. Display is always `Europe/Berlin` and is not configurable; the database session runs in UTC.                                           |
 | `STORAGE_ENCRYPTION_KEY`                                                                | Development: left empty, the app uses an insecure built-in key and logs a warning. Set `openssl rand -hex 32` if the local uploads matter to you. Production requires a real key. |
 | `CALDAV_*`, `EMBEDDING_*`, `RERANK_*`, `GENERATION_*`, `ALERT_WEBHOOK`, `GLITCHTIP_DSN` | Optional integrations. Left empty, each one is simply off.                                                                                                                        |
 
@@ -117,11 +120,11 @@ environment (`.env.production.example`).
   `DEV_ADMIN_PASSWORD`. These defaults are unsafe for any public exposure: they are not a fallback
   in production, but they do exist in development.
 - **Production starts empty.** The production stack ships no accounts and no data. Set
-  `ADMIN_EMAIL` / `ADMIN_PASSWORD` (and optionally `ADMIN_INITIALS`) for the first start; the boot
-  creates that admin once and logs it. Blank values mean no bootstrap at all. Because the
-  bootstrap re-applies the admin role and `isActive` to an existing account on every boot, remove
-  `ADMIN_EMAIL` / `ADMIN_PASSWORD` once the first admin exists; the password is only used at
-  creation and is never reset by later boots.
+  `ADMIN_EMAIL` / `ADMIN_PASSWORD` (and optionally `ADMIN_INITIALS`) for the first start. The boot
+  creates that admin and logs it, and it acts only while no active admin exists: on a fresh
+  installation, or to recover when every admin has been locked out. Later boots do not re-apply the
+  role or the active flag. Blank values mean no bootstrap at all. You can remove the two variables
+  once the first admin exists.
 - **Demo data is explicit.** An empty workspace shows the admin-only button
   "Load demo workspace" ("Demo-Workspace laden" in German); it loads the synthetic demo through the audited mutation path and is
   idempotent. `pnpm db:seed` runs the same seed from the CLI. Nothing is seeded automatically in

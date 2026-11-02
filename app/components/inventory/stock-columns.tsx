@@ -14,9 +14,9 @@ import type { Translate } from "~/i18n";
  * N+1, three joins visible at once.
  *
  * **The row links to `/inventory/stock/:id`, never to `/inventory/:id`.** The second one
- * is the Equipment detail page and is the very route that used to shadow
- * `/inventory/stock`; `test/routes/route-resolution.test.ts` guards the distinction, and
- * this link is one of the seven producers that make it load-bearing.
+ * is the Equipment detail page, and `/inventory/stock` must never fall through to it;
+ * `test/routes/route-resolution.test.ts` guards the distinction, and this link is one of
+ * the producers that make it load-bearing.
  */
 
 const dash = <span className="text-muted-foreground">—</span>;

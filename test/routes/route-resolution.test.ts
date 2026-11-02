@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 
 /**
- * The standing **URL → route-file** guard for the `/inventory` namespace
- * (criterion 1).
+ * The standing **URL → route-file** guard for the `/inventory` namespace.
  *
  * ⚠️ **Why this file exists at all, and why it is not a snapshot.** `/inventory/stock`
  * is a *static* segment, and a static segment with no route behind it does not 404:
@@ -16,8 +15,8 @@ import { fileURLToPath } from "node:url";
  *
  *   1. a `TABLE` of `(url, expectedRouteId)` — the **claim**, and
  *   2. a **completeness loop** — every route entry the real tree returns under the
- *      namespace must be the winner of some `TABLE` row, so a later slice that adds a
- *      route and forgets its line goes **red**.
+ *      namespace must be the winner of some `TABLE` row, so a route that is added without
+ *      its own line goes **red**.
  *
  * ### Why the router is consulted at all
  *
@@ -25,9 +24,7 @@ import { fileURLToPath } from "node:url";
  * `app/domains/tickets/__tests__/m-tickets-routes.test.ts`) import the module and call
  * `loader({ request, params })` directly, so the URL is a string inside a `Request` and
  * **the router is never asked which route a URL belongs to**. Neither can see this bug.
- * The original stock-route criterion, as first written — *"asserted by loading both and checking
- * the payload shape"* — was therefore a check that could not fail, and it is re-pointed
- * here for exactly that reason.
+ * The check below therefore asks the router directly.
  *
  * ### Why `flatRoutes()` runs here at all
  *
@@ -38,7 +35,7 @@ import { fileURLToPath } from "node:url";
  * `invariant(globalThis.__reactRouterAppDirectory); return globalThis.__reactRouterAppDirectory;`
  * — it reads a global the Vite plugin merely *sets*. So: one assignment, the real ranked
  * table, the real `matchRoutes`, against the real tree in place. No CLI, no copy, and no
- * text parsing. Measured in the 05:0x PLAN tick and re-measured here every run.
+ * text parsing.
  */
 
 /** One assignment, and the instrument works. `~` is banned: `no-explicit-any` is `warn`. */
@@ -122,7 +119,7 @@ function namespaceEntries(routes: RouteEntry[]): Array<{ id: string; canOwnUrl: 
  * patterns would be a second thing to keep in sync with the first.
  */
 const TABLE: Array<{ url: string; id: string }> = [
-  // — the pre-existing owners, unchanged by this slice —
+  // — the existing owners —
   { url: "/inventory", id: "routes/_desktop.inventory._index" },
   { url: "/inventory/gear-01", id: "routes/_desktop.inventory.$id" },
   { url: "/inventory/new", id: "routes/_desktop.inventory.new" },
@@ -130,7 +127,7 @@ const TABLE: Array<{ url: string; id: string }> = [
   { url: "/inventory/models", id: "routes/_desktop.inventory.models._index" },
   { url: "/inventory/models/new", id: "routes/_desktop.inventory.models.new" },
   { url: "/inventory/models/cat-01", id: "routes/_desktop.inventory.models.$id" },
-  // — the ones this slice adds —
+  // — the stock routes —
   { url: "/inventory/stock", id: "routes/_desktop.inventory.stock._index" },
   { url: "/inventory/stock/new", id: "routes/_desktop.inventory.stock.new" },
   { url: "/inventory/stock/import", id: "routes/_desktop.inventory.stock.import" },
@@ -138,7 +135,7 @@ const TABLE: Array<{ url: string; id: string }> = [
   { url: "/m/inventory/stock", id: "routes/m.inventory.stock._index" },
 ];
 
-// ── Criterion (1b): the table, resolved through the real router. ────────────
+// ── The table, resolved through the real router. ────────────
 
 describe("route resolution — the /inventory namespace, through the real router", () => {
   it.each(TABLE)("$url resolves to $id", ({ url, id }) => {
@@ -155,7 +152,7 @@ describe("route resolution — the /inventory namespace, through the real router
   });
 });
 
-// ── Criterion (1c): the completeness loop. This is the guard's real work. ──
+// ── The completeness loop. This is the guard's real work. ──
 
 describe("route resolution — the table cannot lie by omission", () => {
   const entries = namespaceEntries(ROUTES);
@@ -179,7 +176,7 @@ describe("route resolution — the table cannot lie by omission", () => {
 
   it("every route entry under /inventory that can own a URL is claimed by a table row", () => {
     const unclaimed = entries.filter((e) => e.canOwnUrl && !winners.has(e.id)).map((e) => e.id);
-    // A slice that adds `_desktop.inventory.stock.edit` and forgets this line lands
+    // A route that adds `_desktop.inventory.stock.edit` and forgets this line lands
     // here, naming the route — the failure this whole file exists to make possible.
     expect(
       unclaimed,
@@ -224,7 +221,7 @@ describe("route resolution — the table cannot lie by omission", () => {
   });
 });
 
-// ── Criterion (1e): the negative control. A guard that cannot fail is worse ──
+// ── The negative control. A guard that cannot fail is worse ──
 //     than none, so this removes the routes under test from the array the
 //     instrument ALREADY returned — in memory, no second tree, no write — and
 //     requires the same verdict function to report a different winner.
@@ -297,7 +294,7 @@ describe("route resolution — negative control (the shadow this guard exists fo
     const changed = TABLE.filter(
       (row) => verdict(ROUTES, row.url) !== verdict(WITHOUT_STOCK, row.url),
     );
-    // Not an exact count: a later slice adding a stock sub-route must change this
+    // Not an exact count: a stock sub-route added later must change this
     // number, and a test that failed on that would pressure a reviewer into
     // weakening it. The specific flip above is the assertion that must hold.
     expect(changed.length).toBeGreaterThan(1);

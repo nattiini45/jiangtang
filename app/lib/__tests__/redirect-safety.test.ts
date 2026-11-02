@@ -5,7 +5,7 @@ import { db } from "~/lib/db.server";
 /**
  * `sanitizeNext` is the open-redirect guard for the post-login
  * `?next=` round-trip; `requireUser` must bounce anonymous requests to /login with
- * that param preserved (and the whole /m tree is now guarded the same way).
+ * that param preserved (and the whole /m tree is guarded the same way).
  */
 
 afterAll(async () => {

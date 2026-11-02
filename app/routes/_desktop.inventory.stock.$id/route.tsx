@@ -31,8 +31,7 @@ import { useLocale, useT } from "~/i18n/use-t";
  * `/inventory/stock/:id` — one stock item, and the **full editor** for it.
  *
  * **The linked `Equipment` and the warranty date are both on this page.**
- * The equipment link points at `/inventory/:id`, which is what that URL has always meant —
- * it is the URL that used to shadow `/inventory/stock`.
+ * The equipment link points at `/inventory/:id`, which is what that URL means.
  *
  * ### Why this page is a full editor
  *

@@ -37,6 +37,14 @@
 **/.envrc.*
 **/*.pem
 
+# Key material and database dumps are never baked into the image.
+**/*.key
+**/*.p12
+**/*.pfx
+**/*.dump
+**/*.sql.gz
+**/*.tar.gz
+
 # Documentation and agent guides are not needed in the image.
 docs
 AGENTS.md

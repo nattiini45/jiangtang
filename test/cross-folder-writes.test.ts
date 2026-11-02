@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
  * performs a write to a model is the code inside the folder that owns that
  * model*, and the audit row is written there, in that same transaction.
  *
- * The rule was originally hand-measured prose with **no instrument**, and its
+ * The rule was originally written as prose with **no instrument**, and its
  * rot was named: the table "will rot the moment a fifth folder appears". This
  * file is that instrument. It is deliberately narrow — it never inspects what a
  * payload contains, only **who performs the write**.
@@ -45,17 +45,17 @@ import { describe, expect, it } from "vitest";
  *    another folder's model that skips that folder's exported writer. That is
  *    *structurally* the model-axis detection: the sanctioned cross-folder call
  *    (`createEquipmentInTx(tx, audit, …)`) contains no delegate write at all, so
- *    it cannot be flagged. Criterion (6) pins that, on the two calls that exist.
+ *    it cannot be flagged. A dedicated check pins that, on the two calls that exist.
  *    The cross-folder FK column writes are deliberately **not** re-derived
  *    here: this guard has no consumer
  *    for a column list. Re-deriving it would add a second instrument whose number
  *    nothing checks.
  * 2. **The payload is not descended into.** `connect:` whose value is an
  *    expression, and spreads, are data rather than ownership.
- * 3. **No total is asserted as a literal.** An earlier control asserted a
- *    hand-typed site count and reported the author's memory as a finding.
+ * 3. **No total is asserted as a literal.** A hand-typed site count would
+ *    only restate the author's memory of the tree.
  *    Every number here is **derived from the scan** and compared to the
- *    walked file set, so a slice that adds a writer changes nothing in this file.
+ *    walked file set, so a new writer changes nothing in this file.
  * 4. **A client alias is not resolved.** `const d = db; d.room.create(` is
  *    invisible to **both** detectors: `findWriteSites`' alias arm binds a
  *    *delegate* (`const c = tx.campus`), never a client, and `findRouteDbAccess`
@@ -94,7 +94,7 @@ import { describe, expect, it } from "vitest";
  *   `.test()` per line; a `/g` regex carries `lastIndex` across calls, so a
  *   shared `/g` instance reports only every other matching line.
  *
- * ⚠️ **`app/` contains none of the ten today** — measured over the whole walked
+ * ⚠️ **`app/` contains none of the ten today** — checked over the whole walked
  * file set, whose site total is **unchanged** by this work — so these are
  * regression pins, not a defect report. What makes them load-bearing is that
  * items 6 and 7 are armed from the same change: a scanner that goes multi-line is
@@ -102,7 +102,7 @@ import { describe, expect, it } from "vitest";
  *
  * ### Why the scanner is `ts.createScanner` and not a regex
  *
- * Measured on this tree, the three candidate instruments disagree, in
+ * On the current tree, the three candidate instruments disagree, in
  * **opposite** directions: `//`-only blanking finds 62 sites, a naive block-
  * comment blanker finds 60, TypeScript's own scanner finds **61**. Both errors
  * are live here — `app/lib/audit.server.ts`'s JSDoc *example* contains a
@@ -176,17 +176,17 @@ const FOLDERS: Record<string, readonly string[]> = {
   // `app/lib` is a nested tree, not one folder. Top level owns ActivityLog;
   // calendar/ owns CalendarOutbox and MUST be its own key — a non-recursive read
   // of `app/lib` never opens it, and `CalendarOutbox`'s owner would be a map
-  // entry no scan ever consulted (criterion 8).
+  // entry no scan ever consulted.
   "app/lib": ["ActivityLog"],
   "app/lib/calendar": ["CalendarOutbox"],
   // the indexer owns the derived-data tables — Chunk/SearchIndexJob are
   // rebuilt from audited rows and carry no audit of their own.
   "app/lib/search": ["Chunk", "SearchIndexJob"],
   // `[]`, and **both halves of the map entry are load-bearing**. Routing a
-  // route source through `findWriteSites` without this key turns criterion (1)'s
-  // arm red on arrival — `scopeOf` returns this same string, which was then no
+  // route source through `findWriteSites` without this key turns the scope arm
+  // red on arrival — `scopeOf` returns this same string, which was then no
   // `FOLDERS` key — and a repair whose first observable effect is a false red
-  // teaches the next slice to add an exemption. That is a
+  // teaches the next author to add an exemption. That is a
   // guard punishing the corpus for growing.
   "app/routes": [],
 };
@@ -234,7 +234,7 @@ interface Exemption {
 }
 
 /**
- * Criterion (3): exactly one carve-out FILE inside `app/domains/`,
+ * Exactly one carve-out FILE inside `app/domains/` is allowed,
  * named **by file**. The erasure path added a second sanctioned crossing inside
  * that same one file (gdpr.server.ts:64, Attachment); the file-level carve-out
  * count is still one.
@@ -248,16 +248,16 @@ const MODEL_AXIS_EXEMPTIONS: readonly Exemption[] = [
   {
     file: "app/lib/auth-bootstrap.server.ts",
     reason:
-      "A once-ever boot-time admin promotion writes User from app/lib. Inside the universe, allow-listed by file so the exception is reviewable. The open question (does that promotion owe an audit row?) stays open.",
+      "A once-ever boot-time admin promotion writes User from app/lib. Inside the universe, allow-listed by file so the exception is reviewable. Whether that promotion must also write an audit row is a known limitation.",
   },
   {
     file: "app/lib/auth.boot.server.ts",
     reason:
-      "The dev-admin boot seed's db.user.update, same reasoning as auth-bootstrap.server.ts. One boot writer, two files, both named. The audit-row question stays open, same as auth-bootstrap.server.ts.",
+      "The dev-admin boot seed's db.user.update, same reasoning as auth-bootstrap.server.ts. One boot writer, two files, both named. Whether it must write an audit row is a known limitation, same as auth-bootstrap.server.ts.",
   },
 ];
 
-/** Criterion (5): two route files, for two different reasons. */
+/** Two route files are exempt, for two different reasons. */
 const ROUTE_EXEMPTIONS: readonly Exemption[] = [
   {
     file: "app/routes/healthz/route.tsx",
@@ -484,7 +484,7 @@ interface DbAccess {
   readonly line: number;
 }
 
-/** Criterion (5): a direct `db.` access in a route — read or write, `$` methods included. */
+/** A direct `db.` access in a route is flagged, read or write, `$` methods included. */
 function findRouteDbAccess(blanked: string, file: string): DbAccess[] {
   const out: DbAccess[] = [];
   // No `/g`: a stateful regex would carry `lastIndex` across `.test()`
@@ -520,11 +520,11 @@ const SCANNED_PROD = ALL_PROD.filter(
 /**
  * **Fed at the END of the scan loop on purpose.** The set means *"the loop
  * scanned this file"*, not *"the loop reached it"*, and that difference is the
- * whole content of criterion (8)'s two census arms.
+ * whole content of the two census arms that check the scanned set.
  *
  * A `continue` between the top of the iteration and the scan skips a file while
  * still counting it as read, which is the blind spot the arm named *"names the
- * files it did not read"* exists to see. Measured with a probe: fed at the
+ * files it did not read"* exists to see. Checked with a probe: fed at the
  * top of the body, that narrowing leaves **both** census arms green; fed here,
  * the identical narrowing turns both red. **Do not move this line up.**
  */
@@ -542,8 +542,8 @@ const ROUTE_FIXTURE_REL = "app/routes/__fixture__/route.ts";
  * directly proves the detector, while the defect to avoid is a detector the
  * scan never reached.
  *
- * a route file goes through **both** detectors. It used to go through
- * `findRouteDbAccess` only, so a `tx.`/`prisma.` write in a route reached neither
+ * a route file goes through **both** detectors. Routing it through
+ * `findRouteDbAccess` alone would let a `tx.`/`prisma.` write in a route reach neither
  * rule.
  */
 function scanProdSource(
@@ -826,7 +826,7 @@ const UNCLAIMED_WRITES = CROSSINGS.filter((s) => scopeOf(s.file) === null);
 const UNOWNED_WRITES = SITES.filter((s) => OWNER.get(s.model) === null);
 const UNEXEMPTED_ROUTES = ROUTE_ACCESS.filter((a) => !ROUTE_EXEMPT_FILES.has(a.file));
 
-describe("criterion (1) — the map is complete and explicit", () => {
+describe("the folder map is complete and explicit", () => {
   it("accounts for every model in the schema, exactly once, with no silent key", () => {
     const accounted = new Set([...OWNER.keys()]);
     expect(MODELS.filter((m) => !accounted.has(m))).toEqual([]);
@@ -865,7 +865,7 @@ describe("criterion (1) — the map is complete and explicit", () => {
   });
 });
 
-describe("criterion (2) — model axis: a write is performed by the folder that owns the model", () => {
+describe("model axis: a write is performed by the folder that owns the model", () => {
   it("reports no cross-folder write outside the named exemptions", () => {
     expect(VIOLATIONS.map((s) => `${s.file}:${s.line} ${s.model}`)).toEqual([]);
   });
@@ -905,7 +905,7 @@ describe("criterion (2) — model axis: a write is performed by the folder that 
   });
 });
 
-describe("criterion (3) — the carve-out is one file, in app/domains", () => {
+describe("the carve-out is one file, in app/domains", () => {
   it("allows exactly gdpr.server.ts there, by file", () => {
     expect(
       MODEL_AXIS_EXEMPTIONS.filter((e) => e.file.startsWith("app/domains/")).map((e) => e.file),
@@ -944,7 +944,7 @@ describe("criterion (3) — the carve-out is one file, in app/domains", () => {
   });
 });
 
-describe("criterion (4) — app/lib is inside the universe; its User writes are named", () => {
+describe("app/lib is inside the universe; its User writes are named", () => {
   it("sees the app/lib User writes, across exactly two files", () => {
     const libUserWrites = SITES.filter((s) => s.file.startsWith("app/lib/") && s.model === "User");
     expect([...new Set(libUserWrites.map((s) => s.file))].sort()).toEqual([
@@ -954,17 +954,17 @@ describe("criterion (4) — app/lib is inside the universe; its User writes are 
     expect(libUserWrites.length).toBeGreaterThan(1);
   });
 
-  it("exempts exactly those two files, each carrying the open audit-row ambiguity", () => {
+  it("exempts exactly those two files, each carrying the audit-row known limitation", () => {
     const libExemptions = MODEL_AXIS_EXEMPTIONS.filter((e) => e.file.startsWith("app/lib/"));
     expect(libExemptions.map((e) => e.file).sort()).toEqual([
       "app/lib/auth-bootstrap.server.ts",
       "app/lib/auth.boot.server.ts",
     ]);
-    for (const e of libExemptions) expect(e.reason).toContain("stays open");
+    for (const e of libExemptions) expect(e.reason).toContain("known limitation");
   });
 });
 
-describe("criterion (5) — app/routes is scanned for direct db. access, read or write", () => {
+describe("app/routes is scanned for direct db. access, read or write", () => {
   it("reports none outside the two named files", () => {
     expect(UNEXEMPTED_ROUTES.map((a) => `${a.file}:${a.line}`)).toEqual([]);
   });
@@ -1010,7 +1010,7 @@ describe("criterion (5) — app/routes is scanned for direct db. access, read or
   });
 });
 
-describe("criterion (6) — builder-bypass, on a census derived rather than typed", () => {
+describe("builder-bypass, on a census derived rather than typed", () => {
   it("sees a sanctioned cross-folder write as a call, not as a delegate write", () => {
     // the owner writes the code, the caller's tx carries the write.
     // rooms/ -> inventory/ and inventory/ -> catalog/ are the only two, and
@@ -1046,7 +1046,7 @@ describe("criterion (6) — builder-bypass, on a census derived rather than type
   });
 });
 
-describe("criterion (7) — green on the tree as it stands", () => {
+describe("green on the tree as it stands", () => {
   it("finds exactly the one carve-out file — two named crossings — and nothing else under app/domains", () => {
     expect(CROSSINGS_IN_DOMAINS.map((s) => `${s.file} ${s.model} ${statementAt(s)}`)).toEqual(
       GDPR_CROSSINGS.map(([statement, model]) => `${GDPR_FILE} ${model} ${statement}`),
@@ -1062,7 +1062,7 @@ describe("criterion (7) — green on the tree as it stands", () => {
   });
 });
 
-describe("criterion (8) — the scanned file set is asserted, not assumed", () => {
+describe("the scanned file set is asserted, not assumed", () => {
   it("names the files it did not read, and each has a reason", () => {
     const unread = ALL_PROD.filter((rel) => !READ_FILES.has(rel));
     const roots = Object.keys(UNSCANNED_ROOTS);

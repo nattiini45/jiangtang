@@ -6,7 +6,7 @@ import { useLocale, useT } from "~/i18n/use-t";
 /**
  * The stock at **one** location.
  *
- * ⚠️ **The panel owns its own heading, and that is the criterion rather than a style
+ * ⚠️ **The panel owns its own heading, and that is a requirement rather than a style
  * choice.** The number in the heading is `items.length` — the same array this panel
  * draws — because the alternative (`countStockAtLocation`) needs a `Tx` a loader
  * cannot obtain and has no caller, so a count rendered next to the rows would be a
@@ -33,9 +33,8 @@ import { useLocale, useT } from "~/i18n/use-t";
  * excludes are visible**, which is what turns the scope note below from a disclaimer
  * into a fact — the flag does bite, and a test pins that on
  * the surface this panel hands over to rather than on this panel's count.
- * `test/routes/location-stock-routes.test.ts` asserts the link's real contract; a
- * first draft asserted equality and failed, which is why the default is written down
- * here.
+ * `test/routes/location-stock-routes.test.ts` asserts the link's real contract rather than
+ * equality with this panel's count, because the linked list also includes unassigned stock.
  *
  * Read-only by construction: no form, no action, no mutation. The rows link into
  * `/inventory/stock/:id` — never `/inventory/:id`, which is the Equipment detail

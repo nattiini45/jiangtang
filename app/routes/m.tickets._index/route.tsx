@@ -12,7 +12,7 @@ import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 
 /**
- * Mobile ticket list (track T-MOBILE). Thumb-friendly single column reflow of the
+ * Mobile ticket list. Thumb-friendly single column reflow of the
  * desktop list — same listTickets query (read-only, no domain fork). A field tech
  * browses, filters by status, and taps through to close a ticket at /m/tickets/:id.
  */

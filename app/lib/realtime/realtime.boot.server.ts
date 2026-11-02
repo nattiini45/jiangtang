@@ -1,8 +1,19 @@
 import type { Express } from "express";
 import type { BootContext } from "~/server/boot";
 import { auth } from "~/lib/auth.server";
+import { db } from "~/lib/db.server";
 import { broker } from "~/lib/realtime/listener.server";
-import { startSseStream } from "~/lib/realtime/sse.server";
+import { CHECK_TIMEOUT_MS, checkWithTimeout, startSseStream } from "~/lib/realtime/sse.server";
+
+/**
+ * Re-checked on every heartbeat of an open stream. An erased account is scrubbed
+ * and deactivated (isActive=false), so it ends the stream like any inactive
+ * account. A missing row is treated as inactive too, defensively.
+ */
+async function isUserActive(userId: string): Promise<boolean> {
+  const row = await db.user.findUnique({ where: { id: userId }, select: { isActive: true } });
+  return row?.isActive === true;
+}
 
 /**
  * Boots the realtime consumer. Discovered by the filesystem
@@ -11,7 +22,8 @@ import { startSseStream } from "~/lib/realtime/sse.server";
  * - Starts the shared LISTEN broker (one `pg` client, idempotent).
  * - Mounts an auth-gated SSE endpoint at `/api/realtime`. Anonymous or
  *   deactivated users get 401 so an open `EventSource` reconnects/polling never
- *   silently streams data to an unauthenticated browser.
+ *   silently streams data to an unauthenticated browser. Open streams are
+ *   re-checked on each heartbeat and end once the account is inactive or gone.
  * - Closes the broker on server shutdown so the process exits cleanly.
  */
 export async function register(app: Express, ctx: BootContext): Promise<void> {
@@ -20,6 +32,15 @@ export async function register(app: Express, ctx: BootContext): Promise<void> {
   await broker.ensureStarted();
 
   app.get("/api/realtime", async (req, res) => {
+    // A client that disconnects during the session lookup emits 'close' before
+    // startSseStream attaches its own listener, which would then never run and
+    // would leave the ping interval and broker subscription behind. The flag is
+    // set here, before the await, so every branch below can see it.
+    let closed = false;
+    res.on("close", () => {
+      closed = true;
+    });
+
     // Better Auth expects a Web Headers; Express gives us IncomingHttpHeaders,
     // whose values may be string[]. Normalize into a plain record.
     const headers: Record<string, string> = {};
@@ -27,13 +48,36 @@ export async function register(app: Express, ctx: BootContext): Promise<void> {
       if (typeof v === "string") headers[k] = v;
       else if (Array.isArray(v)) headers[k] = v.join(", ");
     }
-    const session = await auth.api.getSession({ headers: new Headers(headers) });
-    if (!session?.user) {
+    let session: Awaited<ReturnType<typeof auth.api.getSession>>;
+    try {
+      // A lookup that stalls without rejecting (a lock wait, a half-open
+      // connection) is bounded too, so it takes the same retry path.
+      session = await checkWithTimeout(
+        () => auth.api.getSession({ headers: new Headers(headers) }),
+        CHECK_TIMEOUT_MS,
+      );
+    } catch (err) {
+      // A database outage must not leave the request unanswered: Express 4 does
+      // not catch the rejection. An empty 200 stream that ends with a retry hint
+      // lets the browser reconnect once the database is back. A non-200 answer
+      // would make EventSource give up for good.
+      console.error("[realtime] session lookup failed:", (err as Error).message);
+      if (closed) return;
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+      });
+      res.end("retry: 5000\n\n");
+      return;
+    }
+    if (closed) return;
+    if (!session?.user || session.user.isActive === false) {
       res.writeHead(401, { "Content-Type": "text/plain" });
       res.end("Unauthorized");
       return;
     }
-    startSseStream(req, res);
+    const userId = session.user.id;
+    startSseStream(req, res, () => isUserActive(userId));
   });
 
   // Clean shutdown: close the LISTEN client. Registered as an AWAITED shutdown

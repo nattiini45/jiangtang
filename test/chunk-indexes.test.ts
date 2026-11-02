@@ -28,7 +28,7 @@ async function inRolledBackTx<T>(fn: (c: PoolClient) => Promise<T>): Promise<T> 
 }
 
 let seq = 0;
-const uid = (p: string) => `b55_${p}_${Date.now()}_${seq++}`;
+const uid = (p: string) => `chunk_${p}_${Date.now()}_${seq++}`;
 
 async function insertChunk(c: PoolClient, over: { text?: string; keywords?: string } = {}) {
   const id = uid("chunk");

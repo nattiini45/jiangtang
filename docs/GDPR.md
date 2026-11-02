@@ -53,11 +53,9 @@ Two `SECURITY DEFINER` functions are the sanctioned exceptions:
 
 Both functions set a transaction-local `jiangtang.audit_bypass` flag for their own statements, use
 `search_path = pg_catalog, pg_temp`, and are revoked from `PUBLIC`. This is the design implemented in
-the `20261023000300_audit_privacy` migration. An earlier design used
-`session_replication_role = 'replica'` as the bypass; that behaviour is obsolete and no longer works.
-A test proves that a direct app-role `UPDATE` or `DELETE` is still rejected while the flag is not
-set, including under `session_replication_role = 'replica'`
-(`app/domains/auth/__tests__/gdpr.test.ts`).
+the `20261023000300_audit_privacy` migration. A test proves that a direct app-role `UPDATE` or
+`DELETE` is still rejected while the flag is not set, including under
+`session_replication_role = 'replica'` (`app/domains/auth/__tests__/gdpr.test.ts`).
 
 **Database-level limit.** The bypass is a session setting. Anyone who can execute arbitrary SQL as
 the application or migration role can set the same flag and disable the guard for their own
@@ -86,15 +84,16 @@ administrator. The operation runs in one transaction in `app/domains/auth/gdpr.s
    transaction.
 
 Deactivated accounts are refused by `requireUser` on the next request
-(`app/lib/auth.server.ts`); their existing sessions are not explicitly deleted by the erasure.
+(`app/lib/auth.server.ts`). After the erasure transaction commits, the account's Better Auth
+sessions are deleted as well, so no session cookie for the erased account stays valid.
 
 ### Limits of erasure
 
 After the operation, the following data can still exist:
 
 - The `User` row itself: id, role, weekly capacity, image URL, email-verified flag and the rewritten
-  email. `Session` rows (including IP address and user agent) and `Account` rows (including the
-  password hash) remain until they expire or the operator deletes them.
+  email. `Account` rows (including the password hash) remain until the operator deletes them. The
+  erasure deletes the account's `Session` rows, which held the IP address and user agent.
 - Other user references that are not part of the erasure path: project lead and creator,
   task creator and assignees, note author, location/inventory/vendor creator, time-entry user and
   creator, and event service-window covering user. These point at the deactivated user id.

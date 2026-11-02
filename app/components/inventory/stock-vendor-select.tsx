@@ -9,13 +9,12 @@ import { useT } from "~/i18n/use-t";
  * be chosen rather than typed.
  *
  * ⚠️ **This component renders options and nothing else. It cannot invent one.**
- * The row's criterion (1) is *"the picker's options come from it — asserted by removing
- * one vendor from the query result and seeing the option set change, so a hand-written
- * option list cannot pass"*, and that criterion is satisfiable only because there is no
- * fallback here: there is no hard-coded supplier, no "unknown vendor" pseudo-option, and
- * no free-text escape hatch. A picker that offered a typed id alongside its options
- * would make criterion (4) — *"a bad supplier id is impossible rather than merely
- * unlikely"* — false by construction, because the escape hatch is the bad id.
+ * The options must come from the vendor query: a test removes one vendor from the query
+ * result and checks that the option set changes, so a hand-written option list cannot pass.
+ * That holds only because there is no fallback here: no hard-coded supplier, no "unknown
+ * vendor" pseudo-option, and no free-text escape hatch. A bad supplier id must be impossible
+ * rather than merely unlikely, and a picker that offered a typed id alongside its options
+ * would make it possible, because the escape hatch is the bad id.
  *
  * **An empty string means "no supplier", and it is a real state rather than a missing
  * one.** `InventoryItem.vendorId` is `String?` with `onDelete: SetNull`, so an

@@ -443,7 +443,7 @@ describe("global teardown sweep is run-scoped (mocks)", () => {
     // the two halves.
     //
     // Note: `vi.resetModules()` does NOT re-run a `vi.mock` factory in Vitest
-    // 3.2.6 (measured — the mocked module value is cached separately from the
+    // 3.2.6 (the mocked module value is cached separately from the
     // module registry), so the counters are cumulative per file and are compared
     // as deltas rather than reset to zero.
     writeRunId(h.THIS_RUN);

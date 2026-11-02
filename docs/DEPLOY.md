@@ -25,9 +25,9 @@ image is an amd64 build.
   the generated Prisma client; nobody runs `pnpm db:generate` on the server.
 - A **plain-HTTP** local rehearsal is possible with the override described at the end of this
   document. It runs the same `docker-compose.yml` with Caddy on `localhost:8080`.
-- A real, internet-facing **HTTPS deployment behind DNS has not been verified for this release**.
-  Issuing a certificate depends on your DNS, your firewall and Let's Encrypt's reachability; a
-  local rehearsal proves none of that.
+- A real, internet-facing **HTTPS deployment behind DNS** is outside what the repository's checks
+  verify. Issuing a certificate depends on your DNS, your firewall and Let's Encrypt's reachability;
+  a local rehearsal proves none of that.
 - The backup and recovery procedures are described in [BACKUP.md](BACKUP.md). Their claims are
   limited to what that document states; nothing here makes a deployment recoverable by default.
 
@@ -56,11 +56,11 @@ chmod 600 .env
 
 Compose refuses to render the stack without these three:
 
-| Variable                 | Notes                                                                            |
-| ------------------------ | -------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`     | `openssl rand -base64 48`. Session signing key.                                  |
-| `POSTGRES_PASSWORD`      | `openssl rand -hex 24` — hex keeps it safe inside the interpolated database URL. |
-| `STORAGE_ENCRYPTION_KEY` | `openssl rand -hex 32`. Encrypts every stored upload.                            |
+| Variable                 | Notes                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------ |
+| `BETTER_AUTH_SECRET`     | `openssl rand -base64 48`. Session signing key: at least 32 characters, not starting with `change-me`. |
+| `POSTGRES_PASSWORD`      | `openssl rand -hex 24` — hex keeps it safe inside the interpolated database URL.                       |
+| `STORAGE_ENCRYPTION_KEY` | `openssl rand -hex 32`. Encrypts every stored upload.                                                  |
 
 Needed for a reachable deployment and a usable first login:
 
@@ -68,9 +68,22 @@ Needed for a reachable deployment and a usable first login:
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `APP_DOMAIN`                    | The hostname Caddy serves.                                                                                                                 |
 | `BETTER_AUTH_URL`               | `https://<APP_DOMAIN>`.                                                                                                                    |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First admin, created once at boot. `ADMIN_INITIALS` is optional. Without them the stack starts but has no account, and nobody can sign in. |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First admin, created at boot while no active admin exists. `ADMIN_INITIALS` is optional. Without them the stack starts but has no account, and nobody can sign in. |
 
 `POSTGRES_USER` and `POSTGRES_DB` default to `jiangtang`; change them only on a fresh install.
+
+Compose checks only that the required values are set. The app checks their strength at boot and
+refuses to start in production when a rule is broken:
+
+- `BETTER_AUTH_SECRET` must be at least 32 characters and must not start with `change-me`.
+- `ICAL_FEED_TOKEN`, when set, must be at least 32 characters and must not be the `.env.example`
+  placeholder (`generate-a-long-random-token-here`).
+- `ADMIN_PASSWORD`, when set, must be at least 8 characters and must not start with `change-me`.
+
+The reason is written to the log: run `docker compose logs app`. Migrations have already run by
+then, because `app` starts only after `migrate` succeeds, so a rejected value leaves the database
+migrated and the app stopped. The container restarts and fails again until the value is fixed.
+Correct the value in `.env` and recreate the container with `docker compose up -d app`.
 
 Custody rules that the template cannot enforce for you:
 
@@ -123,11 +136,8 @@ docker compose logs migrate
 ```
 
 The job runs `prisma migrate deploy` and then the read-only `ops/postgres/verify-invariants.sql`.
-On success that script raises:
-
-```
-NOTICE:  Jiangtang invariants OK: 2 EXCLUDE constraints, ActivityLog trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index
-```
+On success that script raises a `NOTICE` that begins with `Jiangtang invariants OK`; the rest of the
+line lists the invariants it checked and changes with the schema.
 
 If an invariant is missing the script raises an exception instead, the job exits non-zero, and
 `app` never starts — that is the point of the gate. It verifies; it never repairs.
@@ -159,16 +169,24 @@ answers. The alerting sidecar polls `/healthz` every 60 seconds when `ALERT_WEBH
 ## 6. First login
 
 1. Open `https://<APP_DOMAIN>` and sign in with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` you configured.
-   The boot created that account once; the log line records the bootstrap without the password.
+   The boot created that account on the first start; the log line records the bootstrap without the
+   password.
 2. The workspace is empty. There is no anonymous sign-up: the public HTTP sign-up endpoint is
    disabled by design.
 3. Invite the rest of the team from `/admin/users`. Each invitation produces a one-time link you
    pass on out-of-band; accepting it creates the account with the role you chose.
 4. Once the first admin exists, remove `ADMIN_EMAIL` and `ADMIN_PASSWORD` from `.env` and recreate
    the app container (`docker compose up -d app`, not `restart`, which would keep the old
-   environment). The bootstrap re-applies the admin role and active flag to that account on every
-   boot, so leaving the values in place would keep re-enabling it. The password is only used when
-   the account is created.
+   environment). The bootstrap acts only while no active admin exists, so the values have no effect
+   while an admin is active. Without an active admin, the next boot creates the account named by
+   `ADMIN_EMAIL` when no such account exists. When that account already exists, as after a full
+   lockout, the boot re-elevates it only if `ADMIN_PASSWORD` matches the account's current password.
+   A mismatch, or an account with no password credential, logs an error and changes nothing.
+   Removing the values is still advisable: a later recovery should be a deliberate step, not a
+   side effect of an old environment file. A set
+   `ADMIN_PASSWORD` that starts with `change-me` stops production boot, even after the first admin
+   exists. Delete the line from `.env`, or replace the value, rather than keeping the `.env.example`
+   placeholder. A set `ADMIN_PASSWORD` shorter than 8 characters is refused the same way.
 
 ## 7. Optional demo data
 
@@ -296,6 +314,13 @@ recovery rehearsal, pass an explicit unique project and a private environment fi
 `-p <project>` and `--env-file <path>`. Volume and network names follow the project, so the
 explicit project keeps that rehearsal's state separate from every other stack.
 
+The base file requires `APP_DOMAIN` and `BETTER_AUTH_URL`, and compose checks them before the
+override applies, so export the rehearsal values first, in the shell that runs the commands below:
+
+```bash
+export APP_DOMAIN=:80 BETTER_AUTH_URL=http://localhost:8080
+```
+
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.rehearsal.yml up -d --build
 # exercise: migrate gate, health, first admin login, empty workspace, demo load, invite,
@@ -306,8 +331,8 @@ docker compose -f docker-compose.yml -f docker-compose.rehearsal.yml down -v
 
 That override sets `APP_DOMAIN=:80`, so Caddy serves plain HTTP inside the container, and the
 override publishes container port 80 as host port 8080 (`http://localhost:8080`). The published
-port is not restricted to loopback, so run the rehearsal on a host you trust. That is a wiring
-check, not evidence about TLS, DNS or a real certificate.
+port is bound to 127.0.0.1 only, so the rehearsal is reachable from the host itself and no other
+machine. That is a wiring check, not evidence about TLS, DNS or a real certificate.
 
 Teardown depends on what the stack is for. A throwaway wiring rehearsal can be deleted with
 `down -v`: every volume belongs to the rehearsal project, so it cannot touch a production project

@@ -13,7 +13,7 @@ import type { SearchHit } from "~/lib/search/query.server";
  * results with no provider configured.
  */
 
-const RUN = `b58_${Date.now().toString(36)}`;
+const RUN = `search_surface_${Date.now().toString(36)}`;
 
 let role: "ADMIN" | "MEMBER" = "MEMBER";
 vi.mock("~/lib/auth.server", async (importOriginal) => {

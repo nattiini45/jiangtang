@@ -43,7 +43,7 @@ afterAll(async () => {
 });
 
 describe("tasks exit — move, block, assign, raise, links hold", () => {
-  it("composes the whole slice end to end", async () => {
+  it("composes the whole flow end to end", async () => {
     const a = await make("alpha");
     const b = await make("beta");
     const c = await make("gamma");

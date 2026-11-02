@@ -19,7 +19,7 @@ import { importWorkspace } from "~/domains/transfer/transfer.server";
 import { workspaceTransferSchema } from "~/domains/transfer/transfer.schema";
 
 /**
- * Round-trip and refusal tests. The round trip is the acceptance criterion:
+ * Round-trip and refusal tests. The round trip is the contract under test:
  * export → wipe the exported rows through the domain deletes → import → the
  * same projects/tasks/notes/edges/assignees exist, with the same ids.
  * Refusals are asserted all-or-nothing: a refused import leaves no rows.
@@ -135,8 +135,8 @@ describe("workspace transfer", () => {
     });
     noteIds.push(note.id);
 
-    // Export, then slice to this fixture — the export contains the whole
-    // workspace; wiping other slices' rows is not this test's business.
+    // Export, then keep only this fixture's rows — the export contains the whole
+    // workspace; wiping other fixtures' rows is not this test's business.
     const exported = await exportWorkspace();
     const fixtureIds = new Set([...projectIds, ...taskIds, ...noteIds]);
     // Raw JSON with no parse/transform before importing.
@@ -377,7 +377,7 @@ describe("transfer: seeded workspace raw export", () => {
   } = {};
 
   beforeAll(async () => {
-    // A user-created slice makes the export genuinely mixed (demo + user rows).
+    // User-created rows make the export genuinely mixed (demo + user rows).
     const user = await db.user.create({
       data: { email: `${RUN}-mix@test.local`, name: `${RUN} Mix`, initials: "XM" },
     });
@@ -577,7 +577,7 @@ describe("transfer: reserved ids into a disposable target", () => {
       options: "-c TimeZone=UTC",
     });
     const target = new PrismaClient({ adapter });
-    const scratch = mkdtempSync(join(tmpdir(), "b09-import-"));
+    const scratch = mkdtempSync(join(tmpdir(), "transfer-import-"));
     try {
       const users = await db.user.findMany();
       const locations = await db.location.findMany();
@@ -618,7 +618,7 @@ describe("transfer: reserved ids into a disposable target", () => {
       // synthetic admin created normally in this disposable target.
       const importer = await target.user.create({
         data: {
-          email: `${RUN}-b09-admin@test.local`,
+          email: `${RUN}-importer-admin@test.local`,
           name: "Transfer Importer",
           initials: "B9",
           role: "ADMIN",

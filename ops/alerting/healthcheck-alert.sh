@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Minimal healthcheck → alert hook. Polls the
 # app's /healthz; on a non-200 (or a DB-down payload), pages via a webhook
-# (Coolify's, or a generic Slack/Teams incoming webhook URL in ALERT_WEBHOOK).
+# (a Mattermost, Slack or Teams incoming webhook URL in ALERT_WEBHOOK).
 #
 # Run as a sidecar cron. Tuned to be deliberately simple: the goal is "someone
 # notices when the app is down," not a full metrics pipeline.
 set -euo pipefail
 
 HEALTH_URL="${HEALTH_URL:-http://app:3000/healthz}"
-ALERT_WEBHOOK="${ALERT_WEBHOOK:?ALERT_WEBHOOK must be set (Coolify/Slack/Teams incoming URL)}"
+ALERT_WEBHOOK="${ALERT_WEBHOOK:?ALERT_WEBHOOK must be set (Mattermost/Slack/Teams incoming URL)}"
 TIMEOUT="${TIMEOUT:-5}"
 
 # JSON-escape a string for safe embedding in a double-quoted JSON value. The

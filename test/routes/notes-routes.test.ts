@@ -10,7 +10,7 @@ import type { AuthUser } from "~/lib/auth.server";
  * dev database. The editor's DOM half (debounce, slash row) is covered by the
  * pure-function tests in `app/components/notes/__tests__/`.
  */
-const RUN = `b50_note_${Date.now().toString(36)}`;
+const RUN = `notes_${Date.now().toString(36)}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,

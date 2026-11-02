@@ -12,7 +12,7 @@ import { listProjects } from "~/domains/projects/projects.queries.server";
 import type { ProjectCreateInput, ProjectEditInput } from "~/domains/projects/projects.schema";
 
 /**
- * Project mutation guards, one per acceptance criterion — the
+ * Project mutation guards, one per property — the
  * `locations.mutations.test.ts` shape, one folder over:
  *
  *   - every mutation runs through `txWithAudit` and writes its ActivityLog row

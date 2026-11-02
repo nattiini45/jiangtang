@@ -8,8 +8,7 @@ import { ENTITY_TYPE, listEntityHistory } from "~/domains/tickets/tickets.histor
 
 /**
  * The clone's `Equipment` write is owned by `inventory/`,
- * routed through its builder, and audited per row. One guard per acceptance
- * criterion:
+ * routed through its builder, and audited per row. The guards, by property:
  *
  *   (1) `rooms/` contains no `tx.equipment.` call and calls the owner's writer → tests 1–3
  *   (2) the writer routes the payload through `equipmentFields()`              → tests 4–5
@@ -116,8 +115,8 @@ const columnList =
  */
 const equipmentCreateArgs = (body: string) =>
   /tx\.equipment\.create\((\{[\s\S]*?\})\)/.exec(body)?.[1] ?? "";
-/** The pre-B20 shape: the exact payload `rooms/` used to build inline. */
-const PRE_B20_WRITER = [
+/** An inline `Equipment` create that bypasses the builder: the shape the detectors must catch. */
+const INLINE_EQUIPMENT_WRITER = [
   "export async function writeIt(tx, input) {",
   "  const eq = await tx.equipment.create({",
   "    data: {",
@@ -278,12 +277,12 @@ describe("the Equipment write is owned by inventory/", () => {
     expect(createdModels(cloneRoomBody)).toEqual(["room"]);
   });
 
-  it("(1) CONTROL — the detectors fire on the pre-B20 shape and stay quiet on the sanctioned call", () => {
+  it("(1) CONTROL — the detectors fire on the inline shape and stay quiet on the sanctioned call", () => {
     // A scan that cannot look reports the same thing as a clean scan, so these
     // positive arms are what give tests 1 and 2 their meaning.
-    expect(PRE_B20_WRITER).toMatch(equipmentWrite);
-    expect(createdModels(PRE_B20_WRITER)).toEqual(["equipment"]);
-    expect(PRE_B20_WRITER).toMatch(columnList);
+    expect(INLINE_EQUIPMENT_WRITER).toMatch(equipmentWrite);
+    expect(createdModels(INLINE_EQUIPMENT_WRITER)).toEqual(["equipment"]);
+    expect(INLINE_EQUIPMENT_WRITER).toMatch(columnList);
     // The sanctioned call must trip none of them, or the guards are unfalsifiable.
     const sanctioned =
       "        await createEquipmentInTx(tx, audit, {\n          roomId: room.id,\n        });";
@@ -304,7 +303,7 @@ describe("the payload goes through equipmentFields()", () => {
     // from the builder. Scoped to the create's own argument, because the audit
     // payload below it does name `category`, and that is not a column list.
     expect(equipmentCreateArgs(writerBody)).not.toMatch(columnList);
-    // It JOINS the caller's transaction — that is what makes criterion (5) possible.
+    // It JOINS the caller's transaction — that is what makes the atomic copy possible.
     expect(writerBody).not.toContain("$transaction");
     expect(writerBody).not.toContain("txWithAudit");
   });
@@ -313,10 +312,10 @@ describe("the payload goes through equipmentFields()", () => {
     // Proves test 4 passes for the right reason rather than because a containment
     // check that can never fire would pass anyway.
     expect(writerBody.match(/equipmentFields\(/g)).toHaveLength(1);
-    // The column detector fires on the pre-B20 create's argument, and would have
+    // The column detector fires on the inline create's argument, and would have
     // fired on this writer's had the payload been inlined.
-    expect(equipmentCreateArgs(PRE_B20_WRITER)).toMatch(columnList);
-    expect(equipmentCreateArgs(PRE_B20_WRITER)).not.toMatch(/equipmentFields\(/);
+    expect(equipmentCreateArgs(INLINE_EQUIPMENT_WRITER)).toMatch(columnList);
+    expect(equipmentCreateArgs(INLINE_EQUIPMENT_WRITER)).not.toMatch(/equipmentFields\(/);
   });
 });
 

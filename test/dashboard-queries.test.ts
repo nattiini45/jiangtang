@@ -17,7 +17,7 @@ import { createTicket } from "~/domains/tickets/tickets.mutations.server";
  * belongs to *today* (the stored instant may sit in the next UTC day in
  * summer), and 00:30 Berlin in winter sits in the PREVIOUS UTC day.
  */
-const RUN = `b53_${Date.now().toString(36)}`;
+const RUN = `dashboard_${Date.now().toString(36)}`;
 
 const taskIds: string[] = [];
 const ticketIds: string[] = [];

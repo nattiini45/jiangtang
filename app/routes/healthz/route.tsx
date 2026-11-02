@@ -3,20 +3,20 @@ import { db } from "~/lib/db.server";
 import { logger } from "~/lib/observability/logger.server";
 
 /**
- * Liveness/readiness probe. Public (no auth) so Coolify / a load
+ * Liveness/readiness probe. Public (no auth) so the container platform or a load
  * balancer can poll it. Returns 200 + JSON when the DB is reachable, 503
  * otherwise. Cheap: a scalar `SELECT 1`, not a full connection checkout.
  *
- * the raw exception message is never sent to this unauthenticated caller in
- * production (it could leak connection strings / internal hostnames) — it's
- * logged server-side instead. Non-production keeps the detailed message for DX.
+ * The raw exception message is only sent in an explicit development run. Anywhere
+ * else it is logged server-side instead, because it could leak connection strings
+ * or internal hostnames to this unauthenticated caller.
  */
 export async function loader(_: Route.LoaderArgs) {
   try {
     await db.$queryRaw`SELECT 1`;
     return Response.json({ status: "ok", db: "up" });
   } catch (e) {
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV !== "development") {
       logger.error({ err: e }, "healthz: DB check failed");
       return Response.json({ status: "degraded", db: "down" }, { status: 503 });
     }

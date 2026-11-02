@@ -1,4 +1,5 @@
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
+import { auth } from "~/lib/auth.server";
 import { NotFoundError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { assertCanChangeAdminStatus } from "~/domains/auth/users.queries.server";
@@ -20,7 +21,8 @@ const RETENTION_SYSTEM_ACTOR: AuditActor = { name: "System (Retention Job)", ini
  * historical attribution survives — pseudonymization, not deletion.
  *
  * `pseudonymizeUser` is the admin-facing operation: pseudonymize the audit
- * history, detach the user's ticket links, scrub the User row, deactivate.
+ * history, detach the user's ticket links, scrub the User row, deactivate, then
+ * revoke the user's sessions.
  */
 
 const PSEUDO_MARKER = "[pseudonymisiert]";
@@ -34,7 +36,7 @@ export async function pseudonymizeUser(
   actor: AuditActor,
   userId: string,
 ): Promise<PseudonymizeResult> {
-  return txWithAudit(actor, async (tx, audit) => {
+  const result = await txWithAudit(actor, async (tx, audit) => {
     const user = await tx.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundError(tr("places.err.user.notFound"));
 
@@ -92,6 +94,12 @@ export async function pseudonymizeUser(
 
     return { userId, auditRowsAffected };
   });
+
+  // Sessions are owned by Better Auth and hold the erased person's IP address and
+  // user agent, so they are revoked once the erasure has committed, as in updateUser.
+  const { internalAdapter } = await auth.$context;
+  await internalAdapter.deleteUserSessions(userId);
+  return result;
 }
 
 /**

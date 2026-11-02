@@ -5,11 +5,10 @@
  * ⚠️ **Why this is not a shared primitive.** `LocationFormErrors` is a three-line
  * `<ul role="alert">` in `app/components/locations/`, and this is the same three lines in
  * `app/components/inventory/`. Reusing it would put a *locations* component inside a
- * *stock* form, and the grant this slice works under names new files under
- * `app/components/inventory/` — it does not grant edits to the locations tree or to
- * `app/components/ui/`, and a track that reaches past its grant to avoid three duplicated
- * lines has bought a coupling and lost a boundary. If a third copy appears, the right move
- * is a decision about a shared primitive, taken once, in its own row.
+ * *stock* form. The copy stays inside `app/components/inventory/`: a stock form that reached
+ * into `app/components/locations/` for three duplicated lines would couple two domains for
+ * no real saving. If a third copy appears, the right move is a decision about a shared
+ * primitive, taken once for every form that needs it.
  *
  * The reason it exists at all: `ValidationError` has **two** channels. `fieldErrors` render
  * under their own control; `formErrors` is the channel a refusal belonging to no single

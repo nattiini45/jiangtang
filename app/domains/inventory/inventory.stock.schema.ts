@@ -79,13 +79,13 @@ const optionalMoney = z.preprocess(
 /**
  * `quantity` — a count of physical objects.
  *
- * ⚠️ **The `min(0)` is this slice's reading, and it is a FORM rule, not a schema
+ * ⚠️ **The `min(0)` is this module's reading, and it is a FORM rule, not a schema
  * one:** `InventoryItem.quantity` is `Int @default(1)` with no CHECK, so a
  * negative quantity is still writable through any other path (a CSV import, a
  * direct query). It is rejected here because a form is where a minus sign gets
  * typed by accident, and because "we have minus three microphones" is not a state
  * a stock list can be sorted into. Nothing in forbids it, so this is named
- * rather than smuggled in — a future slice that wants backorders removes one line.
+ * rather than smuggled in — a future change that allows backorders removes one line.
  *
  * 🔴 **A blank means "not stated" and takes the default `1` — and `.default`
  * goes on the INSIDE of `z.preprocess`, which is the load-bearing part of this
@@ -94,7 +94,7 @@ const optionalMoney = z.preprocess(
  *
  * | spelling | `""` | `"   "` | `-5` |
  * |---|---|---|---|
- * | `quantity.default(1)` (earlier spelling) | `0` 🔴 | `0` 🔴 | rejected |
+ * | `quantity.default(1)` (bare spelling) | `0` 🔴 | `0` 🔴 | rejected |
  * | `z.preprocess(f, quantity).default(1)` — **the literal wording** | **REJECT** 🔴 | **REJECT** 🔴 | rejected |
  * | `z.preprocess(f, quantity).optional().default(1)` | **REJECT** 🔴 | **REJECT** 🔴 | rejected |
  * | **`z.preprocess(f, quantity.default(1))` — what this is** | **`1`** ✅ | **`1`** ✅ | rejected ✅ |

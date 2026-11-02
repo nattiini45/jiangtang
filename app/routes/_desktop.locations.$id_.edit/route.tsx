@@ -37,7 +37,7 @@ import { useT } from "~/i18n/use-t";
  *
  * The move picker lists every other location **including the node's own
  * descendants**, because refusing a move into your own subtree is the exact
- * case criterion (3) wants visible; hiding the impossible choices would make
+ * case that must stay visible; hiding the impossible choices would make
  * the guard unreachable from the UI and untestable through it.
  */
 export function meta({ data, matches }: Route.MetaArgs) {

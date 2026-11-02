@@ -1,6 +1,6 @@
-# Production stack under Coolify: Caddy (auto-TLS) → app, postgres:18, and a
-# one-shot migrate job gated on a healthy DB. Secrets come from the environment /
-# Coolify store (compose interpolates from a .env file locally) — never committed.
+# Production stack: Caddy (auto-TLS) → app, postgres:18, and a one-shot migrate job
+# gated on a healthy DB. Secrets come from the environment or the host's secret store
+# (compose interpolates from a .env file locally) — never committed.
 # Distinct project name so it never collides with the dev DB (docker-compose.dev.yml).
 name: jiangtang-prod
 services:
@@ -31,7 +31,7 @@ services:
       # PITR / WAL archiving. WAL-G ships WAL segments to S3 as they're
       # generated; the backup sidecar takes periodic base backups. Both read WALG_*
       # from the environment. When WALG_S3_PREFIX is unset, archiving is a no-op
-      # (dev/local) — production sets it via the Coolify store.
+      # (dev/local) — production sets it in the environment or the secret store.
       WALG_S3_PREFIX: ${WALG_S3_PREFIX:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
@@ -230,9 +230,10 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-jiangtang}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}@postgres:5432/${POSTGRES_DB:-jiangtang}?schema=public
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in the environment}
-      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost}
+      # Public origin (for example https://jiangtang.example.org). It must match APP_DOMAIN.
+      # Required: a default would serve login over plain HTTP on localhost.
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL in the environment}
       TZ: Europe/Berlin
-      STORAGE_DRIVER: fs
       STORAGE_DIR: /data/uploads
       # Upload encryption (AES-256-GCM). Required in production: compose refuses to
       # render/start without it, and the app fails on the first encrypt/decrypt use.
@@ -250,9 +251,14 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # ActivityLog retention window in days (default ~7 years).
       ACTIVITY_RETENTION_DAYS: ${ACTIVITY_RETENTION_DAYS:-2555}
-      # Self-hosted iCal feed token (generate a long random; /calendar/<token>.ics).
+      # Look-ahead window in days for warranties that are about to expire.
+      WARRANTY_WINDOW_DAYS: ${WARRANTY_WINDOW_DAYS:-30}
+      # Self-hosted iCal feed token (generate a long random; subscribe at /calendar/<token>/ics).
       ICAL_FEED_TOKEN: ${ICAL_FEED_TOKEN:-}
-      # First-admin bootstrap (runs once, idempotent). Empty = skip.
+      # First-admin bootstrap. It acts only while no active ADMIN exists (first install,
+      # or recovery after a full lockout); otherwise the values are ignored. Empty = skip.
+      # Recovering an existing ADMIN_EMAIL account needs ADMIN_PASSWORD to match its current
+      # password; otherwise the boot logs an error and changes nothing.
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       ADMIN_INITIALS: ${ADMIN_INITIALS:-}
@@ -291,6 +297,12 @@ services:
         condition: service_completed_successfully
     expose:
       - "3000"
+    # The app runs as the non-root `app` user and needs no Linux capabilities: it listens
+    # on 3000 and writes only to its own volume.
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     restart: unless-stopped
 
   caddy:
@@ -299,8 +311,9 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      # Default ":80" → plain HTTP locally; set a real hostname for auto-TLS.
-      APP_DOMAIN: ${APP_DOMAIN:-:80}
+      # A real hostname enables automatic TLS. ":80" serves plain HTTP and is for local
+      # or rehearsal runs only.
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in the environment (a hostname, or :80 for plain HTTP)}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

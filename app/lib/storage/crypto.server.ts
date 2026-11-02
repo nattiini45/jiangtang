@@ -3,8 +3,9 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:
 /**
  * Encryption-at-rest for stored objects (AES-256-GCM): [iv(12) | authTag(16) |
  * ciphertext]. The key comes from STORAGE_ENCRYPTION_KEY (64 hex chars, or a
- * passphrase stretched with scrypt). Production requires the env var; dev falls
- * back to an insecure fixed key with a warning.
+ * passphrase stretched with scrypt). Only an explicit development or test run may
+ * fall back to an insecure fixed key (with a warning); every other environment,
+ * including an unset NODE_ENV, requires the env var.
  *
  * The salt is source-committed and not secret. Changing it changes every derived
  * key, so stored objects of an existing installation would need re-encryption;
@@ -38,7 +39,8 @@ function resolveKey(): Buffer {
     }
     return scryptSync(raw, resolveSalt(), 32);
   }
-  if (process.env.NODE_ENV === "production") {
+  const devOrTest = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+  if (!devOrTest) {
     throw new Error(
       "STORAGE_ENCRYPTION_KEY is required in production (object storage is encrypted at rest).",
     );

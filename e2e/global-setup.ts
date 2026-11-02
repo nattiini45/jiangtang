@@ -9,13 +9,9 @@ import { chromium, type Frame, type FullConfig, type Page } from "@playwright/te
  *
  * Use the configured baseURL from Playwright config, not hardcoded port.
  *
- * This harness deliberately does NOT call `process.loadEnvFile()`. The test
- * environment must be *explicitly constructed*, not inherited from whatever
- * `.env` happens to sit in the cwd — an ambient file read would pull private
- * file state into the harness silently. Every value read below comes from the
+ * This harness does not read a `.env` file. Every value it reads comes from the
  * process environment supplied to the run (`ADMIN_EMAIL`, `ADMIN_PASSWORD`,
- * `E2E_BASE_URL`); a missing one is a hard error rather than a fallback to a
- * file.
+ * `E2E_BASE_URL`), and a missing one is a hard error rather than a fallback.
  *
  * After login, this setup also primes Vite's dependency-optimiser cache
  * on a cold `node_modules/.vite`. The webServer readiness probe only fetches
@@ -24,8 +20,8 @@ import { chromium, type Frame, type FullConfig, type Page } from "@playwright/te
  * Vite re-optimises and force-reloads the page, and the board test fails with
  * "Invalid hook call … more than one copy of React" /
  * "Cannot read properties of null (reading 'useContext')". `vite.config.ts`
- * (with `optimizeDeps.include`) is deliberately unchanged by this release, so
- * the cache is warmed here instead: the setup signs in THROUGH the reload storm
+ * (with `optimizeDeps.include`) is deliberately left unchanged, so the cache is
+ * warmed here instead: the setup signs in THROUGH the reload storm
  * (waiting for the optimiser to settle before each interaction) and walks the
  * lazy-discovery routes before handing off to the tests. This removes the race
  * rather than hiding it — `webServer.timeout` is NOT widened.
@@ -40,11 +36,10 @@ import { chromium, type Frame, type FullConfig, type Page } from "@playwright/te
  * force-reloads — the exact trigger for the "Invalid hook call … more than
  * one copy of React" board crash.
  *
- * Scope is `/board` plus the two routes that pull their own lazy deps. The
- * evidence showed the smoke surfaces share the `/login` scan, but cold-cache
- * runs on this host proved two a11y surfaces still re-optimise mid-run: the
- * project detail route statically
- * imports `ProjectBurndown` (`recharts`), and the note editor imports
+ * Scope is `/board` plus the two routes that pull their own lazy deps. Two
+ * accessibility surfaces still re-optimise mid-run on a cold cache: the project
+ * detail route statically imports `ProjectBurndown` (`recharts`), and the note
+ * editor imports
  * `MarkdownPreview` (`react-markdown`, `remark-gfm`). Neither package is
  * reachable from `/login` or `/board`, so Vite discovers it on the first
  * gantt/editor visit, reloads the page, and the scan lands on the Application
@@ -111,8 +106,7 @@ export default async function globalSetup(config: FullConfig) {
   if (!email || !password) {
     throw new Error(
       "e2e global setup needs ADMIN_EMAIL and ADMIN_PASSWORD in the process " +
-        "environment (supplied by the run). This harness does not read" +
-        "a .env file — see.",
+        "environment (supplied by the run). This harness does not read a .env file.",
     );
   }
 
@@ -131,12 +125,11 @@ export default async function globalSetup(config: FullConfig) {
     // optimiser reloads. The webServer readiness probe only fetches `/login`,
     // so on a cold `node_modules/.vite` Vite discovers the rest of the graph
     // lazily while the browser navigates and force-reloads the page on each new
-    // dep ("optimized dependencies changed. reloading"). Measured on this host:
-    // a cold login navigates `/login → /login → /login → /` — the reloads are
-    // real. When one lands DURING the login form POST it drops the POST and
-    // leaves a fresh, empty `/login`, so a single submit-and-wait hangs there
-    // forever (reproduced with the 15s URL bound, and again with a 60s h1
-    // bound). A bounded resubmit loop fixes this at the root:
+    // dep ("optimized dependencies changed. reloading"). On a cold cache a login
+    // can navigate `/login → /login → /login → /`, so the reloads are real. When
+    // one lands DURING the login form POST it drops the POST and leaves a fresh,
+    // empty `/login`, and a single submit-and-wait hangs there. A bounded
+    // resubmit loop fixes this at the root:
     // each pass warms more of the cache, so the reloads converge and the POST
     // eventually lands on a settled server.
     //
@@ -204,7 +197,7 @@ export default async function globalSetup(config: FullConfig) {
     // No explicit settle wait is needed (that would add a fixed quiet window to
     // every route even when warm); the bounded re-goto covers a reload that
     // aborts the navigation itself. A route that never renders its <h1> once the
-    // cache is warm (e.g. the duplicate-React crash this repair exists for)
+    // cache is warm (e.g. the duplicate-React crash that priming guards against)
     // fails the run here, loudly, instead of flaking individual tests later.
     for (const [path, heading] of PRIME_ROUTES) {
       const marker = page.getByRole("heading", { level: 1, name: heading, exact: true });
@@ -222,7 +215,7 @@ export default async function globalSetup(config: FullConfig) {
         throw new Error(
           `e2e global setup: cache-priming route ${path} never rendered its ` +
             `<h1> "${heading}" on a cold cache (last URL ${page.url()}). This ` +
-            `is the mid-run Vite dep-optimiser race this priming repairs; the run is ` +
+            `is the mid-run Vite dep-optimiser race that priming avoids; the run is ` +
             `stopped here rather than allowed to flake the tests.`,
         );
       }

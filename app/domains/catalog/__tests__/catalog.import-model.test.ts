@@ -11,7 +11,7 @@ import { ValidationError } from "~/lib/errors.server";
 /**
  * `catalog/` owns the `EquipmentModel` create, the import's own transaction
  * carries it, and the find-then-create shape survives the move.
- * One guard per acceptance criterion:
+ * The guards, by property:
  *
  *   (1) `inventory/` contains no `tx.equipmentModel.` call                    → tests 1–4
  *   (2) ATOMICITY — the create runs in the import's transaction, so the batch's
@@ -27,11 +27,11 @@ import { ValidationError } from "~/lib/errors.server";
  * `expect(count).toBe(0)` on the table passes **vacuously** — it certifies the
  * fixture, not the code. And a
  * literal on the audit table is a number no test can own: the suite appends to
- * `ActivityLog` on every run, and the correct global value moved 657 → 660 while
- * the change was being built. Scoping by `name` (not by `entityId`) is forced too — a
+ * `ActivityLog` on every run, so no global count is stable. Scoping by `name` (not by
+ * `entityId`) is forced too — a
  * rolled-back batch yields no ids to scope by.
  *
- * 🔴 **The criterion-1 scan reads the WHOLE FOLDER, not one file — and its BREADTH
+ * 🔴 **The folder scan reads the WHOLE FOLDER, not one file — and its BREADTH
  * is ASSERTED, derived from the directory, in the first arm of that describe.**
  * The rule binds on the domain *folder*, not on one hand-picked file: a
  * folder-wide claim whose instrument reads one file of three proves nothing,
@@ -43,19 +43,15 @@ import { ValidationError } from "~/lib/errors.server";
  * matches strings and never calls `inventoryFolder()` — and is named for exactly
  * that, so nothing here credits it with a reach it does not have.
  *
- * ⚠️ **Every arm owns its own token, and `afterEach` sweeps between arms.** This
- * is not tidiness — it is measured. A control probe that turns one arm red leaves
- * that arm's rows behind, and with a single shared scope token the residue makes
- * the NEXT arm red for the wrong reason: a failed case-variant batch cascaded
- * into the "no model text" arm, which reported a dedup failure while testing
- * something else entirely. A guard whose other arms move is a guard that reports
- * a cause the reader cannot see.
+ * ⚠️ **Every arm owns its own token, and `afterEach` sweeps between arms.** Sharing one
+ * scope token leaves a failed arm's rows behind, and the residue makes the NEXT arm red for
+ * the wrong reason. A guard whose arms share state reports a cause the reader cannot see.
  *
  * ActivityLog is append-only: nothing here deletes an audit row, and every
  * assertion is scoped to this run's token.
  */
 
-const RUN = `b21_${Date.now().toString(36)}`;
+const RUN = `catalog_${Date.now().toString(36)}`;
 const actor = { id: null, name: "Import Tester", initials: "IT" };
 
 /** One token per arm, so no arm can read another arm's rows. */
@@ -135,8 +131,8 @@ const insensitiveNameLookup = /findFirst\(\s*\{[\s\S]*?mode:\s*"insensitive"/;
 /** A read on a second connection — the defect this guard is about. */
 const secondConnectionRead = /\bdb\.equipmentModel\./;
 
-/** The earlier shape: the inline create `inventory/` used to build itself. */
-const PRE_B21_BODY = [
+/** The inline create that `inventory/` builds on its own: the shape the detectors must catch. */
+const INLINE_MODEL_CREATE_BODY = [
   "      let modelId: string | null = null;",
   "      if (row.modelText) {",
   "        const existing = await tx.equipmentModel.findFirst({",
@@ -244,26 +240,24 @@ afterAll(async () => {
   await db.$disconnect();
 });
 
-// ── Criterion 1 — the write is owned by catalog/ ──────────────────────────────
+// ── The write is owned by catalog/ ──────────────────────────────
 
-describe("criterion 1 — inventory/ contains no EquipmentModel write", () => {
+describe("inventory/ contains no EquipmentModel write", () => {
   it("(1) no file in inventory/ calls tx.equipmentModel.", () => {
-    // The WHOLE FOLDER, not the one file that used to hold the create: the guard
+    // The WHOLE FOLDER, not a single file: the guard
     // binds on the folder, and a one-file guard would prove nothing.
     //
-    // 🔴 The `toContain` that used to sit here is gone: it named ONE file, so a
-    // scan of that one file satisfied it exactly as well as a scan of all nine —
-    // a presence check wearing a scope check's clothes. Presence is now a
-    // *consequence* of the breadth arm below rather than a claim in its own right.
+    // 🔴 Presence is not asserted on its own: a `toContain` naming one file would be satisfied
+    // by a scan of that file exactly as well as by a scan of the folder. Presence follows from
+    // the breadth arm below rather than being a claim in its own right.
     const folder = inventoryFolder();
     expect(folder.source).not.toMatch(equipmentModelWrite);
   });
 
   it("(1) BREADTH — the scan read EVERY .server.ts in inventory/ (derived-set equality by name)", () => {
-    // 🔴 The only assertion in this file that can see the scan's
-    // SCOPE. Measured both directions on this exact guard: appending a live
-    // `tx.equipmentModel.` write to a real sibling, then narrowing the scan to one
-    // file, left all 18 tests GREEN with the violation sitting unread.
+    // 🔴 The only assertion in this file that can see the scan's SCOPE. Appending a live
+    // `tx.equipmentModel.` write to a real sibling, then narrowing the scan to one file,
+    // left every test GREEN with the violation sitting unread.
     const folder = inventoryFolder();
     const expected = inventoryServerFileNames();
     // Non-vacuity FIRST: a filter narrowed to nothing matches an empty expectation
@@ -294,7 +288,7 @@ describe("criterion 1 — inventory/ contains no EquipmentModel write", () => {
     //
     // 🔴 The needle is ASSEMBLED, never written as a literal: this assertion reads
     // its OWN source from disk, so a literal spelling would put this test inside the
-    // count it computes. Measured: a literal reads 3 — red on arrival.
+    // count it computes. A literal would count itself and fail on arrival.
     const self = read("./catalog.import-model.test.ts");
     const quote = String.fromCharCode(34);
     const needle = ".endsWith(" + quote + ".server.ts" + quote + ")";
@@ -338,25 +332,22 @@ describe("criterion 1 — inventory/ contains no EquipmentModel write", () => {
   });
 
   it("(1) CONTROL — the DETECTOR fires on sibling-shaped source; this arm does NOT prove the scan's reach", () => {
-    // 🔴 Renamed to what it actually proves, and the over-claim is gone.
     // This arm matches STRINGS and never calls `inventoryFolder()`, so it certifies
-    // the DETECTOR. The REACH is proved by the breadth arm above, which derives its
-    // set from the real directory. This arm used to be NAMED as the reach control
-    // and this header used to credit it with the reach — both false
-    // in the same direction: a literal is by construction not a member of the unit
+    // the DETECTOR only. The REACH is proved by the breadth arm above, which derives its
+    // set from the real directory: a literal is by construction not a member of the unit
     // under test, so no arrangement of strings here can show what the scan reads.
     //
-    // Two levels, and the second is the one an earlier guard was missing.
+    // Two levels: the pattern, then the same shape attributed to a sibling file.
     //
     // Pattern arm: a literal proves the DETECTOR matches.
-    expect(PRE_B21_BODY, "the detector must fire on the pre-B21 shape").toMatch(
+    expect(INLINE_MODEL_CREATE_BODY, "the detector must fire on the inline shape").toMatch(
       equipmentModelWrite,
     );
     // Same shape under a sibling's NAME — the closest a string comes to the real
     // thing. What it proves is that the detector does not care which file in the
     // folder the text is attributed to; what it cannot prove is that any file is
     // ever attributed at all.
-    const siblingShaped = "// inventory.stock.mutations.server.ts\n" + PRE_B21_BODY;
+    const siblingShaped = "// inventory.stock.mutations.server.ts\n" + INLINE_MODEL_CREATE_BODY;
     expect(
       siblingShaped,
       "the detector must not care which file the shape is attributed to",
@@ -385,9 +376,9 @@ describe("criterion 1 — inventory/ contains no EquipmentModel write", () => {
   });
 });
 
-// ── Criterion 2 — the create runs in the import's transaction ─────────────────
+// ── The create runs in the import's transaction ─────────────────
 
-describe("criterion 2 — the batch is atomic, scoped to its own name token", () => {
+describe("the batch is atomic, scoped to its own name token", () => {
   it("(2) CONTROL — the same batch with no failing row DOES create a model and its audit row", async () => {
     // The positive arm. Without it, "0 models with the token" in the next test is
     // indistinguishable from a token that simply never matched anything.
@@ -458,9 +449,9 @@ describe("criterion 2 — the batch is atomic, scoped to its own name token", ()
   });
 });
 
-// ── Criterion 3 — find-then-create, on the caller's tx, still case-insensitive ─
+// ── Find-then-create, on the caller's tx, still case-insensitive ─
 
-describe("criterion 3 — the find-then-create shape survives the move", () => {
+describe("the find-then-create shape survives the move", () => {
   it("(3) the lookup is a tx-prefixed, case-insensitive findFirst before the create", () => {
     expect(findOrCreateBody).toMatch(insensitiveNameLookup);
     // The ORDER is the behaviour: look, then create, then audit. A create ahead of
@@ -500,17 +491,14 @@ describe("criterion 3 — the find-then-create shape survives the move", () => {
   });
 
   it("(3) an IDENTICAL-name pair reuses one model — 🔴 this is the arm the connection control needs", async () => {
-    // 🔴 **Two rows naming the IDENTICAL string.** This is the control asked for
-    // and that no other arm here could express: it is the only
-    // one that varies the CONNECTION while holding case constant.
+    // 🔴 **Two rows naming the IDENTICAL string.** This is the only arm that varies the
+    // CONNECTION while holding case constant, which no other arm here can express.
     //
-    // Probed, not reasoned: routing the lookup through a non-`tx` `db.` read does
-    // not turn criterion (2) — the ATOMICITY arm — red. It cannot: the create is
-    // still on the caller's `tx`, so the rollback still rolls back. A live
-    // `db.`-based-lookup probe left every criterion-2 test GREEN and reddened only
-    // the structural arms plus the case-variant arm, which it failed for the wrong
-    // reason (it could not see row 1's uncommitted model, not that it mismatched
-    // its case).
+    // Probed: routing the lookup through a non-`tx` `db.` read does not turn the ATOMICITY
+    // arm red. It cannot: the create is still on the caller's `tx`, so the rollback still
+    // rolls back. Such a lookup leaves every atomicity test GREEN and reddens only the
+    // structural arms plus the case-variant arm, which fails for the wrong reason (it cannot
+    // see row 1's uncommitted model, not that it mismatched its case).
     //
     // What actually breaks is DEDUP WITHIN a batch: a model created by row 1 is
     // uncommitted, so a second connection cannot see it, and row 2 creates a
@@ -595,9 +583,9 @@ describe("criterion 3 — the find-then-create shape survives the move", () => {
   });
 });
 
-// ── Criterion 4 — the audit row keeps its flag, in the same transaction ───────
+// ── The audit row keeps its flag, in the same transaction ───────
 
-describe("criterion 4 — the EquipmentModelCreated row", () => {
+describe("the EquipmentModelCreated row", () => {
   it("(4) the created model carries viaImport: true and the caller's actor", async () => {
     await bulkCreateEquipment(actor, [pooled(`Epson EB-S50 ${T.flag}`, { name: `${RUN}-flag-1` })]);
     const rows = await auditRowsWith(T.flag);
@@ -626,7 +614,7 @@ describe("criterion 4 — the EquipmentModelCreated row", () => {
 
   it("(4) the manual catalog path is unchanged and still audits without the import flag", async () => {
     // The flip side of "this writer is the importer's": `createModel` is untouched
-    // by this slice, keeps its own dedup and its own payload, and opens its own
+    // by the import change, keeps its own dedup and its own payload, and opens its own
     // transaction — which is correct for a manual create and wrong for a batch.
     const model = await createModel(actor, {
       manufacturer: undefined,
@@ -639,7 +627,7 @@ describe("criterion 4 — the EquipmentModelCreated row", () => {
     expect(rows[0].data).toMatchObject({ name: `Epson EB-S50 ${T.manual}`, category: "PROJECTOR" });
     // …and it does NOT claim to have come from an import.
     expect(rows[0].data).not.toMatchObject({ viaImport: true });
-    // The same slice must not have touched it: no second-connection read.
+    // The manual path must not read on a second connection either.
     expect(functionBody(catalogFile, "export async function createModel")).not.toMatch(
       secondConnectionRead,
     );
@@ -670,20 +658,19 @@ describe("criterion 4 — the EquipmentModelCreated row", () => {
   });
 });
 
-// ── Criterion 5 — nothing structural moved ────────────────────────────────────
+// ── Nothing structural moved ────────────────────────────────────
 
-describe("criterion 5 — no migration, no fragment directory, no schema change", () => {
-  it("(5) the shipped schema and the migration baseline are untouched by this slice", () => {
+describe("no migration, no fragment directory, no schema change", () => {
+  it("(5) the shipped schema and the migration baseline are untouched by this change", () => {
     // The hand-written fragments were folded into the seven-file baseline and
     // the directory that held them is GONE. Its absence is asserted rather than
     // its old file list, so a fragment directory reappearing beside the chain
     // fails here instead of quietly becoming a second source of schema truth.
     const prismaDir = fileURLToPath(new URL("../../../../prisma/", import.meta.url));
     expect(existsSync(join(prismaDir, "sql"))).toBe(false);
-    // …and no migration directory was added BY THIS SLICE. Named in full
-    // rather than counted: a bare count cannot be re-derived by whoever reads it
-    // next, so a slice that does add one has to touch this line, which puts the
-    // addition in the diff.
+    // …and no migration directory was added. Named in full rather than counted: a bare
+    // count cannot be re-derived by whoever reads it next, so a change that adds one has
+    // to touch this line, which puts the addition in the diff.
     const migrations = readdirSync(join(prismaDir, "migrations"))
       .filter((m) => m.startsWith("2026"))
       .sort();

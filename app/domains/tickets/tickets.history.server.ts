@@ -11,14 +11,12 @@ import { ENTITY_TYPES, type EntityType } from "~/lib/realtime/events";
 
 /**
  * Every entityType, keyed by its own name, for readers that prefer a named
- * constant over a bare string literal. Historically this map called itself the
- * *"Single source of truth for ActivityLog.entityType strings"* and then went
- * stale the moment `location` and `inventory-item` were written past it — it
- * is now checked against `ENTITY_TYPES` instead of claiming to be the truth.
+ * constant over a bare string literal. The map is checked against `ENTITY_TYPES`, so it cannot
+ * silently fall behind the vocabulary the writers use.
  *
  * Two guards, one per direction of drift:
  *  - `satisfies Record<string, EntityType>` makes a non-member VALUE a compile
- *    error. This is the direction that produced 1,989 unreadable rows.
+ *    error. This is the direction whose drift would leave rows unreadable.
  *  - the completeness half — a member this map omits — is checked at runtime by
  *    `entity-type-vocabulary.test.ts`, because a `Record` type cannot express
  *    "every key present" without a cast, and a cast would defeat the point.
@@ -88,7 +86,7 @@ export interface ActivityEntry {
  * the reader is right about the writers being wrong. A reader that cannot be
  * asked a wrong question cannot demonstrate that it would answer wrongly, so
  * the wide parameter is the behaviour under test, not a hole in it. That test
- * is the acceptance criterion and must not be edited to fit the implementation.
+ * is the contract for the reader and must not be edited to fit the implementation.
  */
 export async function listEntityHistory(
   entityType: string,

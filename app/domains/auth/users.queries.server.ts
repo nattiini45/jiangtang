@@ -117,7 +117,7 @@ export async function resolveInvite(token: string): Promise<InviteRecord> {
   // as a substring — not by an unrelated field. The JSON.parse + exact
   // `parsed.token === token` check below is what actually decides a match; this
   // is purely a cheap pre-filter to avoid parsing every row. A real fix (exact
-  // lookup) would need a dedicated indexed token column — out of scope here.
+  // lookup) would need a dedicated indexed token column.
   const candidates = await db.verification.findMany({
     where: { value: { contains: `"token":"${token}"` } },
   });
@@ -296,4 +296,11 @@ export async function updateUser(
       } as unknown as import("~/generated/prisma/client").Prisma.InputJsonValue,
     });
   });
+  // Sessions are owned by Better Auth, so they are revoked through its internal
+  // adapter, after the change has committed. A failure here leaves the account
+  // inactive, and requireUser already refuses inactive users.
+  if (input.isActive === false) {
+    const { internalAdapter } = await auth.$context;
+    await internalAdapter.deleteUserSessions(id);
+  }
 }

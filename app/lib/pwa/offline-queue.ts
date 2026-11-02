@@ -11,7 +11,7 @@ import { UNSAFE_decodeViaTurboStream } from "react-router";
  * Storage is behind `OfflineQueueStore`: IndexedDB in the browser, an
  * in-memory implementation for unit tests — no new dependency.
  *
- * Replay rules (the slice's contract):
+ * Replay rules:
  *   2xx                    → remove (a retried create is deduped by clientId)
  *   4xx validation refusal → KEEP, with the server's error on the entry
  *   5xx / network error    → KEEP, retry on the next pass

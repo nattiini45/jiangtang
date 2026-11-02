@@ -5,9 +5,9 @@ import { db } from "~/lib/db.server";
 import { getVendor, listVendors } from "~/domains/vendors/vendors.queries.server";
 
 /**
- * The vendors query module, one test per acceptance criterion of the query half.
+ * The vendors query module, one test per property of the query half.
  *
- * **Why a read module needs its own file.** The query half's acceptance criterion is
+ * **Why a read module needs its own file.** The property the query half must keep is
  * *"the picker's options come from it — asserted by removing one vendor from the query
  * result and seeing the option set change, so a hand-written option list cannot pass."*
  * That assertion is a claim about
@@ -21,7 +21,7 @@ import { getVendor, listVendors } from "~/domains/vendors/vendors.queries.server
  * `listVendors()` as a whole, which would be a fixture count masquerading as a contract.
  */
 
-const RUN = `b17v_${Date.now().toString(36)}`;
+const RUN = `vendors_${Date.now().toString(36)}`;
 
 const ids = {
   alpha: `${RUN}_alpha`,
@@ -62,7 +62,7 @@ describe("listVendors returns the vendors, as a typed projection", () => {
     );
     // The NAME, not just the id: a query selecting only `id` would satisfy an id-only
     // assertion and leave the picker rendering blank options, which is the half of the
-    // criterion with a user-visible consequence.
+    // property with a user-visible consequence.
     expect(rows.find((v) => v.id === ids.alpha)?.name).toBe(`${RUN}-B Lieferant`);
   });
 
@@ -107,8 +107,8 @@ describe("the picker's options come from the query, with its control", () => {
     );
 
   it("renders one option per vendor, and REMOVING a vendor removes exactly that option", async () => {
-    // The criterion's own words: *"asserted by removing one vendor from the query result
-    // and seeing the option set change, so a hand-written option list cannot pass."*
+    // The property, stated as a check: removing one vendor from the query result changes the
+    // option set, so a hand-written option list cannot pass.
     //
     // There is no DOM here (vitest runs in node), so the option set is asserted as the
     // DATA the picker can offer: the component maps `v.id` over its `vendors` prop, so the

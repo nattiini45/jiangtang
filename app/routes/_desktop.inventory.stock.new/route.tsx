@@ -34,7 +34,7 @@ import { useT } from "~/i18n/use-t";
  * `safeParseForm(request, schema)` reads the body itself, and **a request body reads ONCE**.
  * Normalising `tags` needs the `FormData`, so the body is read here, converted once, and
  * `tags` replaced before `safeParse` — the exact shape the edit route already uses
- * (`_desktop.inventory.stock.$id/route.tsx:151` + `:173-176`). A slice that kept
+ * (`_desktop.inventory.stock.$id/route.tsx:151` + `:173-176`). An implementation that kept
  * `safeParseForm` and then called `request.formData()` would read the body a second time and
  * get an empty one, which is a silently empty tag list rather than an error.
  *

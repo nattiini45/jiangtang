@@ -65,7 +65,7 @@ export async function requireNote(id: string) {
 /**
  * `listNoteTags` — distinct tags with their note counts, for the filter chips
  * on `/notes`. Counts every note, archived included: a chip names a tag, not a
- * filter result — which slice of it is visible is the `archived` filter's call.
+ * filter result — which part of it is visible is the `archived` filter's call.
  * `unnest` because `tags` is `String[]`, not a table.
  */
 export async function listNoteTags(): Promise<Array<{ tag: string; count: number }>> {

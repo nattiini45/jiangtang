@@ -1,15 +1,14 @@
 /**
  * One entity-type vocabulary, and a twelfth spelling that cannot be written.
  *
- * `ActivityLog.entityType` held **26 distinct spellings** of one vocabulary, and
- * `listEntityHistory` matches that column **exactly and case-sensitively** — so
- * **1,989 rows (9.85 %)** of the audit trail were permanently invisible to the
- * only reader that exists to read it (measured on dev 2026-10-04).
+ * `ActivityLog.entityType` is an unconstrained string, so one vocabulary can be spelled
+ * several ways, and `listEntityHistory` matches that column **exactly and case-sensitively**:
+ * a row written under a non-canonical spelling is invisible to the only reader that exists to
+ * read it.
  *
- * **`audit()` is now typed by the union**, which is the fix that holds: a test can
- * be deleted and a `grep` can be bypassed by a `const`, but a type is checked on
- * every build. Its control is a PascalCase literal reddening `pnpm typecheck`
- * (`TS2820`), run and recorded by the 02:0x build tick.
+ * **`audit()` is typed by the union**, which is the fix that holds: a test can be deleted and
+ * a `grep` can be bypassed by a `const`, but a type is checked on every build. Its control is
+ * a PascalCase literal, which fails `pnpm typecheck` (`TS2820`).
  *
  * ⚠️ **So why does this file exist at all, if the type already covers it?**
  * Because the type cannot see the writers that bypass `audit()`. Several tests
@@ -60,7 +59,7 @@ import { ENTITY_TYPE, entityTypeKey } from "~/domains/tickets/tickets.history.se
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
-/** The roots criterion (3) names: zero PascalCase `entityType:` literals in
+/** The roots the scan covers: zero PascalCase `entityType:` literals in
  *  `app/` and `scripts/`, and every literal in the seed is a member. */
 const SCAN_ROOTS = ["app", "scripts"] as const;
 const SCAN_FILES = ["prisma/seed.ts"] as const;
@@ -183,8 +182,8 @@ describe("one entity-type vocabulary", () => {
   });
 
   it("no PascalCase entityType literal survives in app/ or scripts/", () => {
-    // Criterion (3) stated directly, so the row's own wording is checked rather
-    // than merely implied by the membership test above.
+    // The no-PascalCase rule is checked directly, rather than only implied by the
+    // membership test above.
     const pascal = foreignLiterals(corpusFiles()).filter((o) => /^[A-Z]/.test(o.value));
     expect(pascal, `PascalCase entityType literals:\n${describeOccurrences(pascal)}`).toEqual([]);
   });
@@ -204,13 +203,13 @@ describe("one entity-type vocabulary", () => {
     );
   });
 
-  it("the reader-side casing contract is still asserted (criterion 4)", () => {
+  it("the reader-side casing contract is still asserted", () => {
     // `tickets.history.test.ts:87` is the negative half of the casing contract:
     // `listEntityHistory("Room", …)` must return ZERO rows. That call is the reason
     // the reader's parameter stays `string` — typing it would make this a compile
     // error and delete the proof that a wrong casing finds nothing. The casing contract
-    // forbids editing that test; this is the check that fails if a later slice does,
-    // rather than a claim living only in a commit body.
+    // forbids editing that test; this check fails if that call or its phrase disappears,
+    // so the rule is enforced by the suite rather than by convention.
     const source = readFileSync(
       resolve(REPO_ROOT, "app", "domains", "tickets", "__tests__", "tickets.history.test.ts"),
       "utf8",
@@ -221,16 +220,20 @@ describe("one entity-type vocabulary", () => {
     expect(source).toContain("locks in the lowercase casing contract");
   });
 
-  it("emitChange accepts the two members that were previously unwritable (criterion 2)", async () => {
-    // A REAL call, not a comment. The criterion is that the call typechecks, and a
-    // docstring asserting it does proves nothing — so this emits for real and asserts the payload survives the wire
-    // codec unchanged. Measured 01:0x: both of these were compile errors, which is
-    // why two `action` routes once shipped with 0 `emitChange` calls.
-    await emitChange({ entityType: "location", id: "b16_loc", op: "created" });
-    await emitChange({ entityType: "inventory-item", id: "b16_item", op: "updated" });
+  it("emitChange accepts the location and inventory-item members", async () => {
+    // A REAL call, not a comment: a docstring claiming the call typechecks proves nothing, so
+    // this emits for real and asserts the payload survives the wire codec unchanged. Both
+    // members must be accepted by the `emitChange` type, or callers cannot emit them.
+    await emitChange({ entityType: "location", id: "vocab_loc", op: "created" });
+    await emitChange({ entityType: "inventory-item", id: "vocab_item", op: "updated" });
 
     for (const member of ["location", "inventory-item"] as const) {
-      const payload = encodeRealtimeEvent({ entityType: member, id: "b16", op: "created", ts: 1 });
+      const payload = encodeRealtimeEvent({
+        entityType: member,
+        id: "vocab-1",
+        op: "created",
+        ts: 1,
+      });
       expect(decodeRealtimeEvent(payload).entityType).toBe(member);
     }
   });

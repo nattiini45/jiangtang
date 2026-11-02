@@ -17,12 +17,12 @@ import type { AuthUser } from "~/lib/auth.server";
  * precedent); every other export of `~/lib/auth.server` is preserved.
  *
  * Two criteria are deliberately *structural* rather than behavioural, because
- * their failure mode is invisible to a green suite: criterion (2)'s "no new
+ * their failure mode is invisible to a green suite: the "no new
  * public surface" and "the loader must not reach for the client". Both
- * assert on source text, so a later slice that quietly widens a file is caught
+ * assert on source text, so a new route that quietly widens a file is caught
  * by a test that names the reason.
  */
-const RUN = `b7_loc_${Date.now()}`;
+const RUN = `locations_${Date.now()}`;
 
 const TEST_USER: AuthUser = {
   id: null as unknown as string,
@@ -128,7 +128,7 @@ const idSet = (rows: Array<{ id: string }>) => new Set(rows.map((r) => r.id));
 /** ActivityLog rows for OUR entities only — the table is append-only and global. */
 const auditCount = () => db.activityLog.count({ where: { entityId: { in: created } } });
 
-// ── Criterion (1): the tree, and the `kind` filter round-tripping through the URL.
+// ── The tree, and the `kind` filter round-tripping through the URL.
 
 describe("locations index loader — the kind filter is the URL and nothing else", () => {
   it("returns the whole forest unfiltered, with each node at its REAL depth", async () => {
@@ -181,7 +181,7 @@ describe("locations index loader — the kind filter is the URL and nothing else
   });
 });
 
-// ── Criterion (2): the node's descendants, behind the auth-guarded layout.
+// ── The node's descendants, behind the auth-guarded layout.
 
 describe("locations detail loader", () => {
   it("returns the node's descendants, and NOT the node itself", async () => {
@@ -236,7 +236,7 @@ describe("locations detail loader", () => {
 
     for (const src of sources) {
       // ⚠️ Asserted over the IMPORT SPECIFIERS, not over the file text. Two
-      // reasons, both measured on this slice's own files rather than assumed:
+      // reasons, both checked against the route files themselves:
       //
       //  - a raw `/\bdb\.\w/` scan cannot tell code from prose, and the detail
       //    route *names* `~/lib/db.server` in the comment that explains this
@@ -259,12 +259,12 @@ describe("locations detail loader", () => {
 
   it("every locations route sits under an auth-guarded layout, and both layouts guard", () => {
     const layout = (p: string) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), "utf8");
-    // The guard the criterion depends on, asserted where it lives: a new public
+    // The guard this test relies on, asserted where it lives: a new public
     // surface would have to be opted out explicitly, and no opt-out is added.
     expect(layout("../../app/routes/_desktop/route.tsx")).toMatch(/requireUser\(request\)/);
     expect(layout("../../app/routes/m/route.tsx")).toMatch(/requireUser\(request\)/);
 
-    // …and nothing in this slice sits outside those two subtrees.
+    // …and nothing else sits outside those two subtrees.
     const routeFiles = [
       "../../app/routes/_desktop.locations._index/route.tsx",
       "../../app/routes/_desktop.locations.new/route.tsx",
@@ -278,7 +278,7 @@ describe("locations detail loader", () => {
   });
 });
 
-// ── Criterion (3): new/edit post to the location mutations; a refusal is inline, not a 500.
+// ── New and edit post to the location mutations; a refusal is inline, not a 500.
 
 describe("locations new action", () => {
   it("creates through the domain and redirects to the new node", async () => {
@@ -398,7 +398,7 @@ describe("locations edit action", () => {
   });
 });
 
-// ── Criterion (4): /m/locations is read-only and shares the query module.
+// ── /m/locations is read-only and shares the query module.
 
 describe("m.locations index", () => {
   it("exports NO action — the mobile surface is read-only by design", () => {
