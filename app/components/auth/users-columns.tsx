@@ -21,7 +21,7 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
     accessorKey: "email",
     header: t("admin.users.col.email"),
     size: 240,
-    cell: ({ row }) => <MonoCell>{row.original.email}</MonoCell>,
+    cell: ({ row }) => row.original.email,
   },
   {
     accessorKey: "initials",
@@ -35,7 +35,7 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
     header: t("admin.users.col.role"),
     size: 110,
     cell: ({ row }) => (
-      <span className="text-muted-foreground font-mono text-xs">
+      <span className="text-muted-foreground">
         <RoleText role={row.original.role} />
       </span>
     ),
@@ -46,9 +46,9 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
     size: 120,
     cell: ({ row }) =>
       row.original.isActive ? (
-        <span className="text-status-operational font-mono text-xs">{t("admin.users.active")}</span>
+        <span className="text-status-operational text-xs">{t("admin.users.active")}</span>
       ) : (
-        <span className="text-muted-foreground font-mono text-xs">{t("admin.users.inactive")}</span>
+        <span className="text-muted-foreground text-xs">{t("admin.users.inactive")}</span>
       ),
   },
 ];

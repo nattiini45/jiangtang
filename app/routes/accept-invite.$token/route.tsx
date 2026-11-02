@@ -61,8 +61,8 @@ export default function AcceptInvite({ loaderData, actionData }: Route.Component
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <LanguageSwitcher className="absolute right-4 top-4" />
-      <div className="border-border bg-card text-card-foreground w-full max-w-sm border p-6">
-        <h1 className="font-mono text-xl">{t("auth.invite.heading")}</h1>
+      <div className="bg-card text-card-foreground shadow-surface-3 w-full max-w-sm rounded-xl p-6">
+        <h1 className="text-xl font-bold">{t("auth.invite.heading")}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t("auth.invite.intro")}</p>
         <ZodForm className="mt-4" fieldErrors={fieldErrors}>
           <input type="hidden" name="token" value={loaderData.token} />
@@ -72,7 +72,9 @@ export default function AcceptInvite({ loaderData, actionData }: Route.Component
           <FormField name="confirm" label={t("auth.invite.confirm")}>
             <Input name="confirm" type="password" required autoComplete="new-password" />
           </FormField>
-          <Button type="submit">{t("auth.invite.submit")}</Button>
+          <Button type="submit" className="w-full">
+            {t("auth.invite.submit")}
+          </Button>
         </ZodForm>
       </div>
     </main>

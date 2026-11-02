@@ -47,18 +47,12 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
     actionData && "fieldErrors" in actionData ? actionData.fieldErrors : undefined;
   return (
     <div className="max-w-lg">
-      <h1 className="font-mono text-xl">{user.name}</h1>
-      <p className="text-muted-foreground mt-1 font-mono text-sm">{user.email}</p>
+      <h1 className="text-xl font-bold">{user.name}</h1>
+      <p className="text-muted-foreground mt-1 text-sm">{user.email}</p>
 
       <ZodForm className="mt-6" fieldErrors={fieldErrors}>
         <FormField name="initials" label={t("admin.user.initials")}>
-          <Input
-            name="initials"
-            defaultValue={user.initials ?? ""}
-            required
-            maxLength={6}
-            className="uppercase"
-          />
+          <Input name="initials" defaultValue={user.initials ?? ""} required maxLength={6} />
         </FormField>
         <FormField name="role" label={t("admin.user.role")}>
           <Select name="role" defaultValue={user.role}>
@@ -88,10 +82,10 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
         <Button type="submit">{t("common.save")}</Button>
       </ZodForm>
 
-      <div className="border-status-fault/40 mt-6 border p-3">
-        <p className="text-sm font-medium">{t("admin.user.gdpr.title")}</p>
+      <div className="bg-card shadow-surface-2 mt-6 rounded-lg p-4">
+        <p className="text-sm font-semibold">{t("admin.user.gdpr.title")}</p>
         <p className="text-muted-foreground mt-1 text-xs">{t("admin.user.gdpr.hint")}</p>
-        <Button asChild variant="destructive" size="sm" className="mt-2">
+        <Button asChild variant="destructive" size="compact" className="mt-2">
           <a href={`/admin/users/${user.id}/erase`}>{t("admin.user.gdpr.erase")}</a>
         </Button>
       </div>

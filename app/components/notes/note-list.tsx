@@ -2,6 +2,7 @@ import type * as React from "react";
 import { Link } from "react-router";
 import { Pin } from "lucide-react";
 import { DateCell } from "~/components/data-grid";
+import { Badge, badgeClassName } from "~/components/ui/badge";
 import { useT } from "~/i18n/use-t";
 
 /**
@@ -63,14 +64,14 @@ export function NoteList({
                 role="img"
               />
             ) : null}
-            <Link to={`/notes/${note.id}`} className="font-medium hover:underline">
+            <Link to={`/notes/${note.id}`} className="hover:underline">
               {note.title}
             </Link>
             {note.tags.map((tag) => (
               <Link
                 key={tag}
                 to={`/notes?tag=${encodeURIComponent(tag)}`}
-                className="border-border bg-secondary text-secondary-foreground rounded-sm border px-1.5 py-0.5 font-mono text-[10px]"
+                className={`${badgeClassName} hover:bg-tint-hover transition-colors duration-80`}
               >
                 {tag}
               </Link>
@@ -93,7 +94,9 @@ export function NoteList({
                 </Link>
               ) : null}
               {note.author ? (
-                <span className="font-mono">{note.author.initials ?? note.author.name}</span>
+                <Badge className="type-micro h-5 rounded-full px-1.5 font-semibold">
+                  {note.author.initials ?? note.author.name}
+                </Badge>
               ) : null}
               <DateCell value={note.updatedAt} />
             </span>

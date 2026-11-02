@@ -2,6 +2,9 @@ import { Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
+import { FormField } from "~/components/forms";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
 import { metaLocale } from "~/i18n/meta";
@@ -58,50 +61,32 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <LanguageSwitcher className="absolute right-4 top-4" />
-      <div className="border-border bg-card text-card-foreground w-full max-w-sm border p-6">
-        <h1 className="font-mono text-xl">Jiangtang</h1>
+      <div className="bg-card text-card-foreground shadow-surface-3 w-full max-w-sm rounded-xl p-6">
+        <h1 className="text-xl font-bold">Jiangtang</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t("auth.login.subtitle")}</p>
 
         {loaderData.deactivated ? (
-          <p className="border-status-warning/40 bg-status-warning/10 text-status-warning mt-4 border p-2 text-sm">
+          <p className="bg-status-warning/15 text-status-warning mt-4 rounded-md p-2 text-sm">
             {t("auth.login.deactivated")}
           </p>
         ) : null}
         {actionData && "error" in actionData && actionData.error ? (
-          <p className="border-destructive/40 bg-destructive/10 text-destructive mt-4 border p-2 text-sm">
+          <p className="bg-destructive/15 text-destructive mt-4 rounded-md p-2 text-sm">
             {actionData.error}
           </p>
         ) : null}
 
-        <Form method="post" className="mt-4 flex flex-col gap-3">
+        <Form method="post" className="mt-4 flex flex-col gap-4">
           <input type="hidden" name="next" value={loaderData.next} />
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">{t("auth.login.email")}</span>
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="border-input bg-background rounded-sm border px-3 py-2 font-mono text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">{t("auth.login.password")}</span>
-            <input
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="border-input bg-background rounded-sm border px-3 py-2 font-mono text-sm"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={busy}
-            className="bg-primary text-primary-foreground rounded-sm px-3 py-2 text-sm font-medium disabled:opacity-60"
-          >
+          <FormField name="email" label={t("auth.login.email")}>
+            <Input name="email" type="email" required autoComplete="email" />
+          </FormField>
+          <FormField name="password" label={t("auth.login.password")}>
+            <Input name="password" type="password" required autoComplete="current-password" />
+          </FormField>
+          <Button type="submit" disabled={busy} className="w-full">
             {busy ? t("auth.login.submitting") : t("auth.login.submit")}
-          </button>
+          </Button>
         </Form>
       </div>
     </main>

@@ -65,11 +65,11 @@ export default function EraseUser({ loaderData, actionData }: Route.ComponentPro
     actionData && "fieldErrors" in actionData ? actionData.fieldErrors : undefined;
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="font-mono text-xl">{t("admin.erase.title")}</h1>
+      <h1 className="text-xl font-bold">{t("admin.erase.title")}</h1>
       <p className="text-muted-foreground mt-1 text-sm">{t("admin.erase.subtitle")}</p>
 
-      <div className="border-status-fault/40 bg-status-fault/10 text-status-fault mt-4 border p-3 text-sm">
-        <p className="font-medium">{t("admin.erase.irreversible")}</p>
+      <div className="bg-status-fault/15 text-status-fault mt-4 rounded-lg p-4 text-sm">
+        <p className="font-semibold">{t("admin.erase.irreversible")}</p>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>
             {tRich(
@@ -92,12 +92,9 @@ export default function EraseUser({ loaderData, actionData }: Route.ComponentPro
           <Button type="submit" variant="destructive">
             {t("admin.erase.confirm")}
           </Button>
-          <a
-            href={`/admin/users/${user.id}`}
-            className="border-border text-muted-foreground hover:bg-accent inline-flex h-9 items-center rounded-sm border px-4 text-sm"
-          >
-            {t("common.cancel")}
-          </a>
+          <Button variant="secondary" asChild>
+            <a href={`/admin/users/${user.id}`}>{t("common.cancel")}</a>
+          </Button>
         </div>
       </ZodForm>
     </div>

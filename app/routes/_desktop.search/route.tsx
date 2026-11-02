@@ -8,7 +8,9 @@ import { armLabel, searchAnchor, sourceTypeLabel } from "~/lib/search/labels";
 import { AskBox } from "~/components/search/ask-box";
 import { EmptyState } from "~/components/states/empty-state";
 import { Search as SearchIcon } from "lucide-react";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { cn } from "~/lib/utils";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -49,6 +51,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
+const ROW_LINK = "truncate decoration-(--input) underline-offset-4 hover:underline";
+
 export default function SearchPage({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
@@ -56,23 +60,21 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-mono text-xl">{t("nav.search")}</h1>
+        <h1 className="text-xl font-bold">{t("nav.search")}</h1>
         <p className="text-muted-foreground text-sm">{t("search.page.subtitle")}</p>
       </div>
 
       <Form method="get" className="flex flex-wrap items-center gap-2">
-        <input
+        <Input
           type="search"
           name="q"
           defaultValue={q}
           placeholder={t("search.page.placeholder")}
           aria-label={t("search.page.queryAria")}
           autoFocus
-          className="border-border bg-background focus:border-ring min-w-[16rem] flex-1 rounded-sm border px-3 py-1.5 font-mono text-sm outline-none"
+          className="min-w-[16rem] flex-1"
         />
-        <Button type="submit" variant="outline" size="sm">
-          {t("search.page.submit")}
-        </Button>
+        <Button type="submit">{t("search.page.submit")}</Button>
       </Form>
 
       <Form method="get" className="flex flex-wrap items-center gap-1.5">
@@ -81,8 +83,8 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
           <label
             key={type}
             className={cn(
-              "border-border text-muted-foreground inline-flex cursor-pointer items-center rounded-sm border px-2 py-1 font-mono text-xs",
-              "has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-foreground",
+              "bg-tint text-muted-foreground hover:bg-tint-hover inline-flex cursor-pointer items-center rounded-full px-2.5 py-1 text-xs transition-colors duration-80",
+              "has-[:checked]:bg-selected has-[:checked]:text-foreground has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-2",
             )}
           >
             <input
@@ -101,12 +103,12 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
       <AskBox />
 
       {degraded.length > 0 ? (
-        <p className="border-status-warning/40 bg-status-warning/10 text-status-warning rounded-sm border px-3 py-2 text-sm">
+        <p className="bg-status-warning/15 text-status-warning rounded-md px-3 py-2 text-sm">
           {t("search.page.degraded", { arms: degraded.join(", ") })}
         </p>
       ) : null}
       {!semantic ? (
-        <p className="text-muted-foreground rounded-sm border border-dashed px-3 py-2 text-sm">
+        <p className="bg-tint text-muted-foreground rounded-md px-3 py-2 text-sm">
           {t("search.page.noSemantic")}
         </p>
       ) : null}
@@ -119,21 +121,22 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
         />
       ) : null}
 
-      <ul className="divide-border divide-y">
+      <ul className="divide-y">
         {results.map((r) => {
           const arms = [...new Set(r.arms.map((a) => armLabel(locale, a)))];
           return (
-            <li key={`${r.sourceType}:${r.sourceId}:${r.ordinal}`} className="px-1 py-3">
+            <li
+              key={`${r.sourceType}:${r.sourceId}:${r.ordinal}`}
+              className="hover:bg-hover -mx-2 rounded-md px-2 py-3 transition-colors duration-80"
+            >
               <div className="flex items-baseline gap-2">
-                <span className="border-border bg-secondary text-secondary-foreground inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-xs">
-                  {sourceTypeLabel(locale, r.sourceType)}
-                </span>
+                <Badge className="shrink-0">{sourceTypeLabel(locale, r.sourceType)}</Badge>
                 {r.href ? (
-                  <Link to={r.href} className="truncate font-medium hover:underline">
+                  <Link to={r.href} className={ROW_LINK}>
                     {r.title}
                   </Link>
                 ) : (
-                  <span className="text-muted-foreground truncate font-medium">{r.title}</span>
+                  <span className="text-muted-foreground truncate">{r.title}</span>
                 )}
                 <span className="text-muted-foreground ml-auto shrink-0 font-mono text-xs">
                   {searchAnchor(r.sourceType, r.sourceId, r.ordinal)}
@@ -143,9 +146,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                 className="text-muted-foreground mt-1 pl-1 text-sm [&_mark]:bg-status-warning/25 [&_mark]:text-foreground [&_mark]:rounded-xs [&_mark]:px-0.5"
                 dangerouslySetInnerHTML={{ __html: r.snippetHtml }}
               />
-              <p className="text-muted-foreground mt-0.5 pl-1 font-mono text-xs">
-                {arms.join(" · ")}
-              </p>
+              <p className="text-muted-foreground mt-0.5 pl-1 text-xs">{arms.join(" · ")}</p>
             </li>
           );
         })}

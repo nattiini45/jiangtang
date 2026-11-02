@@ -1,6 +1,9 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router";
+import { cn } from "~/lib/utils";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
 import { sourceTypeLabel } from "~/lib/search/labels";
 import { useLocale, useT } from "~/i18n/use-t";
 
@@ -12,6 +15,8 @@ import { useLocale, useT } from "~/i18n/use-t";
  * paragraphs get the „ohne Beleg" badge, and an answer with no valid
  * citations is replaced — the sources stay visible either way.
  */
+
+const ROW_LINK = "truncate decoration-(--input) underline-offset-4 hover:underline";
 
 interface AskSourceItem {
   n: number;
@@ -57,7 +62,7 @@ function CitedText({ text }: { text: string }) {
             <a
               key={i}
               href={`#ask-source-${m[1]}`}
-              className="text-primary font-mono text-xs hover:underline"
+              className="nums text-foreground text-xs font-semibold hover:underline"
             >
               {part}
             </a>
@@ -72,23 +77,19 @@ function CitedText({ text }: { text: string }) {
 function SourceList({ sources }: { sources: AskSourceItem[] }) {
   const locale = useLocale();
   return (
-    <ol className="mt-3 flex flex-col gap-1.5">
+    <ol className="mt-3 flex flex-col divide-y">
       {sources.map((s) => (
-        <li key={s.n} id={`ask-source-${s.n}`} className="flex items-baseline gap-2 text-sm">
-          <span className="text-muted-foreground shrink-0 font-mono text-xs">[{s.n}]</span>
-          <span className="border-border bg-secondary text-secondary-foreground inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 text-xs">
-            {sourceTypeLabel(locale, s.sourceType)}
-          </span>
+        <li key={s.n} id={`ask-source-${s.n}`} className="flex items-center gap-2 py-2 text-sm">
+          <span className="text-muted-foreground nums shrink-0 text-xs">[{s.n}]</span>
+          <Badge className="shrink-0">{sourceTypeLabel(locale, s.sourceType)}</Badge>
           {s.href ? (
-            <Link to={s.href} className="truncate font-medium hover:underline">
+            <Link to={s.href} className={ROW_LINK}>
               {s.title}
             </Link>
           ) : (
-            <span className="text-muted-foreground truncate font-medium">{s.title}</span>
+            <span className="text-muted-foreground truncate">{s.title}</span>
           )}
-          <span className="text-muted-foreground ml-auto shrink-0 font-mono text-xs">
-            {s.anchor}
-          </span>
+          <span className="text-muted-foreground nums ml-auto shrink-0 text-xs">{s.anchor}</span>
         </li>
       ))}
     </ol>
@@ -192,8 +193,8 @@ export function AskBox() {
   }
 
   return (
-    <section className="border-border rounded-sm border p-3">
-      <h2 className="font-mono text-sm font-medium">{t("search.ask.title")}</h2>
+    <section className="flex flex-col">
+      <h2 className="text-base font-semibold">{t("search.ask.title")}</h2>
       <p className="text-muted-foreground mt-0.5 text-xs">{t("search.ask.subtitle")}</p>
       <form
         className="mt-2 flex gap-2"
@@ -204,13 +205,13 @@ export function AskBox() {
           if (question) void ask(question);
         }}
       >
-        <input
+        <Input
           type="text"
           name="question"
           placeholder={t("search.ask.placeholder")}
-          className="border-border bg-background focus:border-ring min-w-[16rem] flex-1 rounded-sm border px-3 py-1.5 text-sm outline-none"
+          className="min-w-[16rem] flex-1"
         />
-        <Button type="submit" variant="outline" size="sm" disabled={state.phase === "loading"}>
+        <Button type="submit" disabled={state.phase === "loading"}>
           {t("search.ask.submit")}
         </Button>
       </form>
@@ -220,7 +221,7 @@ export function AskBox() {
       ) : null}
 
       {state.phase === "error" ? (
-        <p className="border-status-danger/40 bg-status-danger/10 text-status-danger mt-3 rounded-sm border px-3 py-2 text-sm">
+        <p className="bg-destructive/15 text-destructive mt-3 rounded-md px-3 py-2 text-sm">
           {state.message}
         </p>
       ) : null}
@@ -230,19 +231,22 @@ export function AskBox() {
       ) : null}
 
       {state.phase === "results-only" ? (
-        <div className="mt-3">
-          <p className="text-muted-foreground rounded-sm border border-dashed px-3 py-2 text-sm">
+        <div className="bg-card shadow-surface-2 mt-3 rounded-lg p-4">
+          <p className="bg-tint text-muted-foreground rounded-md px-3 py-2 text-sm">
             {state.reason}
           </p>
-          <ul className="divide-border mt-1 divide-y">
+          <ul className="mt-1 divide-y">
             {state.results.map((r) => (
-              <li key={`${r.sourceType}:${r.sourceId}:${r.ordinal}`} className="px-1 py-2">
+              <li
+                key={`${r.sourceType}:${r.sourceId}:${r.ordinal}`}
+                className="hover:bg-hover -mx-2 rounded-md px-2 py-2 transition-colors duration-80"
+              >
                 {r.href ? (
-                  <Link to={r.href} className="text-sm font-medium hover:underline">
+                  <Link to={r.href} className={cn(ROW_LINK, "text-sm")}>
                     {r.title}
                   </Link>
                 ) : (
-                  <span className="text-sm font-medium">{r.title}</span>
+                  <span className="text-sm">{r.title}</span>
                 )}
                 <p className="text-muted-foreground text-xs">{r.snippet}</p>
               </li>
@@ -252,7 +256,7 @@ export function AskBox() {
       ) : null}
 
       {state.phase === "streaming" ? (
-        <div className="mt-3">
+        <div className="bg-card shadow-surface-2 mt-3 rounded-lg p-4">
           <div className="flex flex-col gap-2">
             {state.text.split(/\n\s*\n/).map((p, i) => (
               <p key={i} className="text-sm">
@@ -268,10 +272,10 @@ export function AskBox() {
       ) : null}
 
       {state.phase === "done" ? (
-        <div className="mt-3">
+        <div className="bg-card shadow-surface-2 mt-3 rounded-lg p-4">
           <div className="flex flex-col gap-2">
             {!state.validation.ok && !state.validation.noAnswer ? (
-              <p className="text-muted-foreground rounded-sm border border-dashed px-3 py-2 text-sm">
+              <p className="bg-tint text-muted-foreground rounded-md px-3 py-2 text-sm">
                 {t("search.ask.noValidCitations")}
               </p>
             ) : (
@@ -279,9 +283,9 @@ export function AskBox() {
                 <p key={i} className="text-sm">
                   <CitedText text={p.text} />
                   {p.uncited && !state.validation.noAnswer ? (
-                    <span className="border-status-warning/40 bg-status-warning/10 text-status-warning ml-2 inline-flex items-center rounded-sm border px-1.5 py-0.5 text-xs">
+                    <Badge className="bg-status-warning/15 text-status-warning ml-2">
                       {t("search.ask.uncited")}
-                    </span>
+                    </Badge>
                   ) : null}
                 </p>
               ))

@@ -80,7 +80,7 @@ export default function ImportRoute({ actionData }: Route.ComponentProps) {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-mono text-lg font-medium">{t("nav.import")}</h1>
+        <h1 className="text-xl font-bold">{t("nav.import")}</h1>
         <p className="text-muted-foreground text-sm">{t("importHub.subtitle")}</p>
       </header>
 
@@ -89,21 +89,21 @@ export default function ImportRoute({ actionData }: Route.ComponentProps) {
           <Link
             key={i.to}
             to={i.to}
-            className="border-border hover:border-foreground/40 block border p-4"
+            className="bg-card shadow-surface-2 hover:bg-hover block rounded-lg p-4 transition-colors duration-80"
           >
-            <div className="font-medium">{t(i.titleKey)}</div>
+            <div className="font-semibold">{t(i.titleKey)}</div>
             <p className="text-muted-foreground mt-1 text-xs">{t(i.hintKey)}</p>
           </Link>
         ))}
       </section>
 
-      <section className="border-border grid gap-3 border p-4 sm:grid-cols-2">
+      <section className="bg-card shadow-surface-2 grid gap-6 rounded-lg p-4 sm:grid-cols-2">
         <div>
-          <h2 className="font-mono text-sm font-medium">{t("importHub.export.title")}</h2>
+          <h2 className="text-base font-semibold">{t("importHub.export.title")}</h2>
           <p className="text-muted-foreground mt-1 text-sm">
             {tRich(t, "importHub.export.body", { format })}
           </p>
-          <Button asChild variant="outline" size="sm" className="mt-3">
+          <Button asChild variant="secondary" size="compact" className="mt-3">
             <a href="/export/workspace.json" download>
               {t("importHub.export.download")}
             </a>
@@ -111,7 +111,7 @@ export default function ImportRoute({ actionData }: Route.ComponentProps) {
         </div>
 
         <div>
-          <h2 className="font-mono text-sm font-medium">{t("importHub.import.title")}</h2>
+          <h2 className="text-base font-semibold">{t("importHub.import.title")}</h2>
           <p className="text-muted-foreground mt-1 text-sm">
             {tRich(t, "importHub.import.body", { format })}
           </p>
@@ -126,9 +126,9 @@ export default function ImportRoute({ actionData }: Route.ComponentProps) {
               accept="application/json,.json"
               required
               aria-label={t("importHub.import.fileAria")}
-              className="text-sm file:mr-3 file:border file:border-input file:bg-background file:px-3 file:py-1.5 file:text-sm"
+              className="text-muted-foreground text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-foreground file:transition-colors hover:file:bg-tint-hover"
             />
-            <Button type="submit" size="sm" disabled={importing}>
+            <Button type="submit" disabled={importing}>
               {importing ? t("importHub.import.submitting") : t("common.import")}
             </Button>
           </Form>
@@ -147,7 +147,7 @@ export default function ImportRoute({ actionData }: Route.ComponentProps) {
           ) : null}
 
           {data && "ok" in data && data.ok ? (
-            <p className="mt-3 text-sm text-green-600 dark:text-green-400" role="status">
+            <p className="text-status-operational mt-3 text-sm" role="status">
               {t("importHub.import.done", {
                 projects: data.summary.projects,
                 tasks: data.summary.tasks,

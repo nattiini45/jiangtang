@@ -26,6 +26,7 @@ import { actionLabel, entityTypeLabel } from "~/components/history/labels";
 import { groupActivity } from "~/components/history/group-activity";
 import { DateCell } from "~/components/data-grid";
 import { Select } from "~/components/ui/select";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { t } from "~/i18n";
@@ -113,7 +114,7 @@ export default function ActivityPage({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="font-mono text-xl">{t("nav.activity")}</h1>
+        <h1 className="text-xl font-bold">{t("nav.activity")}</h1>
         <p className="text-muted-foreground text-sm">{t("activity.subtitle")}</p>
       </div>
 
@@ -136,8 +137,8 @@ export default function ActivityPage({ loaderData }: Route.ComponentProps) {
           <label
             key={type}
             className={cn(
-              "border-border text-muted-foreground inline-flex cursor-pointer items-center rounded-sm border px-2 py-1 font-mono text-xs",
-              "has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:checked]:text-foreground",
+              "bg-tint text-muted-foreground hover:bg-tint-hover inline-flex cursor-pointer items-center rounded-full px-2.5 py-1 text-xs transition-colors duration-80",
+              "has-[:checked]:bg-selected has-[:checked]:text-foreground has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-2",
             )}
           >
             <input
@@ -152,7 +153,7 @@ export default function ActivityPage({ loaderData }: Route.ComponentProps) {
           </label>
         ))}
         <noscript>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="secondary" size="compact">
             {t("activity.filterSubmit")}
           </Button>
         </noscript>
@@ -171,7 +172,7 @@ export default function ActivityPage({ loaderData }: Route.ComponentProps) {
             return (
               <li key={e.id} className="flex items-center gap-2 px-1 py-2 text-sm">
                 <Icon className="text-muted-foreground size-4 shrink-0" aria-hidden />
-                <span className="text-muted-foreground font-mono text-xs">
+                <span className="text-muted-foreground text-xs">
                   {entityTypeLabel(locale, e.entityType as EntityType) ?? e.entityType}
                 </span>
                 <span>{actionLabel(locale, e.action)}</span>
@@ -184,15 +185,15 @@ export default function ActivityPage({ loaderData }: Route.ComponentProps) {
                 )}
                 {e.count > 1 ? (
                   <span
-                    className="text-muted-foreground font-mono text-xs"
+                    className="text-muted-foreground nums text-xs"
                     aria-label={t("activity.grouped", { count: e.count })}
                   >
                     ×{e.count}
                   </span>
                 ) : null}
-                <span className="border-border bg-secondary text-secondary-foreground ml-auto inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 font-mono text-xs">
+                <Badge className="type-micro ml-auto h-5 rounded-full px-1.5 font-semibold">
                   {actorInitials(e.actorSnapshot, e.actorId)}
-                </span>
+                </Badge>
                 <span className="text-muted-foreground shrink-0">
                   <DateCell value={e.occurredAt} />
                 </span>
@@ -204,7 +205,7 @@ export default function ActivityPage({ loaderData }: Route.ComponentProps) {
 
       {nextCursor ? (
         <div>
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="secondary" size="compact" asChild>
             <Link to={olderHref()}>{t("activity.loadOlder")}</Link>
           </Button>
         </div>

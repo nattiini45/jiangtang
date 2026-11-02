@@ -11,8 +11,10 @@ import {
   slashQuery,
   type SlashCommand,
 } from "./slash-commands";
+import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
+import { Textarea } from "~/components/ui/textarea";
 
 /**
  * The `/notes/:id` editor: monospace source on the left, rendered
@@ -206,7 +208,7 @@ export function NoteEditor({
           defaultValue={note.title}
           required
           aria-label={t("notes.editor.titleAria")}
-          className="max-w-md font-mono text-base font-semibold"
+          className="max-w-md text-base font-semibold"
         />
         <Select
           name="projectId"
@@ -237,10 +239,7 @@ export function NoteEditor({
         <span
           role="status"
           aria-live="polite"
-          className={cn(
-            "font-mono text-xs",
-            saveError ? "text-status-fault" : "text-muted-foreground",
-          )}
+          className={cn("nums text-xs", saveError ? "text-status-fault" : "text-muted-foreground")}
         >
           {statusText}
         </span>
@@ -253,39 +252,35 @@ export function NoteEditor({
             name="tags"
             defaultValue={tag}
             aria-label={t("notes.editor.tagAria", { n: i + 1 })}
-            className="w-28 font-mono text-xs"
+            className="w-28 text-xs"
           />
         ))}
         <Input
           name="tags"
           placeholder={t("notes.editor.addTagPlaceholder")}
           aria-label={t("notes.editor.addTagAria")}
-          className="w-28 font-mono text-xs"
+          className="w-28 text-xs"
         />
       </div>
 
       {/* Pane toggle — only reachable under lg, where the grid is one column. */}
       <div className="flex gap-1 lg:hidden" role="group" aria-label={t("notes.editor.viewAria")}>
-        <button
+        <Button
           type="button"
-          className={cn(
-            "border-border rounded-sm border px-2 py-1 text-xs",
-            mobilePane === "edit" && "bg-muted",
-          )}
+          size="compact"
+          variant={mobilePane === "edit" ? "secondary" : "ghost"}
           onClick={() => setMobilePane("edit")}
         >
           {t("notes.editor.sourcePane")}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className={cn(
-            "border-border rounded-sm border px-2 py-1 text-xs",
-            mobilePane === "preview" && "bg-muted",
-          )}
+          size="compact"
+          variant={mobilePane === "preview" ? "secondary" : "ghost"}
           onClick={() => setMobilePane("preview")}
         >
           {t("notes.editor.previewPane")}
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
@@ -294,7 +289,7 @@ export function NoteEditor({
             <ul
               role="listbox"
               aria-label={t("notes.editor.insertBlockAria")}
-              className="border-border bg-popover absolute left-2 top-2 z-10 min-w-40 rounded-sm border shadow-md"
+              className="bg-popover shadow-surface-3 absolute left-2 top-2 z-10 min-w-40 rounded-lg p-1"
             >
               {filtered.map((command, i) => (
                 <li
@@ -302,8 +297,8 @@ export function NoteEditor({
                   role="option"
                   aria-selected={i === slash.index}
                   className={cn(
-                    "cursor-pointer px-3 py-1.5 text-sm",
-                    i === slash.index && "bg-accent text-accent-foreground",
+                    "cursor-pointer rounded-md px-3 py-1.5 text-sm",
+                    i === slash.index && "bg-selected",
                   )}
                   // mousedown before the textarea's blur swallows the click
                   onMouseDown={(e) => {
@@ -316,7 +311,7 @@ export function NoteEditor({
               ))}
             </ul>
           ) : null}
-          <textarea
+          <Textarea
             ref={textareaRef}
             name="body"
             value={body}
@@ -330,13 +325,13 @@ export function NoteEditor({
             rows={18}
             aria-label={t("notes.editor.bodyAria")}
             placeholder={t("notes.editor.bodyPlaceholder")}
-            className="border-border bg-background focus-visible:outline-primary w-full resize-y rounded-sm border p-3 font-mono text-sm focus-visible:outline-1"
+            className="resize-y font-mono"
           />
           <p className="text-muted-foreground mt-1 text-xs">{t("notes.editor.bodyHint")}</p>
         </div>
         <div
           className={cn(
-            "border-border min-h-32 rounded-sm border p-3",
+            "bg-card shadow-surface-2 min-h-32 rounded-lg p-3 lg:p-4",
             mobilePane === "edit" && "hidden lg:block",
           )}
         >
