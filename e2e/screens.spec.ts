@@ -102,6 +102,10 @@ async function gotoAndAssertMarker(
 const ROUTES = [
   // [name, path, h1 marker, component/seed source]
   ["dashboard", "/", "Übersicht", "_desktop._index/route.tsx:150"],
+  ["tickets", "/tickets", "Tickets", "_desktop.tickets._index/route.tsx:41"],
+  ["events", "/events", "Veranstaltungen", "_desktop.events._index/route.tsx:52"],
+  ["rooms", "/rooms", "Räume", "_desktop.rooms._index/route.tsx:41"],
+  ["inventory", "/inventory", "Inventar", "_desktop.inventory._index/route.tsx:50"],
   ["tasks", "/tasks", "Aufgaben", "_desktop.tasks._index/route.tsx:120"],
   [
     "task-detail",
@@ -141,6 +145,9 @@ const ROUTES = [
   ["m-board", "/m/board", "Board", "m.board/route.tsx:42"],
   ["m-search", "/m/search?q=Lager", "Suche", "m.search/route.tsx:31"],
   ["m-tasks-new", "/m/tasks/new", "Aufgabe anlegen", "m.tasks.new/route.tsx:75"],
+  ["m-rooms", "/m/rooms", "Räume", "m.rooms._index/route.tsx:31"],
+  ["m-tasks", "/m/tasks", "Aufgaben", "m.tasks._index/route.tsx:42"],
+  ["m-tickets", "/m/tickets", "Tickets", "m.tickets._index/route.tsx:47"],
 ] as const;
 
 for (const theme of ["light", "dark"] as const) {
