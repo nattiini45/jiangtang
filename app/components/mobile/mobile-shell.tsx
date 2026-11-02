@@ -1,11 +1,22 @@
 import * as React from "react";
 import { Form, Link, NavLink } from "react-router";
-import { Camera, Building2, Ticket, MoreHorizontal, ListTodo, CloudOff } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  Camera,
+  Building2,
+  Ticket,
+  MoreHorizontal,
+  ListTodo,
+  CloudOff,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "~/lib/utils";
+import { spring } from "~/lib/springs";
 import { useLiveRefetch } from "~/lib/realtime/use-live-refetch";
 import { useOfflineQueue } from "~/lib/pwa/offline-queue";
 import { NavPendingIndicator } from "~/components/states/nav-pending";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
+import { WeightLabel } from "~/components/ui/weight-label";
 import type { MessageKey } from "~/i18n";
 import { roleLabel } from "~/components/auth/labels";
 import type { UserRole } from "~/generated/prisma/client";
@@ -14,7 +25,8 @@ import { useLocale, useT } from "~/i18n/use-t";
 /**
  * Mobile PWA shell. Its own design — single-column, big tap
  * targets, a bottom nav (Rooms / Tasks / Capture / Tickets / More). Distinct
- * from the desktop AppShell (no sidebar, no density toggle). Same Tailwind
+ * from the desktop AppShell (no sidebar, no density toggle): it pins the default
+ * size step, since a phone has no use for the compact one. Same Tailwind
  * tokens. The header carries the offline-queue pending badge.
  */
 export interface MobileUser {
@@ -37,6 +49,9 @@ const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
   { to: "/m/search", labelKey: "nav.search" },
 ];
 
+const TAB_CLASS =
+  "relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-xs transition-colors duration-80";
+
 export function MobileShell({ user, children }: { user: MobileUser; children: React.ReactNode }) {
   // Same single SSE connection pattern as the desktop AppShell (real-time) —
   // any committed change in another session triggers a refetch.
@@ -55,103 +70,165 @@ export function MobileShell({ user, children }: { user: MobileUser; children: Re
   }, []);
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
+    <div
+      data-density="comfortable"
+      className="bg-background text-foreground flex min-h-screen flex-col text-sm"
+    >
       <NavPendingIndicator />
-      <header className="border-border bg-card flex h-12 items-center justify-between border-b px-4">
-        <span className="font-mono text-sm font-semibold">Jiangtang</span>
+      <header className="bg-background/85 sticky top-0 z-20 flex h-14 items-center justify-between border-b px-4 backdrop-blur-md">
+        <span className="flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="bg-foreground text-background flex size-7 items-center justify-center rounded-md text-sm font-bold"
+          >
+            J
+          </span>
+          <span className="font-semibold">Jiangtang</span>
+        </span>
         <span className="flex items-center gap-2">
           {pending > 0 ? (
             <span
               role="status"
-              className="bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center gap-1 rounded-sm px-2 py-0.5 font-mono text-xs"
+              className="bg-status-warning/15 nums flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold"
               title={t("mobile.offlinePending")}
             >
-              <CloudOff className="size-3.5" />
+              <CloudOff className="size-3.5" strokeWidth={2} />
               {pending}
             </span>
           ) : null}
-          <span className="text-muted-foreground font-mono text-xs">
-            {user.initials ?? user.name}
+          <span className="bg-tint type-micro flex size-7 items-center justify-center rounded-full font-semibold">
+            {user.initials ?? user.name.slice(0, 2)}
           </span>
         </span>
       </header>
-      <main className="flex-1 overflow-y-auto pb-16">{children}</main>
+      <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))]">
+        {children}
+      </main>
 
       {/* "More" menu — language, logout (no dedicated mobile control before) + a small
-          desktop escape hatch. A backdrop closes it on outside tap. */}
-      {menuOpen ? (
-        <>
-          <button
-            type="button"
-            aria-label={t("mobile.menu.close")}
-            className="fixed inset-0 z-10 bg-black/40"
-            onClick={() => setMenuOpen(false)}
-          />
-          <div className="border-border bg-card fixed inset-x-0 bottom-16 z-20 flex flex-col gap-1 border-t p-3">
-            <span className="text-muted-foreground font-mono text-xs">
-              {user.name}
-              {user.role ? ` · ${roleLabel(locale, user.role)}` : ""}
-            </span>
-            <nav className="flex flex-col gap-1" aria-label={t("mobile.menu.moreSections")}>
-              {MORE_LINKS.map((l) => (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  onClick={() => setMenuOpen(false)}
-                  className="border-border flex min-h-11 items-center rounded-sm border px-3 text-sm"
-                >
-                  {t(l.labelKey)}
-                </Link>
-              ))}
-            </nav>
-            <LanguageSwitcher size="lg" className="self-start" />
-            <Form method="post" action="/logout">
-              <button
-                type="submit"
-                className="border-border flex min-h-11 w-full items-center rounded-sm border px-3 text-sm"
-              >
-                {t("shell.logout")}
-              </button>
-            </Form>
-            <Link
-              to="/"
+          desktop escape hatch. A sheet over a backdrop that closes it on outside tap. */}
+      <AnimatePresence>
+        {menuOpen ? (
+          <>
+            <motion.button
+              key="backdrop"
+              type="button"
+              aria-label={t("mobile.menu.close")}
+              className="fixed inset-0 z-30 bg-black/30 dark:bg-black/50"
               onClick={() => setMenuOpen(false)}
-              className="text-muted-foreground flex min-h-11 items-center px-3 text-xs underline"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, transition: spring.slow.exit }}
+              transition={spring.slow}
+            />
+            <motion.div
+              key="sheet"
+              className="bg-surface-5 shadow-surface-5 fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col gap-3 rounded-xl p-3"
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 16, transition: spring.slow.exit }}
+              transition={spring.slow}
             >
-              {t("mobile.menu.desktop")}
-            </Link>
-          </div>
-        </>
-      ) : null}
+              <div className="flex flex-col px-1">
+                <span className="font-semibold">{user.name}</span>
+                {user.role ? (
+                  <span className="text-muted-foreground text-xs">
+                    {roleLabel(locale, user.role)}
+                  </span>
+                ) : null}
+              </div>
+              <nav
+                className="bg-card shadow-surface-1 flex flex-col divide-y overflow-hidden rounded-lg"
+                aria-label={t("mobile.menu.moreSections")}
+              >
+                {MORE_LINKS.map((l) => (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    onClick={() => setMenuOpen(false)}
+                    className="active:bg-selected flex min-h-12 items-center justify-between px-3 transition-colors duration-80"
+                  >
+                    {t(l.labelKey)}
+                    <ChevronRight className="text-muted-foreground size-4" strokeWidth={1.5} />
+                  </Link>
+                ))}
+              </nav>
+              <div className="flex items-center justify-between gap-2">
+                <LanguageSwitcher size="lg" />
+                <Form method="post" action="/logout">
+                  <button
+                    type="submit"
+                    className="bg-tint active:bg-tint-hover flex min-h-11 cursor-pointer items-center rounded-md px-4 font-semibold transition-colors duration-80"
+                  >
+                    {t("shell.logout")}
+                  </button>
+                </Form>
+              </div>
+              <Link
+                to="/"
+                onClick={() => setMenuOpen(false)}
+                className="text-muted-foreground flex min-h-11 items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
+              >
+                {t("mobile.menu.desktop")}
+              </Link>
+            </motion.div>
+          </>
+        ) : null}
+      </AnimatePresence>
 
-      <nav className="border-border bg-card fixed inset-x-0 bottom-0 z-20 flex h-16 border-t">
+      <nav className="bg-background/90 fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
         {NAV.map(({ to, labelKey, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
             end={end}
+            onClick={() => setMenuOpen(false)}
             className={({ isActive }) =>
-              cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 text-xs",
-                isActive ? "text-primary" : "text-muted-foreground",
-              )
+              cn(TAB_CLASS, isActive && !menuOpen ? "text-foreground" : "text-muted-foreground")
             }
           >
-            <Icon className="size-6" />
-            {t(labelKey)}
+            {({ isActive }) => (
+              <>
+                <span className="relative flex h-7 w-12 items-center justify-center">
+                  {isActive && !menuOpen ? (
+                    <motion.span
+                      layoutId="mobile-tab-active"
+                      transition={spring.moderate}
+                      className="bg-selected absolute inset-0 rounded-full"
+                    />
+                  ) : null}
+                  <Icon
+                    className="relative size-5"
+                    strokeWidth={isActive && !menuOpen ? 2 : 1.5}
+                    aria-hidden
+                  />
+                </span>
+                <WeightLabel active={isActive && !menuOpen}>{t(labelKey)}</WeightLabel>
+              </>
+            )}
           </NavLink>
         ))}
         <button
           type="button"
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-0.5 text-xs",
-            menuOpen ? "text-primary" : "text-muted-foreground",
-          )}
+          className={cn(TAB_CLASS, menuOpen ? "text-foreground" : "text-muted-foreground")}
         >
-          <MoreHorizontal className="size-6" />
-          {t("mobile.nav.more")}
+          <span className="relative flex h-7 w-12 items-center justify-center">
+            {menuOpen ? (
+              <motion.span
+                layoutId="mobile-tab-active"
+                transition={spring.moderate}
+                className="bg-selected absolute inset-0 rounded-full"
+              />
+            ) : null}
+            <MoreHorizontal
+              className="relative size-5"
+              strokeWidth={menuOpen ? 2 : 1.5}
+              aria-hidden
+            />
+          </span>
+          <WeightLabel active={menuOpen}>{t("mobile.nav.more")}</WeightLabel>
         </button>
       </nav>
     </div>

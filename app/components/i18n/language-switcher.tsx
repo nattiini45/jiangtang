@@ -29,7 +29,7 @@ export function LanguageSwitcher({
       action="/prefs/locale"
       role="group"
       aria-label={t("shell.language.label")}
-      className={cn("border-border inline-flex overflow-hidden rounded-sm border", className)}
+      className={cn("bg-tint inline-flex gap-0.5 rounded-md p-0.5", className)}
     >
       <input type="hidden" name="next" value={`${location.pathname}${location.search}`} />
       {LOCALES.slice()
@@ -45,14 +45,14 @@ export function LanguageSwitcher({
             aria-label={t(`shell.language.${locale}`)}
             title={t(`shell.language.${locale}`)}
             className={cn(
-              "focus-visible:ring-ring font-mono text-xs uppercase focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2",
-              size === "lg" ? "min-h-11 min-w-11 px-3" : "h-7 min-w-8 px-2",
+              "cursor-pointer rounded-sm text-xs transition-[color,background-color,box-shadow] duration-80 focus-visible:z-10",
+              size === "lg" ? "min-h-10 min-w-11 px-3" : "h-7 min-w-8 px-2",
               shown === locale
-                ? "bg-secondary text-secondary-foreground font-semibold"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                ? "bg-card text-foreground shadow-surface-1 font-semibold"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {locale}
+            {locale.toUpperCase()}
           </button>
         ))}
     </fetcher.Form>
