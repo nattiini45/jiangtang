@@ -17,6 +17,8 @@ import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 
 /**
  * Mobile ticket detail + close (track T-MOBILE). Read-only projection of the
@@ -72,15 +74,15 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
   const openish = ticket.status === "OPEN" || ticket.status === "IN_PROGRESS";
 
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground font-mono text-xs uppercase">
+    <div className="flex flex-col gap-6 px-4 py-4">
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground text-xs">
             {ticketTypeLabel(locale, ticket.type)}
           </span>
           <StatusBadge kind="ticket" value={ticket.status} />
         </div>
-        <h1 className="mt-1 font-mono text-lg">{ticket.title}</h1>
+        <h1 className="text-lg font-semibold">{ticket.title}</h1>
       </div>
 
       {/* Linked context */}
@@ -88,7 +90,10 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
         {ticket.room ? (
           <span>
             {t("tickets.detail.room")}{" "}
-            <Link to={`/m/rooms/${ticket.room.slug}`} className="text-foreground hover:underline">
+            <Link
+              to={`/m/rooms/${ticket.room.slug}`}
+              className="text-foreground underline decoration-(--input) underline-offset-4"
+            >
               {ticket.room.name}
             </Link>
           </span>
@@ -98,7 +103,7 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
             {t("tickets.detail.reportedBy")} {ticket.reporter.initials ?? ticket.reporter.name}
           </span>
         ) : null}
-        <span className="font-mono text-xs">
+        <span className="nums text-xs">
           {t("mobile.tickets.captured", { date: berlinDateInput(ticket.occurredAt) })}
           {ticket.resolvedAt
             ? t("mobile.tickets.resolvedAt", { date: berlinDateInput(ticket.resolvedAt) })
@@ -107,24 +112,22 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
       </div>
 
       {ticket.description ? (
-        <p className="whitespace-pre-wrap text-sm">{ticket.description}</p>
+        <section className="bg-card shadow-surface-2 rounded-lg p-3">
+          <p className="text-sm whitespace-pre-wrap">{ticket.description}</p>
+        </section>
       ) : null}
 
       {ticket.status === "RESOLVED" && ticket.resolution ? (
-        <section className="border-status-operational/40 bg-status-operational/10 border p-3">
-          <p className="text-muted-foreground text-xs uppercase tracking-wide">
-            {t("tickets.detail.resolution")}
-          </p>
-          <p className="mt-1 whitespace-pre-wrap text-sm">{ticket.resolution}</p>
+        <section className="bg-status-operational/10 flex flex-col gap-1 rounded-lg p-3">
+          <p className="text-muted-foreground text-xs">{t("tickets.detail.resolution")}</p>
+          <p className="text-sm whitespace-pre-wrap">{ticket.resolution}</p>
         </section>
       ) : null}
 
       {/* Attachments (read-only thumbnails). */}
       {attachments.length > 0 ? (
         <section className="flex flex-col gap-2">
-          <p className="text-muted-foreground text-xs uppercase tracking-wide">
-            {t("tickets.detail.photos")}
-          </p>
+          <p className="text-muted-foreground text-xs">{t("tickets.detail.photos")}</p>
           <div className="grid grid-cols-3 gap-2">
             {attachments.map((a) => (
               <a
@@ -132,7 +135,7 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
                 href={`/attachments/${a.objectKey}`}
                 target="_blank"
                 rel="noreferrer"
-                className="border-border block overflow-hidden border"
+                className="block overflow-hidden rounded-md"
               >
                 <img
                   src={`/attachments/${a.objectKey}?thumb=1`}
@@ -147,10 +150,8 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
       ) : null}
 
       {/* Workflow transitions — large touch buttons for the legal moves. */}
-      <section className="border-border flex flex-col gap-3 border p-3">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("tickets.detail.changeStatus")}
-        </p>
+      <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-3">
+        <p className="text-muted-foreground text-xs">{t("tickets.detail.changeStatus")}</p>
         {actionData && "formError" in actionData && actionData.formError ? (
           <p className="text-destructive text-sm" role="alert">
             {actionData.formError}
@@ -182,31 +183,32 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
         ) : null}
 
         {openish ? (
-          <Form method="post" className="border-border flex flex-col gap-2 border-t pt-3">
+          <Form method="post" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="status" value="RESOLVED" />
-            <label className="text-sm font-medium" htmlFor="resolution">
-              {t("tickets.detail.markResolved")}
-            </label>
-            <textarea
+            <Label htmlFor="resolution">{t("tickets.detail.markResolved")}</Label>
+            <Textarea
               id="resolution"
               name="resolution"
               rows={2}
               placeholder={t("tickets.detail.resolutionPlaceholder")}
-              className="border-input bg-background rounded-sm border px-3 py-2 text-base"
+              className="text-base"
             />
             {actionData?.fieldErrors?.resolution ? (
               <p className="text-destructive text-xs" role="alert">
                 {actionData.fieldErrors.resolution[0]}
               </p>
             ) : null}
-            <Button type="submit" disabled={busy} className="h-12 text-base">
+            <Button type="submit" disabled={busy} className="h-12 w-full">
               {t("tickets.detail.resolve")}
             </Button>
           </Form>
         ) : null}
       </section>
 
-      <Link to="/m/tickets" className="text-muted-foreground text-center text-sm underline">
+      <Link
+        to="/m/tickets"
+        className="text-muted-foreground flex min-h-11 items-center justify-center text-sm underline decoration-(--input) underline-offset-4"
+      >
         {t("mobile.tickets.backAll")}
       </Link>
     </div>
@@ -227,7 +229,7 @@ function TransitionButton({
   return (
     <Form method="post">
       <input type="hidden" name="status" value={status} />
-      <Button type="submit" variant={variant} disabled={busy} className="h-12 w-full text-base">
+      <Button type="submit" variant={variant} disabled={busy} className="h-12 w-full">
         {label}
       </Button>
     </Form>

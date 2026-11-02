@@ -24,9 +24,11 @@ export function meta({ matches }: Route.MetaArgs) {
 export default function MobileOffline() {
   const t = useT();
   return (
-    <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-      <WifiOff className="text-muted-foreground size-10" />
-      <h1 className="font-mono text-lg">{t("mobile.offline.title")}</h1>
+    <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+      <span className="bg-tint flex size-14 items-center justify-center rounded-full">
+        <WifiOff className="text-muted-foreground size-6" strokeWidth={1.5} />
+      </span>
+      <h1 className="text-lg font-semibold">{t("mobile.offline.title")}</h1>
       <p className="text-muted-foreground text-sm">{t("mobile.offline.body")}</p>
     </div>
   );

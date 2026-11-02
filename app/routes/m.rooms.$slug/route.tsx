@@ -4,6 +4,7 @@ import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
 import { StatusBadge } from "~/components/ui/status-badge";
+import { Button } from "~/components/ui/button";
 import { categoryLabel } from "~/components/inventory/labels";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -31,34 +32,31 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
   const t = useT();
   const { room, equipment, openTickets } = loaderData.data;
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="font-mono text-lg">{room.name}</h1>
+    <div className="flex flex-col gap-6 px-4 py-4">
+      <div className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-lg font-semibold">{room.name}</h1>
           <StatusBadge kind="room" value={room.status} />
         </div>
-        <p className="text-muted-foreground font-mono text-xs">
-          {[room.roomNumber, room.campus?.name].filter(Boolean).join(" · ")}
+        <p className="text-muted-foreground nums text-xs">
+          {room.roomNumber ? <span className="font-mono">{room.roomNumber}</span> : null}
+          {room.roomNumber && room.campus?.name ? " · " : null}
+          {room.campus?.name}
         </p>
       </div>
 
-      <Link
-        to={`/m?roomId=${room.id}`}
-        className="bg-primary text-primary-foreground rounded-sm px-4 py-3 text-center text-sm font-medium"
-      >
-        {t("mobile.rooms.newEntry")}
-      </Link>
+      <Button asChild className="min-h-11 w-full">
+        <Link to={`/m?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
+      </Button>
 
-      <section>
-        <h2 className="text-muted-foreground mb-1 text-xs uppercase tracking-wide">
-          {t("mobile.rooms.installed")}
-        </h2>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-base font-semibold">{t("mobile.rooms.installed")}</h2>
         {equipment.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("mobile.rooms.noEquipment")}</p>
         ) : (
-          <ul className="divide-border border-border divide-y border">
+          <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
             {equipment.map((e) => (
-              <li key={e.id} className="flex items-center gap-2 px-2 py-2 text-sm">
+              <li key={e.id} className="flex min-h-12 items-center gap-2 px-3 py-2 text-sm">
                 <span className="flex-1 truncate">{e.name ?? e.modelName ?? "—"}</span>
                 <span className="text-muted-foreground text-xs">
                   {categoryLabel(locale, e.category)}
@@ -70,17 +68,20 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         )}
       </section>
 
-      <section>
-        <h2 className="text-muted-foreground mb-1 text-xs uppercase tracking-wide">
+      <section className="flex flex-col gap-2">
+        <h2 className="text-base font-semibold">
           {t("mobile.rooms.openTickets")} {openTickets.length > 0 ? `(${openTickets.length})` : ""}
         </h2>
         {openTickets.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("mobile.rooms.noOpenTickets")}</p>
         ) : (
-          <ul className="divide-border border-border divide-y border">
+          <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
             {openTickets.map((ticket) => (
-              <li key={ticket.id} className="px-2 py-2">
-                <Link to={`/m/tickets/${ticket.id}`} className="block text-sm hover:underline">
+              <li key={ticket.id}>
+                <Link
+                  to={`/m/tickets/${ticket.id}`}
+                  className="active:bg-selected flex min-h-12 items-center px-3 py-2 text-sm transition-colors duration-80"
+                >
                   {ticket.title}
                 </Link>
               </li>
@@ -91,7 +92,7 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
 
       <Link
         to={`/rooms/${room.slug}`}
-        className="text-muted-foreground text-center text-xs underline"
+        className="text-muted-foreground flex min-h-11 items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
       >
         {t("mobile.rooms.desktopView")}
       </Link>

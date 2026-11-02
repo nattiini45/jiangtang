@@ -11,6 +11,11 @@ import { createTicket } from "~/domains/tickets/tickets.mutations.server";
 import { TicketType, TicketStatus } from "~/generated/prisma/enums";
 import { MobilePhotoCapture } from "~/components/mobile/mobile-photo-capture";
 import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Select } from "~/components/ui/select";
+import { Textarea } from "~/components/ui/textarea";
 import { ticketTypeLabel } from "~/components/tickets/labels";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -112,29 +117,30 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
 
   if (createdId) {
     return (
-      <div className="flex flex-col items-start gap-3 p-4">
-        <p className="text-status-operational font-mono text-sm">{t("mobile.entry.created")}</p>
+      <div className="flex flex-col items-start gap-3 px-4 py-4">
+        <p className="text-status-operational text-sm font-semibold">{t("mobile.entry.created")}</p>
         {uploadError ? (
           <>
             <p className="text-destructive text-sm" role="alert">
               {uploadError}
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 onClick={() => void uploadPending()}
                 disabled={uploading}
-                className="h-11 text-base"
+                className="min-h-11"
               >
                 {uploading ? t("mobile.entry.uploading") : t("mobile.entry.retry")}
               </Button>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => navigate("/m/rooms")}
-                className="text-muted-foreground text-xs underline"
+                className="text-muted-foreground min-h-11"
               >
                 {t("mobile.entry.continueWithout")}
-              </button>
+              </Button>
             </div>
           </>
         ) : (
@@ -147,98 +153,78 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   }
 
   return (
-    <Form method="post" className="flex flex-col gap-4 p-4">
-      <h1 className="font-mono text-lg">{t("mobile.entry.title")}</h1>
+    <Form method="post" className="flex flex-col gap-4 px-4 py-4">
+      <h1 className="text-lg font-semibold">{t("mobile.entry.title")}</h1>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">{t("mobile.entry.room")}</span>
-        <select
-          name="roomId"
-          defaultValue=""
-          className="border-input bg-background h-11 rounded-sm border px-3 text-base"
-        >
+      <Label className="flex flex-col gap-1.5">
+        <span>{t("mobile.entry.room")}</span>
+        <Select name="roomId" defaultValue="" className="[&>select]:h-11">
           <option value="">{t("mobile.entry.roomPlaceholder")}</option>
           {rooms.map((r) => (
             <option key={r.id} value={r.id}>
               {r.name}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">{t("mobile.entry.equipment")}</span>
-        <select
-          name="equipmentId"
-          defaultValue=""
-          className="border-input bg-background h-11 rounded-sm border px-3 text-base"
-        >
+      <Label className="flex flex-col gap-1.5">
+        <span>{t("mobile.entry.equipment")}</span>
+        <Select name="equipmentId" defaultValue="" className="[&>select]:h-11">
           <option value="">{t("tickets.form.noEquipment")}</option>
           {equipment.map((e) => (
             <option key={e.id} value={e.id}>
               {e.label}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">{t("mobile.entry.type")}</span>
-        <select
-          name="type"
-          defaultValue={TicketType.INCIDENT}
-          className="border-input bg-background h-11 rounded-sm border px-3 text-base"
-        >
+      <Label className="flex flex-col gap-1.5">
+        <span>{t("mobile.entry.type")}</span>
+        <Select name="type" defaultValue={TicketType.INCIDENT} className="[&>select]:h-11">
           {Object.values(TicketType).map((type) => (
             <option key={type} value={type}>
               {ticketTypeLabel(locale, type)}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">{t("mobile.entry.what")}</span>
-        <input
+      <Label className="flex flex-col gap-1.5">
+        <span>{t("mobile.entry.what")}</span>
+        <Input
           name="title"
           required
           placeholder={t("mobile.entry.whatPlaceholder")}
-          className="border-input bg-background h-11 rounded-sm border px-3 text-base"
+          className="min-h-11"
         />
-      </label>
+      </Label>
       {fieldErrors?.title ? (
         <p className="text-destructive text-xs">{fieldErrors.title[0]}</p>
       ) : null}
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted-foreground">{t("mobile.entry.details")}</span>
-        <textarea
-          name="description"
-          rows={3}
-          placeholder={t("mobile.entry.detailsPlaceholder")}
-          className="border-input bg-background rounded-sm border px-3 py-2 text-base"
-        />
-      </label>
+      <Label className="flex flex-col gap-1.5">
+        <span>{t("mobile.entry.details")}</span>
+        <Textarea name="description" rows={3} placeholder={t("mobile.entry.detailsPlaceholder")} />
+      </Label>
 
       {/* Camera capture — photos ride along after the ticket is created. */}
-      <div>
-        <span className="text-muted-foreground text-sm">{t("mobile.entry.photo")}</span>
-        <div className="mt-1">
-          <MobilePhotoCapture
-            onCapture={(f) => setPendingPhotos((p) => [...p, f])}
-            existingCount={0}
-          />
-        </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="text-xs font-semibold">{t("mobile.entry.photo")}</span>
+        <MobilePhotoCapture
+          onCapture={(f) => setPendingPhotos((p) => [...p, f])}
+          existingCount={0}
+        />
       </div>
 
-      <details className="border-border border-t pt-3">
-        <summary className="text-muted-foreground cursor-pointer text-sm">
+      <details className="bg-card shadow-surface-2 overflow-hidden rounded-lg">
+        <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-semibold">
           {t("mobile.entry.alreadyDone")}
         </summary>
-        <div className="mt-3 flex flex-col gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
+        <div className="flex flex-col gap-4 border-t px-3 py-3">
+          <Label className="flex min-h-11 items-center gap-3 text-sm font-normal">
+            <Checkbox
               className="size-5"
               onChange={(e) => {
                 const hidden = document.querySelector<HTMLInputElement>('input[name="status"]');
@@ -247,20 +233,16 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
               }}
             />
             {t("mobile.entry.doneLog")}
-          </label>
+          </Label>
           <input type="hidden" name="status" value={TicketStatus.OPEN} />
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-muted-foreground">{t("mobile.entry.resolution")}</span>
-            <textarea
-              name="resolution"
-              rows={2}
-              className="border-input bg-background rounded-sm border px-3 py-2 text-base"
-            />
-          </label>
+          <Label className="flex flex-col gap-1.5">
+            <span>{t("mobile.entry.resolution")}</span>
+            <Textarea name="resolution" rows={2} />
+          </Label>
         </div>
       </details>
 
-      <Button type="submit" disabled={busy} className="h-12 text-base">
+      <Button type="submit" disabled={busy} className="h-12 w-full">
         {busy ? t("mobile.entry.submitting") : t("mobile.entry.submit")}
       </Button>
     </Form>

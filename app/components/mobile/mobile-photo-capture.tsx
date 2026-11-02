@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useT } from "~/i18n/use-t";
+import { Button } from "~/components/ui/button";
 
 /**
  * Mobile photo capture. Camera → photo → attach to a
@@ -103,39 +104,37 @@ export function MobilePhotoCapture({
   return (
     <div className="flex flex-col gap-2">
       {stream ? (
-        <div className="relative">
+        <div className="flex flex-col gap-2">
           {/* a live camera feed has no captions (jsx-a11y media-has-caption N/A) */}
           <video
             ref={videoRef}
-            className="bg-black aspect-video w-full rounded-sm"
+            className="bg-black aspect-video w-full rounded-lg"
             playsInline
             muted
           />
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={snap}
-              className="bg-primary text-primary-foreground rounded-sm px-4 py-3 text-sm font-medium"
-            >
+          <div className="flex gap-2">
+            <Button type="button" onClick={snap} className="min-h-11 flex-1">
               {t("mobile.photo.take")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="secondary"
               onClick={stopCamera}
-              className="border-border text-muted-foreground rounded-sm border px-4 py-3 text-sm"
+              className="min-h-11 flex-1"
             >
               {t("mobile.photo.close")}
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={startCamera}
-          className="border-border hover:bg-accent rounded-sm border border-dashed px-4 py-6 text-sm"
+          className="min-h-11 w-full py-6 text-sm"
         >
           {t("mobile.photo.start")}
-        </button>
+        </Button>
       )}
       <input
         ref={fileInputRef}
@@ -151,7 +150,7 @@ export function MobilePhotoCapture({
         </p>
       ) : null}
       {captures + existingCount > 0 ? (
-        <p className="text-muted-foreground font-mono text-xs">
+        <p className="text-muted-foreground nums text-xs">
           {t("mobile.photo.count", { count: captures + existingCount })}
         </p>
       ) : null}

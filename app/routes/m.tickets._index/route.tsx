@@ -7,6 +7,7 @@ import { parseEnumParam } from "~/lib/validation.server";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { berlinDateInput } from "~/lib/format-date";
 import { ticketStatusLabel } from "~/components/tickets/labels";
+import { cn } from "~/lib/utils";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -20,7 +21,7 @@ export function meta({ matches }: Route.MetaArgs) {
   return [{ title: translate(metaLocale(matches), "tickets.meta.list") }];
 }
 
-// Filter chips — the browse-relevant statuses (open / in progress / resolved).
+// Filter segments — the browse-relevant statuses (open / in progress / resolved).
 const STATUS_CHIPS: TicketStatus[] = [
   TicketStatus.OPEN,
   TicketStatus.IN_PROGRESS,
@@ -42,16 +43,14 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
   const t = useT();
   const locale = useLocale();
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <h1 className="font-mono text-lg">{t("nav.tickets")}</h1>
-      </div>
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <h1 className="text-lg font-semibold">{t("nav.tickets")}</h1>
 
-      {/* Status filter chips (tap targets >= 44px via min-h). */}
-      <div className="border-border flex flex-wrap gap-2 border-b px-4 py-3">
-        <FilterChip to="/m/tickets" active={status === ""} label={t("common.all")} />
+      {/* Status filter as a segmented control (each segment is a 44px tap target). */}
+      <div className="bg-tint flex rounded-full p-0.5">
+        <SegmentLink to="/m/tickets" active={status === ""} label={t("common.all")} />
         {STATUS_CHIPS.map((value) => (
-          <FilterChip
+          <SegmentLink
             key={value}
             to={`/m/tickets?status=${value}`}
             active={status === value}
@@ -60,19 +59,19 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
         ))}
       </div>
 
-      <ul className="divide-border divide-y">
+      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {tickets.map((ticket) => (
           <li key={ticket.id}>
             <Link
               to={`/m/tickets/${ticket.id}`}
-              className="active:bg-accent flex min-h-11 items-center gap-3 px-4 py-3"
+              className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <StatusBadge kind="ticket" value={ticket.status} />
-                  <p className="truncate text-base">{ticket.title}</p>
+                  <p className="min-w-0 truncate text-sm font-semibold">{ticket.title}</p>
                 </div>
-                <p className="text-muted-foreground font-mono text-xs">
+                <p className="text-muted-foreground nums text-xs">
                   {[ticket.roomName ?? "—", berlinDateInput(ticket.occurredAt)].join(" · ")}
                 </p>
               </div>
@@ -80,22 +79,23 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
           </li>
         ))}
         {tickets.length === 0 ? (
-          <li className="text-muted-foreground p-4 text-sm">{t("mobile.tickets.empty")}</li>
+          <li className="text-muted-foreground px-3 py-4 text-sm">{t("mobile.tickets.empty")}</li>
         ) : null}
       </ul>
     </div>
   );
 }
 
-function FilterChip({ to, active, label }: { to: string; active: boolean; label: string }) {
+/** One option of a segmented filter: the selected segment is a raised card. */
+function SegmentLink({ to, active, label }: { to: string; active: boolean; label: string }) {
   return (
     <Link
       to={to}
-      className={
-        active
-          ? "bg-primary text-primary-foreground flex min-h-11 items-center rounded-sm px-3 text-sm"
-          : "border-border text-muted-foreground flex min-h-11 items-center rounded-sm border px-3 text-sm"
-      }
+      aria-current={active ? "true" : undefined}
+      className={cn(
+        "flex min-h-11 flex-1 items-center justify-center rounded-full px-2 text-center text-sm leading-tight transition-colors duration-80",
+        active ? "bg-card shadow-surface-1 font-semibold" : "text-muted-foreground",
+      )}
     >
       {label}
     </Link>

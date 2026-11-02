@@ -47,15 +47,14 @@ export function CaptureQueueStatus({ url }: { url: string }) {
   const mine = entries.filter((e) => e.url === url);
   if (mine.length === 0) return null;
   return (
-    <ul className="space-y-2">
+    <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
       {mine.map((e) => (
-        <li
-          key={e.clientId}
-          className="border-border flex items-start gap-2 rounded-sm border p-3 text-sm"
-        >
-          <CloudOff className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+        <li key={e.clientId} className="flex min-h-12 items-start gap-3 px-3 py-3 text-sm">
+          <span className="bg-status-warning/15 text-status-warning mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
+            <CloudOff className="size-3.5" strokeWidth={2} />
+          </span>
           <div className="min-w-0 flex-1">
-            <div className="font-medium">
+            <div className="font-semibold">
               {t("mobile.capture.pending", {
                 title: e.fields.title ?? e.fields.q ?? t("mobile.capture.entryFallback"),
               })}
@@ -66,7 +65,7 @@ export function CaptureQueueStatus({ url }: { url: string }) {
             type="button"
             onClick={() => void discard(e.clientId)}
             aria-label={t("mobile.capture.discard")}
-            className="text-muted-foreground active:text-destructive flex min-h-11 min-w-11 items-center justify-center"
+            className="text-muted-foreground active:text-destructive active:bg-selected flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-80"
           >
             <Trash2 className="size-4" />
           </button>
