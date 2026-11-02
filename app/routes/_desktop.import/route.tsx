@@ -92,7 +92,9 @@ export default function ImportRoute({ actionData }: Route.ComponentProps) {
             className="bg-card shadow-surface-2 hover:bg-hover block rounded-lg p-4 transition-colors duration-80"
           >
             <div className="font-semibold">{t(i.titleKey)}</div>
-            <p className="text-muted-foreground mt-1 text-xs">{t(i.hintKey)}</p>
+            <p className="text-muted-foreground mt-1 text-xs break-words [overflow-wrap:anywhere]">
+              {t(i.hintKey)}
+            </p>
           </Link>
         ))}
       </section>

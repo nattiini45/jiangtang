@@ -91,7 +91,10 @@ export function AppShell({
               return <NavSection key={group.id} label={t(group.labelKey)} items={items} />;
             })}
           </nav>
-          <div className="flex shrink-0 items-center gap-2.5 border-t px-4 py-3">
+          <div
+            className="flex shrink-0 items-center gap-2.5 border-t px-4 py-3"
+            title={user.role ? roleLabel(locale, user.role) : undefined}
+          >
             <span
               aria-hidden
               className="bg-tint type-micro flex size-7 shrink-0 items-center justify-center rounded-full font-semibold"
@@ -100,9 +103,7 @@ export function AppShell({
             </span>
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-xs font-semibold">{user.name}</span>
-              <span className="text-muted-foreground truncate text-xs">
-                {user.role ? roleLabel(locale, user.role) : user.email}
-              </span>
+              <span className="text-muted-foreground truncate text-xs">{user.email}</span>
             </span>
           </div>
         </aside>
