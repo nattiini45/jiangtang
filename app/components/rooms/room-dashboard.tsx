@@ -168,7 +168,7 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
                   <Badge key={k}>{t(labelKey)}</Badge>
                 ))}
                 {room.mediaKeyRequired ? (
-                  <Badge className="bg-status-warning/15 text-status-warning">
+                  <Badge className="bg-status-warning/15 text-foreground">
                     {t("rooms.dashboard.mediaKey")}
                   </Badge>
                 ) : null}

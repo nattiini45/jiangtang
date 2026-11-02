@@ -151,48 +151,50 @@ export function AppShell({
  */
 function NavSection({ label, items }: { label: string; items: NavEntry[] }) {
   const t = useT();
-  const hover = useFluidHover<HTMLUListElement>();
+  const hover = useFluidHover<HTMLDivElement>();
   return (
     <div className="pt-4 first:pt-1">
       <p className="text-muted-foreground px-2 pb-1 text-xs">{label}</p>
-      <ul ref={hover.containerRef} {...hover.handlers} className="relative flex flex-col">
+      <div ref={hover.containerRef} {...hover.handlers} className="relative">
         <FluidHoverHighlight hover={hover} />
-        {items.map(({ to, labelKey, icon: Icon, end }, index) => (
-          <li key={to}>
-            <NavLink
-              to={to}
-              end={end}
-              {...hover.itemProps(index)}
-              className={({ isActive }) =>
-                cn(
-                  "relative flex h-8 items-center gap-2.5 rounded-md px-2 text-sm transition-colors duration-80",
-                  isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive ? (
-                    <motion.span
-                      layoutId="desktop-nav-active"
-                      transition={spring.moderate}
-                      className="bg-selected absolute inset-0 rounded-md"
+        <ul className="flex flex-col">
+          {items.map(({ to, labelKey, icon: Icon, end }, index) => (
+            <li key={to}>
+              <NavLink
+                to={to}
+                end={end}
+                {...hover.itemProps(index)}
+                className={({ isActive }) =>
+                  cn(
+                    "relative flex h-8 items-center gap-2.5 rounded-md px-2 text-sm transition-colors duration-80",
+                    isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive ? (
+                      <motion.span
+                        layoutId="desktop-nav-active"
+                        transition={spring.moderate}
+                        className="bg-selected absolute inset-0 rounded-md"
+                      />
+                    ) : null}
+                    <Icon
+                      className="relative size-4 shrink-0"
+                      strokeWidth={isActive ? 2 : 1.5}
+                      aria-hidden
                     />
-                  ) : null}
-                  <Icon
-                    className="relative size-4 shrink-0"
-                    strokeWidth={isActive ? 2 : 1.5}
-                    aria-hidden
-                  />
-                  <WeightLabel active={isActive} className="relative">
-                    {t(labelKey)}
-                  </WeightLabel>
-                </>
-              )}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+                    <WeightLabel active={isActive} className="relative">
+                      {t(labelKey)}
+                    </WeightLabel>
+                  </>
+                )}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

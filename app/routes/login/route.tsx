@@ -66,12 +66,12 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
         <p className="text-muted-foreground mt-1 text-sm">{t("auth.login.subtitle")}</p>
 
         {loaderData.deactivated ? (
-          <p className="bg-status-warning/15 text-status-warning mt-4 rounded-md p-2 text-sm">
+          <p className="bg-status-warning/15 text-foreground mt-4 rounded-md p-2 text-sm">
             {t("auth.login.deactivated")}
           </p>
         ) : null}
         {actionData && "error" in actionData && actionData.error ? (
-          <p className="bg-destructive/15 text-destructive mt-4 rounded-md p-2 text-sm">
+          <p className="bg-destructive/15 text-foreground mt-4 rounded-md p-2 text-sm">
             {actionData.error}
           </p>
         ) : null}

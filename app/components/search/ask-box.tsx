@@ -221,7 +221,7 @@ export function AskBox() {
       ) : null}
 
       {state.phase === "error" ? (
-        <p className="bg-destructive/15 text-destructive mt-3 rounded-md px-3 py-2 text-sm">
+        <p className="bg-destructive/15 text-foreground mt-3 rounded-md px-3 py-2 text-sm">
           {state.message}
         </p>
       ) : null}
@@ -283,7 +283,7 @@ export function AskBox() {
                 <p key={i} className="text-sm">
                   <CitedText text={p.text} />
                   {p.uncited && !state.validation.noAnswer ? (
-                    <Badge className="bg-status-warning/15 text-status-warning ml-2">
+                    <Badge className="bg-status-warning/15 text-foreground ml-2">
                       {t("search.ask.uncited")}
                     </Badge>
                   ) : null}

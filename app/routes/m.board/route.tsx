@@ -6,7 +6,7 @@ import { LANES, laneOfTaskStatus } from "~/domains/tasks/tasks.lanes";
 import { taskStatusLabel } from "~/components/tasks/labels";
 import { EmptyState } from "~/components/states/empty-state";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
-import { cn } from "~/lib/utils";
+import { SegmentLink } from "~/components/ui/segment-link";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -75,22 +75,6 @@ export default function MobileBoard({ loaderData }: Route.ComponentProps) {
         </section>
       ))}
     </div>
-  );
-}
-
-/** One option of a segmented filter: the selected segment is a raised card. */
-function SegmentLink({ to, active, label }: { to: string; active: boolean; label: string }) {
-  return (
-    <Link
-      to={to}
-      aria-current={active ? "true" : undefined}
-      className={cn(
-        "flex min-h-11 flex-1 items-center justify-center rounded-full px-3 text-center text-sm transition-colors duration-80",
-        active ? "bg-card shadow-surface-1 font-semibold" : "text-muted-foreground",
-      )}
-    >
-      {label}
-    </Link>
   );
 }
 

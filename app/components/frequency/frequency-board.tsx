@@ -90,7 +90,7 @@ function BuildingSection({ group }: { group: FrequencyGroup }) {
                   </span>
                   {row.clash ? (
                     <span
-                      className="ml-2 inline-flex items-center gap-1 rounded-sm border border-status-fault/30 bg-status-fault/15 px-1.5 py-0.5 text-xs text-status-fault align-middle"
+                      className="ml-2 inline-flex items-center gap-1 rounded-sm border border-status-fault/30 bg-status-fault/15 px-1.5 py-0.5 text-xs text-foreground align-middle"
                       title={t("frequency.clash.title", { partners: row.clashPartners.join(", ") })}
                     >
                       {t("frequency.clash.badge", { partners: row.clashPartners.join(", ") })}

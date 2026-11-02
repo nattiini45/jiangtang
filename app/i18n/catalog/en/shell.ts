@@ -25,7 +25,7 @@ export const shellEn = {
   "nav.group.work": "Work",
   "nav.group.places": "Rooms & equipment",
   "nav.group.service": "Operations",
-  "nav.group.admin": "Admin",
+  "nav.group.admin": "Data & admin",
 
   "shell.workspace": "AV workspace",
   "shell.search": "Search",

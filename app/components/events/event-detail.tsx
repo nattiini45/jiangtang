@@ -29,7 +29,7 @@ export interface EventActionData {
 function FormError({ when, actionData }: { when: string; actionData?: EventActionData }) {
   if (actionData?.form !== when || !actionData.error) return null;
   return (
-    <p className="bg-destructive/10 text-destructive rounded-md p-2 text-sm" role="alert">
+    <p className="bg-destructive/10 text-foreground rounded-md p-2 text-sm" role="alert">
       {actionData.error}
     </p>
   );
@@ -83,7 +83,7 @@ export function EventDetailView({
       ) : null}
 
       {actionData?.error && !actionData.form ? (
-        <p className="bg-destructive/10 text-destructive rounded-md p-2 text-sm" role="alert">
+        <p className="bg-destructive/10 text-foreground rounded-md p-2 text-sm" role="alert">
           {actionData.error}
         </p>
       ) : null}

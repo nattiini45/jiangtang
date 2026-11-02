@@ -7,7 +7,7 @@ import { parseEnumParam } from "~/lib/validation.server";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { berlinDateInput } from "~/lib/format-date";
 import { ticketStatusLabel } from "~/components/tickets/labels";
-import { cn } from "~/lib/utils";
+import { SegmentLink } from "~/components/ui/segment-link";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -83,22 +83,6 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
         ) : null}
       </ul>
     </div>
-  );
-}
-
-/** One option of a segmented filter: the selected segment is a raised card. */
-function SegmentLink({ to, active, label }: { to: string; active: boolean; label: string }) {
-  return (
-    <Link
-      to={to}
-      aria-current={active ? "true" : undefined}
-      className={cn(
-        "flex min-h-11 flex-1 items-center justify-center rounded-full px-2 text-center text-sm leading-tight transition-colors duration-80",
-        active ? "bg-card shadow-surface-1 font-semibold" : "text-muted-foreground",
-      )}
-    >
-      {label}
-    </Link>
   );
 }
 

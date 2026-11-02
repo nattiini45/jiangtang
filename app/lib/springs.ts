@@ -23,10 +23,3 @@ export const spring = {
   },
   slow: { type: "spring", duration: 0.24, bounce: 0.12, exit: { duration: 0.16, ease: "easeIn" } },
 } satisfies Record<string, Tier>;
-
-export type SpringTier = keyof typeof spring;
-
-/** Exit length plus a buffer, for timers that unmount after an exit animation. */
-export function exitFallbackMs(tier: SpringTier): number {
-  return Math.round((spring[tier].exit.duration ?? 0) * 1000) + 100;
-}

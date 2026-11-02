@@ -68,7 +68,7 @@ export default function EraseUser({ loaderData, actionData }: Route.ComponentPro
       <h1 className="text-xl font-bold">{t("admin.erase.title")}</h1>
       <p className="text-muted-foreground mt-1 text-sm">{t("admin.erase.subtitle")}</p>
 
-      <div className="bg-status-fault/15 text-status-fault mt-4 rounded-lg p-4 text-sm">
+      <div className="bg-status-fault/15 text-foreground mt-4 rounded-lg p-4 text-sm">
         <p className="font-semibold">{t("admin.erase.irreversible")}</p>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>

@@ -46,7 +46,7 @@ export function LanguageSwitcher({
             title={t(`shell.language.${locale}`)}
             className={cn(
               "cursor-pointer rounded-sm text-xs transition-[color,background-color,box-shadow] duration-80 focus-visible:z-10",
-              size === "lg" ? "min-h-10 min-w-11 px-3" : "h-7 min-w-8 px-2",
+              size === "lg" ? "min-h-11 min-w-11 px-3" : "h-7 min-w-8 px-2",
               shown === locale
                 ? "bg-card text-foreground shadow-surface-1 font-semibold"
                 : "text-muted-foreground hover:text-foreground",

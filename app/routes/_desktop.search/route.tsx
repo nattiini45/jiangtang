@@ -103,7 +103,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
       <AskBox />
 
       {degraded.length > 0 ? (
-        <p className="bg-status-warning/15 text-status-warning rounded-md px-3 py-2 text-sm">
+        <p className="bg-status-warning/15 text-foreground rounded-md px-3 py-2 text-sm">
           {t("search.page.degraded", { arms: degraded.join(", ") })}
         </p>
       ) : null}

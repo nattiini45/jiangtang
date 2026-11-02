@@ -98,7 +98,7 @@ export function ConflictCheck({
     return <p className="text-muted-foreground text-xs">{t("events.conflict.none")}</p>;
   }
   return (
-    <div className="bg-destructive/10 text-destructive rounded-md p-2 text-xs">
+    <div className="bg-destructive/10 text-foreground rounded-md p-2 text-xs">
       <p className="font-semibold">
         {conflicts.length === 1
           ? t("events.conflict.headingOne")

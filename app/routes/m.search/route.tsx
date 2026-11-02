@@ -41,7 +41,7 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
           name="q"
           defaultValue={q}
           placeholder={t("mobile.search.placeholder")}
-          className="min-h-11 text-base"
+          className="min-h-11"
         />
       </Form>
 

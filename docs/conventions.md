@@ -97,8 +97,9 @@ in `app/app.css`; the primitives in `app/components/ui/` already apply them.
   errors. Three weights: normal, `font-semibold` for headings and selected items, `font-bold` for the
   page `<h1>` only. No uppercase or letter-spacing. `font-mono` is for identifiers (asset tags,
   serials, codes); numbers and times use `nums`.
-- Motion uses the three tiers in `~/lib/springs` and animates only `transform` and `opacity`. The
-  root `MotionConfig` honours reduced motion. Lists of links or buttons may use `useFluidHover`;
+- Motion uses the three tiers in `~/lib/springs`. Anything that moves or scales animates
+  `transform` and `opacity`, never layout properties; color, shadow and font-weight changes use
+  short CSS transitions (80ms). The root `MotionConfig` honours reduced motion. Lists of links or buttons may use `useFluidHover`;
   drag boards and virtualized grids do not.
 
 ## Slugs
