@@ -325,8 +325,7 @@ describe("the boot module", () => {
 
     await register({} as unknown as Express, {} as BootContext);
     intervalHandle = intervalSpy.mock.results[0]?.value as
-      | ReturnType<typeof setInterval>
-      | undefined;
+      ReturnType<typeof setInterval> | undefined;
 
     // "Daily" asserted on the interval this module creates, not on
     // `vi.getTimerCount()`: that count also includes timers the `pg` pool

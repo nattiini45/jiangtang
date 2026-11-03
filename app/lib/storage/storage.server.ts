@@ -5,11 +5,7 @@
  */
 
 export type StorageCategory =
-  | "room"
-  | "control_panel"
-  | "connection_panel"
-  | "equipment"
-  | "ticket";
+  "room" | "control_panel" | "connection_panel" | "equipment" | "ticket";
 
 export interface PutInput {
   body: Buffer | Uint8Array;

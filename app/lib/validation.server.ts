@@ -104,8 +104,7 @@ export function tagsFromForm(form: FormData, carried: string[]): string[] {
 }
 
 export type ParseResult<T> =
-  | { success: true; data: T }
-  | { success: false; fieldErrors: FieldErrors; formErrors: string[] };
+  { success: true; data: T } | { success: false; fieldErrors: FieldErrors; formErrors: string[] };
 
 /** Messages come out in `locale` (default: the current request's); schemas carry catalog keys. */
 export function safeParse<S extends z.ZodTypeAny>(
