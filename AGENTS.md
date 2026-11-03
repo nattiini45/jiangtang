@@ -8,7 +8,7 @@ before changing the data model, the migrations or a server seam, and
 
 ## Stack (do not drift onto betas)
 
-TypeScript on Node 22 (ESM), React Router v7 (Vite, framework mode) behind a small Express server,
+TypeScript on Node 22.12+ (ESM), React Router v7 (Vite, framework mode) behind a small Express server,
 React 19, Tailwind v4, shadcn/ui, PostgreSQL 18 with `btree_gist`, `pgvector` and `pg_trgm`, Prisma 7
 (Rust-free, `@prisma/adapter-pg`), Better Auth, `sharp`. One application, two route trees: the
 desktop surface (pathless `_desktop` layout, renders at `/`) and the mobile PWA (`/m`).

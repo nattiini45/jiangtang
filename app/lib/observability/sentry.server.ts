@@ -42,17 +42,31 @@ function scrubUrl(url: string): string {
   return redactTokenSegments(url.replace(/[?#][\s\S]*$/, ""));
 }
 
-function scrubValue(value: unknown): unknown {
-  if (typeof value === "string") return scrubUrl(value);
-  if (Array.isArray(value)) return value.map(scrubValue);
+function mapStrings(value: unknown, fn: (text: string) => string): unknown {
+  if (typeof value === "string") return fn(value);
+  if (Array.isArray(value)) return value.map((item) => mapStrings(item, fn));
   return value;
 }
 
+function scrubValue(value: unknown): unknown {
+  return mapStrings(value, scrubUrl);
+}
+
+/**
+ * A request header value, wherever the SDK puts it. Any header can repeat the request
+ * path, so every value loses the token segment; URL-named headers also lose the query
+ * string.
+ */
+function redactHeader(name: string, value: unknown): unknown {
+  return mapStrings(value, URL_HEADER.test(name) ? scrubUrl : redactTokenSegments);
+}
+
+// The HTTP server span carries each request header again as an attribute of this form.
+const HEADER_ATTRIBUTE = "http.request.header.";
+
 /**
  * Errors and transactions. The request-data integration attaches the request URL and
- * headers to both, and the span hook below never sees them. Any header can repeat the
- * request path, so every header value loses the token segment; URL-named headers also
- * lose the query string.
+ * headers to both, as the event's request fields, which the span hook below never sees.
  */
 function redactRequestFields(event: {
   transaction?: string;
@@ -64,21 +78,25 @@ function redactRequestFields(event: {
   const headers = request?.headers;
   if (!headers) return;
   for (const [name, value] of Object.entries(headers)) {
-    if (typeof value !== "string") continue;
-    headers[name] = URL_HEADER.test(name) ? scrubUrl(value) : redactTokenSegments(value);
+    headers[name] = redactHeader(name, value) as string;
   }
 }
 
 /**
  * The root span and each child span of a transaction, and standalone spans. The root span
- * name repeats the request path, so it carries the token too.
+ * name repeats the request path, so it carries the token too, and its header attributes
+ * get the same treatment as the event's request headers.
  */
 function redactSpan(span: SpanLike): void {
   if (span.description) span.description = redactTokenSegments(span.description);
   const data = span.data;
   if (!data) return;
   for (const key of Object.keys(data)) {
-    if (URL_KEY.test(key)) data[key] = scrubValue(data[key]);
+    if (key.startsWith(HEADER_ATTRIBUTE)) {
+      data[key] = redactHeader(key.slice(HEADER_ATTRIBUTE.length), data[key]);
+    } else if (URL_KEY.test(key)) {
+      data[key] = scrubValue(data[key]);
+    }
   }
 }
 

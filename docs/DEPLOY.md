@@ -11,7 +11,7 @@ database, and do not replay the migrations against one.
 
 | Component  | Pinned version                                                   | Where                                                  |
 | ---------- | ---------------------------------------------------------------- | ------------------------------------------------------ |
-| Node.js    | 22                                                               | `Dockerfile` base image, CI                            |
+| Node.js    | 22.12 or newer (the image and CI track the latest 22.x)          | `Dockerfile` base image, CI                            |
 | pnpm       | 10.26.2                                                          | `package.json` `packageManager`, `Dockerfile` corepack |
 | PostgreSQL | 18 with `pgvector` 0.8.7 (`pgvector/pgvector:0.8.7-pg18-trixie`) | `docker-compose.yml`, CI                               |
 | WAL-G      | v3.0.9, amd64 build, checksum pinned                             | `ops/postgres/Dockerfile.walg`                         |

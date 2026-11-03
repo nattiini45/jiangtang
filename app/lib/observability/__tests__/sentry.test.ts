@@ -171,6 +171,27 @@ describe("initSentry", () => {
     expect(span.data["db.statement"]).toBe("SELECT 1 FROM Room WHERE id = $1");
   });
 
+  it("removes tokens from every request header attribute on a span", async () => {
+    const options = await initOptions();
+    const span = options.beforeSendSpan({
+      description: "GET /",
+      data: {
+        "http.request.header.x-original-uri": ["/calendar/abc123.ics?q=x"],
+        "http.request.header.x-original-url": ["/accept-invite/tok456?next=1"],
+        "http.request.header.x-custom-trace": ["seen at /accept-invite/tok456"],
+        "http.request.header.user-agent": ["test-agent"],
+      },
+    });
+
+    expect(JSON.stringify(span)).not.toMatch(LEAK_PATTERN);
+    expect(span.data).toEqual({
+      "http.request.header.x-original-uri": ["/calendar/:token"],
+      "http.request.header.x-original-url": ["/accept-invite/:token"],
+      "http.request.header.x-custom-trace": ["seen at /accept-invite/:token"],
+      "http.request.header.user-agent": ["test-agent"],
+    });
+  });
+
   it("removes tokens and query strings from breadcrumb URLs", async () => {
     const options = await initOptions();
     const breadcrumb = options.beforeBreadcrumb({

@@ -27,7 +27,7 @@ synthetic reproduction.
 
 ## Set up a development installation
 
-Prerequisites: Node 22, pnpm 10.26.2, Git, Docker with the Compose plugin, and `openssl` (Git Bash on
+Prerequisites: Node 22.12 or newer, pnpm 10.26.2, Git, Docker with the Compose plugin, and `openssl` (Git Bash on
 Windows is sufficient). The development database is PostgreSQL 18 with `pgvector` and `pg_trgm`;
 `docker-compose.dev.yml` provides it on `127.0.0.1:5432`.
 
