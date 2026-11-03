@@ -88,25 +88,23 @@ function buildVerbs(locale: Locale): Verb[] {
 
   const verbs: Verb[] = [
     // ── Navigation — derived from the shared nav list (one source of truth). ──
-    ...NAV.map(
-      (entry): Verb => ({
-        id: `goto-${entry.to.replaceAll("/", "") || "index"}`,
-        label: tr("command.verb.goto", { label: tr(entry.labelKey) }),
-        keywords: [
-          entry.to,
-          t("de", entry.labelKey).toLowerCase(),
-          ...(locale === "en" ? [t("en", entry.labelKey).toLowerCase()] : []),
-          "navigation",
-          "öffnen",
-        ],
-        group: group.navigation,
-        adminOnly: entry.adminOnly,
-        run: (ctx) => {
-          ctx.close();
-          ctx.navigate(entry.to);
-        },
-      }),
-    ),
+    ...NAV.map((entry): Verb => ({
+      id: `goto-${entry.to.replaceAll("/", "") || "index"}`,
+      label: tr("command.verb.goto", { label: tr(entry.labelKey) }),
+      keywords: [
+        entry.to,
+        t("de", entry.labelKey).toLowerCase(),
+        ...(locale === "en" ? [t("en", entry.labelKey).toLowerCase()] : []),
+        "navigation",
+        "öffnen",
+      ],
+      group: group.navigation,
+      adminOnly: entry.adminOnly,
+      run: (ctx) => {
+        ctx.close();
+        ctx.navigate(entry.to);
+      },
+    })),
 
     // ── Create ────────────────────────────────────────────────────────────────
     {
@@ -208,25 +206,23 @@ function buildVerbs(locale: Locale): Verb[] {
         if (ctx.taskId) ctx.submit({ _action: "assign-me" }, `/tasks/${ctx.taskId}`);
       },
     },
-    ...TASK_STATUSES.map(
-      (status): Verb => ({
-        id: `task-set-status-${status.toLowerCase()}`,
-        label: tr("command.verb.setStatus", { status: taskStatusLabel(locale, status) }),
-        keywords: [
-          "status",
-          "setzen",
-          status.toLowerCase(),
-          taskStatusLabel("de", status).toLowerCase(),
-          taskStatusLabel("en", status).toLowerCase(),
-        ],
-        group: group.task,
-        context: "task",
-        run: (ctx) => {
-          ctx.close();
-          if (ctx.taskId) ctx.submit({ _action: "set-status", status }, `/tasks/${ctx.taskId}`);
-        },
-      }),
-    ),
+    ...TASK_STATUSES.map((status): Verb => ({
+      id: `task-set-status-${status.toLowerCase()}`,
+      label: tr("command.verb.setStatus", { status: taskStatusLabel(locale, status) }),
+      keywords: [
+        "status",
+        "setzen",
+        status.toLowerCase(),
+        taskStatusLabel("de", status).toLowerCase(),
+        taskStatusLabel("en", status).toLowerCase(),
+      ],
+      group: group.task,
+      context: "task",
+      run: (ctx) => {
+        ctx.close();
+        if (ctx.taskId) ctx.submit({ _action: "set-status", status }, `/tasks/${ctx.taskId}`);
+      },
+    })),
     {
       id: "task-edit-title",
       label: tr("command.verb.editTitle"),

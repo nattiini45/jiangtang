@@ -148,8 +148,7 @@ export async function runSearch(
     const { results: hits } = await hybridSearch(q, { limit: 10 });
     for (const h of hits) {
       const entity = SOURCE_TO_ENTITY[h.sourceType as keyof typeof SOURCE_TO_ENTITY] as
-        | SearchResultType
-        | undefined;
+        SearchResultType | undefined;
       if (!entity || !h.href || seen.has(`${entity}:${h.sourceId}`)) continue;
       seen.add(`${entity}:${h.sourceId}`);
       results.push({

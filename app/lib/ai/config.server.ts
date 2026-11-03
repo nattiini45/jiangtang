@@ -49,9 +49,7 @@ export interface GenerationConfig {
 
 /** `api` carries the resolved config; the other two states carry why-not. */
 export type CapabilityResolution<T> =
-  | { state: "api"; config: T }
-  | { state: "none" }
-  | { state: "misconfigured"; detail: string };
+  { state: "api"; config: T } | { state: "none" } | { state: "misconfigured"; detail: string };
 
 export interface AiConfig {
   embedding: CapabilityResolution<EmbeddingConfig>;
