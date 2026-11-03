@@ -35,7 +35,7 @@ import {
  * Plus **the blank-quantity rule** — a blank `quantity` means "not stated" and takes the
  * default `1`, with `0` still typed and negatives still refused, in the
  * block named for it. Its CONTROL test asserts that the spelling prescribed
- * is the one that does *not* work on the installed zod, so the decision's wording
+ * is the one that does *not* work on zod, so the decision's wording
  * cannot be "corrected" back into a form that rejects a cleared box.
  *
  * ⚠️ **Test 1 and test 2 are the non-vacuity controls for the whole file**, and
@@ -463,7 +463,7 @@ describe('a blank `quantity` is "not stated" and takes the default', () => {
   });
 
   it("(2) CONTROL: the spelling prescribed is measurably the one that does NOT work", () => {
-    // 🔴 zod 3's `ZodDefault` takes the default only when the INPUT is `undefined`,
+    // 🔴 zod's `ZodDefault` takes the default only when the INPUT is `undefined`,
     // and a blank cell arrives as `""` — so with `.default()` on the outside of the
     // preprocess, `""` reaches `z.coerce.number()` as NaN and the row is REFUSED
     // instead of defaulted. This is the guard on the decision's own wording: a

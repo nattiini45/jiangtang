@@ -10,6 +10,7 @@ WORKDIR /app
 # Build: full deps → generate the Prisma client (offline) → react-router build.
 FROM base AS build
 COPY package.json pnpm-lock.yaml ./
+COPY patches ./patches
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm db:generate && pnpm build

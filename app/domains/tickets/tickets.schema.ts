@@ -36,7 +36,7 @@ const idArray = z.preprocess((v) => {
 
 // ── Content (shared by create + edit) ─────────────────────────────────────────
 const ticketContent = z.object({
-  type: z.nativeEnum(TicketType).default(TicketType.INCIDENT),
+  type: z.enum(TicketType).default(TicketType.INCIDENT),
   title: z.string().trim().min(1, msgKey("work.err.titleRequired")),
   description: optionalText,
   priority: optionalPriority,
@@ -54,7 +54,7 @@ export const ticketEditSchema = ticketContent;
 // ── Create (content + born-resolved) ──────────────────────────────────────────
 export const ticketCreateSchema = ticketContent
   .extend({
-    status: z.nativeEnum(TicketStatus).default(TicketStatus.OPEN),
+    status: z.enum(TicketStatus).default(TicketStatus.OPEN),
     resolution: optionalText,
     resolvedAt: optionalDate,
   })
@@ -78,7 +78,7 @@ export const ticketCreateSchema = ticketContent
 // ── Status transition (guarded; resolve / start / reopen / cancel) ─────────────
 export const ticketTransitionSchema = z
   .object({
-    status: z.nativeEnum(TicketStatus),
+    status: z.enum(TicketStatus),
     resolution: optionalText,
   })
   .superRefine((t, ctx) => {

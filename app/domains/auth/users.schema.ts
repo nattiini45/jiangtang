@@ -9,7 +9,7 @@ import { z } from "~/lib/validation.server";
 export const INVITE_ID = "invite";
 
 export const inviteSchema = z.object({
-  email: z.string().email(msgKey("places.err.auth.emailRequired")),
+  email: z.email(msgKey("places.err.auth.emailRequired")),
   name: z.string().min(1, msgKey("places.err.auth.nameRequired")).max(120),
   initials: z
     .string()

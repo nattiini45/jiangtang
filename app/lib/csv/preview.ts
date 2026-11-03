@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { localizeMessage } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
+import type { FieldErrors } from "~/lib/errors.server";
 import { currentLocale } from "~/i18n/request-locale.server";
 import { parseCsvToObjects } from "./parse";
 
@@ -31,10 +32,10 @@ export function previewCsv<S extends z.ZodTypeAny>(
     if (res.success) {
       valid.push({ line, data: res.data });
     } else {
-      const flat = res.error.flatten();
+      const flat = z.flattenError(res.error);
       const messages = [
         ...flat.formErrors.map((m) => localizeMessage(locale, m)),
-        ...Object.entries(flat.fieldErrors).flatMap(([k, v]) =>
+        ...Object.entries(flat.fieldErrors as FieldErrors).flatMap(([k, v]) =>
           (v ?? []).map((m) => `${k}: ${localizeMessage(locale, m)}`),
         ),
       ];

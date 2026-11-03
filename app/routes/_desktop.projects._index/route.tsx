@@ -37,7 +37,7 @@ export function meta({ matches }: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const options = parseInput(projectListOptionsSchema, {
-    // `parseEnumParam`, not the schema's own nativeEnum field: a garbage
+    // `parseEnumParam`, not the schema's own z.enum field: a garbage
     // `?status=NOPE` degrades to "unfiltered" instead of throwing a 422 on a
     // shared link (the `?kind=` contract on `/locations`, same helper).
     status: parseEnumParam(ProjectStatus, url.searchParams.get("status")),

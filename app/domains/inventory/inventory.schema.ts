@@ -46,11 +46,11 @@ const optionalJson = z.preprocess(emptyToUndefined, z.string().optional()).super
 
 export const equipmentCreateSchema = z
   .object({
-    category: z.nativeEnum(EquipmentCategory),
+    category: z.enum(EquipmentCategory),
     modelId: optionalId,
     roomId: optionalId,
-    mobility: z.nativeEnum(EquipmentMobility).default(EquipmentMobility.FIXED),
-    status: z.nativeEnum(EquipmentStatus).default(EquipmentStatus.OPERATIONAL),
+    mobility: z.enum(EquipmentMobility).default(EquipmentMobility.FIXED),
+    status: z.enum(EquipmentStatus).default(EquipmentStatus.OPERATIONAL),
     name: optionalText,
     assetTag: optionalText,
     serial: optionalText,
@@ -61,7 +61,7 @@ export const equipmentCreateSchema = z
     dellServiceTag: optionalText,
     dellExpressTag: optionalText,
     // microphone
-    micKind: z.preprocess(emptyToUndefined, z.nativeEnum(MicKind).optional()),
+    micKind: z.preprocess(emptyToUndefined, z.enum(MicKind).optional()),
     frequencyMhz: optionalFloat,
     band: optionalText,
     channelLabel: optionalText,
@@ -121,7 +121,7 @@ const csvCategory = z.preprocess((v) => {
     .trim()
     .toLowerCase();
   return CATEGORY_MAP[s] ?? s.toUpperCase();
-}, z.nativeEnum(EquipmentCategory));
+}, z.enum(EquipmentCategory));
 
 const MOBILITY_MAP: Record<string, EquipmentMobility> = {
   fest: "FIXED",
@@ -135,7 +135,7 @@ const csvMobility = z.preprocess((v) => {
     .toLowerCase();
   if (!s) return EquipmentMobility.FIXED;
   return MOBILITY_MAP[s] ?? s.toUpperCase();
-}, z.nativeEnum(EquipmentMobility));
+}, z.enum(EquipmentMobility));
 
 const EQ_STATUS_MAP: Record<string, EquipmentStatus> = {
   betriebsbereit: "OPERATIONAL",
@@ -150,7 +150,7 @@ const csvEqStatus = z.preprocess((v) => {
     .toLowerCase();
   if (!s) return EquipmentStatus.OPERATIONAL;
   return EQ_STATUS_MAP[s] ?? s.toUpperCase();
-}, z.nativeEnum(EquipmentStatus));
+}, z.enum(EquipmentStatus));
 
 export const equipmentCsvRowSchema = z
   .object({

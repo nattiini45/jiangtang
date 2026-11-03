@@ -30,8 +30,12 @@ function makeFakeClient(): FakeClient {
   return emitter;
 }
 
+// Vitest 4 only lets a mock be called with `new` when its implementation is a
+// plain function, so this is not an arrow function.
 vi.mock("pg", () => ({
-  Client: vi.fn().mockImplementation(() => makeFakeClient()),
+  Client: vi.fn().mockImplementation(function () {
+    return makeFakeClient();
+  }),
 }));
 
 describe("RealtimeBroker reconnect behavior (mocked pg.Client)", () => {

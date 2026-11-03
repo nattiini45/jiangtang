@@ -35,7 +35,7 @@ export const eventCreateSchema = z
     description: optionalText,
     startsAt: dtLocal,
     endsAt: dtLocal,
-    status: z.nativeEnum(EventStatus).default(EventStatus.PLANNED),
+    status: z.enum(EventStatus).default(EventStatus.PLANNED),
     organizer: optionalText,
     contact: optionalText,
   })
@@ -63,7 +63,7 @@ export const allocationSchema = z
 export const serviceWindowSchema = z
   .object({
     roomId: optionalId,
-    kind: z.nativeEnum(ServiceWindowKind).default(ServiceWindowKind.SETUP),
+    kind: z.enum(ServiceWindowKind).default(ServiceWindowKind.SETUP),
     startsAt: dtLocal,
     endsAt: dtLocal,
     coveringUserId: optionalId,

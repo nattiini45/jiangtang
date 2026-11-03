@@ -26,16 +26,20 @@ import globalSetup from "./global-setup";
 // attempted, not merely that none succeeded.
 // ---------------------------------------------------------------------------
 const h = vi.hoisted(() => {
-  const Client = vi.fn((config: unknown) => ({
-    config,
-    connect: vi.fn(async () => undefined),
-    // `rows: [{ exists: 1 }]` keeps `ensureTestDatabase` on its "already there"
-    // branch, so no CREATE DATABASE string is built either.
-    query: vi.fn(async (_sql: string, _params?: unknown[]) => ({
-      rows: [{ exists: 1 }],
-    })),
-    end: vi.fn(async () => undefined),
-  }));
+  // Vitest 4 only lets a mock be called with `new` when its implementation is a
+  // plain function, so this is not an arrow function.
+  const Client = vi.fn(function (config: unknown) {
+    return {
+      config,
+      connect: vi.fn(async () => undefined),
+      // `rows: [{ exists: 1 }]` keeps `ensureTestDatabase` on its "already there"
+      // branch, so no CREATE DATABASE string is built either.
+      query: vi.fn(async (_sql: string, _params?: unknown[]) => ({
+        rows: [{ exists: 1 }],
+      })),
+      end: vi.fn(async () => undefined),
+    };
+  });
   const execFileSync = vi.fn((_cmd: string, _opts?: unknown) => "");
   return { Client, execFileSync };
 });
@@ -924,7 +928,7 @@ describe("provisioning functions receive the validated URL (mocks)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The global setup uses Vitest 3's `project.provide("testDatabaseUrl", url)`
+// The global setup uses Vitest's `project.provide("testDatabaseUrl", url)`
 // and the worker uses `inject("testDatabaseUrl")`. These cases drive
 // the real producer (`test/global-setup.ts`) and the real consumer
 // (`test/setup-env.ts`) and compare the two values.

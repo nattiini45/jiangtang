@@ -206,7 +206,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       }
       case "ticket-raise": {
         const parsed = safeParse(
-          z.object({ type: z.nativeEnum(TicketType) }),
+          z.object({ type: z.enum(TicketType) }),
           formDataToObject(form),
           locale,
         );
