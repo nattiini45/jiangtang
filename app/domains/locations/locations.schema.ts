@@ -7,7 +7,7 @@ import { LocationKind } from "~/generated/prisma/enums";
  * location spine). Form values arrive as strings, so optional text is preprocessed
  * out of empty strings exactly as the rooms domain does.
  *
- * `kind` is validated with `z.nativeEnum(LocationKind)` rather than a hand-written
+ * `kind` is validated with `z.enum(LocationKind)` rather than a hand-written
  * `z.enum([...])`: the value set is the generated enum, so the schema cannot drift
  * away from the database's 8 values (the enum spells them out).
  */
@@ -21,7 +21,7 @@ const optionalId = z.preprocess(emptyToUndefined, z.string().min(1).optional());
 
 export const locationCreateSchema = z.object({
   name: z.string().trim().min(1, msgKey("places.err.name.required")),
-  kind: z.nativeEnum(LocationKind),
+  kind: z.enum(LocationKind),
   code: optionalText,
   address: optionalText,
   description: optionalText,
@@ -41,7 +41,7 @@ export type LocationEditInput = z.infer<typeof locationEditSchema>;
 export const locationTreeOptionsSchema = z.object({
   /** Omit (or pass null) for the whole forest — every root and its descendants. */
   parentId: optionalId,
-  kind: z.preprocess(emptyToUndefined, z.nativeEnum(LocationKind).optional()),
+  kind: z.preprocess(emptyToUndefined, z.enum(LocationKind).optional()),
 });
 
 export type LocationTreeOptions = z.infer<typeof locationTreeOptionsSchema>;

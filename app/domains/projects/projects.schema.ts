@@ -57,7 +57,7 @@ const projectCreateObject = z.object({
   name: z.string().trim().min(1, msgKey("work.err.nameRequired")),
   description: optionalText,
   /** Defaults to `REQUESTED` — the enum's own `@default`. */
-  status: z.preprocess(emptyToUndefined, z.nativeEnum(ProjectStatus).default("REQUESTED")),
+  status: z.preprocess(emptyToUndefined, z.enum(ProjectStatus).default("REQUESTED")),
   color: optionalColor,
   startAt: optionalDate,
   dueAt: optionalDate,
@@ -86,7 +86,7 @@ export type ProjectEditInput = z.infer<typeof projectEditSchema>;
 
 export const projectStatusSchema = z.object({
   id: z.string().min(1),
-  status: z.nativeEnum(ProjectStatus),
+  status: z.enum(ProjectStatus),
 });
 
 export type ProjectStatusInput = z.infer<typeof projectStatusSchema>;
@@ -94,7 +94,7 @@ export type ProjectStatusInput = z.infer<typeof projectStatusSchema>;
 /** ── List options ──────────────────────────────────────────────────────────── */
 
 export const projectListOptionsSchema = z.object({
-  status: z.preprocess(emptyToUndefined, z.nativeEnum(ProjectStatus).optional()),
+  status: z.preprocess(emptyToUndefined, z.enum(ProjectStatus).optional()),
   leadId: optionalId,
   q: optionalText,
 });

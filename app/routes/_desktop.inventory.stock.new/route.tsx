@@ -41,10 +41,10 @@ import { useT } from "~/i18n/use-t";
  * 🔴 **A create form sends EXACTLY ONE `tags` input.** `stock-form-fields.tsx` renders one
  * box per entry plus one spare and has deliberately no "add tag" button, so an untouched form
  * posts a single `"kabel"` — a **bare string**, which `stockCreateSchema.tags`
- * (`z.array(...).default([])`) rejects as *"Expected array, received string"*. Measured
- * through the real `formDataToObject` + the real `stockCreateSchema`: `""`, `"kabel"` and
- * `"   "` are all bare strings, all three fail identically. `tagsFromForm` is what turns them
- * into `[]` / `["kabel"]` / `[]`.
+ * (`z.array(...).default([])`) rejects as *"Invalid input: expected array, received string"*.
+ * Measured through the real `formDataToObject` + the real `stockCreateSchema`: `""`,
+ * `"kabel"` and `"   "` are all bare strings, all three fail identically. `tagsFromForm` is
+ * what turns them into `[]` / `["kabel"]` / `[]`.
  *
  * ⚠️ **`tagsFromForm` normalises in the ROUTE, never in the schema.** The schema is shared
  * with the CSV importer, and a coercion there would make the importer accept a

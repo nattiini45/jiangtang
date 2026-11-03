@@ -11,7 +11,7 @@ const optionalId = z.preprocess(
 
 export const attachmentUploadSchema = z
   .object({
-    category: z.nativeEnum(AttachmentCategory),
+    category: z.enum(AttachmentCategory),
     roomId: optionalId,
     equipmentId: optionalId,
     ticketId: optionalId,

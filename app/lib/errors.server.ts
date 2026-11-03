@@ -111,7 +111,7 @@ export function toErrorResponse(error: unknown): Response {
   if (error instanceof Response) return error;
 
   if (error instanceof z.ZodError) {
-    const flat = error.flatten();
+    const flat = z.flattenError(error);
     const locale = currentLocale();
     return json(
       {

@@ -42,11 +42,7 @@ const optionalStatus = z.preprocess(
     if (typeof cleared !== "string") return cleared;
     return STOCK_STATUS_ALIASES.resolve(cleared) ?? cleared;
   },
-  z
-    .nativeEnum(StockStatus, {
-      errorMap: () => ({ message: msgKey("places.err.stock.statusInvalid") }),
-    })
-    .optional(),
+  z.enum(StockStatus, { error: () => msgKey("places.err.stock.statusInvalid") }).optional(),
 );
 
 /**
@@ -89,8 +85,7 @@ const optionalMoney = z.preprocess(
  *
  * 🔴 **A blank means "not stated" and takes the default `1` — and `.default`
  * goes on the INSIDE of `z.preprocess`, which is the load-bearing part of this
- * line.** On the installed `zod` 3.25.76 the outcome is the same for all five
- * spellings:
+ * line.** The outcome for each spelling, which zod 3 and zod 4 agree on:
  *
  * | spelling | `""` | `"   "` | `-5` |
  * |---|---|---|---|
@@ -100,7 +95,7 @@ const optionalMoney = z.preprocess(
  * | **`z.preprocess(f, quantity.default(1))` — what this is** | **`1`** ✅ | **`1`** ✅ | rejected ✅ |
  *
  * ⚠️ **The middle two rows are the design's own prescription, and it does not work.**
- * zod 3's `ZodDefault` takes the default only when the *input* is `undefined`, and
+ * `ZodDefault` takes the default only when the *input* is `undefined` (zod 4 too), and
  * a blank CSV cell arrives as `""` — so with the default on the outside, `""`
  * reaches `z.coerce.number()` as `NaN` and the row is **rejected** instead of
  * defaulted. The default has to be the INNER type for the preprocess to turn a

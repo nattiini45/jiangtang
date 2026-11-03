@@ -23,7 +23,21 @@
       "prisma",
       "esbuild",
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "body-parser@<1.20.9": "^1.20.9",
+      "qs@<6.16.1": "~6.16.1",
+      "glob@>=9.0.0 <=14.0.1": "^14.0.2",
+      "minimatch@<11.0.1": "^11.0.1",
+      "brace-expansion@<1.1.21": "^1.1.21",
+      "js-yaml@>=4.0.0 <4.3.2": "^4.3.2",
+      "browserslist@<=4.28.6": "^4.28.7",
+      "baseline-browser-mapping@<2.11.0": "^2.11.0",
+      "zod@<4.6.6": "^4.6.7"
+    },
+    "patchedDependencies": {
+      "@react-router/fs-routes@7.18.2": "patches/@react-router__fs-routes@7.18.2.patch"
+    }
   },
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx watch ./server.ts",
@@ -79,7 +93,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "yaml": "2.9.1",
-    "zod": "^3.24.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",
@@ -101,6 +115,6 @@
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.5",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^3.2.6"
+    "vitest": "^4.1.12"
   }
 }

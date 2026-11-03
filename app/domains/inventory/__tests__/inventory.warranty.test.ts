@@ -1,4 +1,13 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 import type { Express } from "express";
 import type { BootContext } from "~/server/boot";
 import { db } from "~/lib/db.server";
@@ -295,7 +304,7 @@ describe("the sweep writes nothing", () => {
 });
 
 describe("the boot module", () => {
-  let logSpy: ReturnType<typeof vi.spyOn>;
+  let logSpy: MockInstance<typeof console.log>;
   let intervalHandle: ReturnType<typeof setInterval> | undefined;
 
   beforeEach(() => {

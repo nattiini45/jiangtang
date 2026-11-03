@@ -20,16 +20,16 @@ export type { FieldErrors };
 
 /**
  * `undefined` on empty-string input; otherwise trims and requires a well-formed
- * http(s) URL. Zod's bare `.url()` accepts any scheme (`javascript:`, `data:`,
+ * http(s) URL. Zod's bare `z.url()` accepts any scheme (`javascript:`, `data:`,
  * ...) which is a stored-XSS vector wherever the value is later rendered as an
- * `<a href>`. Use this for any optional URL field instead of hand-rolling `.url()`.
+ * `<a href>`. Use this for any optional URL field instead of hand-rolling `z.url()`.
  */
 export const optionalHttpUrl = z.preprocess(
   (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v),
   z
     .string()
     .trim()
-    .url(msgKey("err.url.invalid"))
+    .pipe(z.url(msgKey("err.url.invalid")))
     .refine((u) => /^https?:\/\//i.test(u), msgKey("err.url.httpOnly"))
     .optional(),
 );
@@ -84,7 +84,7 @@ export function formDataToObject(formData: FormData): Record<string, unknown> {
  * ⚠️ **The single-input case is the one a control written only for 2+ would miss.** Measured
  * through the real `formDataToObject` + the real `stockCreateSchema`: a create
  * form with one blank box sends `"kabel"` as a **bare string**, and `z.array()` alone
- * rejects it as *"Expected array, received string"*. So a filter written as
+ * rejects it as *"Invalid input: expected array, received string"*. So a filter written as
  * `Array.isArray(x) ? … : [x]` is what turns a green multi-tag test into a working
  * single-tag form — and the create form sends EXACTLY ONE input, because there is no
  * "add tag" button (`stock-form-fields.tsx`). It is the shape a user reaches first.
@@ -114,7 +114,7 @@ export function safeParse<S extends z.ZodTypeAny>(
 ): ParseResult<z.infer<S>> {
   const result = schema.safeParse(input);
   if (result.success) return { success: true, data: result.data };
-  const flat = result.error.flatten();
+  const flat = z.flattenError(result.error);
   return {
     success: false,
     fieldErrors: localizeFieldErrors(locale, flat.fieldErrors as FieldErrors),

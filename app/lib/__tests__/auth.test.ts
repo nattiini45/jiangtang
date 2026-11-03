@@ -6,7 +6,6 @@ import { db } from "~/lib/db.server";
  * Integration test: Better Auth (email/password) + the Prisma adapter + our schema
  * (incl. role/initials/isActive additionalFields) actually work together at
  * runtime — and the frozen `getOptionalUser` resolves a session cookie to a user.
- * Also de-risks the zod peer-dep warning (better-call wants zod 4; we ship zod 3).
  */
 
 const createdUserIds: string[] = [];

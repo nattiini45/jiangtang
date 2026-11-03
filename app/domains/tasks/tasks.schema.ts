@@ -104,8 +104,8 @@ const taskCreateObject = z.object({
     .min(1, msgKey("work.err.titleRequired"))
     .max(200, msgKey("work.err.titleTooLong")),
   body: z.preprocess(emptyToUndefined, z.string().trim().max(20000).optional()),
-  status: z.preprocess(emptyToUndefined, z.nativeEnum(TaskStatus).default("BACKLOG")),
-  priority: z.preprocess(emptyToUndefined, z.nativeEnum(TaskPriority).optional()),
+  status: z.preprocess(emptyToUndefined, z.enum(TaskStatus).default("BACKLOG")),
+  priority: z.preprocess(emptyToUndefined, z.enum(TaskPriority).optional()),
   startAt: optionalDate,
   dueAt: optionalDate,
   estimateMinutes: optionalEstimate,
@@ -135,7 +135,7 @@ export type TaskEditInput = z.infer<typeof taskEditSchema>;
 /** ── Status / move / assignees ─────────────────────────────────────────────── */
 
 export const taskStatusSchema = z.object({
-  status: z.nativeEnum(TaskStatus),
+  status: z.enum(TaskStatus),
 });
 
 export const taskMoveSchema = z
@@ -170,7 +170,7 @@ const statusesField = z.preprocess(
     const list = v === undefined ? undefined : Array.isArray(v) ? v : [v];
     return list?.filter((s): s is string => typeof s === "string" && s.trim() !== "");
   },
-  z.array(z.nativeEnum(TaskStatus)).optional(),
+  z.array(z.enum(TaskStatus)).optional(),
 );
 
 export const taskListOptionsSchema = z.object({
@@ -193,7 +193,7 @@ export type TaskListOptions = z.infer<typeof taskListOptionsSchema>;
  * stock importer's contract, one enum over). An empty cell is "not given",
  * anything else is a row error naming the value it could not read.
  */
-function enumOrLabel<E extends z.EnumLike>(
+function enumOrLabel<E extends z.util.EnumLike>(
   enumObj: E,
   aliases: { resolve(cell: string): string | null },
   invalid: string,
@@ -203,7 +203,7 @@ function enumOrLabel<E extends z.EnumLike>(
       if (typeof v !== "string" || v.trim() === "") return undefined;
       return aliases.resolve(v) ?? v.trim();
     },
-    z.nativeEnum(enumObj, { errorMap: () => ({ message: invalid }) }).optional(),
+    z.enum(enumObj, { error: () => invalid }).optional(),
   );
 }
 
@@ -244,11 +244,7 @@ const csvDay = z.preprocess(
       return new Date(Number.NaN);
     }
   },
-  z
-    .date({
-      errorMap: () => ({ message: msgKey("work.err.csvDayFormat") }),
-    })
-    .optional(),
+  z.date({ error: () => msgKey("work.err.csvDayFormat") }).optional(),
 );
 
 /** A comma/semicolon list cell — trimmed, blanks dropped, deduped. */

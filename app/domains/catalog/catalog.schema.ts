@@ -13,7 +13,7 @@ const optionalUrl = optionalHttpUrl;
 export const modelCreateSchema = z.object({
   manufacturer: optionalText,
   name: z.string().trim().min(1, msgKey("places.err.name.required")),
-  category: z.nativeEnum(EquipmentCategory),
+  category: z.enum(EquipmentCategory),
   specNotes: optionalText,
   manualUrl: optionalUrl,
 });

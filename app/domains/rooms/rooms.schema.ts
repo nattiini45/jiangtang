@@ -61,7 +61,7 @@ export const roomCreateSchema = z
     newBuildingName: optionalText,
     capacity: optionalInt,
     owner: optionalText,
-    status: z.nativeEnum(RoomStatus).default(RoomStatus.ALL_GOOD),
+    status: z.enum(RoomStatus).default(RoomStatus.ALL_GOOD),
     hasProjector: checkbox,
     hasMicrophony: checkbox,
     hasBlackboard: checkbox,
@@ -140,7 +140,7 @@ const csvStatus = z.preprocess((v) => {
     .toLowerCase();
   if (!s) return RoomStatus.ALL_GOOD;
   return ROOM_STATUS_MAP[s] ?? s.toUpperCase();
-}, z.nativeEnum(RoomStatus));
+}, z.enum(RoomStatus));
 
 const csvList = z.preprocess((v) => {
   const s = String(v ?? "").trim();

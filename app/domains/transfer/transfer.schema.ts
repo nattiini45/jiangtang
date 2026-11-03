@@ -51,16 +51,16 @@ export const transferProjectSchema = z.object({
   slug: z.string().min(1),
   name: z.string().min(1),
   description: nullableText,
-  status: z.nativeEnum(ProjectStatus),
+  status: z.enum(ProjectStatus),
   color: nullableText,
   startAt: nullableInstant,
   dueAt: nullableInstant,
-  leadEmail: z.string().email().nullable().default(null),
+  leadEmail: z.email().nullable().default(null),
   parentSlug: z.string().nullable().default(null),
 });
 
 export const transferAssigneeSchema = z.object({
-  email: z.string().email(),
+  email: z.email(),
   estimateMinutes: z.number().int().nonnegative().nullable().default(null),
 });
 
@@ -68,8 +68,8 @@ export const transferTaskSchema = z.object({
   id: transferId,
   title: z.string().min(1),
   body: nullableText,
-  status: z.nativeEnum(TaskStatus),
-  priority: z.nativeEnum(TaskPriority).nullable().default(null),
+  status: z.enum(TaskStatus),
+  priority: z.enum(TaskPriority).nullable().default(null),
   startAt: nullableInstant,
   dueAt: nullableInstant,
   estimateMinutes: z.number().int().nonnegative().nullable().default(null),

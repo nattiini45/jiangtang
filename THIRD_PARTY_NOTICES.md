@@ -63,7 +63,7 @@ registry under its own license.
 | Apache-2.0 | `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
 | ISC | `lucide-react` 1.66.0, `yaml` 2.9.1 |
 | OFL-1.1 | `@fontsource-variable/inter` 5.3.0 (the Inter typeface by Rasmus Andersson, self-hosted and bundled into the client build; the package ships the license text) |
-| MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.1.3, `motion` 12.42.0, `pg` 8.23.1, `pino` 9.14.0, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 3.25.76 |
+| MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.1.3, `motion` 12.42.0, `pg` 8.23.1, `pino` 9.14.0, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 4.6.7 |
 
 ### Feather icons inside lucide-react
 
@@ -109,7 +109,7 @@ see "Components shipped in the runtime image" below.
 | License | Packages (resolved version) |
 | --- | --- |
 | Apache-2.0 | `@playwright/test` 1.64.1, `prisma` 7.10.1, `typescript` 5.9.3 |
-| MIT | `@eslint/js` 10.0.1, `@react-router/dev` 7.18.2, `@tailwindcss/vite` 4.3.3, `@types/express` 4.17.25, `@types/node` 22.20.0, `@types/pg` 8.23.1, `@types/react` 19.3.0, `@types/react-dom` 19.3.0, `eslint` 9.39.4, `eslint-config-prettier` 10.1.8, `eslint-plugin-react-hooks` 6.1.1, `prettier` 3.9.10, `typescript-eslint` 8.72.1, `vite` 8.3.5, `vite-tsconfig-paths` 6.1.1, `vitest` 3.2.6 |
+| MIT | `@eslint/js` 10.0.1, `@react-router/dev` 7.18.2, `@tailwindcss/vite` 4.3.3, `@types/express` 4.17.25, `@types/node` 22.20.0, `@types/pg` 8.23.1, `@types/react` 19.3.0, `@types/react-dom` 19.3.0, `eslint` 9.39.4, `eslint-config-prettier` 10.1.8, `eslint-plugin-react-hooks` 6.1.1, `prettier` 3.9.10, `typescript-eslint` 8.72.1, `vite` 8.3.5, `vite-tsconfig-paths` 6.1.1, `vitest` 4.1.12 |
 | MPL-2.0 | `@axe-core/playwright` 4.14.0 |
 
 ## Lockfile-resolved transitive licenses
@@ -118,26 +118,27 @@ The counts cover the whole dependency tree, direct dependencies included, for on
 install: Linux x64 (`node:22-bookworm-slim`, glibc, amd64), pnpm 10.26.2 (the `packageManager`
 field), and the full tree rather than `--prod`, because the Dockerfile's build stage runs
 `pnpm install --frozen-lockfile` and its runtime stage copies that whole `node_modules`. Run it from
-a scratch folder that holds only copies of `package.json` and `pnpm-lock.yaml`:
+a scratch folder that holds only copies of `package.json`, `pnpm-lock.yaml` and the `patches/` folder
+(the lockfile records a patch for `@react-router/fs-routes`, so a frozen install needs it):
 
 ```sh
 docker run --rm -v "<scratch-dir>:/w" -w /w node:22-bookworm-slim sh -c "corepack enable && corepack prepare pnpm@10.26.2 --activate && pnpm install --frozen-lockfile >/tmp/install.log 2>&1 && pnpm licenses list --json > /w/licenses-linux-x64.json"
 ```
 
 The export lists each package with its versions; the table counts package and version pairs. The
-result is 709 entries, the number of package/version pairs pnpm installs for this platform:
+result is 697 entries, the number of package/version pairs pnpm installs for this platform:
 
 | License | Entries |
 | --- | --- |
-| MIT | 583 |
+| MIT | 572 |
 | Apache-2.0 | 45 |
-| ISC | 41 |
+| ISC | 39 |
 | BSD-2-Clause | 7 |
 | BSD-3-Clause | 7 |
 | MPL-2.0 | 8 |
 | LGPL-3.0-or-later | 2 |
 | Unlicense | 3 |
-| BlueOak-1.0.0 | 5 |
+| BlueOak-1.0.0 | 6 |
 | CC-BY-4.0 | 1 |
 | MIT AND ISC | 1 |
 | MIT AND ISC AND BSD-3-Clause | 1 |
@@ -164,20 +165,19 @@ Notice-bearing or copyleft entries on this platform:
   authoritative.
 - OFL-1.1: `@fontsource-variable/inter` 5.3.0, a direct runtime dependency whose font files are
   bundled into the client build (see above). The package's own license file is authoritative.
-- CC-BY-4.0: `caniuse-lite` 1.0.30001799 (in the runtime image; see below).
+- CC-BY-4.0: `caniuse-lite` 1.0.30001820 (in the runtime image; see below).
 - MIT AND ISC: `@visx/vendor` 4.0.0-alpha.0, reached through `@prisma/studio-core` 0.33.0.
 - MIT AND ISC AND BSD-3-Clause: `victory-vendor` 37.4.1, reached through `recharts` 3.10.1.
 - Python-2.0: `argparse` 2.0.1. Permissive.
 - Unlicense: `isbot` 5.2.2, `postgres` 3.4.7, `robust-predicates` 3.0.3.
-- BlueOak-1.0.0: `glob` 13.0.6, `lru-cache` 11.5.3, `minimatch` 10.2.6, `minipass` 7.1.3 and
-  `path-scurry` 2.0.2.
+- BlueOak-1.0.0: `@isaacs/nonrecursive-glob-match` 1.0.3, `glob` 14.0.3, `lru-cache` 11.5.3,
+  `minimatch` 11.0.4, `minipass` 7.1.3 and `path-scurry` 3.0.0.
 - 0BSD: `tslib` 2.8.1.
 
 Packages whose installs are restricted to another platform (the other `@img/sharp-libvips-*`
 variants, every `lightningcss-*` platform package except `lightningcss-linux-x64-gnu` and
 `lightningcss-linux-x64-musl`, and `@img/sharp-win32-*`) are not installed by this run and are not
-counted. `zod` 4.6.7 is in this
-closure as a transitive dependency; the direct dependency is `zod` 3.25.76 (listed above).
+counted.
 
 The complete machine-readable inventory can be regenerated with the command above. The export does
 not vendor `node_modules`; each dependency's license file is authoritative for its own terms.
@@ -220,8 +220,8 @@ The lockfile resolves two versions of `lightningcss`, both MPL-2.0:
   (used in `vite.config.ts`) depends on.
 - `lightningcss` 1.33.0 is a direct dependency of `vite` 8.3.5, the root `devDependencies` entry that
   the build uses. Vite 8 declares it as a regular dependency, not as an optional peer. The same
-  1.33.0 is also linked as the optional peer of `vite` 6.4.5, the copy that `vitest` 3.2.6 and
-  `vite-node` 3.2.4 use.
+  1.33.0 is also linked as the optional peer of `vite` 6.4.5, the copy that `vite-node` 3.2.4 (a
+  dependency of `@react-router/dev`) uses.
 
 The repository does not set a CSS transformer in `vite.config.ts`, so Vite uses its default PostCSS
 path. Both versions are in the runtime image because the full `node_modules` tree is copied into it.
@@ -239,7 +239,7 @@ in the image.
 
 ### caniuse-lite (CC-BY-4.0)
 
-`caniuse-lite` 1.0.30001799 is browser-support data used by Babel and browserslist in the React
+`caniuse-lite` 1.0.30001820 is browser-support data used by Babel and browserslist in the React
 Router build toolchain, so it is in the runtime image. Attribution: author Ben Briggs (the `author`
 field of its `package.json`); repository https://github.com/browserslist/caniuse-lite. It is licensed
 under the Creative Commons Attribution 4.0 International License

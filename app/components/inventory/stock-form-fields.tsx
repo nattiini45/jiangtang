@@ -59,9 +59,9 @@ import { useLocale, useT } from "~/i18n/use-t";
  * 🔴 **A blank box arrives as `""` inside the array for 2+ inputs, and as a bare `string`
  * for the one input an untouched create form sends.** `formDataToObject` has collapsed
  * repeated keys by then, so a single box is not an array at all: that case fails as
- * `invalid_type` *"Expected array, received string"*, not as a length failure. Both routes
- * therefore normalise through the shared `tagsFromForm` (`app/lib/validation.server.ts`),
- * which handles the bare string and the array in one place.
+ * `invalid_type` *"Invalid input: expected array, received string"*, not as a length failure.
+ * Both routes therefore normalise through the shared `tagsFromForm`
+ * (`app/lib/validation.server.ts`), which handles the bare string and the array in one place.
  *
  * ⚠️ **The user-visible consequence is stated rather than left to be discovered:** clearing
  * a box is how you remove a tag. A tag you cannot remove is a tag you can only add. This is
