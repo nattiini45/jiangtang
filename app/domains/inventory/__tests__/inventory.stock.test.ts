@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "~/lib/db.server";
 import { ValidationError, hasSqlState } from "~/lib/errors.server";
 import {
+  collidedField,
   createStockItem,
   updateStockItem,
   deleteStockItem,
@@ -95,7 +96,7 @@ async function makeVendor(name: string) {
 }
 
 describe("the constraint is in the DATABASE, not in the domain", () => {
-  it("(1) CONTROL: a raw duplicate insert is refused by Postgres, and the error is NOT findable by SQLSTATE lookup", async () => {
+  it("(1) CONTROL: a raw duplicate insert is refused by Postgres, with SQLSTATE 23505 and the colliding index named", async () => {
     // Deliberately NOT createStockItem. The question this control answers: does the
     // *database* refuse a duplicate sku, so that the ValidationError in test 3 is a
     // translation of a real refusal rather than a form check that happens to agree with
@@ -120,20 +121,12 @@ describe("the constraint is in the DATABASE, not in the domain", () => {
     const adapterCause = err.meta?.driverAdapterError?.cause ?? {};
     expect(adapterCause.originalCode, "Postgres' own code for this failure").toBe("23505");
     expect(adapterCause.kind).toBe("UniqueConstraintViolation");
-    // The colliding COLUMN, structured — which is why the domain can name the
-    // field without regexing a message.
-    expect((adapterCause.constraint as { fields?: string[] } | undefined)?.fields).toEqual(["sku"]);
+    // The colliding index, structured — the domain reads the column from its name.
+    expect(adapterCause.constraint).toEqual({ index: "InventoryItem_sku_key" });
 
-    // ⚠️ The repo's
-    // general SQLSTATE helper does NOT see this error. `hasSqlState` walks
-    // `.cause` (null here) and compares `code`/`meta.code` (P2002 and undefined),
-    // while the SQLSTATE sits at `meta.driverAdapterError.cause.originalCode`.
-    // A handler built on `hasSqlState(error, "23505")` alone would therefore
-    // catch NOTHING and let a raw driver error render as a 500.
-    expect(
-      hasSqlState(caught, "23505"),
-      "hasSqlState cannot reach 23505 on this stack — the domain detects structurally instead",
-    ).toBe(false);
+    // The SQLSTATE helper reads the adapter's `originalCode`, so a handler can
+    // test for the unique violation by SQLSTATE as well as by the Prisma code.
+    expect(hasSqlState(caught, "23505"), "hasSqlState reads the adapter SQLSTATE").toBe(true);
 
     expect(item.sku).toBe(`${RUN}-CTRL-SKU`);
   });
@@ -245,6 +238,34 @@ describe("a duplicate is a ValidationError, never a raw driver error", () => {
     expect(updated.sku).toBe(`${RUN}-SKU-SELF`);
     expect(updated.quantity).toBe(3);
     expect(await auditFor(item.id)).toHaveLength(2); // create + update
+  });
+});
+
+describe("the colliding field is read from the adapter's constraint", () => {
+  // Fed directly, because a real duplicate also names its index in the Prisma message, and
+  // the message fallback would otherwise answer these before the structured field is read.
+  it("names the sku from the constraint index when the message does not", () => {
+    const error = {
+      code: "P2002",
+      message: "Unique constraint failed",
+      meta: { driverAdapterError: { cause: { constraint: { index: "InventoryItem_sku_key" } } } },
+    };
+    expect(collidedField(error)).toBe("sku");
+  });
+
+  it("names the serial from the constraint index when the message does not", () => {
+    const error = {
+      code: "P2002",
+      message: "Unique constraint failed",
+      meta: {
+        driverAdapterError: { cause: { constraint: { index: "InventoryItem_serial_key" } } },
+      },
+    };
+    expect(collidedField(error)).toBe("serial");
+  });
+
+  it("names nothing when neither the constraint nor the message names a column", () => {
+    expect(collidedField({ code: "P2002", message: "Unique constraint failed" })).toBeNull();
   });
 });
 
