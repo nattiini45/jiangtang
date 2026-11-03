@@ -1689,7 +1689,7 @@ function ciWiringProblems(text: string): string[] {
   // (5) Least privilege, no secrets, no publication of any artifact type.
   const stepDefs = workflow.jobs?.ci?.steps ?? [];
   const uses = stepDefs.map((step) => step.uses ?? "");
-  if (!uses.includes("actions/upload-artifact@v4")) {
+  if (!uses.some((ref) => /^actions\/upload-artifact@v\d+$/.test(ref))) {
     problems.push("pre-existing CI check is missing: the Playwright failure-diagnostics upload");
   }
   const executableText = [...steps.map((step) => step.run), ...uses].join("\n");
