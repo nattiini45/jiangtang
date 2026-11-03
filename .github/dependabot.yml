@@ -27,6 +27,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The Node major is chosen on purpose and must match CI's setup-node pin, so
+    # it moves in one change with CI and the docs, not as a Dockerfile-only bump.
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
     groups:
       docker-root-minor-patch:
         update-types:

@@ -140,12 +140,9 @@ export async function deleteLocation(actor: AuditActor, id: string): Promise<Loc
       // Backstop for the race the count cannot close: another writer can attach a
       // child between the COUNT and the DELETE.
       //
-      // ⚠️ On THIS stack, with `@prisma/adapter-pg`, a Restrict violation is
-      // **not** Prisma's `P2003`. It surfaces as a `DriverAdapterError`
-      // carrying SQLSTATE `23001` in `.cause.code`. A
-      // handler written against `"P2003"` therefore catches nothing at all — the
-      // error a `P2003` check would look for cannot occur here. `hasSqlState` walks
-      // the `.cause` chain, so it matches the shape that is actually raised.
+      // A Restrict violation reaches here as Prisma `P2003`, with SQLSTATE `23001` on the
+      // adapter cause (`meta.driverAdapterError.cause.originalCode`). `hasSqlState` reads
+      // that field, so the check is on the SQLSTATE, not on the Prisma code.
       if (hasSqlState(error, SQLSTATE_RESTRICT_VIOLATION)) {
         throw new ValidationError({}, [
           tr("places.err.location.deleteRacedChildren", { name: location.name }),

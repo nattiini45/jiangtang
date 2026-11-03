@@ -86,13 +86,13 @@ describe("the shipped path, and it is the form's own schema", () => {
     }
     expect(caught, "a raw duplicate sku insert must be refused by the database").toBeDefined();
     expect((caught as { code?: string }).code).toBe("P2002");
-    // The colliding column, structured out of the adapter's constraint.
+    // The colliding index, structured out of the adapter's constraint.
     const cause = (
       caught as {
-        meta?: { driverAdapterError?: { cause?: { constraint?: { fields?: string[] } } } };
+        meta?: { driverAdapterError?: { cause?: { constraint?: { index?: string } } } };
       }
     ).meta?.driverAdapterError?.cause;
-    expect(cause?.constraint?.fields).toEqual(["sku"]);
+    expect(cause?.constraint?.index).toBe("InventoryItem_sku_key");
   });
 
   it("(1) a CSV imports through previewCsv + stockCreateSchema, with the references resolved", async () => {
