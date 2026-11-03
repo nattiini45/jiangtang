@@ -5,8 +5,9 @@ Jiangtang is licensed under the Apache License, Version 2.0. See `LICENSE` and `
 This file inventories third-party components that are copied into the released source tree or are
 needed to build and run it. It is an inventory, not a warranty of provenance. Versions are the
 lockfile-resolved versions at release preparation time. Packages installed from a registry remain
-under their own licenses; their license files ship inside the installed packages. They are not
-relicensed as Apache-2.0.
+under their own licenses; their license files ship inside the installed packages, except the
+`@img/sharp-libvips-*` packages, which ship none (see the libvips section). They are not relicensed
+as Apache-2.0.
 
 ## Vendored source
 
@@ -59,21 +60,22 @@ registry under its own license.
 
 | License | Packages (resolved version) |
 | --- | --- |
-| Apache-2.0 | `@prisma/adapter-pg` 7.8.0, `@prisma/client` 7.8.0, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
-| ISC | `lucide-react` 0.460.0, `yaml` 2.9.1 |
-| MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.2.3, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.3, `better-auth` 1.6.22, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.0.0, `motion` 12.42.0, `pg` 8.22.0, `pino` 9.14.0, `react` 19.2.7, `react-dom` 19.2.7, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.9.0, `remark-gfm` 4.0.1, `tailwind-merge` 3.6.0, `tailwindcss` 4.3.1, `tsx` 4.22.4, `zod` 3.25.76 |
+| Apache-2.0 | `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
+| ISC | `lucide-react` 1.66.0, `yaml` 2.9.1 |
+| MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.1.3, `motion` 12.42.0, `pg` 8.23.1, `pino` 9.14.0, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 3.25.76 |
 
 ### Feather icons inside lucide-react
 
-`lucide-react` 0.460.0 is licensed ISC, but its icon set includes portions held as part of Feather,
-which is MIT-licensed. The `LICENSE` file in the installed package says so. The copyright line
-below is the one in Feather's own `LICENSE` (https://github.com/feathericons/feather, file
-`LICENSE`); the Lucide file cites the years 2013-2022 for the same portions.
+`lucide-react` 1.66.0 is licensed ISC, but its icon set includes portions derived from Feather, which
+is MIT-licensed. The `LICENSE` file in the installed package lists those icons and gives the MIT
+terms for them. The copyright line below is the one that file gives for those icons (the upstream
+Feather project is https://github.com/feathericons/feather); the installed file cites the years
+2013-present.
 
 License: MIT
 
 ```text
-Copyright (c) 2013-2023 Cole Bemis
+Copyright (c) 2013-present Cole Bemis
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -105,9 +107,9 @@ see "Components shipped in the runtime image" below.
 
 | License | Packages (resolved version) |
 | --- | --- |
-| Apache-2.0 | `@playwright/test` 1.63.0, `prisma` 7.8.0, `typescript` 5.9.3 |
-| MIT | `@eslint/js` 10.0.1, `@react-router/dev` 7.18.2, `@tailwindcss/vite` 4.3.1, `@types/express` 4.17.25, `@types/node` 22.20.0, `@types/pg` 8.20.0, `@types/react` 19.2.17, `@types/react-dom` 19.2.3, `eslint` 9.39.4, `eslint-config-prettier` 10.1.8, `eslint-plugin-react-hooks` 6.1.1, `prettier` 3.8.4, `typescript-eslint` 8.63.0, `vite` 6.4.3, `vite-tsconfig-paths` 5.1.4, `vitest` 3.2.6 |
-| MPL-2.0 | `@axe-core/playwright` 4.13.0 |
+| Apache-2.0 | `@playwright/test` 1.64.1, `prisma` 7.10.1, `typescript` 5.9.3 |
+| MIT | `@eslint/js` 10.0.1, `@react-router/dev` 7.18.2, `@tailwindcss/vite` 4.3.3, `@types/express` 4.17.25, `@types/node` 22.20.0, `@types/pg` 8.23.1, `@types/react` 19.3.0, `@types/react-dom` 19.3.0, `eslint` 9.39.4, `eslint-config-prettier` 10.1.8, `eslint-plugin-react-hooks` 6.1.1, `prettier` 3.9.10, `typescript-eslint` 8.72.1, `vite` 8.3.5, `vite-tsconfig-paths` 6.1.1, `vitest` 3.2.6 |
+| MPL-2.0 | `@axe-core/playwright` 4.14.0 |
 
 ## Lockfile-resolved transitive licenses
 
@@ -122,40 +124,55 @@ docker run --rm -v "<scratch-dir>:/w" -w /w node:22-bookworm-slim sh -c "corepac
 ```
 
 The export lists each package with its versions; the table counts package and version pairs. The
-result is 712 entries:
+result is 708 entries, the number of package/version pairs pnpm installs for this platform:
 
 | License | Entries |
 | --- | --- |
-| MIT | 559 |
-| Apache-2.0 | 88 |
-| ISC | 36 |
-| BSD-2-Clause | 8 |
+| MIT | 583 |
+| Apache-2.0 | 45 |
+| ISC | 41 |
+| BSD-2-Clause | 7 |
 | BSD-3-Clause | 7 |
-| MPL-2.0 | 5 |
+| MPL-2.0 | 8 |
 | LGPL-3.0-or-later | 2 |
-| Unlicense | 2 |
-| BlueOak-1.0.0 | 1 |
+| Unlicense | 3 |
+| BlueOak-1.0.0 | 5 |
 | CC-BY-4.0 | 1 |
 | MIT AND ISC | 1 |
+| MIT AND ISC AND BSD-3-Clause | 1 |
+| EPL-2.0 | 1 |
+| FSL-1.1-Apache-2.0 | 1 |
 | Python-2.0 | 1 |
 | 0BSD | 1 |
 
 Notice-bearing or copyleft entries on this platform:
 
-- MPL-2.0: `@axe-core/playwright` 4.13.0 and `axe-core` 4.13.0 (test tooling only);
-  `lightningcss` 1.32.0, `lightningcss-linux-x64-gnu` 1.32.0 and `lightningcss-linux-x64-musl`
-  1.32.0 (CSS build, also in the runtime image; see below).
+- MPL-2.0: `@axe-core/playwright` 4.14.0 and `axe-core` 4.14.0 (test tooling only);
+  `lightningcss` 1.32.0 and 1.33.0, `lightningcss-linux-x64-gnu` 1.32.0 and 1.33.0, and
+  `lightningcss-linux-x64-musl` 1.32.0 and 1.33.0 (CSS build, also in the runtime image; see
+  below).
 - LGPL-3.0-or-later: `@img/sharp-libvips-linux-x64` 1.3.4 and `@img/sharp-libvips-linuxmusl-x64`
   1.3.4 (in the runtime image; see below).
+- EPL-2.0: `elkjs` 0.11.1, reached through `@prisma/studio-core` 0.33.0, which the `prisma` 7.10.1
+  dev dependency uses. The package's own license file is authoritative.
+- FSL-1.1-Apache-2.0: `sentry` 0.45.0, reached through `@sentry/bundler-plugins` 11.10.0, a
+  dependency of `@sentry/node` 11.10.0 (a direct runtime dependency). The Functional Source License
+  is source-available rather than an OSI-approved open-source license: it limits competing uses and
+  converts to Apache-2.0 two years after each release. The package's own license file is
+  authoritative.
 - CC-BY-4.0: `caniuse-lite` 1.0.30001799 (in the runtime image; see below).
+- MIT AND ISC: `@visx/vendor` 4.0.0-alpha.0, reached through `@prisma/studio-core` 0.33.0.
+- MIT AND ISC AND BSD-3-Clause: `victory-vendor` 37.4.1, reached through `recharts` 3.10.1.
 - Python-2.0: `argparse` 2.0.1. Permissive.
-- Unlicense: `isbot` 5.2.2, `postgres` 3.4.7.
-- BlueOak-1.0.0: `minimatch` 10.2.5.
+- Unlicense: `isbot` 5.2.2, `postgres` 3.4.7, `robust-predicates` 3.0.3.
+- BlueOak-1.0.0: `glob` 13.0.6, `lru-cache` 11.5.3, `minimatch` 10.2.6, `minipass` 7.1.3 and
+  `path-scurry` 2.0.2.
 - 0BSD: `tslib` 2.8.1.
 
 Packages whose installs are restricted to another platform (the other `@img/sharp-libvips-*`
-variants, the other `lightningcss-*` platform packages, and `@img/sharp-win32-*`) are not installed
-by this run and are not counted. `zod` 4.6.7 is in this
+variants, every `lightningcss-*` platform package except `lightningcss-linux-x64-gnu` and
+`lightningcss-linux-x64-musl`, and `@img/sharp-win32-*`) are not installed by this run and are not
+counted. `zod` 4.6.7 is in this
 closure as a transitive dependency; the direct dependency is `zod` 3.25.76 (listed above).
 
 The complete machine-readable inventory can be regenerated with the command above. The export does
@@ -171,8 +188,8 @@ tree ships in the runtime image too. Three groups need more than a license name.
 `sharp` 0.35.5 (Apache-2.0) loads libvips from a platform package that pnpm installs as an optional
 dependency. On Linux x64 these are `@img/sharp-libvips-linux-x64` 1.3.4 (glibc) and
 `@img/sharp-libvips-linuxmusl-x64` 1.3.4 (musl). Both declare `LGPL-3.0-or-later` in their
-`package.json`. The lockfile also pins the other `@img/sharp-libvips-*` variants (darwin, linux
-arm64, arm, ppc64, riscv64, s390x, linuxmusl arm64); each is limited to its own operating system and
+`package.json`. The lockfile also pins the other `@img/sharp-libvips-*` variants (darwin arm64 and
+x64, linux arm64, arm, ppc64, riscv64, s390x, linuxmusl arm64); each is limited to its own operating system and
 CPU and is not installed on Linux x64. `@img/sharp-win32-x64` 0.35.5 is the Windows build and is
 licensed `Apache-2.0 AND LGPL-3.0-or-later`; it is not part of the Linux image.
 
@@ -180,9 +197,8 @@ licensed `Apache-2.0 AND LGPL-3.0-or-later`; it is not part of the Linux image.
   native binding links that file dynamically; `ldd` on the Linux x64 install resolves it to the
   separate `@img/sharp-libvips-linux-x64` package. A recipient can therefore replace the shared
   object with a modified build.
-- The `@img/sharp-libvips-linux-x64` package does not contain a license file; its README refers to
-  the upstream sharp-libvips `THIRD-PARTY-NOTICES.md`, which lists the bundled libraries and their
-  licenses. Its LGPLv3 entries are fribidi, glib, libexif, libheif, librsvg, libvips, pango and
+- The `@img/sharp-libvips-linux-x64` package does not contain a license file; its README contains
+  a Licensing table that lists the bundled libraries and their licenses. Its LGPLv3 entries are fribidi, glib, libexif, libheif, librsvg, libvips, pango and
   proxy-libintl. The other entries are permissive (MIT, BSD variants, zlib, IJG, FreeType,
   fontconfig, libpng and libtiff terms, and the AOM Patent License for aom), and cairo is under
   MPL 1.1.
@@ -194,16 +210,23 @@ licensed `Apache-2.0 AND LGPL-3.0-or-later`; it is not part of the Linux image.
 
 ### lightningcss (MPL-2.0)
 
-`lightningcss` 1.32.0 is a direct dependency of `@tailwindcss/node`, which `@tailwindcss/vite` (used
-in `vite.config.ts`) depends on. It is also an optional peer of Vite, which pnpm links to the copy
-already installed through `@tailwindcss/node` (an optional peer is never auto-installed on its own).
-The repository does not select it as Vite's CSS transformer; Vite uses its default PostCSS path. It
-is in the runtime image because the full `node_modules` tree is copied into it. The repository does
-not patch it. Every `lightningcss-*` platform package in the lockfile is MPL-2.0:
-`lightningcss-android-arm64`, `lightningcss-darwin-arm64`, `lightningcss-darwin-x64`,
-`lightningcss-freebsd-x64`, `lightningcss-linux-arm-gnueabihf`, `lightningcss-linux-arm64-gnu`,
-`lightningcss-linux-arm64-musl`, `lightningcss-linux-x64-gnu`, `lightningcss-linux-x64-musl`,
-`lightningcss-win32-arm64-msvc` and `lightningcss-win32-x64-msvc`, all at 1.32.0.
+The lockfile resolves two versions of `lightningcss`, both MPL-2.0:
+
+- `lightningcss` 1.32.0 is a direct dependency of `@tailwindcss/node` 4.3.3, which `@tailwindcss/vite`
+  (used in `vite.config.ts`) depends on.
+- `lightningcss` 1.33.0 is a direct dependency of `vite` 8.3.5, the root `devDependencies` entry that
+  the build uses. Vite 8 declares it as a regular dependency, not as an optional peer. The same
+  1.33.0 is also linked as the optional peer of `vite` 6.4.5, the copy that `vitest` 3.2.6 and
+  `vite-node` 3.2.4 use.
+
+The repository does not set a CSS transformer in `vite.config.ts`, so Vite uses its default PostCSS
+path. Both versions are in the runtime image because the full `node_modules` tree is copied into it.
+The repository does not patch them. Every `lightningcss-*` platform package in the lockfile is
+MPL-2.0 and is pinned at both 1.32.0 and 1.33.0: `lightningcss-android-arm64`,
+`lightningcss-darwin-arm64`, `lightningcss-darwin-x64`, `lightningcss-freebsd-x64`,
+`lightningcss-linux-arm-gnueabihf`, `lightningcss-linux-arm64-gnu`, `lightningcss-linux-arm64-musl`,
+`lightningcss-linux-x64-gnu`, `lightningcss-linux-x64-musl`, `lightningcss-win32-arm64-msvc` and
+`lightningcss-win32-x64-msvc`.
 
 MPL-2.0 section 3.2 applies to executable forms: when the image distributes the packages, their
 Source Code Form must also be made available, and recipients must be told how to obtain it. The
