@@ -122,7 +122,7 @@ describe("initSentry", () => {
     const headers = () => ({
       "x-original-uri": "/calendar/abc123.ics?q=x",
       "x-original-url": "/accept-invite/tok456?next=1",
-      "x-forwarded-path": "/calendar/abc123.ics",
+      "x-envoy-original-path": "/calendar/abc123.ics",
       "x-custom-trace": "seen at /accept-invite/tok456",
       "user-agent": "test-agent",
     });
@@ -140,7 +140,7 @@ describe("initSentry", () => {
       expect(sent.request.headers).toEqual({
         "x-original-uri": "/calendar/:token",
         "x-original-url": "/accept-invite/:token",
-        "x-forwarded-path": "/calendar/:token",
+        "x-envoy-original-path": "/calendar/:token",
         "x-custom-trace": "seen at /accept-invite/:token",
         "user-agent": "test-agent",
       });
@@ -202,5 +202,17 @@ describe("initSentry", () => {
     expect(JSON.stringify(breadcrumb)).not.toMatch(LEAK_PATTERN);
     expect(breadcrumb.data.url).toBe("https://app.example.test/calendar/:token");
     expect(breadcrumb.data.method).toBe("GET");
+  });
+
+  it("drops console breadcrumbs, whose text can repeat a URL", async () => {
+    const options = await initOptions();
+    const breadcrumb = options.beforeBreadcrumb({
+      category: "console",
+      level: "log",
+      message: "GET /accept-invite/tok456?q=x",
+      data: { arguments: ["GET /accept-invite/tok456?q=x"], logger: "console" },
+    });
+
+    expect(breadcrumb).toBeNull();
   });
 });

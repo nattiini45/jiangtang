@@ -150,7 +150,10 @@ export function initSentry(): void {
       redactSpan(span);
       return span;
     }),
+    // Console breadcrumbs repeat whatever was printed, URLs and all, as free text that
+    // cannot be redacted field by field. The app logs through pino, so they are dropped.
     beforeBreadcrumb: (breadcrumb) => {
+      if (breadcrumb.category === "console") return null;
       redactBreadcrumb(breadcrumb);
       return breadcrumb;
     },

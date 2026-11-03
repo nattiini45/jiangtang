@@ -198,8 +198,9 @@ always local data, even when no provider is configured.
   name, the runtime and operating-system details the SDK adds, and the exception type, message and
   stack trace without local variable values. In request paths, request header values, span names and
   breadcrumb URLs, the iCal feed token and the invite token are replaced with `:token`; query
-  strings and fragments are removed from URLs. The application does not scrub exception messages, so
-  data that appears in an error message or stack can be included.
+  strings and fragments are removed from URLs. Console output is not sent as breadcrumbs. The
+  application does not scrub exception messages, so data that appears in an error message or stack
+  can be included.
 - `ALERT_WEBHOOK` makes the alerting sidecar post a downtime message, including the health response
   body, to a Mattermost- or Slack-compatible webhook (`docker-compose.yml`, `ops/alerting/`).
 - Application logs contain request method, path (including query strings) and status, plus error

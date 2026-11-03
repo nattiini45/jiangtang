@@ -53,7 +53,7 @@ language, see [Language](#language)). Timestamps are stored in UTC and displayed
 
 ## Prerequisites
 
-- **Node 22.12 or newer** (`package.json` declares `^22.12 || >=24`, which both Prisma 7 and Sentry 11 accept; the production image and CI both pin Node 22).
+- **Node 22.12+ or 24+** (`package.json` declares `^22.12 || >=24`, which both Prisma 7 and Sentry 11 accept; the production image and CI both pin Node 22).
 - **pnpm 10.26.2** (`packageManager`; `corepack enable` selects it).
 - **Docker with the Compose plugin** for the development database and the production stack.
 - **PostgreSQL 18 with the `pgvector` and `pg_trgm` extensions** — provided for you by
