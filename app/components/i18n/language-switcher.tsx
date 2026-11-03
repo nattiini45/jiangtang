@@ -53,8 +53,7 @@ export function LanguageSwitcher({
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
-            {locale}
-            <span className="sr-only normal-case">{t(`shell.language.${locale}`)}</span>
+            {locale} <span className="sr-only normal-case">{t(`shell.language.${locale}`)}</span>
           </button>
         ))}
     </fetcher.Form>
