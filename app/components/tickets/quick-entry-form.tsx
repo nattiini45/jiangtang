@@ -78,10 +78,8 @@ export function QuickEntryForm({
         <Textarea name="description" rows={3} />
       </FormField>
 
-      <fieldset className="border-border flex flex-col gap-4 border p-3">
-        <legend className="text-muted-foreground px-1 text-xs uppercase tracking-wide">
-          {t("tickets.quick.statusLegend")}
-        </legend>
+      <fieldset className="bg-card shadow-surface-2 flex flex-col gap-4 rounded-lg p-4">
+        <legend className="text-base font-semibold">{t("tickets.quick.statusLegend")}</legend>
         <FormField name="status" label={t("tickets.quick.statusQuestion")}>
           <Select name="status" defaultValue="OPEN">
             <option value="OPEN">{t("tickets.quick.statusOpen")}</option>

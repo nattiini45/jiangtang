@@ -25,10 +25,8 @@ export function SubstitutionControl({
   const label = (u: Unit) => `${u.name ?? u.id}${u.assetTag ? ` (${u.assetTag})` : ""}`;
 
   return (
-    <div className="border-border border p-3">
-      <p className="text-muted-foreground text-xs uppercase tracking-wide">
-        {t("inventory.substitution.heading")}
-      </p>
+    <div className="bg-card shadow-surface-2 rounded-lg p-4">
+      <p className="text-base font-semibold">{t("inventory.substitution.heading")}</p>
       {error ? (
         <p className="text-destructive mt-1 text-xs" role="alert">
           {error}
@@ -39,9 +37,9 @@ export function SubstitutionControl({
           <input type="hidden" name="_action" value="clearSubstitution" />
           <span className="text-sm">
             {t("inventory.substitution.replacing")}{" "}
-            <span className="font-mono">{label(current)}</span>
+            <span className="font-semibold">{label(current)}</span>
           </span>
-          <Button type="submit" variant="ghost" size="sm" disabled={busy}>
+          <Button type="submit" variant="ghost" size="compact" disabled={busy}>
             {t("inventory.substitution.clear")}
           </Button>
         </Form>
@@ -56,7 +54,12 @@ export function SubstitutionControl({
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="outline" size="sm" disabled={busy || targets.length === 0}>
+          <Button
+            type="submit"
+            variant="tertiary"
+            size="compact"
+            disabled={busy || targets.length === 0}
+          >
             {t("inventory.substitution.set")}
           </Button>
         </Form>

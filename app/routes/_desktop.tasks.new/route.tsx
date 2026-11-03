@@ -70,9 +70,9 @@ export default function TaskNew({ loaderData, actionData }: Route.ComponentProps
   const t = useT();
   const { projects, parents, locations, defaults } = loaderData;
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("tasks.new.title")}</h1>
+    <div className="mx-auto flex max-w-xl flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("tasks.new.title")}</h1>
         <Link to="/tasks" className="text-muted-foreground text-sm hover:underline">
           {t("tasks.new.back")}
         </Link>

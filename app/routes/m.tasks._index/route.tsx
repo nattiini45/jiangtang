@@ -5,6 +5,8 @@ import { listTasks } from "~/domains/tasks/tasks.queries.server";
 import { taskStatusLabel } from "~/components/tasks/labels";
 import { berlinDateInput } from "~/lib/format-date";
 import { EmptyState } from "~/components/states/empty-state";
+import { Button } from "~/components/ui/button";
+import { SegmentLink } from "~/components/ui/segment-link";
 import { ListTodo } from "lucide-react";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 import { t as translate } from "~/i18n";
@@ -12,7 +14,7 @@ import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 
 /**
- * Mobile task list — my open tasks by default, a chip toggles to all
+ * Mobile task list — my open tasks by default, a segmented filter toggles to all
  * open. Thumb-friendly single column, tap through to `/m/tasks/:id` for the
  * quick actions. "New" leads to the capture form.
  */
@@ -37,30 +39,28 @@ export default function MobileTasksIndex({ loaderData }: Route.ComponentProps) {
   const t = useT();
   const { tasks, all } = loaderData;
   return (
-    <div className="flex flex-col">
-      <div className="border-border flex items-center justify-between border-b px-4 py-3">
-        <h1 className="font-mono text-lg">{t("nav.tasks")}</h1>
-        <Link
-          to="/m/tasks/new"
-          className="bg-primary text-primary-foreground flex min-h-11 items-center rounded-sm px-4 text-sm"
-        >
-          {t("mobile.tasks.new")}
-        </Link>
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-lg font-semibold">{t("nav.tasks")}</h1>
+        <Button asChild className="min-h-11">
+          <Link to="/m/tasks/new">{t("mobile.tasks.new")}</Link>
+        </Button>
       </div>
 
-      <div className="border-border flex gap-2 border-b px-4 py-3">
-        <Chip to="/m/tasks" active={!all} label={t("mobile.tasks.mine")} />
-        <Chip to="/m/tasks?all=1" active={all} label={t("mobile.tasks.allOpen")} />
+      <div className="bg-tint flex rounded-full p-0.5">
+        <SegmentLink to="/m/tasks" active={!all} label={t("mobile.tasks.mine")} />
+        <SegmentLink to="/m/tasks?all=1" active={all} label={t("mobile.tasks.allOpen")} />
       </div>
 
-      <ul className="divide-border divide-y">
+      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {tasks.map((task) => (
           <li key={task.id}>
-            <Link to={`/m/tasks/${task.id}`} className="active:bg-accent block px-4 py-3">
-              <div className="flex items-center gap-2">
-                <span className="truncate text-base">{task.title}</span>
-              </div>
-              <p className="text-muted-foreground font-mono text-xs">
+            <Link
+              to={`/m/tasks/${task.id}`}
+              className="active:bg-selected flex min-h-12 flex-col justify-center gap-0.5 px-3 py-2 transition-colors duration-80"
+            >
+              <div className="truncate text-sm font-semibold">{task.title}</div>
+              <p className="text-muted-foreground nums truncate text-xs">
                 {[
                   taskStatusLabel(locale, task.status),
                   task.project?.name ?? null,
@@ -73,7 +73,7 @@ export default function MobileTasksIndex({ loaderData }: Route.ComponentProps) {
           </li>
         ))}
         {tasks.length === 0 ? (
-          <li className="p-4">
+          <li>
             <EmptyState
               icon={ListTodo}
               title={all ? t("mobile.tasks.emptyAll") : t("mobile.tasks.emptyMine")}
@@ -83,21 +83,6 @@ export default function MobileTasksIndex({ loaderData }: Route.ComponentProps) {
         ) : null}
       </ul>
     </div>
-  );
-}
-
-function Chip({ to, active, label }: { to: string; active: boolean; label: string }) {
-  return (
-    <Link
-      to={to}
-      className={
-        active
-          ? "bg-primary text-primary-foreground flex min-h-11 items-center rounded-sm px-3 text-sm"
-          : "border-border text-muted-foreground flex min-h-11 items-center rounded-sm border px-3 text-sm"
-      }
-    >
-      {label}
-    </Link>
   );
 }
 

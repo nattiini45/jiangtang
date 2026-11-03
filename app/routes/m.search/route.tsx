@@ -3,6 +3,7 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { hybridSearch } from "~/lib/search/query.server";
 import { EmptyState } from "~/components/states/empty-state";
+import { Input } from "~/components/ui/input";
 import { Search as SearchIcon } from "lucide-react";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 import { t as translate } from "~/i18n";
@@ -32,26 +33,27 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
   const { q, results, degraded } = loaderData;
   const t = useT();
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <h1 className="font-mono text-lg">{t("nav.search")}</h1>
-        <Form method="get" className="mt-2">
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder={t("mobile.search.placeholder")}
-            className="border-border bg-background min-h-11 w-full rounded-sm border px-3 text-base"
-          />
-        </Form>
-      </div>
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <h1 className="text-lg font-semibold">{t("nav.search")}</h1>
+      <Form method="get">
+        <Input
+          type="search"
+          name="q"
+          defaultValue={q}
+          placeholder={t("mobile.search.placeholder")}
+          className="min-h-11"
+        />
+      </Form>
 
-      <ul className="divide-border divide-y">
+      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg empty:hidden">
         {results.map((r) => (
           <li key={`${r.sourceType}:${r.sourceId}`}>
             {r.href ? (
-              <Link to={r.href} className="active:bg-accent block px-4 py-3">
-                <div className="truncate text-base">{r.title}</div>
+              <Link
+                to={r.href}
+                className="active:bg-selected block min-h-12 px-3 py-2 transition-colors duration-80"
+              >
+                <div className="truncate text-sm font-semibold">{r.title}</div>
                 <p
                   className="text-muted-foreground line-clamp-2 text-xs [&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground"
                   // Hybrid-search snippets contain only <mark> tags from our own query.
@@ -59,24 +61,20 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
                 />
               </Link>
             ) : (
-              <div className="px-4 py-3">
-                <div className="text-muted-foreground truncate text-base">{r.title}</div>
+              <div className="px-3 py-3">
+                <div className="text-muted-foreground truncate text-sm">{r.title}</div>
               </div>
             )}
           </li>
         ))}
         {q && results.length === 0 ? (
-          <li className="p-4">
-            <EmptyState
-              icon={SearchIcon}
-              title={t("mobile.search.noHits", { q })}
-              className="border-0"
-            />
+          <li>
+            <EmptyState icon={SearchIcon} title={t("mobile.search.noHits", { q })} />
           </li>
         ) : null}
       </ul>
       {degraded.length > 0 ? (
-        <p className="text-muted-foreground px-4 py-2 font-mono text-xs">
+        <p className="bg-status-warning/15 rounded-md px-3 py-2 text-xs">
           {t("mobile.search.degraded", { sources: degraded.join(", ") })}
         </p>
       ) : null}

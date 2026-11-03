@@ -10,7 +10,10 @@ import { emitChange } from "~/lib/realtime/emit.server";
 import { TaskStatus } from "~/generated/prisma/enums";
 import { taskStatusLabel } from "~/components/tasks/labels";
 import { berlinDateInput } from "~/lib/format-date";
+import { Badge } from "~/components/ui/badge";
+import { Button } from "~/components/ui/button";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { cn } from "~/lib/utils";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale } from "~/i18n/use-t";
 
@@ -83,13 +86,13 @@ export default function MobileTaskDetail({ loaderData }: Route.ComponentProps) {
   const iAmAssigned = task.assignees.some((a) => a.user.id === meId);
 
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <Link to="/m/tasks" className="text-muted-foreground font-mono text-xs">
+    <div className="flex flex-col gap-6 px-4 py-4">
+      <div className="flex flex-col gap-1">
+        <Link to="/m/tasks" className="text-muted-foreground flex min-h-11 items-center text-sm">
           {t(locale, "mobile.tasks.back")}
         </Link>
-        <h1 className="mt-1 text-lg leading-snug">{task.title}</h1>
-        <p className="text-muted-foreground font-mono text-xs">
+        <h1 className="text-lg leading-snug font-semibold">{task.title}</h1>
+        <p className="text-muted-foreground nums text-xs">
           {[
             taskStatusLabel(locale, task.status),
             task.project?.name ?? null,
@@ -103,13 +106,13 @@ export default function MobileTaskDetail({ loaderData }: Route.ComponentProps) {
       </div>
 
       {task.body ? (
-        <p className="border-border whitespace-pre-wrap border-b px-4 py-3 text-sm">{task.body}</p>
+        <section className="bg-card shadow-surface-2 rounded-lg p-3">
+          <p className="text-sm whitespace-pre-wrap">{task.body}</p>
+        </section>
       ) : null}
 
-      <div className="border-border border-b px-4 py-3">
-        <div className="text-muted-foreground mb-2 font-mono text-xs">
-          {t(locale, "mobile.tasks.assigned")}
-        </div>
+      <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-3">
+        <p className="text-muted-foreground text-xs">{t(locale, "mobile.tasks.assigned")}</p>
         <div className="flex flex-wrap items-center gap-2">
           {task.assignees.length === 0 ? (
             <span className="text-muted-foreground text-sm">
@@ -117,50 +120,44 @@ export default function MobileTaskDetail({ loaderData }: Route.ComponentProps) {
             </span>
           ) : (
             task.assignees.map((a) => (
-              <span key={a.user.id} className="border-border rounded-sm border px-2 py-1 text-xs">
-                {a.user.initials ?? a.user.name}
-              </span>
+              <Badge key={a.user.id}>{a.user.initials ?? a.user.name}</Badge>
             ))
           )}
           <Form method="post" className="ml-auto">
             <input type="hidden" name="_action" value="assign-me" />
-            <button
+            <Button
               type="submit"
+              variant="secondary"
               disabled={busy || iAmAssigned}
-              className="border-border flex min-h-11 items-center rounded-sm border px-3 text-sm disabled:opacity-50"
+              className="min-h-11"
             >
               {iAmAssigned
                 ? t(locale, "mobile.tasks.assigned")
                 : t(locale, "mobile.tasks.assignMe")}
-            </button>
+            </Button>
           </Form>
         </div>
-      </div>
+      </section>
 
-      <div className="px-4 py-3">
-        <div className="text-muted-foreground mb-2 font-mono text-xs">
-          {t(locale, "mobile.tasks.setStatus")}
-        </div>
+      <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-3">
+        <p className="text-muted-foreground text-xs">{t(locale, "mobile.tasks.setStatus")}</p>
         <div className="grid grid-cols-2 gap-2">
           {QUICK_STATUSES.map((s) => (
             <Form key={s} method="post">
               <input type="hidden" name="_action" value="set-status" />
               <input type="hidden" name="status" value={s} />
-              <button
+              <Button
                 type="submit"
+                variant={task.status === s ? "primary" : "secondary"}
                 disabled={busy || task.status === s}
-                className={
-                  task.status === s
-                    ? "bg-primary text-primary-foreground flex min-h-11 w-full items-center justify-center rounded-sm text-sm"
-                    : "border-border flex min-h-11 w-full items-center justify-center rounded-sm border text-sm"
-                }
+                className={cn("min-h-11 w-full", task.status === s && "disabled:opacity-100")}
               >
                 {taskStatusLabel(locale, s)}
-              </button>
+              </Button>
             </Form>
           ))}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

@@ -56,17 +56,17 @@ export default function QuickEntry({ loaderData, actionData }: Route.ComponentPr
   const busy = nav.state !== "idle";
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="flex items-baseline justify-between gap-4">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("tickets.list.quickEntry")}</h1>
-          <p className="text-muted-foreground text-sm">{t("quickEntry.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("tickets.list.quickEntry")}</h1>
+          <p className="text-muted-foreground mt-1">{t("quickEntry.subtitle")}</p>
         </div>
         <Link to="/tickets" className="text-muted-foreground text-sm hover:underline">
           {t("tickets.back")}
         </Link>
       </div>
-      <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <QuickEntryForm rooms={rooms} equipment={equipment} defaults={defaults} />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>

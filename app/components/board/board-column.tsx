@@ -35,14 +35,14 @@ export function BoardColumn({
       ref={setNodeRef}
       aria-label={title}
       className={cn(
-        "border-border bg-muted/40 flex min-h-40 w-64 shrink-0 flex-col rounded-sm border",
-        isOver && "border-primary",
+        "bg-tint flex min-h-40 w-64 shrink-0 flex-col rounded-lg",
+        isOver && "shadow-[inset_0_0_0_1px_var(--fluid-accent)]",
       )}
     >
-      <header className="border-border flex items-center justify-between border-b px-2 py-1.5">
-        <h2 className="font-mono text-xs font-semibold uppercase tracking-wide">{title}</h2>
+      <header className="flex items-center justify-between gap-2 px-3 py-2">
+        <h2 className="text-base font-semibold">{title}</h2>
         <span
-          className="text-muted-foreground font-mono text-xs"
+          className="text-muted-foreground nums text-xs"
           aria-label={t("board.column.entries", { count })}
         >
           {count}
@@ -54,8 +54,8 @@ export function BoardColumn({
             <TaskCard key={task.id} task={task} />
           ))}
           {tickets.length > 0 ? (
-            <div className="border-border mt-1 flex flex-col gap-2 border-t pt-2">
-              <h3 className="text-muted-foreground font-mono text-[10px] font-semibold uppercase tracking-wide">
+            <div className="mt-1 flex flex-col gap-2 border-t pt-2">
+              <h3 className="text-muted-foreground text-xs font-semibold">
                 {t("board.column.tickets")}
               </h3>
               {tickets.map((ticket) => (

@@ -65,8 +65,8 @@ export function TicketCard({ ticket }: { ticket: BoardTicket }) {
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
-        "border-border bg-muted/60 flex flex-col gap-1.5 rounded-sm border border-dashed p-2 text-sm",
-        isDragging && "border-primary z-10 opacity-80 shadow-md",
+        "bg-card shadow-surface-2 flex flex-col gap-1.5 rounded-md p-2 text-sm",
+        isDragging && "shadow-surface-3 z-10 opacity-80",
       )}
       {...listeners}
     >
@@ -77,7 +77,7 @@ export function TicketCard({ ticket }: { ticket: BoardTicket }) {
           type="button"
           {...attributes}
           aria-label={t("board.ticket.gripAria", { title: ticket.title })}
-          className="text-muted-foreground hover:bg-accent mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm focus-visible:outline-1 focus-visible:outline-primary active:cursor-grabbing"
+          className="text-muted-foreground hover:bg-hover mt-0.5 inline-flex size-5 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" aria-hidden />
         </button>
@@ -88,20 +88,20 @@ export function TicketCard({ ticket }: { ticket: BoardTicket }) {
         />
         <Link
           to={`/tickets/${ticket.id}`}
-          className="hover:underline focus-visible:outline-1 focus-visible:outline-primary"
+          className="min-w-0 break-words hover:underline"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {ticket.title}
         </Link>
         {ticket.priority != null ? (
-          <span className="text-muted-foreground ml-auto shrink-0 font-mono text-xs">
+          <span className="text-muted-foreground nums ml-auto shrink-0 text-xs">
             {priorityKey ? t(priorityKey) : ticket.priority}
           </span>
         ) : null}
       </div>
       <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <span className="font-mono">{ticket.shortId}</span>
-        <span className="border-border rounded-sm border px-1 py-px font-mono text-[10px]">
+        <span className="bg-tint text-foreground type-micro rounded-xs px-1 py-px font-semibold">
           {t(`search.ticketType.${ticket.type}`)}
         </span>
         {ticket.room ? (
@@ -114,7 +114,7 @@ export function TicketCard({ ticket }: { ticket: BoardTicket }) {
             <span
               key={a.id}
               title={a.name}
-              className="border-border bg-secondary text-secondary-foreground inline-flex items-center rounded-sm border px-1 py-0.5 font-mono text-[10px]"
+              className="bg-tint text-foreground type-micro inline-flex items-center rounded-xs px-1 py-0.5 font-semibold"
             >
               {a.initials ?? a.name}
             </span>

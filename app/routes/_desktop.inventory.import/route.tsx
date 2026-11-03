@@ -54,9 +54,9 @@ export async function action({ request }: Route.ActionArgs) {
 export default function InventoryImport({ actionData }: Route.ComponentProps) {
   const t = useT();
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("inventory.import.title")}</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("inventory.import.title")}</h1>
         <Link to="/inventory" className="text-muted-foreground text-sm hover:underline">
           {t("inventory.import.back")}
         </Link>

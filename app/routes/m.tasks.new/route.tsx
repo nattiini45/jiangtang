@@ -13,6 +13,10 @@ import { listProjects } from "~/domains/projects/projects.queries.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { CAPTURE_HEADER } from "~/lib/pwa/offline-queue";
 import { CaptureQueueStatus, useCaptureSubmit } from "~/components/mobile/capture-form";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Select } from "~/components/ui/select";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 
 /**
@@ -70,16 +74,16 @@ export default function MobileTaskNew({ loaderData }: Route.ComponentProps) {
   const { state, error, submit } = useCaptureSubmit("/m/tasks/new");
 
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <Link to="/m/tasks" className="text-muted-foreground font-mono text-xs">
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex flex-col gap-1">
+        <Link to="/m/tasks" className="text-muted-foreground flex min-h-11 items-center text-sm">
           {tr("mobile.tasks.back")}
         </Link>
-        <h1 className="mt-1 font-mono text-lg">{tr("mobile.tasks.create")}</h1>
+        <h1 className="text-lg font-semibold">{tr("mobile.tasks.create")}</h1>
       </div>
 
       <form
-        className="space-y-4 px-4 py-4"
+        className="flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
           const result = await submit(e.currentTarget);
@@ -88,51 +92,30 @@ export default function MobileTaskNew({ loaderData }: Route.ComponentProps) {
           }
         }}
       >
-        <div>
-          <label htmlFor="title" className="text-muted-foreground mb-1 block font-mono text-xs">
-            {tr("mobile.capture.fieldTitle")}
-          </label>
-          <input
-            id="title"
-            name="title"
-            required
-            autoFocus
-            className="border-border bg-background min-h-11 w-full rounded-sm border px-3 text-base"
-          />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="title">{tr("mobile.capture.fieldTitle")}</Label>
+          <Input id="title" name="title" required autoFocus className="min-h-11" />
         </div>
 
-        <div>
-          <label htmlFor="projectId" className="text-muted-foreground mb-1 block font-mono text-xs">
-            {tr("mobile.tasks.project")}
-          </label>
-          <select
-            id="projectId"
-            name="projectId"
-            className="border-border bg-background min-h-11 w-full rounded-sm border px-3 text-base"
-          >
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="projectId">{tr("mobile.tasks.project")}</Label>
+          <Select id="projectId" name="projectId" className="[&>select]:h-11">
             <option value="">{tr("mobile.tasks.noProject")}</option>
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
-        <div>
-          <label htmlFor="dueAt" className="text-muted-foreground mb-1 block font-mono text-xs">
-            {tr("mobile.tasks.dueOn")}
-          </label>
-          <input
-            id="dueAt"
-            name="dueAt"
-            type="date"
-            className="border-border bg-background min-h-11 w-full rounded-sm border px-3 text-base"
-          />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="dueAt">{tr("mobile.tasks.dueOn")}</Label>
+          <Input id="dueAt" name="dueAt" type="date" className="min-h-11" />
         </div>
 
         {state === "queued" ? (
-          <p role="status" className="text-sm">
+          <p role="status" className="bg-status-warning/15 rounded-md px-3 py-2 text-sm">
             {tr("mobile.capture.queued")}
           </p>
         ) : null}
@@ -142,18 +125,12 @@ export default function MobileTaskNew({ loaderData }: Route.ComponentProps) {
           </p>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={state === "sending"}
-          className="bg-primary text-primary-foreground flex min-h-11 w-full items-center justify-center rounded-sm text-base disabled:opacity-60"
-        >
+        <Button type="submit" disabled={state === "sending"} className="min-h-11 w-full">
           {state === "sending" ? tr("mobile.capture.saving") : tr("mobile.capture.create")}
-        </button>
+        </Button>
       </form>
 
-      <div className="px-4 pb-4">
-        <CaptureQueueStatus url="/m/tasks/new" />
-      </div>
+      <CaptureQueueStatus url="/m/tasks/new" />
     </div>
   );
 }

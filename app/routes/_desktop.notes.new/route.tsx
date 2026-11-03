@@ -72,7 +72,7 @@ export default function NoteNew({ loaderData, actionData }: Route.ComponentProps
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("notes.new.title")}</h1>
+        <h1 className="text-xl font-bold">{t("notes.new.title")}</h1>
         <Link to="/notes" className="text-muted-foreground text-sm hover:underline">
           {t("notes.new.back")}
         </Link>

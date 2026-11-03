@@ -159,10 +159,10 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
   };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex items-center gap-3">
-          <h1 className="font-mono text-xl">{title}</h1>
+          <h1 className="text-xl font-bold">{title}</h1>
           <StatusBadge kind="equipment" value={eq.status} />
         </div>
         <Link to="/inventory" className="text-muted-foreground text-sm hover:underline">
@@ -178,7 +178,7 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         />
       ) : null}
 
-      <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-2">
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <EquipmentFormFields models={models} rooms={rooms} defaults={defaults} />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>
@@ -189,7 +189,7 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
 
       <Form
         method="post"
-        className="border-border border-t pt-4"
+        className="border-t pt-4"
         onSubmit={(e) => {
           if (!confirm(t("inventory.detail.confirmRetire", { title }))) e.preventDefault();
         }}
@@ -201,10 +201,8 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         <p className="text-muted-foreground mt-1 text-xs">{t("inventory.detail.retireHint")}</p>
       </Form>
 
-      <section className="border-border flex flex-col gap-3 border p-4">
-        <p className="text-muted-foreground text-xs uppercase tracking-wide">
-          {t("inventory.detail.photos")}
-        </p>
+      <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("inventory.detail.photos")}</h2>
         <AttachmentGallery attachments={attachments} redirectTo={`/inventory/${eq.id}`} />
         <FileUpload
           target={{ equipmentId: eq.id }}
@@ -217,9 +215,9 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         <AvailabilityTimeline units={availability} from={from} to={to} />
       ) : null}
 
-      <section className="border-border border">
-        <header className="border-border border-b px-3 py-2">
-          <h2 className="text-sm font-medium">{t("inventory.detail.history")}</h2>
+      <section className="bg-card shadow-surface-2 rounded-lg">
+        <header className="flex min-h-12 items-center px-4 py-3">
+          <h2 className="text-base font-semibold">{t("inventory.detail.history")}</h2>
         </header>
         <ActivityFeed entries={history} />
       </section>

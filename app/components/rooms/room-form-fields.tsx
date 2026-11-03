@@ -129,10 +129,8 @@ export function RoomFormFields({
         <Textarea name="tipsNotes" defaultValue={defaults?.tipsNotes ?? ""} />
       </FormField>
 
-      <fieldset className="border-border grid gap-4 border p-3 sm:grid-cols-3">
-        <legend className="text-muted-foreground px-1 text-xs uppercase tracking-wide">
-          {t("rooms.form.renewal")}
-        </legend>
+      <fieldset className="bg-card shadow-surface-2 grid gap-4 rounded-lg p-4 sm:grid-cols-3">
+        <legend className="text-muted-foreground px-1 text-xs">{t("rooms.form.renewal")}</legend>
         <FormField name="renewalStatus" label={t("rooms.form.renewalStatus")}>
           <Input
             name="renewalStatus"

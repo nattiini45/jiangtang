@@ -26,21 +26,21 @@ export default function MobileRoomsIndex({ loaderData }: Route.ComponentProps) {
   const { rooms } = loaderData;
   const t = useT();
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <h1 className="font-mono text-lg">{t("nav.rooms")}</h1>
-      </div>
-      <ul className="divide-border divide-y">
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <h1 className="text-lg font-semibold">{t("nav.rooms")}</h1>
+      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {rooms.map((r) => (
           <li key={r.id}>
             <Link
               to={`/m/rooms/${r.slug}`}
-              className="flex items-center gap-3 px-4 py-3 active:bg-accent"
+              className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-base">{r.name}</p>
-                <p className="text-muted-foreground font-mono text-xs">
-                  {[r.roomNumber, r.campusName].filter(Boolean).join(" · ") || "—"}
+                <p className="truncate text-sm font-semibold">{r.name}</p>
+                <p className="text-muted-foreground nums text-xs">
+                  {r.roomNumber ? <span className="font-mono">{r.roomNumber}</span> : null}
+                  {r.roomNumber && r.campusName ? " · " : null}
+                  {r.campusName || (r.roomNumber ? null : "—")}
                 </p>
               </div>
               <StatusBadge kind="room" value={r.status} />
@@ -48,7 +48,7 @@ export default function MobileRoomsIndex({ loaderData }: Route.ComponentProps) {
           </li>
         ))}
         {rooms.length === 0 ? (
-          <li className="text-muted-foreground p-4 text-sm">{t("mobile.rooms.empty")}</li>
+          <li className="text-muted-foreground px-3 py-4 text-sm">{t("mobile.rooms.empty")}</li>
         ) : null}
       </ul>
     </div>

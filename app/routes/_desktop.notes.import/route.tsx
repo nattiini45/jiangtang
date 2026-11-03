@@ -81,7 +81,7 @@ export default function NotesImport({ actionData }: Route.ComponentProps) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("notes.import.title")}</h1>
+        <h1 className="text-xl font-bold">{t("notes.import.title")}</h1>
         <Link to="/notes" className="text-muted-foreground text-sm hover:underline">
           {t("notes.import.back")}
         </Link>
@@ -90,8 +90,8 @@ export default function NotesImport({ actionData }: Route.ComponentProps) {
       <NoteFormErrors formErrors={actionData?.formErrors} />
 
       {actionData?.done ? (
-        <div role="status" className="border-border rounded-sm border p-4 text-sm">
-          <p className="font-medium">
+        <div role="status" className="bg-card shadow-surface-2 rounded-lg p-4 text-sm">
+          <p className="font-semibold">
             {t("notes.import.done", {
               created: actionData.done.created,
               updated: actionData.done.updated,
@@ -102,7 +102,7 @@ export default function NotesImport({ actionData }: Route.ComponentProps) {
               <li key={n}>{n}</li>
             ))}
           </ul>
-          <Button asChild variant="outline" size="sm" className="mt-3">
+          <Button asChild variant="secondary" size="compact" className="mt-3">
             <Link to="/notes">{t("notes.import.backToList")}</Link>
           </Button>
         </div>
@@ -110,7 +110,7 @@ export default function NotesImport({ actionData }: Route.ComponentProps) {
         <form
           method="post"
           encType="multipart/form-data"
-          className="border-border flex flex-col gap-3 border p-4"
+          className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4"
         >
           <p className="text-muted-foreground text-sm">{t("notes.import.description")}</p>
           <input
@@ -118,7 +118,7 @@ export default function NotesImport({ actionData }: Route.ComponentProps) {
             name="files"
             multiple
             accept=".md,.markdown,text/markdown,text/plain"
-            className="text-sm file:mr-3 file:rounded-sm file:border file:border-border file:bg-secondary file:px-3 file:py-1.5"
+            className="text-muted-foreground text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-foreground file:transition-colors hover:file:bg-tint-hover"
             aria-label={t("notes.import.pickFilesAria")}
           />
           <input
@@ -127,7 +127,7 @@ export default function NotesImport({ actionData }: Route.ComponentProps) {
             // webkitdirectory: non-standard attribute, the only directory
             // picker — spread so the TS DOM types (which don't know it) pass.
             {...({ webkitdirectory: "" } as Record<string, string>)}
-            className="text-sm file:mr-3 file:rounded-sm file:border file:border-border file:bg-secondary file:px-3 file:py-1.5"
+            className="text-muted-foreground text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-tint file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-foreground file:transition-colors hover:file:bg-tint-hover"
             aria-label={t("notes.import.pickFolderAria")}
           />
           <p className="text-muted-foreground text-xs">

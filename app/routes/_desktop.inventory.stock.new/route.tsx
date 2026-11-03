@@ -101,18 +101,14 @@ export default function NewStockItem({ loaderData, actionData }: Route.Component
   const busy = nav.state !== "idle";
 
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("inventory.stock.new.title")}</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("inventory.stock.new.title")}</h1>
         <Link to="/inventory/stock" className="text-muted-foreground text-sm hover:underline">
           {t("inventory.stock.new.back")}
         </Link>
       </div>
-      <ZodForm
-        method="post"
-        fieldErrors={actionData?.fieldErrors}
-        className="mt-4 flex flex-col gap-4"
-      >
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <StockFormErrors formErrors={actionData?.formErrors} />
         <StockFormFields
           locations={locations}

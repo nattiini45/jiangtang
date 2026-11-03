@@ -9,6 +9,7 @@ import type {
   TicketStatus,
 } from "~/generated/prisma/client";
 import { useLocale } from "~/i18n/use-t";
+import { badgeClassName } from "~/components/ui/badge";
 
 type Props =
   | { kind: "room"; value: RoomStatus }
@@ -18,19 +19,14 @@ type Props =
   | { kind: "project"; value: ProjectStatus }
   | { kind: "task"; value: TaskStatus };
 
-/** A status pill driven by the frozen statusToken map. */
+/** A status pill driven by the frozen statusToken map: tinted fill, colored dot. */
 export function StatusBadge(props: Props & { className?: string }) {
   const locale = useLocale();
   // The discriminated union guarantees kind/value line up.
   const token = statusToken(locale, props.kind, props.value as never);
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-sm border px-2 py-0.5 font-mono text-xs",
-        token.className,
-        props.className,
-      )}
-    >
+    <span className={cn(badgeClassName, "border", token.className, props.className)}>
+      <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} />
       {token.label}
     </span>
   );

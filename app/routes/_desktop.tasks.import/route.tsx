@@ -87,9 +87,9 @@ export default function TaskImport({ actionData }: Route.ComponentProps) {
   const t = useT();
   const locale = useLocale();
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("tasks.import.title")}</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("tasks.import.title")}</h1>
         <Link to="/tasks" className="text-muted-foreground text-sm hover:underline">
           {t("tasks.import.back")}
         </Link>

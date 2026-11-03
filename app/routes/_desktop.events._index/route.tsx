@@ -10,7 +10,7 @@ import { eventColumns } from "~/components/events/event-columns";
 import { EventCalendar } from "~/components/events/event-calendar";
 import { CalendarSubscribe } from "~/components/events/calendar-subscribe";
 import { eventStatusLabel } from "~/components/events/labels";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { Select } from "~/components/ui/select";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -46,11 +46,11 @@ export default function EventsList({ loaderData }: Route.ComponentProps) {
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("events.list.title")}</h1>
-          <p className="text-muted-foreground text-sm">{t("events.list.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("events.list.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("events.list.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           {feedUrl ? <CalendarSubscribe url={feedUrl} /> : null}
@@ -78,32 +78,30 @@ export default function EventsList({ loaderData }: Route.ComponentProps) {
             </option>
           ))}
         </Select>
-        <div className="border-border flex overflow-hidden rounded-sm border">
+        <div className="flex items-center gap-1">
           <Link
             to={`?${qs({ status: filters.status, view: "list" })}`}
-            className={[
-              "px-3 py-1.5 text-xs",
-              view === "list"
-                ? "bg-secondary text-secondary-foreground"
-                : "text-muted-foreground hover:bg-accent",
-            ].join(" ")}
+            aria-current={view === "list" ? "page" : undefined}
+            className={buttonVariants({
+              variant: view === "list" ? "secondary" : "ghost",
+              size: "compact",
+            })}
           >
             {t("events.list.viewList")}
           </Link>
           <Link
             to={`?${qs({ status: filters.status, view: "calendar" })}`}
-            className={[
-              "border-border border-l px-3 py-1.5 text-xs",
-              view === "calendar"
-                ? "bg-secondary text-secondary-foreground"
-                : "text-muted-foreground hover:bg-accent",
-            ].join(" ")}
+            aria-current={view === "calendar" ? "page" : undefined}
+            className={buttonVariants({
+              variant: view === "calendar" ? "secondary" : "ghost",
+              size: "compact",
+            })}
           >
             {t("events.list.viewCalendar")}
           </Link>
         </div>
         <noscript>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="tertiary" size="compact">
             {t("events.list.filterSubmit")}
           </Button>
         </noscript>

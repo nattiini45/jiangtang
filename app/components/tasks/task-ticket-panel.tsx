@@ -29,7 +29,7 @@ export function TaskTicketPanel({ ticket, busy }: { ticket: LinkedTicket | null;
         <StatusCell kind="ticket" value={ticket.status} />
         <Form method="post" className="ml-auto">
           <input type="hidden" name="_action" value="ticket-unlink" />
-          <Button type="submit" variant="outline" size="sm" disabled={busy}>
+          <Button type="submit" variant="secondary" size="compact" disabled={busy}>
             {t("tasks.ticket.unlink")}
           </Button>
         </Form>
@@ -51,7 +51,7 @@ export function TaskTicketPanel({ ticket, busy }: { ticket: LinkedTicket | null;
           </option>
         ))}
       </Select>
-      <Button type="submit" variant="outline" size="sm" disabled={busy}>
+      <Button type="submit" variant="secondary" size="compact" disabled={busy}>
         {t("tasks.ticket.create")}
       </Button>
     </Form>

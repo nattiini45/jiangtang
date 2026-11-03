@@ -76,7 +76,7 @@ export function EventTimeline({
       <div className="text-muted-foreground w-28 shrink-0 truncate text-xs" title={label}>
         {label}
       </div>
-      <div className="bg-muted/40 relative h-6 flex-1 rounded-sm">{children}</div>
+      <div className="bg-tint relative h-6 flex-1 rounded-sm">{children}</div>
     </div>
   );
 
@@ -108,7 +108,7 @@ export function EventTimeline({
         </Row>
       ) : null}
 
-      <div className="text-muted-foreground mt-1 flex justify-between pl-30 font-mono text-[10px]">
+      <div className="text-muted-foreground nums mt-1 flex justify-between pl-30 text-xs">
         <span>{fmtTime(new Date(axisStart))}</span>
         <span>{fmtTime(new Date(axisEnd))}</span>
       </div>

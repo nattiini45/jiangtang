@@ -12,6 +12,10 @@ import { createNote } from "~/domains/notes/notes.mutations.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { CAPTURE_HEADER } from "~/lib/pwa/offline-queue";
 import { CaptureQueueStatus, useCaptureSubmit } from "~/components/mobile/capture-form";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 
 /**
@@ -75,60 +79,39 @@ export default function MobileNoteNew() {
   const tr = useT();
   const { state, error, submit } = useCaptureSubmit("/m/notes/new");
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <Link to="/m" className="text-muted-foreground font-mono text-xs">
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <div className="flex flex-col gap-1">
+        <Link to="/m" className="text-muted-foreground flex min-h-11 items-center text-sm">
           {tr("mobile.noteNew.back")}
         </Link>
-        <h1 className="mt-1 font-mono text-lg">{tr("mobile.noteNew.title")}</h1>
+        <h1 className="text-lg font-semibold">{tr("mobile.noteNew.title")}</h1>
       </div>
 
       <form
-        className="space-y-4 px-4 py-4"
+        className="flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
           const result = await submit(e.currentTarget);
           if (result?.state === "sent") e.currentTarget.reset();
         }}
       >
-        <div>
-          <label htmlFor="title" className="text-muted-foreground mb-1 block font-mono text-xs">
-            {tr("mobile.capture.fieldTitle")}
-          </label>
-          <input
-            id="title"
-            name="title"
-            required
-            autoFocus
-            className="border-border bg-background min-h-11 w-full rounded-sm border px-3 text-base"
-          />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="title">{tr("mobile.capture.fieldTitle")}</Label>
+          <Input id="title" name="title" required autoFocus className="min-h-11" />
         </div>
 
-        <div>
-          <label htmlFor="body" className="text-muted-foreground mb-1 block font-mono text-xs">
-            {tr("mobile.noteNew.body")}
-          </label>
-          <textarea
-            id="body"
-            name="body"
-            rows={6}
-            className="border-border bg-background w-full rounded-sm border px-3 py-2 text-base"
-          />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="body">{tr("mobile.noteNew.body")}</Label>
+          <Textarea id="body" name="body" rows={6} />
         </div>
 
-        <div>
-          <label htmlFor="tags" className="text-muted-foreground mb-1 block font-mono text-xs">
-            {tr("mobile.noteNew.tags")}
-          </label>
-          <input
-            id="tags"
-            name="tags"
-            className="border-border bg-background min-h-11 w-full rounded-sm border px-3 text-base"
-          />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="tags">{tr("mobile.noteNew.tags")}</Label>
+          <Input id="tags" name="tags" className="min-h-11" />
         </div>
 
         {state === "queued" ? (
-          <p role="status" className="text-sm">
+          <p role="status" className="bg-status-warning/15 rounded-md px-3 py-2 text-sm">
             {tr("mobile.capture.queued")}
           </p>
         ) : null}
@@ -137,18 +120,12 @@ export default function MobileNoteNew() {
             {error}
           </p>
         ) : null}
-        <button
-          type="submit"
-          disabled={state === "sending"}
-          className="bg-primary text-primary-foreground flex min-h-11 w-full items-center justify-center rounded-sm text-base disabled:opacity-60"
-        >
+        <Button type="submit" disabled={state === "sending"} className="min-h-11 w-full">
           {state === "sending" ? tr("mobile.capture.saving") : tr("mobile.capture.create")}
-        </button>
+        </Button>
       </form>
 
-      <div className="px-4 pb-4">
-        <CaptureQueueStatus url="/m/notes/new" />
-      </div>
+      <CaptureQueueStatus url="/m/notes/new" />
     </div>
   );
 }

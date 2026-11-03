@@ -62,6 +62,7 @@ registry under its own license.
 | --- | --- |
 | Apache-2.0 | `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
 | ISC | `lucide-react` 1.66.0, `yaml` 2.9.1 |
+| OFL-1.1 | `@fontsource-variable/inter` 5.3.0 (the Inter typeface by Rasmus Andersson, self-hosted and bundled into the client build; the package ships the license text) |
 | MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.1.3, `motion` 12.42.0, `pg` 8.23.1, `pino` 9.14.0, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 3.25.76 |
 
 ### Feather icons inside lucide-react
@@ -124,7 +125,7 @@ docker run --rm -v "<scratch-dir>:/w" -w /w node:22-bookworm-slim sh -c "corepac
 ```
 
 The export lists each package with its versions; the table counts package and version pairs. The
-result is 708 entries, the number of package/version pairs pnpm installs for this platform:
+result is 709 entries, the number of package/version pairs pnpm installs for this platform:
 
 | License | Entries |
 | --- | --- |
@@ -141,6 +142,7 @@ result is 708 entries, the number of package/version pairs pnpm installs for thi
 | MIT AND ISC | 1 |
 | MIT AND ISC AND BSD-3-Clause | 1 |
 | EPL-2.0 | 1 |
+| OFL-1.1 | 1 |
 | FSL-1.1-Apache-2.0 | 1 |
 | Python-2.0 | 1 |
 | 0BSD | 1 |
@@ -160,6 +162,8 @@ Notice-bearing or copyleft entries on this platform:
   is source-available rather than an OSI-approved open-source license: it limits competing uses and
   converts to Apache-2.0 two years after each release. The package's own license file is
   authoritative.
+- OFL-1.1: `@fontsource-variable/inter` 5.3.0, a direct runtime dependency whose font files are
+  bundled into the client build (see above). The package's own license file is authoritative.
 - CC-BY-4.0: `caniuse-lite` 1.0.30001799 (in the runtime image; see below).
 - MIT AND ISC: `@visx/vendor` 4.0.0-alpha.0, reached through `@prisma/studio-core` 0.33.0.
 - MIT AND ISC AND BSD-3-Clause: `victory-vendor` 37.4.1, reached through `recharts` 3.10.1.

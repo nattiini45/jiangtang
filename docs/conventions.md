@@ -80,6 +80,28 @@ status.
 - User-entered data is never translated. Enum values stay stable identifiers; their labels live in
   the catalogs.
 
+## User interface
+
+The interface follows the Fluid Functionalism design rules (fluidfunctionalism.com). The tokens live
+in `app/app.css`; the primitives in `app/components/ui/` already apply them.
+
+- Surfaces: a panel is `bg-card shadow-surface-2 rounded-lg`, a popup `shadow-surface-3`, a dialog
+  `shadow-surface-5`. Elevation comes from the shadow, not a border. Hover and selected states are
+  the `bg-hover` and `bg-selected` overlays.
+- One accent, `--fluid-accent`, for focus rings, the switch track and selection details. It is never
+  text. Status colors come from `statusToken` in `~/lib/status`.
+- Sizes: controls and rows share one height (`h-control`, 36px, or 28px in the compact density).
+  `text-xs`, `text-sm`, `text-base`, `text-lg` and `text-xl` map to the caption, body, subtitle,
+  title and display roles. Do not use arbitrary font sizes.
+- Text uses two colors, `text-foreground` and `text-muted-foreground`, plus `text-destructive` for
+  errors. Three weights: normal, `font-semibold` for headings and selected items, `font-bold` for the
+  page `<h1>` only. No uppercase or letter-spacing. `font-mono` is for identifiers (asset tags,
+  serials, codes); numbers and times use `nums`.
+- Motion uses the three tiers in `~/lib/springs`. Anything that moves or scales animates
+  `transform` and `opacity`, never layout properties; color, shadow and font-weight changes use
+  short CSS transitions (80ms). The root `MotionConfig` honours reduced motion. Lists of links or buttons may use `useFluidHover`;
+  drag boards and virtualized grids do not.
+
 ## Slugs
 
 - `deriveSlug(name)` from `~/lib/slug.server` transliterates German characters (`ä` → `ae`,

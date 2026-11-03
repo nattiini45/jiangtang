@@ -22,13 +22,13 @@ export function AttachmentGallery({
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {attachments.map((a) => (
-        <figure key={a.id} className="border-border group relative overflow-hidden border">
+        <figure key={a.id} className="group relative overflow-hidden rounded-lg shadow-surface-1">
           <a href={`/attachments/${a.objectKey}`} target="_blank" rel="noreferrer">
             <img
               src={`/attachments/${a.objectKey}?thumb=1`}
               alt={a.filename}
               loading="lazy"
-              className="aspect-square w-full bg-muted object-cover"
+              className="bg-tint aspect-square w-full object-cover"
             />
           </a>
           <Form
@@ -45,8 +45,7 @@ export function AttachmentGallery({
             <Button
               type="submit"
               variant="destructive"
-              size="icon"
-              className="size-6"
+              size="icon-compact"
               title={t("upload.gallery.delete")}
             >
               ✕

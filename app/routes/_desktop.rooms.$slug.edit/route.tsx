@@ -94,7 +94,7 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("rooms.edit.title", { name: room.name })}</h1>
+        <h1 className="text-xl font-bold">{t("rooms.edit.title", { name: room.name })}</h1>
         <Link to={`/rooms/${room.slug}`} className="text-muted-foreground text-sm hover:underline">
           {t("rooms.edit.back")}
         </Link>

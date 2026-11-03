@@ -43,17 +43,17 @@ export function ModelAssetView({
     <section className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
         {cards.map((c) => (
-          <div key={c.label} className="border-border border p-2 text-center">
-            <p className={cn("font-mono text-lg", c.cls)}>{c.value}</p>
+          <div key={c.label} className="bg-card shadow-surface-2 rounded-lg p-3 text-center">
+            <p className={cn("nums text-lg font-semibold", c.cls)}>{c.value}</p>
             <p className="text-muted-foreground text-xs">{c.label}</p>
           </div>
         ))}
       </div>
 
       {instances.length > 0 ? (
-        <ul className="border-border divide-border divide-y border text-sm">
+        <ul className="bg-card shadow-surface-2 divide-y rounded-lg text-sm">
           {instances.map((e) => (
-            <li key={e.id} className="flex items-center gap-2 px-3 py-1.5">
+            <li key={e.id} className="flex items-center gap-2 px-4 py-2">
               <Link to={`/inventory/${e.id}`} className="hover:underline">
                 {e.name ?? "—"}
               </Link>

@@ -23,6 +23,8 @@ import { useT } from "~/i18n/use-t";
  * day, reconstructed from the activity log, plus an ideal line from the
  * starting total to 0 at the project's dueAt.
  */
+const AXIS_TICK = { fontSize: 10, fill: "var(--muted-foreground)" };
+
 export function ProjectBurndown({
   tasks,
   events,
@@ -74,21 +76,33 @@ export function ProjectBurndown({
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey="day"
-              tick={{ fontSize: 10, className: "font-mono" }}
+              tick={AXIS_TICK}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
               tickFormatter={(d: string) => d.slice(5)}
               minTickGap={24}
             />
             <YAxis
-              tick={{ fontSize: 10, className: "font-mono" }}
+              tick={AXIS_TICK}
+              tickLine={false}
+              axisLine={false}
               ticks={hourTicks}
               domain={[0, hourTicks[hourTicks.length - 1]]}
               tickFormatter={(v: number) => `${Math.round(v / 60)}h`}
               width={40}
             />
             <Tooltip
+              contentStyle={{
+                background: "var(--popover)",
+                color: "var(--popover-foreground)",
+                border: "none",
+                borderRadius: 12,
+                boxShadow: "var(--shadow-3)",
+                fontSize: 12,
+              }}
               formatter={(value, name) => {
                 const v = typeof value === "number" ? value : null;
                 return [
@@ -104,7 +118,7 @@ export function ProjectBurndown({
               type="stepAfter"
               dataKey="remaining"
               name="remaining"
-              stroke="var(--color-primary)"
+              stroke="var(--fluid-accent)"
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
@@ -114,7 +128,7 @@ export function ProjectBurndown({
                 type="linear"
                 dataKey="ideal"
                 name="ideal"
-                stroke="var(--color-muted-foreground)"
+                stroke="var(--muted-foreground)"
                 strokeWidth={1.5}
                 strokeDasharray="6 3"
                 dot={false}

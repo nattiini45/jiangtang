@@ -38,7 +38,7 @@ export default function RoomsList({ loaderData }: Route.ComponentProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("rooms.list.title")}</h1>
+          <h1 className="text-xl font-bold">{t("rooms.list.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("rooms.list.subtitle")}</p>
         </div>
         <Button asChild>
@@ -51,7 +51,7 @@ export default function RoomsList({ loaderData }: Route.ComponentProps) {
           name="campus"
           aria-label={t("rooms.list.filterCampus")}
           defaultValue={filters.campus}
-          className="max-w-[16rem]"
+          className="max-w-64"
           onChange={autoSubmit}
         >
           <option value="">{t("rooms.list.allCampuses")}</option>
@@ -65,7 +65,7 @@ export default function RoomsList({ loaderData }: Route.ComponentProps) {
           name="status"
           aria-label={t("rooms.list.filterStatus")}
           defaultValue={filters.status}
-          className="max-w-[14rem]"
+          className="max-w-56"
           onChange={autoSubmit}
         >
           <option value="">{t("rooms.list.allStatuses")}</option>
@@ -76,7 +76,7 @@ export default function RoomsList({ loaderData }: Route.ComponentProps) {
           ))}
         </Select>
         <noscript>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="tertiary" size="compact">
             {t("rooms.list.filterSubmit")}
           </Button>
         </noscript>

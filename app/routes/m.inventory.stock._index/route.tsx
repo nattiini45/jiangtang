@@ -47,37 +47,41 @@ export default function MobileStockIndex({ loaderData }: Route.ComponentProps) {
   const t = useT();
   const { items } = loaderData;
   return (
-    <div className="flex flex-col">
-      <div className="border-border border-b px-4 py-3">
-        <h1 className="font-mono text-lg">{t("nav.stock")}</h1>
-      </div>
-      <ul className="divide-border divide-y">
-        {items.map((item) => (
-          <li key={item.id}>
-            <Link
-              to={`/inventory/stock/${item.id}`}
-              className="active:bg-accent flex items-center gap-3 px-4 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-base">{item.name}</p>
-                <p className="text-muted-foreground font-mono text-xs">
-                  {[
-                    `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`,
-                    item.location
-                      ? `${item.location.name} (${kindLabel(locale, item.location.kind)})`
-                      : t("mobile.stock.unassigned"),
-                    item.status ? stockStatusLabel(locale, item.status) : null,
-                    item.serial ?? item.sku,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "—"}
-                </p>
-              </div>
-            </Link>
-          </li>
-        ))}
+    <div className="flex flex-col gap-4 px-4 py-4">
+      <h1 className="text-lg font-semibold">{t("nav.stock")}</h1>
+      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
+        {items.map((item) => {
+          const quantity = `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`;
+          const location = item.location
+            ? `${item.location.name} (${kindLabel(locale, item.location.kind)})`
+            : t("mobile.stock.unassigned");
+          const status = item.status ? stockStatusLabel(locale, item.status) : null;
+          // Serial numbers and SKUs are identifiers, so only they keep the mono face.
+          const identifier = item.serial ?? item.sku;
+          return (
+            <li key={item.id}>
+              <Link
+                to={`/inventory/stock/${item.id}`}
+                className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{item.name}</p>
+                  <p className="text-muted-foreground nums truncate text-xs">
+                    {[quantity, location, status].filter(Boolean).join(" · ")}
+                    {identifier ? (
+                      <>
+                        {" · "}
+                        <span className="font-mono">{identifier}</span>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+              </Link>
+            </li>
+          );
+        })}
         {items.length === 0 ? (
-          <li className="text-muted-foreground p-4 text-sm">{t("mobile.stock.empty")}</li>
+          <li className="text-muted-foreground px-3 py-4 text-sm">{t("mobile.stock.empty")}</li>
         ) : null}
       </ul>
     </div>

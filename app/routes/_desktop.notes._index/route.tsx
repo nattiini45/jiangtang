@@ -4,6 +4,7 @@ import { requireUser } from "~/lib/auth.server";
 import { listNotes, listNoteTags } from "~/domains/notes/notes.queries.server";
 import { listProjectOptions } from "~/domains/projects/projects.queries.server";
 import { NoteList } from "~/components/notes/note-list";
+import { badgeClassName } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
@@ -67,11 +68,11 @@ export default function NotesIndex({ loaderData }: Route.ComponentProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("notes.list.title")}</h1>
+          <h1 className="text-xl font-bold">{t("notes.list.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("notes.list.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
+          <Button variant="secondary" asChild>
             <Link to="/notes/import">{t("notes.list.import")}</Link>
           </Button>
           <Button asChild>
@@ -118,7 +119,7 @@ export default function NotesIndex({ loaderData }: Route.ComponentProps) {
           />
           {t("notes.list.archivedOnly")}
         </label>
-        <Button type="submit" variant="outline" size="sm">
+        <Button type="submit" variant="secondary" size="compact">
           {t("notes.list.filterSubmit")}
         </Button>
       </Form>
@@ -129,27 +130,23 @@ export default function NotesIndex({ loaderData }: Route.ComponentProps) {
             <Link
               key={tag}
               to={`/notes?tag=${encodeURIComponent(tag)}${filters.archived ? "&archived=1" : ""}`}
-              className="border-border bg-secondary text-secondary-foreground rounded-sm border px-1.5 py-0.5 font-mono text-xs"
+              className={`${badgeClassName} hover:bg-tint-hover transition-colors duration-80`}
             >
-              {tag} <span className="text-muted-foreground">{count}</span>
+              {tag} <span className="text-muted-foreground nums">{count}</span>
             </Link>
           ))}
         </div>
       ) : null}
 
       {pinned.length > 0 ? (
-        <section>
-          <h2 className="text-muted-foreground mb-1 font-mono text-xs uppercase tracking-wide">
-            {t("notes.list.pinned")}
-          </h2>
+        <section className="bg-card shadow-surface-2 rounded-lg p-4">
+          <h2 className="mb-2 text-base font-semibold">{t("notes.list.pinned")}</h2>
           <NoteList notes={pinned} />
         </section>
       ) : null}
-      <section>
+      <section className="bg-card shadow-surface-2 rounded-lg p-4">
         {pinned.length > 0 ? (
-          <h2 className="text-muted-foreground mb-1 font-mono text-xs uppercase tracking-wide">
-            {t("notes.list.all")}
-          </h2>
+          <h2 className="mb-2 text-base font-semibold">{t("notes.list.all")}</h2>
         ) : null}
         <NoteList
           notes={rest}

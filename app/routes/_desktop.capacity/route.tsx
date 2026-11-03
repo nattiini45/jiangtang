@@ -44,16 +44,16 @@ export default function CapacityRoute() {
   const { weeks, rows } = useLoaderData<typeof loader>();
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-6">
       <header>
-        <h1 className="font-mono text-lg font-medium">{t("nav.capacity")}</h1>
-        <p className="text-muted-foreground text-sm">{t("capacity.subtitle")}</p>
+        <h1 className="text-xl font-bold">{t("nav.capacity")}</h1>
+        <p className="text-muted-foreground mt-1">{t("capacity.subtitle")}</p>
       </header>
 
-      <section className="border-border overflow-x-auto border">
+      <section className="bg-card shadow-surface-2 overflow-x-auto rounded-lg">
         <table className="w-full min-w-[64rem] text-sm">
           <thead>
-            <tr className="text-muted-foreground text-left text-xs uppercase tracking-wide">
+            <tr className="text-muted-foreground text-left text-xs">
               <th className="p-2">{t("capacity.col.person")}</th>
               {weeks.map((w) => (
                 <th
@@ -61,9 +61,7 @@ export default function CapacityRoute() {
                   className={`w-[13%] p-2 text-right ${w.current ? "text-foreground" : ""}`}
                 >
                   {w.isoWeek.replace("-", " ")}
-                  <span className="ml-1 font-mono font-normal normal-case">
-                    {w.startKey.slice(5)}
-                  </span>
+                  <span className="nums ml-1 font-normal">{w.startKey.slice(5)}</span>
                 </th>
               ))}
               <th className="p-2 text-right">{t("capacity.col.noDue")}</th>
@@ -83,16 +81,16 @@ export default function CapacityRoute() {
               </tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.userId} className="border-border border-t align-top">
+                <tr key={r.userId} className="border-t align-top">
                   <td className="p-2">
                     <Link
                       to={`/tasks?assignee=${r.userId}`}
-                      className="font-medium hover:underline"
+                      className="font-semibold hover:underline"
                       aria-label={t("capacity.tasksOf", { name: r.name })}
                     >
                       {r.name}
                     </Link>
-                    <div className="text-muted-foreground font-mono text-xs">
+                    <div className="text-muted-foreground nums text-xs">
                       {r.capacityMinutes != null
                         ? t("capacity.perWeek", { hours: formatHM(r.capacityMinutes) })
                         : t("capacity.noCapacity")}
@@ -101,7 +99,7 @@ export default function CapacityRoute() {
                   {r.weeks.map((w, i) => (
                     <td
                       key={w.isoWeek}
-                      className={`p-2 text-right font-mono ${weeks[i]?.current ? "bg-muted/30" : ""}`}
+                      className={`nums p-2 text-right ${weeks[i]?.current ? "bg-tint" : ""}`}
                     >
                       <div>
                         {w.demand > 0 ? formatHM(w.demand) : "—"}
@@ -129,13 +127,13 @@ export default function CapacityRoute() {
                         <div className="text-muted-foreground mt-1 text-xs">—</div>
                       )}
                       {w.over ? (
-                        <div className="text-destructive text-xs font-medium">
+                        <div className="text-destructive text-xs font-semibold">
                           {t("capacity.over")}
                         </div>
                       ) : null}
                     </td>
                   ))}
-                  <td className="p-2 text-right font-mono">
+                  <td className="nums p-2 text-right">
                     {r.noDueCount > 0 ? (
                       <span title={t("capacity.noDueTitle", { count: r.noDueCount })}>
                         {formatHM(r.noDue)}

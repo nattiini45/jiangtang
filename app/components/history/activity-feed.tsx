@@ -1,4 +1,5 @@
 import { DateCell } from "~/components/data-grid";
+import { Badge } from "~/components/ui/badge";
 import type { ActivityEntry } from "~/domains/tickets/tickets.history.server";
 import { actionLabel } from "~/components/history/labels";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -37,9 +38,9 @@ export function ActivityFeed({
     <ul className="divide-border divide-y">
       {entries.map((e) => (
         <li key={e.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-          <span className="border-border bg-secondary text-secondary-foreground inline-flex shrink-0 items-center rounded-sm border px-1.5 py-0.5 font-mono text-xs">
+          <Badge className="type-micro h-5 rounded-full px-1.5 font-semibold">
             {actorInitials(e.actorSnapshot)}
-          </span>
+          </Badge>
           <span>{actionLabel(locale, e.action)}</span>
           <span className="text-muted-foreground ml-auto">
             <DateCell value={e.occurredAt} />

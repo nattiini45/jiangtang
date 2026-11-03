@@ -192,14 +192,14 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
   const userParam = isAdmin && targetUserId ? `&user=${targetUserId}` : "";
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("nav.timesheet")}</h1>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("nav.timesheet")}</h1>
         <div className="flex items-center gap-3 text-sm">
           <Link to={`?week=${prevWeek}${userParam}`} className="hover:underline">
             ← {prevWeek}
           </Link>
-          <span className="font-mono font-medium">{isoWeek}</span>
+          <span className="nums font-semibold">{isoWeek}</span>
           <Link to={`?week=${nextWeek}${userParam}`} className="hover:underline">
             {nextWeek} →
           </Link>
@@ -221,22 +221,22 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
               </option>
             ))}
           </Select>
-          <Button type="submit" variant="outline" size="sm">
+          <Button type="submit" variant="secondary" size="compact">
             {t("timesheet.userPickerSubmit")}
           </Button>
         </Form>
       ) : null}
 
       {running ? (
-        <section className="border-border flex items-center gap-3 border p-3">
+        <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
           <span className="bg-destructive inline-block size-2 animate-pulse rounded-full" />
-          <span className="font-mono text-sm">
+          <span className="nums text-sm">
             {t("timesheet.runningSince", { time: berlinLocalString(running.startsAt).slice(11) })}
             {running.task ? ` — ${running.task.title}` : ""}
           </span>
           <Form method="post">
             <input type="hidden" name="_action" value="stop-timer" />
-            <Button type="submit" variant="outline" size="sm">
+            <Button type="submit" variant="secondary" size="compact">
               {t("shell.timer.stop")}
             </Button>
           </Form>
@@ -249,10 +249,10 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
         </p>
       ) : null}
 
-      <section className="border-border overflow-x-auto border">
+      <section className="bg-card shadow-surface-2 overflow-x-auto rounded-lg">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-muted-foreground text-left text-xs uppercase tracking-wide">
+            <tr className="text-muted-foreground text-left text-xs">
               <th className="p-2">{t("timesheet.col.task")}</th>
               {WEEKDAY_KEYS.map((key, i) => (
                 <th
@@ -260,9 +260,7 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
                   className={`p-2 text-right ${loaderData.todayCol === i ? "text-foreground" : ""}`}
                 >
                   {t(key)}
-                  <span className="ml-1 font-mono font-normal normal-case">
-                    {sheet.dayKeys[i]?.slice(8)}
-                  </span>
+                  <span className="nums ml-1 font-normal">{sheet.dayKeys[i]?.slice(8)}</span>
                 </th>
               ))}
               <th className="p-2 text-right">Σ</th>
@@ -282,7 +280,7 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
               </tr>
             ) : (
               sheet.rows.map((row) => (
-                <tr key={row.taskId ?? "none"} className="border-border border-t">
+                <tr key={row.taskId ?? "none"} className="border-t">
                   <td className="p-2">
                     {row.taskId ? (
                       <Link to={`/tasks/${row.taskId}`} className="hover:underline">
@@ -293,51 +291,45 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
                     )}
                   </td>
                   {row.cells.map((m, i) => (
-                    <td key={i} className="p-2 text-right font-mono">
+                    <td key={i} className="nums p-2 text-right">
                       {m > 0 ? formatHM(m) : <span className="text-muted-foreground">—</span>}
                     </td>
                   ))}
-                  <td className="p-2 text-right font-mono font-medium">{formatHM(row.total)}</td>
+                  <td className="nums p-2 text-right font-semibold">{formatHM(row.total)}</td>
                 </tr>
               ))
             )}
-            <tr className="border-border bg-muted/40 border-t font-medium">
-              <td
-                className="p-2 text-xs uppercase tracking-wide"
-                title={t("timesheet.dayTotalTitle")}
-              >
+            <tr className="bg-tint border-t font-semibold">
+              <td className="p-2 text-xs" title={t("timesheet.dayTotalTitle")}>
                 {t("timesheet.dayTotal")}
               </td>
               {sheet.dayTotals.map((m, i) => (
-                <td key={i} className="p-2 text-right font-mono">
+                <td key={i} className="nums p-2 text-right">
                   {m > 0 ? formatHM(m) : "—"}
                 </td>
               ))}
-              <td className="p-2 text-right font-mono">{formatHM(sheet.weekTotal)}</td>
+              <td className="nums p-2 text-right">{formatHM(sheet.weekTotal)}</td>
             </tr>
           </tbody>
         </table>
-        <p className="text-muted-foreground border-border border-t px-2 py-1 text-xs">
+        <p className="text-muted-foreground border-t px-2 py-1 text-xs">
           {t("timesheet.footnote")}
         </p>
       </section>
 
-      <section className="border-border border p-4">
-        <h2 className="font-mono text-sm">{t("timesheet.entries.title")}</h2>
+      <section className="bg-card shadow-surface-2 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("timesheet.entries.title")}</h2>
         {sheet.entries.length === 0 ? (
           <EmptyState icon={Timer} title={t("timesheet.entries.empty")} className="mt-2" />
         ) : (
-          <ul className="mt-2 flex flex-col gap-2">
+          <ul className="mt-2 divide-y">
             {sheet.entries.map((e) => {
               const local = berlinLocalString(e.startsAt);
               const date = local.slice(0, 10);
               const start = local.slice(11, 16);
               const end = e.endsAt ? berlinLocalString(e.endsAt).slice(11, 16) : "";
               return (
-                <li
-                  key={e.id}
-                  className="border-border flex flex-wrap items-center gap-2 border-b pb-2"
-                >
+                <li key={e.id} className="flex flex-wrap items-center gap-2 py-2">
                   <Form method="post" className="flex flex-wrap items-center gap-2">
                     <input type="hidden" name="_action" value="edit" />
                     <input type="hidden" name="id" value={e.id} />
@@ -369,19 +361,19 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
                       {e.task?.title ?? t("timesheet.noTask")}
                       {e.comment ? ` · ${e.comment}` : ""}
                     </span>
-                    <span className="font-mono text-xs">
+                    <span className="nums text-xs">
                       {e.endsAt
                         ? `${formatHM(Math.round((e.endsAt.getTime() - e.startsAt.getTime()) / 60_000))} h`
                         : t("timesheet.running")}
                     </span>
-                    <Button type="submit" variant="outline" size="sm">
+                    <Button type="submit" variant="secondary" size="compact">
                       {t("common.save")}
                     </Button>
                   </Form>
                   <Form method="post">
                     <input type="hidden" name="_action" value="delete" />
                     <input type="hidden" name="id" value={e.id} />
-                    <Button type="submit" variant="ghost" size="sm">
+                    <Button type="submit" variant="ghost" size="compact">
                       {t("common.delete")}
                     </Button>
                   </Form>
@@ -392,8 +384,8 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
         )}
       </section>
 
-      <section className="border-border border p-4">
-        <h2 className="font-mono text-sm">{t("timesheet.add.title")}</h2>
+      <section className="bg-card shadow-surface-2 rounded-lg p-4">
+        <h2 className="text-base font-semibold">{t("timesheet.add.title")}</h2>
         <Form method="post" className="mt-2 flex flex-wrap items-center gap-2">
           <input type="hidden" name="_action" value="add" />
           <Input
@@ -431,7 +423,7 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
             className="min-w-[10rem] flex-1"
             aria-label={t("timesheet.comment")}
           />
-          <Button type="submit" size="sm">
+          <Button type="submit" size="compact">
             {t("common.add")}
           </Button>
         </Form>

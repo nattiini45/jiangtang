@@ -54,7 +54,7 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
       header: t("inventory.stock.col.quantity"),
       size: 90,
       cell: ({ row }) => (
-        <span className="font-mono text-xs">
+        <span className="nums text-sm">
           {/* Quantity without its unit is half a number — "3" of what? The unit is a
             nullable free string, so this is a join, not a format. */}
           {row.original.quantity}

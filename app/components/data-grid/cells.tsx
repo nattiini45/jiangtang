@@ -25,7 +25,9 @@ export function DateCell({
   const d = typeof value === "string" ? new Date(value) : value;
   if (Number.isNaN(d.getTime())) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className="font-mono text-xs">{(withTime ? formatDateTime : formatDate)(locale, d)}</span>
+    <span className="nums text-muted-foreground text-xs">
+      {(withTime ? formatDateTime : formatDate)(locale, d)}
+    </span>
   );
 }
 

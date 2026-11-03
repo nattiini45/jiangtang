@@ -21,7 +21,6 @@ import {
 import { ZodForm, FormField } from "~/components/forms";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { MonoCell } from "~/components/data-grid";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
@@ -108,7 +107,7 @@ export default function Campuses({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="font-mono text-xl">{t("campuses.title")}</h1>
+        <h1 className="text-xl font-bold">{t("campuses.title")}</h1>
         <p className="text-muted-foreground text-sm">{t("campuses.subtitle")}</p>
       </div>
 
@@ -116,7 +115,7 @@ export default function Campuses({ loaderData, actionData }: Route.ComponentProp
       <ZodForm
         method="post"
         fieldErrors={fe("createCampus")}
-        className="border-border flex-row items-end gap-2 border p-3"
+        className="bg-card shadow-surface-2 flex-row items-end gap-2 rounded-lg p-4"
       >
         <input type="hidden" name="_action" value="createCampus" />
         <FormField name="name" label={t("campuses.new.label")} className="flex-1">
@@ -132,7 +131,10 @@ export default function Campuses({ loaderData, actionData }: Route.ComponentProp
       ) : null}
 
       {loaderData.campuses.map((campus) => (
-        <div key={campus.id} className="border-border bg-card flex flex-col gap-3 border p-4">
+        <div
+          key={campus.id}
+          className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4"
+        >
           <ZodForm
             method="post"
             fieldErrors={fe("updateCampus", { id: campus.id })}
@@ -146,11 +148,11 @@ export default function Campuses({ loaderData, actionData }: Route.ComponentProp
               defaultValue={campus.name}
               className="max-w-xs"
             />
-            <Button type="submit" variant="outline" size="sm" disabled={busy}>
+            <Button type="submit" variant="tertiary" size="compact" disabled={busy}>
               {t("campuses.rename")}
             </Button>
             <span className="text-muted-foreground ml-auto text-xs">
-              <MonoCell>{campus.roomCount}</MonoCell> {t("campuses.roomsCount")}
+              <span className="nums">{campus.roomCount}</span> {t("campuses.roomsCount")}
             </span>
           </ZodForm>
 
@@ -178,11 +180,11 @@ export default function Campuses({ loaderData, actionData }: Route.ComponentProp
                   placeholder={t("campuses.building.codePlaceholder")}
                   className="max-w-[8rem]"
                 />
-                <Button type="submit" variant="ghost" size="sm" disabled={busy}>
+                <Button type="submit" variant="ghost" size="compact" disabled={busy}>
                   {t("campuses.building.save")}
                 </Button>
                 <span className="text-muted-foreground ml-auto text-xs">
-                  <MonoCell>{b.roomCount}</MonoCell> {t("campuses.roomsCount")}
+                  <span className="nums">{b.roomCount}</span> {t("campuses.roomsCount")}
                 </span>
               </ZodForm>
             ))}
@@ -202,7 +204,7 @@ export default function Campuses({ loaderData, actionData }: Route.ComponentProp
             <FormField name="code" label={t("campuses.building.code.label")} className="w-28">
               <Input name="code" placeholder={t("campuses.building.code.placeholder")} />
             </FormField>
-            <Button type="submit" variant="outline" disabled={busy}>
+            <Button type="submit" variant="tertiary" disabled={busy}>
               {t("campuses.add")}
             </Button>
           </ZodForm>

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { MonoCell, StatusCell, type ColumnDef } from "~/components/data-grid";
+import { StatusCell, type ColumnDef } from "~/components/data-grid";
 import type { RoomListRow } from "~/domains/rooms/rooms.queries.server";
 import type { Translate } from "~/i18n";
 
@@ -12,7 +12,7 @@ export function roomColumns(t: Translate): ColumnDef<RoomListRow>[] {
       header: t("rooms.col.roomNumber"),
       size: 120,
       cell: ({ row }) =>
-        row.original.roomNumber ? <MonoCell>{row.original.roomNumber}</MonoCell> : dash,
+        row.original.roomNumber ? <span className="nums">{row.original.roomNumber}</span> : dash,
     },
     {
       accessorKey: "name",
@@ -40,13 +40,17 @@ export function roomColumns(t: Translate): ColumnDef<RoomListRow>[] {
       header: t("rooms.col.capacity"),
       size: 90,
       cell: ({ row }) =>
-        row.original.capacity != null ? <MonoCell>{row.original.capacity}</MonoCell> : dash,
+        row.original.capacity != null ? (
+          <span className="nums">{row.original.capacity}</span>
+        ) : (
+          dash
+        ),
     },
     {
       accessorKey: "equipmentCount",
       header: t("rooms.col.equipment"),
       size: 90,
-      cell: ({ row }) => <MonoCell>{row.original.equipmentCount}</MonoCell>,
+      cell: ({ row }) => <span className="nums">{row.original.equipmentCount}</span>,
     },
   ];
 }

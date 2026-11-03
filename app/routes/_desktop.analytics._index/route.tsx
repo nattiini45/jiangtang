@@ -68,10 +68,10 @@ export default function AnalyticsIndex({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("nav.analytics")}</h1>
-          <p className="text-muted-foreground text-sm">{t("analytics.subtitle")}</p>
+          <h1 className="text-xl font-bold">{t("nav.analytics")}</h1>
+          <p className="text-muted-foreground mt-1">{t("analytics.subtitle")}</p>
         </div>
         <RangePicker days={days} />
       </div>

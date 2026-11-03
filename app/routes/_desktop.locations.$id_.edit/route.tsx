@@ -17,6 +17,8 @@ import { ZodForm } from "~/components/forms";
 import { LocationFormFields } from "~/components/locations/location-form-fields";
 import { LocationFormErrors } from "~/components/locations/location-form-errors";
 import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Select } from "~/components/ui/select";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
 
@@ -117,7 +119,7 @@ export default function EditLocation({ loaderData, actionData }: Route.Component
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("locations.edit.title", { name: location.name })}</h1>
+        <h1 className="text-xl font-bold">{t("locations.edit.title", { name: location.name })}</h1>
         <Link
           to={`/locations/${location.id}`}
           className="text-muted-foreground text-sm hover:underline"
@@ -153,24 +155,17 @@ export default function EditLocation({ loaderData, actionData }: Route.Component
         className="border-border mt-6 border-t pt-4"
       >
         <LocationFormErrors formErrors={actionData?.formErrors} />
-        <h2 className="font-mono text-sm">{t("locations.edit.moveHeading")}</h2>
+        <h2 className="text-base font-semibold">{t("locations.edit.moveHeading")}</h2>
         <input type="hidden" name="_action" value="move" />
-        <label htmlFor="parentId" className="text-sm">
-          {t("locations.edit.moveLabel")}
-        </label>
-        <select
-          id="parentId"
-          name="parentId"
-          defaultValue={location.parentId ?? ""}
-          className="border-input bg-background h-9 w-full rounded-sm border px-3 text-sm"
-        >
+        <Label htmlFor="parentId">{t("locations.edit.moveLabel")}</Label>
+        <Select id="parentId" name="parentId" defaultValue={location.parentId ?? ""}>
           <option value="">{t("locations.form.topLevel")}</option>
           {candidates.map((c) => (
             <option key={c.id} value={c.id}>
               {`${"— ".repeat(c.depth)}${c.name}`}
             </option>
           ))}
-        </select>
+        </Select>
         {actionData?.fieldErrors?.parentId?.[0] ? (
           // `moveLocation` refuses a subtree move with `fieldErrors.parentId`;
           // the raw select has no FormField, so the reason is rendered here or

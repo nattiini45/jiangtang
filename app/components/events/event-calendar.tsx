@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router";
 import { statusToken } from "~/lib/status";
+import { buttonVariants } from "~/components/ui/button";
 import type { EventListRow } from "~/domains/events/events.queries.server";
 import type { EventStatus } from "~/generated/prisma/enums";
 import { formatDateWith } from "~/i18n/format";
@@ -121,30 +122,31 @@ export function EventCalendar({
   const todayKey = dayKey(new Date());
 
   return (
-    <div className="border-border bg-card flex flex-col border">
-      <div className="border-border flex items-center justify-between border-b px-3 py-2">
-        <h2 className="text-sm font-medium">{monthLabel(locale, year, m)}</h2>
+    <div className="bg-card shadow-surface-2 flex flex-col overflow-hidden rounded-lg">
+      <div className="border-border flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-base font-semibold">{monthLabel(locale, year, m)}</h2>
         <div className="flex items-center gap-1">
           <Link
             to={`?view=calendar&month=${prev}`}
-            className="border-border rounded-sm border px-2 py-0.5 text-xs hover:bg-accent"
+            className={buttonVariants({ variant: "tertiary", size: "compact" })}
           >
             ←
           </Link>
           <Link
             to={`?view=calendar&month=${next}`}
-            className="border-border rounded-sm border px-2 py-0.5 text-xs hover:bg-accent"
+            className={buttonVariants({ variant: "tertiary", size: "compact" })}
           >
             →
           </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-7">
+      {/* The Sunday column closes the card, so it drops its right hairline. */}
+      <div className="grid grid-cols-7 [&>:nth-child(7n)]:border-r-0">
         {weekdays.map((w) => (
           <div
             key={w}
-            className="text-muted-foreground border-border border-b border-r px-2 py-1 text-xs font-medium uppercase tracking-wide last:border-r-0"
+            className="text-muted-foreground border-border border-r border-b px-2 py-1 text-xs"
           >
             {w}
           </div>
@@ -156,18 +158,22 @@ export function EventCalendar({
             <div
               key={i}
               className={[
-                "border-border min-h-[96px] border-b border-r p-1.5 last:border-r-0",
-                cell.day === null ? "bg-muted/30" : "",
+                "border-border min-h-[96px] border-r border-b p-1.5",
+                cell.day === null ? "bg-tint" : "",
               ].join(" ")}
             >
               {cell.day !== null ? (
                 <div
+                  aria-current={isToday ? "date" : undefined}
                   className={[
-                    "text-muted-foreground mb-1 font-mono text-xs",
-                    isToday ? "text-status-info font-bold" : "",
+                    "nums mb-1 flex items-center gap-1.5 text-xs",
+                    isToday ? "text-foreground font-semibold" : "text-muted-foreground",
                   ].join(" ")}
                 >
                   {cell.day}
+                  {isToday ? (
+                    <span aria-hidden className="bg-foreground size-1 rounded-full" />
+                  ) : null}
                 </div>
               ) : null}
               <div className="flex flex-col gap-1">
@@ -191,11 +197,9 @@ function CalendarChip({ ev }: { ev: EventListRow }) {
     <Link
       to={`/events/${ev.id}`}
       title={ev.title}
-      className={["block truncate rounded-sm border px-1.5 py-0.5 text-xs", token.className].join(
-        " ",
-      )}
+      className={["block truncate rounded-sm px-1.5 py-0.5 text-xs", token.className].join(" ")}
     >
-      <span className="font-mono">{time}</span> {ev.title}
+      <span className="nums">{time}</span> {ev.title}
     </Link>
   );
 }

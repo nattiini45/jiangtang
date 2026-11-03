@@ -53,14 +53,14 @@ export default function NewTicket({ loaderData, actionData }: Route.ComponentPro
   const t = useT();
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("tickets.new.title")}</h1>
+        <h1 className="text-xl font-bold">{t("tickets.new.title")}</h1>
         <Link to="/tickets" className="text-muted-foreground text-sm hover:underline">
           {t("tickets.back")}
         </Link>
       </div>
-      <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <TicketFormFields
           mode="create"
           rooms={rooms}

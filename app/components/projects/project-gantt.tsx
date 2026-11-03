@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { buildGantt, type GanttTask } from "./gantt";
 import { dayIndexToDateKey } from "~/lib/berlin-days";
-import { taskStatusLabel } from "~/components/tasks/labels";
+import { StatusBadge } from "~/components/ui/status-badge";
 import { useLocale, useT } from "~/i18n/use-t";
 
 /**
@@ -57,12 +57,12 @@ export function ProjectGantt({
 
   return (
     <div>
-      <div ref={scrollRef} className="overflow-x-auto border border-border">
+      <div ref={scrollRef} className="bg-card shadow-surface-2 overflow-x-auto rounded-lg">
         <div className="flex" style={{ width: LABEL_W + chartW }}>
           {/* Sticky label column — a sibling of the chart SVG, not part of it,
               so the week axis starts at x=0 and can never overlap titles. */}
           <div
-            className="border-border sticky left-0 z-10 shrink-0 border-r bg-background"
+            className="border-border bg-card sticky left-0 z-10 shrink-0 border-r"
             style={{ width: LABEL_W }}
           >
             <svg
@@ -71,12 +71,7 @@ export function ProjectGantt({
               height={HEADER_H + chartH + 8}
               className="block text-foreground"
             >
-              <text
-                x={8}
-                y={HEADER_H - 10}
-                fontSize={10}
-                className="fill-muted-foreground font-mono"
-              >
+              <text x={8} y={HEADER_H - 10} fontSize={10} className="fill-muted-foreground">
                 {t("projects.gantt.taskColumn")}
               </text>
               {layout.rows.map((row, i) => (
@@ -85,7 +80,7 @@ export function ProjectGantt({
                   x={8 + row.depth * 16}
                   y={y(i) + 4}
                   fontSize={12}
-                  className={`font-mono ${row.done ? "fill-muted-foreground" : "fill-foreground"}`}
+                  className={row.done ? "fill-muted-foreground" : "fill-foreground"}
                 >
                   {row.task.title.length > 32 ? `${row.task.title.slice(0, 31)}…` : row.task.title}
                 </text>
@@ -116,7 +111,7 @@ export function ProjectGantt({
                   <text
                     x={Math.max(x(w.day), 0) + 4}
                     y={HEADER_H - 10}
-                    className="fill-muted-foreground font-mono"
+                    className="fill-muted-foreground nums"
                     fontSize={10}
                   >
                     {w.label}
@@ -132,7 +127,7 @@ export function ProjectGantt({
                 y={HEADER_H}
                 width={(layout.projectBand.to - layout.projectBand.from) * PX_PER_DAY}
                 height={chartH}
-                className="fill-accent/40"
+                className="fill-tint"
               />
             ) : null}
 
@@ -166,8 +161,8 @@ export function ProjectGantt({
                           row.overdue
                             ? "fill-destructive"
                             : row.done
-                              ? "fill-muted-foreground/40"
-                              : "fill-primary"
+                              ? "fill-input"
+                              : "fill-(--fluid-accent)"
                         }
                       />
                       <Link
@@ -208,8 +203,8 @@ export function ProjectGantt({
                           row.overdue
                             ? "fill-destructive"
                             : row.done
-                              ? "fill-muted-foreground/40"
-                              : "fill-primary"
+                              ? "fill-input"
+                              : "fill-(--fluid-accent)"
                         }
                       />
                     </Link>
@@ -254,17 +249,15 @@ export function ProjectGantt({
       </div>
 
       {layout.unscheduled.length > 0 ? (
-        <section className="border-border mt-3 border p-4">
-          <h3 className="font-mono text-sm">{t("projects.gantt.unscheduled")}</h3>
+        <section className="bg-card shadow-surface-2 mt-3 rounded-lg p-4">
+          <h3 className="text-base font-semibold">{t("projects.gantt.unscheduled")}</h3>
           <ul className="mt-2 flex flex-col gap-1">
             {layout.unscheduled.map((t) => (
               <li key={t.id}>
                 <Link to={`/tasks/${t.id}`} className="text-sm hover:underline">
                   {t.title}
                 </Link>
-                <span className="text-muted-foreground ml-2 font-mono text-xs">
-                  {taskStatusLabel(locale, t.status)}
-                </span>
+                <StatusBadge kind="task" value={t.status} className="ml-2" />
               </li>
             ))}
           </ul>

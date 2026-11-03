@@ -108,7 +108,7 @@ export default function EditProject({ loaderData, actionData }: Route.ComponentP
   return (
     <div className="mx-auto max-w-3xl">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("projects.edit.title", { name: project.name })}</h1>
+        <h1 className="text-xl font-bold">{t("projects.edit.title", { name: project.name })}</h1>
         <Link
           to={`/projects/${project.slug}`}
           className="text-muted-foreground text-sm hover:underline"
@@ -135,7 +135,7 @@ export default function EditProject({ loaderData, actionData }: Route.ComponentP
           }}
         />
         <div className="flex items-center gap-2">
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" variant="primary" disabled={busy}>
             {busy ? t("common.saving") : t("projects.edit.submit")}
           </Button>
           <Button asChild variant="ghost">

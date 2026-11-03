@@ -45,14 +45,14 @@ export default function NewEquipment({ loaderData, actionData }: Route.Component
   const nav = useNavigation();
   const busy = nav.state !== "idle";
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("inventory.new.title")}</h1>
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">{t("inventory.new.title")}</h1>
         <Link to="/inventory" className="text-muted-foreground text-sm hover:underline">
           {t("inventory.new.back")}
         </Link>
       </div>
-      <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <EquipmentFormFields
           models={loaderData.models}
           rooms={loaderData.rooms}

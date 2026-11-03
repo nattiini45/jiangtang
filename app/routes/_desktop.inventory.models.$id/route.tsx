@@ -54,9 +54,9 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
   const busy = nav.state !== "idle";
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h1 className="text-xl font-bold">
           {model.manufacturer ? `${model.manufacturer} ` : ""}
           {model.name}
         </h1>
@@ -67,12 +67,12 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
 
       <ModelAssetView stats={stats} instances={instances} />
 
-      <details className="border-border border p-3">
-        <summary className="text-muted-foreground cursor-pointer text-xs uppercase tracking-wide">
+      <details className="bg-card shadow-surface-2 rounded-lg p-4">
+        <summary className="cursor-pointer text-base font-semibold">
           {t("inventory.models.editSummary")}
         </summary>
         {actionData?.ok ? (
-          <p className="border-status-operational/40 bg-status-operational/10 text-status-operational mt-3 border p-2 text-sm">
+          <p className="bg-status-operational/15 text-foreground mt-3 rounded-lg px-4 py-3 text-sm">
             {t("inventory.models.saved")}
           </p>
         ) : null}

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { DateCell, MonoCell, StatusCell, type ColumnDef } from "~/components/data-grid";
+import { DateCell, StatusCell, type ColumnDef } from "~/components/data-grid";
 import type { ProjectListRow } from "~/domains/projects/projects.queries.server";
 import type { Translate } from "~/i18n";
 
@@ -64,10 +64,10 @@ export function projectColumns(t: Translate): ColumnDef<ProjectListRow>[] {
       cell: ({ row }) => {
         const tasks = row.original.tasks;
         return (
-          <MonoCell>
+          <span className="nums text-sm">
             {t("projects.col.tasksDone", { done: tasks.done, total: tasks.total })}
             {tasks.open > 0 ? t("projects.col.tasksOpen", { open: tasks.open }) : ""}
-          </MonoCell>
+          </span>
         );
       },
     },

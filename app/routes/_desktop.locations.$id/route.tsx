@@ -82,7 +82,7 @@ export default function LocationDetail({ loaderData }: Route.ComponentProps) {
               {t("locations.detail.back")}
             </Link>
           </div>
-          <h1 className="mt-1 flex items-center gap-2 font-mono text-xl">
+          <h1 className="mt-1 flex items-center gap-2 text-xl font-bold">
             <span className="truncate">{location.name}</span>
             <Badge className={LOCATION_KIND_BADGE_CLASS[location.kind]}>
               {kindLabel(locale, location.kind)}
@@ -93,7 +93,7 @@ export default function LocationDetail({ loaderData }: Route.ComponentProps) {
           ) : null}
         </div>
         <div className="flex shrink-0 gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="tertiary">
             <Link to={`/locations/new?parent=${location.id}`}>{t("locations.detail.child")}</Link>
           </Button>
           <Button asChild>
@@ -102,19 +102,19 @@ export default function LocationDetail({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <dl className="border-border bg-border grid gap-px border sm:grid-cols-2">
-        <div className="bg-background px-3 py-2">
+      <dl className="bg-border shadow-surface-2 grid gap-px overflow-hidden rounded-lg sm:grid-cols-2">
+        <div className="bg-card px-4 py-3">
           <dt className="text-muted-foreground text-xs">{t("locations.detail.address")}</dt>
           <dd className="text-sm">{location.address || "—"}</dd>
         </div>
-        <div className="bg-background px-3 py-2">
+        <div className="bg-card px-4 py-3">
           <dt className="text-muted-foreground text-xs">{t("locations.detail.description")}</dt>
           <dd className="text-sm">{location.description || "—"}</dd>
         </div>
       </dl>
 
       <section className="flex flex-col gap-2">
-        <h2 className="font-mono text-sm">
+        <h2 className="text-base font-semibold">
           {t("locations.detail.children")}{" "}
           <span className="text-muted-foreground">({descendants.length})</span>
         </h2>
@@ -134,12 +134,12 @@ export default function LocationDetail({ loaderData }: Route.ComponentProps) {
       {/* Notes pinned to this node — this node only, like the stock
           panel above: a building's notes do not include its rooms' notes. */}
       <section className="flex flex-col gap-2">
-        <h2 className="font-mono text-sm">
+        <h2 className="text-base font-semibold">
           {t("locations.detail.notes")}{" "}
           <span className="text-muted-foreground">({notes.length})</span>
         </h2>
         <NoteList notes={notes} emptyMessage={t("locations.detail.notesEmpty")} />
-        <Button asChild variant="outline" size="sm" className="self-start">
+        <Button asChild variant="tertiary" size="compact" className="self-start">
           <Link to={`/notes/new?location=${location.id}`}>{t("locations.detail.notesNew")}</Link>
         </Button>
       </section>

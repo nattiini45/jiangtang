@@ -116,10 +116,10 @@ export function EquipmentFormFields({
           />
         </FormField>
         <FormField name="assetTag" label={t("inventory.form.assetTag")}>
-          <Input name="assetTag" defaultValue={defaults?.assetTag ?? ""} />
+          <Input name="assetTag" defaultValue={defaults?.assetTag ?? ""} className="font-mono" />
         </FormField>
         <FormField name="serial" label={t("inventory.form.serial")}>
-          <Input name="serial" defaultValue={defaults?.serial ?? ""} />
+          <Input name="serial" defaultValue={defaults?.serial ?? ""} className="font-mono" />
         </FormField>
       </div>
 
@@ -135,16 +135,15 @@ export function EquipmentFormFields({
 
       <EquipmentCategoryFields category={category} defaults={defaults} />
 
-      <details className="border-border border p-3">
-        <summary className="text-muted-foreground cursor-pointer text-xs uppercase tracking-wide">
+      <details className="bg-card shadow-surface-2 rounded-lg p-4">
+        <summary className="cursor-pointer text-base font-semibold">
           {t("inventory.form.attributes")}
         </summary>
-        <div className="mt-2">
+        <div className="mt-3">
           <Textarea
             name="attributes"
             defaultValue={defaults?.attributes ?? ""}
             placeholder='{"key":"value"}'
-            className="font-mono"
           />
         </div>
       </details>

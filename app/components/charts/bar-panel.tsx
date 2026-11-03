@@ -3,8 +3,8 @@ import { useT } from "~/i18n/use-t";
 import { ChartCard } from "./chart-card";
 
 /**
- * Vertical-bar analytics panel. Mono axis labels to match the
- * industrial token set. Consumers pass a `data` array + the value/label keys.
+ * Vertical-bar analytics panel. Consumers pass a `data` array + the value/label
+ * keys. Colors are theme variables so the chart follows light and dark mode.
  */
 export interface BarPanelProps {
   title: string;
@@ -19,6 +19,8 @@ export interface BarPanelProps {
   /** rotate long labels. */
   angleLabels?: boolean;
 }
+
+const AXIS_TICK = { fontSize: 11, fill: "var(--muted-foreground)" };
 
 export function BarPanel({
   title,
@@ -43,28 +45,31 @@ export function BarPanel({
             data={data}
             margin={{ top: 8, right: 8, left: 0, bottom: angleLabels ? 40 : 8 }}
           >
-            <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
             <XAxis
               dataKey={labelKey}
-              tick={{ fontSize: 11, fontFamily: "monospace" }}
+              tick={AXIS_TICK}
+              tickLine={false}
+              axisLine={{ stroke: "var(--border)" }}
               angle={angleLabels ? -35 : 0}
               textAnchor={angleLabels ? "end" : "middle"}
               height={angleLabels ? 50 : 30}
               interval={0}
             />
-            <YAxis tick={{ fontSize: 11, fontFamily: "monospace" }} allowDecimals={false} />
+            <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip
-              cursor={{ fill: "var(--muted)", fillOpacity: 0.3 }}
+              cursor={{ fill: "var(--tint)" }}
               contentStyle={{
-                background: "var(--card)",
-                border: "1px solid var(--border)",
-                borderRadius: 2,
+                background: "var(--popover)",
+                color: "var(--popover-foreground)",
+                border: "none",
+                borderRadius: 12,
+                boxShadow: "var(--shadow-3)",
                 fontSize: 12,
-                fontFamily: "monospace",
               }}
               formatter={(value) => [`${value}${unit ? ` ${unit}` : ""}`, title]}
             />
-            <Bar dataKey={valueKey} fill="var(--primary)" radius={[2, 2, 0, 0]} />
+            <Bar dataKey={valueKey} fill="var(--fluid-accent)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

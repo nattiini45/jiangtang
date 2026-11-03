@@ -70,7 +70,7 @@ export function LocationStock({
   return (
     <section className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="font-mono text-sm">
+        <h2 className="text-base font-semibold">
           {t("locations.stock.heading")}{" "}
           <span className="text-muted-foreground">({items.length})</span>
         </h2>
@@ -94,15 +94,13 @@ export function LocationStock({
       </p>
 
       {items.length === 0 ? (
-        <div className="border-border bg-border grid gap-px border">
-          <p className="bg-background text-muted-foreground px-3 py-3 text-sm">
-            {t("locations.stock.empty")}
-          </p>
+        <div className="bg-card shadow-surface-2 rounded-lg">
+          <p className="text-muted-foreground px-4 py-3 text-sm">{t("locations.stock.empty")}</p>
         </div>
       ) : (
-        <ul className="border-border divide-border divide-y border">
+        <ul className="bg-card shadow-surface-2 divide-border divide-y overflow-hidden rounded-lg">
           {items.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+            <li key={item.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
               <Link
                 to={`/inventory/stock/${item.id}`}
                 className="min-w-0 flex-1 truncate text-sm hover:underline"
@@ -111,7 +109,7 @@ export function LocationStock({
               </Link>
               {/* Quantity without its unit is half a number, and `unit` is a nullable
                   free string — a join, not a format (`stock-columns.tsx`). */}
-              <span className="font-mono text-xs">
+              <span className="nums text-xs">
                 {item.quantity}
                 {item.unit ? ` ${item.unit}` : ""}
               </span>

@@ -36,14 +36,14 @@ export default function NewEvent({ actionData }: Route.ComponentProps) {
   const busy = nav.state !== "idle";
   const t = useT();
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div className="flex items-baseline justify-between gap-4">
-        <h1 className="font-mono text-xl">{t("events.new.title")}</h1>
+        <h1 className="text-xl font-bold">{t("events.new.title")}</h1>
         <Link to="/events" className="text-muted-foreground text-sm hover:underline">
           {t("events.back")}
         </Link>
       </div>
-      <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
+      <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <EventFormFields />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>

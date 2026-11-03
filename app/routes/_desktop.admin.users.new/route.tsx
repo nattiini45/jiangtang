@@ -52,7 +52,7 @@ export default function InviteUser({ actionData }: Route.ComponentProps) {
     actionData && "fieldErrors" in actionData ? actionData.fieldErrors : undefined;
   return (
     <div className="max-w-lg">
-      <h1 className="font-mono text-xl">{t("admin.invite.title")}</h1>
+      <h1 className="text-xl font-bold">{t("admin.invite.title")}</h1>
       <p className="text-muted-foreground mt-1 text-sm">{t("admin.invite.subtitle")}</p>
       <ZodForm className="mt-6" fieldErrors={fieldErrors}>
         <FormField name="email" label={t("admin.invite.email")}>
@@ -66,7 +66,7 @@ export default function InviteUser({ actionData }: Route.ComponentProps) {
           label={t("admin.invite.initials")}
           hint={t("admin.invite.initialsHint")}
         >
-          <Input name="initials" required maxLength={6} className="uppercase" />
+          <Input name="initials" required maxLength={6} />
         </FormField>
         <FormField name="role" label={t("admin.invite.role")}>
           <Select name="role" defaultValue="MEMBER">

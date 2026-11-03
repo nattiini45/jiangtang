@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { ExternalLink } from "lucide-react";
 import { DateCell, MonoCell } from "~/components/data-grid";
 import { StatusBadge } from "~/components/ui/status-badge";
+import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { categoryLabel } from "~/components/inventory/labels";
 import { FileUpload } from "~/components/upload/file-upload";
@@ -38,12 +39,12 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <h1 className="font-mono text-xl">{room.name}</h1>
-          {room.roomNumber ? <MonoCell>{room.roomNumber}</MonoCell> : null}
+          <h1 className="text-xl font-bold">{room.name}</h1>
+          {room.roomNumber ? <span className="nums text-sm">{room.roomNumber}</span> : null}
           <StatusBadge kind="room" value={room.status} />
         </div>
         <div className="flex gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="tertiary">
             <Link to={`/rooms/${room.slug}/clone`}>{t("rooms.dashboard.duplicate")}</Link>
           </Button>
           <Button asChild>
@@ -59,24 +60,24 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex flex-col gap-4 lg:col-span-2">
-          <section className="border-border border">
-            <header className="border-border flex items-center justify-between border-b px-3 py-2">
-              <h2 className="text-sm font-medium">{t("rooms.dashboard.installed")}</h2>
-              <Button asChild size="sm" variant="ghost">
+          <section className="bg-card shadow-surface-2 rounded-lg">
+            <header className="border-border flex min-h-12 items-center justify-between gap-2 border-b px-4">
+              <h2 className="text-base font-semibold">{t("rooms.dashboard.installed")}</h2>
+              <Button asChild size="compact" variant="ghost">
                 <Link to={`/inventory/new?roomId=${room.id}`}>
                   {t("rooms.dashboard.addDevice")}
                 </Link>
               </Button>
             </header>
             {equipment.length === 0 ? (
-              <p className="text-muted-foreground p-3 text-sm">
+              <p className="text-muted-foreground px-4 py-3 text-sm">
                 {t("rooms.dashboard.noEquipment")}
               </p>
             ) : (
               <div className="divide-border divide-y">
                 {[...byCategory.entries()].map(([cat, units]) => (
-                  <div key={cat} className="p-3">
-                    <p className="text-muted-foreground mb-1 text-xs uppercase tracking-wide">
+                  <div key={cat} className="px-4 py-3">
+                    <p className="text-muted-foreground mb-1 text-xs">
                       {categoryLabel(locale, cat as DashboardEquipment["category"])}
                     </p>
                     <ul className="flex flex-col gap-1">
@@ -98,27 +99,29 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
             )}
           </section>
 
-          <section className="border-border border">
-            <header className="border-border flex items-center justify-between border-b px-3 py-2">
+          <section className="bg-card shadow-surface-2 rounded-lg">
+            <header className="border-border flex min-h-12 items-center justify-between gap-2 border-b px-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-medium">{t("rooms.dashboard.tickets")}</h2>
+                <h2 className="text-base font-semibold">{t("rooms.dashboard.tickets")}</h2>
                 {openTickets.length > 0 ? (
-                  <span className="text-status-warning font-mono text-xs">
+                  <span className="text-status-warning nums text-xs">
                     {t("rooms.dashboard.openTickets", { count: openTickets.length })}
                   </span>
                 ) : null}
               </div>
-              <Button asChild size="sm" variant="ghost">
+              <Button asChild size="compact" variant="ghost">
                 <Link to={`/quick-entry?roomId=${room.id}`}>{t("rooms.dashboard.addEntry")}</Link>
               </Button>
             </header>
             {recentTickets.length === 0 ? (
-              <p className="text-muted-foreground p-3 text-sm">{t("rooms.dashboard.noTickets")}</p>
+              <p className="text-muted-foreground px-4 py-3 text-sm">
+                {t("rooms.dashboard.noTickets")}
+              </p>
             ) : (
               <ul className="divide-border divide-y">
                 {recentTickets.map((ticket) => (
-                  <li key={ticket.id} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <span className="text-muted-foreground font-mono text-xs">
+                  <li key={ticket.id} className="flex items-center gap-2 px-4 py-2 text-sm">
+                    <span className="text-muted-foreground text-xs">
                       {t(`search.ticketType.${ticket.type}`)}
                     </span>
                     <Link to={`/tickets/${ticket.id}`} className="truncate hover:underline">
@@ -134,19 +137,17 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
             )}
           </section>
 
-          <section className="border-border border">
-            <header className="border-border border-b px-3 py-2">
-              <h2 className="text-sm font-medium">{t("rooms.dashboard.history")}</h2>
+          <section className="bg-card shadow-surface-2 rounded-lg">
+            <header className="border-border flex min-h-12 items-center border-b px-4">
+              <h2 className="text-base font-semibold">{t("rooms.dashboard.history")}</h2>
             </header>
             <ActivityFeed entries={history} />
           </section>
         </div>
 
         <div className="flex flex-col gap-4">
-          <section className="border-border flex flex-col gap-3 border p-3">
-            <p className="text-muted-foreground text-xs uppercase tracking-wide">
-              {t("rooms.dashboard.photos")}
-            </p>
+          <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4">
+            <p className="text-sm font-semibold">{t("rooms.dashboard.photos")}</p>
             <AttachmentGallery attachments={attachments} redirectTo={photoRedirect} />
             <FileUpload
               target={{ roomId: room.id }}
@@ -160,60 +161,39 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
           </section>
 
           {features.length > 0 || room.mediaKeyRequired ? (
-            <section className="border-border border p-3">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                {t("rooms.features.legend")}
-              </p>
+            <section className="bg-card shadow-surface-2 rounded-lg p-4">
+              <p className="text-sm font-semibold">{t("rooms.features.legend")}</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {features.map(([k, labelKey]) => (
-                  <span
-                    key={k}
-                    className="border-border bg-secondary rounded-sm border px-2 py-0.5 text-xs"
-                  >
-                    {t(labelKey)}
-                  </span>
+                  <Badge key={k}>{t(labelKey)}</Badge>
                 ))}
                 {room.mediaKeyRequired ? (
-                  <span className="border-status-warning/40 text-status-warning rounded-sm border px-2 py-0.5 text-xs">
+                  <Badge className="bg-status-warning/15 text-foreground">
                     {t("rooms.dashboard.mediaKey")}
-                  </span>
+                  </Badge>
                 ) : null}
               </div>
             </section>
           ) : null}
 
           {room.videoInputs.length > 0 || room.audioOutputs.length > 0 ? (
-            <section className="border-border flex flex-col gap-2 border p-3 text-sm">
+            <section className="bg-card shadow-surface-2 flex flex-col gap-2 rounded-lg p-4 text-sm">
               {room.videoInputs.length > 0 ? (
                 <div>
-                  <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                    {t("rooms.form.videoInputs")}
-                  </p>
+                  <p className="text-sm font-semibold">{t("rooms.form.videoInputs")}</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {room.videoInputs.map((v) => (
-                      <span
-                        key={v}
-                        className="border-border rounded-sm border px-1.5 py-0.5 font-mono text-xs"
-                      >
-                        {v}
-                      </span>
+                      <Badge key={v}>{v}</Badge>
                     ))}
                   </div>
                 </div>
               ) : null}
               {room.audioOutputs.length > 0 ? (
                 <div>
-                  <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                    {t("rooms.form.audioOutputs")}
-                  </p>
+                  <p className="text-sm font-semibold">{t("rooms.form.audioOutputs")}</p>
                   <div className="mt-1 flex flex-wrap gap-1">
                     {room.audioOutputs.map((v) => (
-                      <span
-                        key={v}
-                        className="border-border rounded-sm border px-1.5 py-0.5 font-mono text-xs"
-                      >
-                        {v}
-                      </span>
+                      <Badge key={v}>{v}</Badge>
                     ))}
                   </div>
                 </div>
@@ -222,10 +202,8 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
           ) : null}
 
           {room.bookingUrl || room.manualUrl || room.virtualTourUrl ? (
-            <section className="border-border border p-3">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                {t("rooms.dashboard.links")}
-              </p>
+            <section className="bg-card shadow-surface-2 rounded-lg p-4">
+              <p className="text-sm font-semibold">{t("rooms.dashboard.links")}</p>
               <ul className="mt-2 flex flex-col gap-1 text-sm">
                 {room.bookingUrl ? (
                   <li>
@@ -247,16 +225,14 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
           ) : null}
 
           {room.tipsNotes ? (
-            <section className="border-border border p-3">
-              <p className="text-muted-foreground text-xs uppercase tracking-wide">
-                {t("rooms.dashboard.tips")}
-              </p>
+            <section className="bg-card shadow-surface-2 rounded-lg p-4">
+              <p className="text-sm font-semibold">{t("rooms.dashboard.tips")}</p>
               <p className="mt-1 whitespace-pre-wrap text-sm">{room.tipsNotes}</p>
             </section>
           ) : null}
 
           {room.renewalStatus || room.lastCheckedAt ? (
-            <section className="border-border text-muted-foreground flex flex-col gap-1 border p-3 text-xs">
+            <section className="bg-card shadow-surface-2 text-muted-foreground flex flex-col gap-1 rounded-lg p-4 text-xs">
               {room.renewalStatus ? (
                 <p>{t("rooms.dashboard.renewal", { status: room.renewalStatus })}</p>
               ) : null}

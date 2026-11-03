@@ -39,7 +39,7 @@ export default function AdminUsersIndex({ loaderData }: Route.ComponentProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-mono text-xl">{t("admin.users.title")}</h1>
+          <h1 className="text-xl font-bold">{t("admin.users.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("admin.users.subtitle")}</p>
         </div>
         <Button asChild>
@@ -47,10 +47,10 @@ export default function AdminUsersIndex({ loaderData }: Route.ComponentProps) {
         </Button>
       </div>
       {loaderData.inviteLink ? (
-        <div className="border-status-info/40 bg-status-info/10 text-status-info border p-3 text-sm">
-          <p className="font-medium">{t("admin.users.invited.title")}</p>
+        <div className="bg-status-info/15 text-status-info rounded-lg p-4 text-sm">
+          <p className="font-semibold">{t("admin.users.invited.title")}</p>
           <p className="text-muted-foreground mt-1">{t("admin.users.invited.hint")}</p>
-          <code className="bg-background mt-2 block break-all border p-2 font-mono text-xs">
+          <code className="bg-card mt-2 block rounded-md p-2 font-mono text-xs break-all">
             {loaderData.inviteLink}
           </code>
         </div>
