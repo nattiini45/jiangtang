@@ -155,9 +155,7 @@ export async function captureOrQueue(
 }
 
 type PostOutcome =
-  | { kind: "sent"; id?: string }
-  | { kind: "refused"; error: string }
-  | { kind: "retry" };
+  { kind: "sent"; id?: string } | { kind: "refused"; error: string } | { kind: "retry" };
 
 /** The capture action's own payload, as returned by a `.data` request. */
 interface ActionPayload {
