@@ -160,18 +160,37 @@ async function loadDataStrings(): Promise<string[]> {
   return [...out].filter((s) => s.length >= 4).sort((a, b) => b.length - a.length);
 }
 
-/** Text a user can see or hear, as separate strings. */
-async function visibleStrings(page: Page): Promise<string[]> {
+interface Visible {
+  /** Text nodes and accessible attributes, one string each. */
+  strings: string[];
+  /** Search snippets: the whole text of an element whose children include `<mark>`. */
+  snippets: string[];
+}
+
+/**
+ * Text a user can see or hear. A search snippet is a window cut out of an indexed
+ * chunk, split into several text nodes by its `<mark>` highlights, so it is
+ * collected whole and checked as a fragment of stored text (see `germanLeaks`).
+ */
+async function visibleStrings(page: Page): Promise<Visible> {
   return page.evaluate(() => {
     const out: string[] = [];
+    const snippets: string[] = [];
     const skip = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "TEXTAREA"]);
     const visible = (el: Element) =>
       (el as HTMLElement).checkVisibility?.({ checkVisibilityCSS: true }) ?? true;
+    const normalize = (s: string | null) => s?.replace(/\s+/g, " ").trim() ?? "";
+    const SNIPPET = ":has(> mark)";
+    for (const el of document.querySelectorAll(SNIPPET)) {
+      const text = normalize(el.textContent);
+      if (text && visible(el)) snippets.push(text);
+    }
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let n = walker.nextNode(); n; n = walker.nextNode()) {
       const el = n.parentElement;
-      const text = n.textContent?.replace(/\s+/g, " ").trim();
+      const text = normalize(n.textContent);
       if (!el || !text || skip.has(el.tagName) || !visible(el)) continue;
+      if (el.closest(SNIPPET)) continue;
       out.push(text);
     }
     for (const el of document.querySelectorAll("[aria-label],[title],[placeholder],[alt]")) {
@@ -182,7 +201,7 @@ async function visibleStrings(page: Page): Promise<string[]> {
       }
     }
     if (document.title) out.push(document.title);
-    return out;
+    return { strings: out, snippets };
   });
 }
 
@@ -194,22 +213,31 @@ function dataKeys(data: string[]): string[] {
   return keys;
 }
 
-function germanLeaks(strings: string[], data: string[]): string[] {
+/** Drop the ellipsis-separated pieces that are a fragment of some stored string. */
+function withoutStoredFragments(text: string, data: string[]): string {
+  return text
+    .split(/…|\.\.\./)
+    .filter((piece) => {
+      const key = lettersOnly(piece);
+      return key.length < 4 || !dataKeys(data).some((d) => d.includes(key));
+    })
+    .join(" ");
+}
+
+function germanLeaks(strings: string[], data: string[], snippets: string[] = []): string[] {
   const leaks: string[] = [];
+  // A snippet is data only if each of its pieces is a contiguous window of stored
+  // text; anything else in it is still checked.
+  for (const original of snippets) {
+    const hits = withoutStoredFragments(original, data).match(GERMAN_RE);
+    if (hits) leaks.push(`${JSON.stringify(original)} → ${[...new Set(hits)].join(", ")}`);
+  }
   for (const original of strings) {
     let rest = original;
     // Lists and cards cut long stored text with an ellipsis and strip its markdown;
     // compare on letters and digits only and keep the pieces that are not a fragment
     // of some stored string.
-    if (/…|\.\.\./.test(rest)) {
-      rest = rest
-        .split(/…|\.\.\./)
-        .filter((piece) => {
-          const key = lettersOnly(piece);
-          return key.length < 4 || !dataKeys(data).some((d) => d.includes(key));
-        })
-        .join(" ");
-    }
+    if (/…|\.\.\./.test(rest)) rest = withoutStoredFragments(rest, data);
     for (const d of data) if (rest.includes(d)) rest = rest.split(d).join(" ");
     const hits = rest.match(GERMAN_RE);
     if (hits) leaks.push(`${JSON.stringify(original)} → ${[...new Set(hits)].join(", ")}`);
@@ -391,7 +419,8 @@ async function openEnglish(page: Page, path: string, mobile: boolean) {
 }
 
 async function expectNoGerman(page: Page, label: string) {
-  const leaks = germanLeaks(await visibleStrings(page), data);
+  const { strings, snippets } = await visibleStrings(page);
+  const leaks = germanLeaks(strings, data, snippets);
   expect(leaks, `German UI text on ${label}`).toEqual([]);
 }
 
@@ -453,4 +482,16 @@ test.describe("English UI without a session", () => {
 test("the sweep detects German chrome", () => {
   const leaks = germanLeaks(["Aufgabe speichern", "Save", "Hörsaal 1 · Edit"], ["Hörsaal 1"]);
   expect(leaks).toEqual(['"Aufgabe speichern" → Aufgabe']);
+});
+
+test("the sweep treats search snippets as stored text, and only them", () => {
+  const stored = ["Lager & Logistik · Zuständig: BL · Fällig: 2026-11-08 · Priorität: Mittel"];
+  // A highlighted window of an indexed chunk, with the headline's fragment delimiter.
+  expect(
+    germanLeaks([], stored, ["Logistik · Zuständig: BL · Fällig … Priorität: Mittel"]),
+  ).toEqual([]);
+  // The same word as a standalone label is chrome, even though stored text contains it.
+  expect(germanLeaks(["Priorität"], stored)).toEqual(['"Priorität" → Priorität']);
+  // A snippet piece that is not a window of stored text is still checked.
+  expect(germanLeaks([], stored, ["Fällig heute"])).toEqual(['"Fällig heute" → Fällig']);
 });
