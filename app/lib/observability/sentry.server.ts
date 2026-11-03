@@ -28,6 +28,10 @@ const IP_HEADERS = [
 // redaction away from database statements and other values.
 const URL_KEY = /url|target|referer|path/i;
 
+// Request headers whose names say they hold a URL or a path: the referer, and the original
+// request line a proxy may forward (X-Original-URI, X-Original-URL, X-Forwarded-Path).
+const URL_HEADER = /ur[il]|referer|path/i;
+
 type SpanLike = { description?: string; data?: Record<string, unknown> };
 
 /**
@@ -46,7 +50,9 @@ function scrubValue(value: unknown): unknown {
 
 /**
  * Errors and transactions. The request-data integration attaches the request URL and
- * referer to both, and the span hook below never sees them.
+ * headers to both, and the span hook below never sees them. Any header can repeat the
+ * request path, so every header value loses the token segment; URL-named headers also
+ * lose the query string.
  */
 function redactRequestFields(event: {
   transaction?: string;
@@ -55,7 +61,12 @@ function redactRequestFields(event: {
   if (event.transaction) event.transaction = redactTokenSegments(event.transaction);
   const request = event.request;
   if (request?.url) request.url = scrubUrl(request.url);
-  if (request?.headers?.referer) request.headers.referer = scrubUrl(request.headers.referer);
+  const headers = request?.headers;
+  if (!headers) return;
+  for (const [name, value] of Object.entries(headers)) {
+    if (typeof value !== "string") continue;
+    headers[name] = URL_HEADER.test(name) ? scrubUrl(value) : redactTokenSegments(value);
+  }
 }
 
 /**

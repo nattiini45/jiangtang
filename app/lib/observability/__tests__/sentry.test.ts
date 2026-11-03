@@ -117,6 +117,36 @@ describe("initSentry", () => {
     expect(transaction.request.url).toBe("https://app.example.test/accept-invite/:token");
   });
 
+  it("removes tokens from every forwarded request header, and query strings from URL headers", async () => {
+    const options = await initOptions();
+    const headers = () => ({
+      "x-original-uri": "/calendar/abc123.ics?q=x",
+      "x-original-url": "/accept-invite/tok456?next=1",
+      "x-forwarded-path": "/calendar/abc123.ics",
+      "x-custom-trace": "seen at /accept-invite/tok456",
+      "user-agent": "test-agent",
+    });
+    const event = options.beforeSend(
+      { request: { url: "https://app.example.test/", headers: headers() } },
+      {},
+    );
+    const transaction = options.beforeSendTransaction({
+      type: "transaction",
+      request: { url: "https://app.example.test/", headers: headers() },
+    });
+
+    for (const sent of [event, transaction]) {
+      expect(JSON.stringify(sent)).not.toMatch(LEAK_PATTERN);
+      expect(sent.request.headers).toEqual({
+        "x-original-uri": "/calendar/:token",
+        "x-original-url": "/accept-invite/:token",
+        "x-forwarded-path": "/calendar/:token",
+        "x-custom-trace": "seen at /accept-invite/:token",
+        "user-agent": "test-agent",
+      });
+    }
+  });
+
   it("removes tokens from span names, URL attributes and referer values", async () => {
     const options = await initOptions();
     const span = options.beforeSendSpan({
