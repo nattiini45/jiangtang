@@ -347,7 +347,7 @@ describe("the link write cannot dangle", () => {
     expect((await db.inventoryItem.findUnique({ where: { id: item.id } }))?.equipmentId).toBeNull();
   });
 
-  it("(3a) CONTROL: what the DATABASE raises for a dangling link, measured — and the general SQLSTATE helper cannot see it", async () => {
+  it("(3a) CONTROL: what the DATABASE raises for a dangling link, measured — and the adapter reports its SQLSTATE on the cause", async () => {
     // Bypasses the domain entirely, so the ValidationError above is a translation
     // of a refusal that genuinely happens.
     const item = await make({ name: `${RUN}-shape` });
@@ -372,15 +372,10 @@ describe("the link write cannot dangle", () => {
     expect(cause.kind).toBe("ForeignKeyConstraintViolation");
     expect(cause.constraint).toMatchObject({ index: "InventoryItem_equipmentId_fkey" });
 
-    // 🔴 `hasSqlState` walks `.cause` and compares `code`/`meta.code`, and the SQLSTATE sits
-    // two levels down. A backstop written as `hasSqlState(error, "23503")` would catch nothing
-    // and let a raw driver error reach the caller as a 500. The same shape applies to `23505`
-    // on this stack, so the foreign-key path is asserted separately.
-    expect(hasSqlState(caught, "23503"), "hasSqlState cannot reach 23503 on this stack").toBe(
-      false,
-    );
-    expect(hasSqlState(caught, "P2003"), "the Prisma code is the handle that does work").toBe(true);
-    // Which is why the domain detects it structurally.
+    // `hasSqlState` reads the adapter's `originalCode`, so the SQLSTATE and the Prisma code
+    // both match; the domain checks the Prisma code and the adapter kind.
+    expect(hasSqlState(caught, "23503"), "hasSqlState reads the adapter SQLSTATE").toBe(true);
+    expect(hasSqlState(caught, "P2003"), "the Prisma code matches too").toBe(true);
     expect(isEquipmentFkViolation(caught)).toBe(true);
   });
 
@@ -475,7 +470,7 @@ describe("the Restrict constraint is a property of the database", () => {
   it("(3b) deleting a referenced Equipment is REFUSED by the FK, and the outcome is a value — not an error line on stderr", async () => {
     // ⚠️ Labelled a property of the CONSTRAINT, not of a route: the product has no
     // equipment delete by design ("Deletions — None"), so this
-    // statement is the only one that can raise 23001. It is proved here because
+    // statement is the only Equipment statement that can raise 23001. It is proved here because
     // whoever writes SQL next needs to know the link is load-bearing.
     const item = await make({ name: `${RUN}-restrict` });
     const eq = await makeEquipment(`${RUN}-restrict-eq`);

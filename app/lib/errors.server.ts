@@ -55,18 +55,25 @@ export class BookingConflictError extends Error {
 
 const SQLSTATE_EXCLUSION_VIOLATION = "23P01";
 
-/** Walks an error (and its `.cause` chain) for a given Postgres SQLSTATE code. */
+/**
+ * Walks an error (and its `.cause` chain) for a given Postgres SQLSTATE code or Prisma code.
+ *
+ * `@prisma/adapter-pg` 7.10 reports the SQLSTATE of a driver failure at
+ * `meta.driverAdapterError.cause.originalCode`, so that path is checked as well: a Restrict
+ * violation arrives as Prisma `P2003` whose adapter cause carries `23001`.
+ */
 export function hasSqlState(error: unknown, code: string): boolean {
   let cur: unknown = error;
   for (let depth = 0; cur && depth < 6; depth++) {
     const e = cur as {
       code?: unknown;
-      meta?: { code?: unknown };
+      meta?: { code?: unknown; driverAdapterError?: { cause?: { originalCode?: unknown } } };
       message?: unknown;
       cause?: unknown;
     };
     if (e.code === code) return true;
     if (e.meta && e.meta.code === code) return true;
+    if (e.meta?.driverAdapterError?.cause?.originalCode === code) return true;
     if (typeof e.message === "string" && e.message.includes(code)) return true;
     cur = e.cause;
   }

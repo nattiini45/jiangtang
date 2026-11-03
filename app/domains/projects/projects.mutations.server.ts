@@ -208,9 +208,8 @@ export async function deleteProject(actor: AuditActor, id: string): Promise<Proj
       deleted = await tx.project.delete({ where: { id } });
     } catch (error) {
       // Backstop for the race the count cannot close: another writer can attach
-      // a child between the COUNT and the DELETE. With `@prisma/adapter-pg` the
-      // violation is a `DriverAdapterError` carrying SQLSTATE `23001`, not
-      // Prisma's `P2003` — `hasSqlState` walks the `.cause` chain.
+      // a child between the COUNT and the DELETE. The violation carries SQLSTATE `23001`
+      // on the adapter cause, which `hasSqlState` reads.
       if (hasSqlState(error, SQLSTATE_RESTRICT_VIOLATION)) {
         throw new ValidationError({}, [
           tr("work.err.project.subprojectsSinceCheck", { name: project.name }),

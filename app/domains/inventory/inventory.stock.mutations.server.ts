@@ -24,9 +24,8 @@ import type { StockCreateInput, StockEditInput } from "./inventory.stock.schema"
 
 /**
  * Postgres `restrict_violation` — the SQLSTATE the `InventoryItem.equipmentId`
- * `Restrict` FK raises. See `isUniqueViolation` below for why the
- * *unique* violation is detected structurally instead: `hasSqlState` sees this
- * one — measured against a location's children — and does not see that one.
+ * `Restrict` FK raises when the referenced `Equipment` row is deleted. Prisma reports it
+ * as `P2003`, and `hasSqlState` finds the SQLSTATE on the adapter cause.
  */
 const SQLSTATE_RESTRICT_VIOLATION = "23001";
 
@@ -53,8 +52,6 @@ export const HARMONY_ACTION = {
 /**
  * Is this error the `equipmentId` foreign key refusing?
  *
- * 🔴 **On THIS stack the obvious check does not work — the
- * same trap `isUniqueViolation` above documents, arriving through the FK door.**
  * A raw `UPDATE` onto a non-existent `equipmentId` raises:
  *
  * ```
@@ -63,17 +60,10 @@ export const HARMONY_ACTION = {
  *            constraint: { index: "InventoryItem_equipmentId_fkey" } } } } }
  * ```
  *
- * so **`hasSqlState(error, "23503")` returns FALSE** — the helper walks `.cause`
- * and compares `code` / `meta.code`, and the SQLSTATE sits two levels down at
- * `meta.driverAdapterError.cause.originalCode`, exactly where `23505` hides too. A
- * backstop written as `hasSqlState(error, "23503")` would catch **nothing**
- * and let a raw driver error reach the caller as a 500.
- *
- * What *does* see it is the Prisma code `P2003` (`hasSqlState(error, "P2003")` is
- * true), so both are accepted below: the code is the general handle, the adapter's
- * `kind` and the named constraint are the precise one. `23001` — the *other* FK
- * direction, `Restrict` on the parent — is the bare `DriverAdapterError` that
- * `deleteStockItem` above already handles, and is a different statement entirely.
+ * Both the Prisma code `P2003` and the adapter `kind` are accepted below: the code is the
+ * general handle, the `kind` and the named constraint are the precise one. `23001` — the
+ * *other* FK direction, `Restrict` on the parent — is raised only by deleting an
+ * `Equipment`, which the product never does, and is a different statement entirely.
  *
  * **Exported for the one test that can feed it a real violation.** The race this
  * backstop closes (a parent deleted between the pre-check and the UPDATE) is real
@@ -106,35 +96,21 @@ export function isEquipmentFkViolation(error: unknown): boolean {
 /**
  * Prisma's own code for a unique violation, and the adapter's kind discriminator.
  *
- * ⚠️ **On THIS stack the answer is the opposite of what the
- * `Restrict` precedent suggested — which is why this is checked here rather than
- * inherited.** A `Restrict` FK violation is *not* `P2003` but a `DriverAdapterError`
- * with SQLSTATE `23001` in `.cause.code`, and the obvious extrapolation is that `23505`
- * arrives the same way and a `P2002` check would catch nothing. **It does not.** A real
- * duplicate on this stack raises:
+ * On this stack a duplicate is reported as `P2002`, with the adapter cause carrying the
+ * SQLSTATE (`originalCode`, read by `hasSqlState`), the kind, and the named constraint:
  *
  * ```
  * PrismaClientKnownRequestError { code: "P2002", meta: {
  *   modelName: "InventoryItem",
  *   driverAdapterError: { name: "DriverAdapterError", cause: {
  *     originalCode: "23505", kind: "UniqueConstraintViolation",
- *     constraint: { fields: ["sku"] },
+ *     constraint: { index: "InventoryItem_sku_key" },
  *     originalMessage: 'duplicate key value violates unique constraint "InventoryItem_sku_key"' } } } }
  * ```
  *
- * Two consequences, and the first is the one that would have shipped a 500:
- *
- * 1. **`hasSqlState(error, "23505")` returns FALSE here.** It walks `.cause`
- *    (which is `null` here) and compares `e.code` / `e.meta.code` — and this
- *    error's SQLSTATE lives two levels down at
- *    `meta.driverAdapterError.cause.originalCode`. The *general* helper is the
- *    wrong instrument for a unique violation, and a handler built on it alone
- *    would let the raw driver error reach the caller as a 500 — exactly the
- *    failure the two checks below exist to prevent.
- * 2. **`P2002` IS raised**, so the check that looked like the decorative one is
- *    the one that fires. Both the Prisma code and the adapter `kind` are accepted
- *    below, because they are the two shapes this stack produces depending on
- *    whether the failure arrives from a single statement or a `createMany`.
+ * Both the Prisma code and the adapter `kind` are accepted, because they are the two shapes
+ * this stack produces depending on whether the failure arrives from a single statement or a
+ * `createMany`.
  */
 function isUniqueViolation(error: unknown): boolean {
   let cur: unknown = error;
@@ -151,30 +127,35 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 /**
- * The **field** that collided, read from the adapter's structured constraint
- * (`meta.driverAdapterError.cause.constraint.fields[0]`) — which is why this
- * returns a column name and not a string to regex for. The fallbacks are in
- * descending order of trust: Prisma's `meta.target`, then the constraint *name*
- * in the message, then nothing.
+ * The **field** that collided, read from the adapter's structured constraint: the column in
+ * `constraint.fields[0]` where the adapter names one, or the index name where it names the
+ * index (7.10 does this for unique violations). The fallbacks are in descending order of
+ * trust: Prisma's `meta.target`, then the constraint *name* in the message, then nothing.
  *
  * A returned `null` is not a failure — it produces an unlabelled `ValidationError`,
  * which is still a 422 with a usable message. A *mislabelled* one would be worse:
  * telling a user their serial is taken when their sku is.
  */
-function collidedField(error: unknown): "sku" | "serial" | null {
+export function collidedField(error: unknown): "sku" | "serial" | null {
   let cur: unknown = error;
   for (let depth = 0; cur && depth < 6; depth++) {
     const e = cur as {
       meta?: {
         target?: unknown;
-        driverAdapterError?: { cause?: { constraint?: { fields?: unknown } } };
+        driverAdapterError?: { cause?: { constraint?: { fields?: unknown; index?: unknown } } };
       };
       message?: unknown;
       cause?: unknown;
     };
-    const fields = e.meta?.driverAdapterError?.cause?.constraint?.fields;
+    const constraint = e.meta?.driverAdapterError?.cause?.constraint;
+    const fields = constraint?.fields;
     if (Array.isArray(fields) && typeof fields[0] === "string") {
       if (fields[0] === "sku" || fields[0] === "serial") return fields[0];
+    }
+    const index = constraint?.index;
+    if (typeof index === "string") {
+      if (/_sku_key$/i.test(index)) return "sku";
+      if (/_serial_key$/i.test(index)) return "serial";
     }
     const target = e.meta?.target;
     const candidate = Array.isArray(target)
@@ -372,10 +353,9 @@ export async function updateStockItem(
  *
  * ⚠️ **Refused while `equipmentId` points at an `Equipment`**
  * (`Restrict` — "equipment is never hard-deleted while stock references it"). The
- * harmony link owns the *link*; the constraint owning the *refusal* is the
- * database's, and translating its SQLSTATE is this file's job — the same split a
- * location with children uses. `unlinkStockItemFromEquipment` below is what
- * detaches the item, and that is the only supported route.
+ * refusal is the explicit `deleteLinked` check on the row as read;
+ * `unlinkStockItemFromEquipment` below is what detaches the item, and that is the
+ * only supported route.
  */
 export async function deleteStockItem(actor: AuditActor, id: string): Promise<InventoryItem> {
   return txWithAudit(actor, async (tx, audit) => {
@@ -390,8 +370,8 @@ export async function deleteStockItem(actor: AuditActor, id: string): Promise<In
     try {
       deleted = await tx.inventoryItem.delete({ where: { id } });
     } catch (error) {
-      // Backstop for the race the read cannot close: another writer can link the
-      // item to an Equipment between the SELECT and the DELETE.
+      // Defensive only: the equipmentId FK restricts deleting the Equipment, not
+      // this row, so no current statement raises 23001 here.
       if (hasSqlState(error, SQLSTATE_RESTRICT_VIOLATION)) {
         throw new ValidationError({}, [
           tr("places.err.stock.deleteRacedLink", { name: before.name }),
@@ -467,9 +447,9 @@ export async function linkStockItemToEquipment(
       item = await tx.inventoryItem.update({ where: { id: itemId }, data: { equipmentId } });
     } catch (error) {
       // Backstop for the race the read cannot close: another writer can delete
-      // the Equipment between `requireRefs` and this UPDATE. See the note on
-      // `isEquipmentFkViolation` — `hasSqlState(error, "23503")` is
-      // FALSE on this stack, so a handler built on the SQLSTATE catches nothing.
+      // the Equipment between `requireRefs` and this UPDATE. Prisma reports that as
+      // `P2003`, so the check is on the Prisma code and the adapter kind — see
+      // `isEquipmentFkViolation`.
       if (isEquipmentFkViolation(error)) {
         throw new ValidationError({}, [
           tr("places.err.stock.linkTargetGone", { name: before.name }),

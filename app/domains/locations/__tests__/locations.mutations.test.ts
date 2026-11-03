@@ -22,9 +22,9 @@ import type { LocationCreateInput, LocationEditInput } from "~/domains/locations
  *       an unrelated node it succeeds and the subtree follows  → tests 6, 7, 8
  *
  * **Test 5 is the non-vacuity control for the whole file**: it deletes a parent with
- * `db.location.delete` and asserts Postgres itself refuses (SQLSTATE `23001` — see
- * the note in the test about why that is *not* `P2003` on this stack). Without it, the
- * refusals in tests 3/6 could be passing because the domain is careful, or because
+ * `db.location.delete` and asserts Postgres itself refuses (SQLSTATE `23001`, reported on
+ * the adapter cause). Without it, the refusals in tests 3/6 could be passing because the
+ * domain is careful, or because
  * the constraint is doing the work and the handler is decorative — the test cannot
  * tell, and neither can a reader.
  *
@@ -174,11 +174,8 @@ describe("location mutations — refusals write nothing", () => {
       thrown = error;
     }
 
-    // ⚠️ On this stack a Restrict violation is NOT Prisma's
-    // `P2003`. `@prisma/adapter-pg` raises a `DriverAdapterError` with SQLSTATE
-    // `23001` in `.cause.code`, so the P2003 error cannot occur here at all, and a handler
-    // that matched on "P2003" would let the raw driver error through. The guard still holds,
-    // and more strongly: the caller sees a ValidationError, never a driver error.
+    // A Restrict violation is Prisma `P2003` with SQLSTATE `23001` on the adapter cause, and
+    // `hasSqlState` reads that cause. The caller sees a ValidationError, never a driver error.
     expect(thrown).toBeDefined();
     expect(hasSqlState(thrown, "23001")).toBe(true);
     expect((thrown as { message?: string }).message).toContain("Location_parentId_fkey");

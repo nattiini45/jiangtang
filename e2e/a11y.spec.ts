@@ -200,13 +200,11 @@ test.describe("language switcher", () => {
 
       // Tab from the top of the page until focus lands on the "Deutsch" option.
       let focused = "";
-      for (let i = 0; i < 20 && focused !== "Deutsch"; i++) {
+      for (let i = 0; i < 20 && focused !== "de"; i++) {
         await page.keyboard.press("Tab");
-        focused = await page.evaluate(
-          () => document.activeElement?.getAttribute("aria-label") ?? "",
-        );
+        focused = await page.evaluate(() => document.activeElement?.getAttribute("value") ?? "");
       }
-      expect(focused).toBe("Deutsch");
+      expect(focused).toBe("de");
       await expect(page.getByRole("button", { name: "Deutsch" })).toBeFocused();
 
       await page.keyboard.press("Enter");
