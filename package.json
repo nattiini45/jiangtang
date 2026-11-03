@@ -54,7 +54,7 @@
     "@react-router/fs-routes": "^7.18.2",
     "@react-router/node": "^7.18.2",
     "@react-router/serve": "^7.18.2",
-    "@sentry/node": "^8.0.0",
+    "@sentry/node": "^11.10.0",
     "@tanstack/react-table": "^8.21.0",
     "@tanstack/react-virtual": "^3.14.24",
     "better-auth": "^1.7.14",
