@@ -190,9 +190,17 @@ always local data, even when no provider is configured.
 ### Error tracking and alerting
 
 - `GLITCHTIP_DSN` enables Sentry-protocol error reporting through `@sentry/node`
-  (`app/lib/observability/sentry.server.ts`). It sends exception events and a 20% trace sample with
-  `sendDefaultPii: false`. The application does not scrub exception messages, so data that appears in
-  an error message or stack can be included.
+  (`app/lib/observability/sentry.server.ts`). It sends exception events and a 20% trace sample. The
+  SDK's `dataCollection` option is set so that user info, cookies, HTTP bodies, database query data,
+  URL query strings, queue arguments, local variables in stack frames and client-address request
+  headers are not sent. Still sent: the request method and path, the other request headers (the
+  cookie header is removed and authorization values are replaced with `[Filtered]`), the server host
+  name, the runtime and
+  operating-system details the SDK adds, and the exception type, message and stack trace without
+  local variable values. In request paths, referer values, span names and breadcrumb URLs, the iCal
+  feed token and the invite token are replaced with `:token`; query strings and fragments are
+  removed from URLs. The application does not scrub exception messages, so data that appears in an error
+  message or stack can be included.
 - `ALERT_WEBHOOK` makes the alerting sidecar post a downtime message, including the health response
   body, to a Mattermost- or Slack-compatible webhook (`docker-compose.yml`, `ops/alerting/`).
 - Application logs contain request method, path (including query strings) and status, plus error
