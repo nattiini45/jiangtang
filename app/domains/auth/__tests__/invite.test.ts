@@ -163,6 +163,28 @@ describe("invite clashes", () => {
     ).toBe(0);
   });
 
+  it("replaces an older pending invite whose email was stored with other letter case", async () => {
+    const stamp = Date.now();
+    const email = `legacy_${stamp}@jiangtang.local`;
+    const typed = `Legacy_${stamp}@Jiangtang.local`;
+    createdEmails.push(email, typed);
+    // Invites created before emails were lower-cased kept the email as typed.
+    const stale = await db.verification.create({
+      data: {
+        identifier: typed,
+        value: JSON.stringify({
+          token: `stale${stamp}`,
+          email: typed,
+          initials: "OLD",
+          role: "ADMIN",
+        }),
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    });
+    await createInvite({ email, name: "Legacy", initials: "lgy", role: "MEMBER" }, ACTOR);
+    expect(await db.verification.findUnique({ where: { id: stale.id } })).toBeNull();
+  });
+
   it("refuses initials that another user already holds", async () => {
     const stamp = Date.now();
     const holder = await db.user.create({

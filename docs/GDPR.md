@@ -96,6 +96,9 @@ After the operation, the following data can still exist:
 
 - The `User` row itself: id, role, weekly capacity, image URL, email-verified flag and the rewritten
   email. Its `Account`, `Session`, password reset link and pending invitation rows are deleted.
+  Accounts erased by an older version kept their `Account` rows, including the password hash; an
+  operator can remove those with
+  `DELETE FROM "Account" WHERE "userId" IN (SELECT id FROM "User" WHERE email LIKE 'erased-%@erased.local');`.
 - Other user references that are not part of the erasure path: project lead and creator,
   task creator and assignees, note author, location/inventory/vendor creator, time-entry user and
   creator, and event service-window covering user. These point at the deactivated user id.

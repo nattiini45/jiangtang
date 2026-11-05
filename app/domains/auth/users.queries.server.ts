@@ -84,7 +84,11 @@ export async function createInvite(input: InviteInput, actor: AuditActor): Promi
     // Supersede any still-pending invite(s) for this email first, so
     // re-inviting someone can't leave multiple valid tokens/roles coexisting —
     // only the newest invite should ever be resolvable.
-    await tx.verification.deleteMany({ where: { identifier: input.email } });
+    // Case-insensitive: invites created before emails were lower-cased kept the
+    // email as typed.
+    await tx.verification.deleteMany({
+      where: { identifier: { equals: input.email, mode: "insensitive" } },
+    });
 
     // Token keyed by the invitee's email so /accept-invite can look it up. The
     // role/initials/name are stashed as JSON in `value` (alongside the token)
@@ -234,7 +238,10 @@ export async function acceptInvite(
       // Single-use: delete any invite rows for this email/token.
       await tx.verification.deleteMany({
         where: {
-          OR: [{ identifier: invite.email }, { value: { contains: `"token":"${invite.token}"` } }],
+          OR: [
+            { identifier: { equals: email, mode: "insensitive" } },
+            { value: { contains: `"token":"${invite.token}"` } },
+          ],
         },
       });
 
