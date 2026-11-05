@@ -187,10 +187,12 @@ Better Auth (`app/lib/auth.server.ts`) provides email and password sign-in with 
 Access is invitation-only: the public `/sign-up/email` path is disabled, and admins create one-time
 invitation links in `/admin/users` (`accept-invite.$token`). The two roles are `ADMIN` (also
 manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission matrix (`can`, `roleRequiredFor`); `requireUser` and
-`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. Every route's loader and action
-calls one of them itself rather than relying on its layout, because a single-fetch `.data` request
-with `?_routes=` runs only the named loaders; `test/routes/route-auth-guard.test.ts` calls every
-handler anonymously and fails unless it redirects to `/login` or is on an explicit public list.
+`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. Every protected route's loader
+and action calls one of them itself rather than relying on its layout, because a single-fetch `.data`
+request with `?_routes=` runs only the named loaders. `test/routes/route-auth-guard.test.ts` calls
+every handler anonymously and fails unless it redirects to `/login` without touching the database
+client first; the public routes (sign-in, sign-out, invitation acceptance, the token-gated iCal
+feed, the health check, the language switch and the 404 catch-all) are on its explicit list.
 Failed sign-ins are throttled per email (10) and per client address (30; an IPv6 client counts per
 /64) within 15 minutes by `app/lib/login-throttle.server.ts`; it runs as a Better Auth hook, so the
 login form and `/api/auth/sign-in/email` share it. The client address is the right-most

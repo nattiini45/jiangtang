@@ -107,6 +107,8 @@ After the operation, the following data can still exist:
   rewrites it.
 - Backups. Deleting data in the database does not remove it from existing database backups or from
   upload archives.
+- Data on a person's devices (see [Data kept on the device](#data-kept-on-the-device)). The server
+  cannot reach a phone's offline queue or its cached pages.
 
 Do not describe this operation as full erasure or as a complete response to a deletion request.
 An operator handling such a request must review the items above, delete what policy requires, and
@@ -130,6 +132,26 @@ The default window is generous. Choosing a shorter window is a deliberate operat
 shorter window also shortens how long audit detail and old actor snapshots remain available.
 Database backups are separate from in-application retention; see
 [BACKUP.md](BACKUP.md) and [DEPLOY.md](DEPLOY.md).
+
+## Data kept on the device
+
+The mobile surface (`/m`) is an installable app, and two browser stores on the person's device hold
+personal data:
+
+- **The offline capture queue** (IndexedDB database `jiangtang-offline`). A task or note captured
+  while the network is down or the session has expired is kept here with everything typed into the
+  form, until it is sent or the person discards it. Each entry records the account that queued it;
+  only that account sees, counts and sends it, and the server refuses a capture sent under another
+  account's session. Entries outlive sign-out on purpose, so that nothing typed is lost, and they
+  are not removed when an administrator erases the account.
+- **The service-worker cache** (CacheStorage `jiangtang-shell-*`). Pages, loader data, uploaded
+  images and API answers the person opened, kept so the app can show the last version while
+  offline. The sign-in page deletes these caches, and every sign-out and expired session ends
+  there; the worker also clears them when a request bounces to the sign-in page. A device that is
+  offline when the session ends keeps them until it next reaches the sign-in page.
+
+Shared or lost devices are therefore a matter for device policy (screen lock, separate browser
+profiles), and an erasure request should mention data that may still sit on the person's devices.
 
 ## Uploads and encryption keys
 
@@ -232,6 +254,7 @@ At a minimum, an operator should:
 - Audit guard and privileged functions: the `20261023000300_audit_privacy` migration.
 - Invariant verification: `ops/postgres/verify-invariants.sql`.
 - Retention: `app/lib/retention.boot.server.ts`.
+- Data on the device: `app/lib/pwa/offline-queue.ts`, `app/lib/pwa/purge-caches.ts`, `public/sw.js`.
 - Calendar: `app/lib/calendar/`.
 - Search index: `app/lib/search/`.
 - AI providers: `app/lib/ai/`.
