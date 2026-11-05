@@ -27,7 +27,8 @@ async function signIn(page: Page) {
   await page.goto("/login");
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
-  await page.locator('button[type="submit"]').click();
+  // Scoped to the credentials form: the language switcher also renders submit buttons here.
+  await page.locator('form:has(input[name="email"]) button[type="submit"]').click();
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
 }
 
