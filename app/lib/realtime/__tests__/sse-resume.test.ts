@@ -72,6 +72,8 @@ describe("SSE stream — Last-Event-ID resume", () => {
     const res = mockRes();
     startSseStream({ headers: { "last-event-id": String(evA.ts) } }, res);
 
+    // The opening comment precedes the replay so the headers are flushed first.
+    expect(res.chunks[0]).toBe(": connected\n\n");
     const combined = res.chunks.join("");
     expect(combined).toContain(idB);
     // evA is the resume point — it must NOT be replayed.
@@ -101,6 +103,7 @@ describe("SSE stream — Last-Event-ID resume", () => {
       "live frame",
     );
 
+    expect(res.chunks[0]).toBe(": connected\n\n");
     const combined = res.chunks.join("");
     // Frames carry id/event/data lines terminated by a blank line.
     expect(combined).toMatch(/id: \d+\nevent: change\ndata: .+\n\n/);
