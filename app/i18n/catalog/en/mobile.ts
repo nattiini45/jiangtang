@@ -8,6 +8,7 @@ export const mobileEn = {
 
   "mobile.capture.queued": "Saved offline. It will be sent once you are back online.",
   "mobile.capture.signInNeeded": "Saved on this device. Sign in again to send it.",
+  "mobile.capture.queuedSignIn": "Saved. It will be sent after you sign in.",
   "mobile.capture.signInAction": "Sign in",
   "mobile.badge.signIn": "Sign in to send the entries saved on this device ({count})",
   "mobile.badge.pending": "Entries waiting to be sent ({count})",
