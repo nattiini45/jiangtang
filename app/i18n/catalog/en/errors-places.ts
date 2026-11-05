@@ -104,6 +104,10 @@ export const errorsPlacesEn = {
   "places.err.auth.capacityMax": "Capacity can be at most 168 h per week.",
   "places.err.user.notFound": "User not found.",
   "places.err.invite.notFound": "This invitation was not found or has expired.",
+  "places.err.reset.notFound": "This reset link is invalid, has expired or has already been used.",
+  "places.err.reset.noAccount": "There is no active account with this email address.",
+  "places.err.reset.inactive":
+    "This account is deactivated. Activate it before creating a reset link.",
   "places.err.invite.emailTaken": "An account with this email address already exists.",
   "places.err.invite.initialsTaken": "The initials {initials} are already taken.",
   "places.err.invite.acceptEmailTaken":

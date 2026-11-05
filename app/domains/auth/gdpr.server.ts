@@ -2,6 +2,7 @@ import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { NotFoundError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { assertCanChangeAdminStatus } from "~/domains/auth/users.queries.server";
+import { deleteResetLinks } from "~/domains/auth/password-reset.server";
 import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
 
 /**
@@ -67,11 +68,13 @@ export async function pseudonymizeUser(
 
     // 3. Delete what lets the account sign in or be claimed again: the Better Auth
     //    credentials (password hash, provider tokens), the sessions (IP address and
-    //    user agent) and any invitation still pending for the original email. They
+    //    user agent), password reset links and any invitation still pending for the
+    //    original email. They
     //    go in this transaction so a failed erasure leaves the account as it was.
     await tx.account.deleteMany({ where: { userId } });
     await tx.session.deleteMany({ where: { userId } });
     await tx.verification.deleteMany({ where: { identifier: user.email } });
+    await deleteResetLinks(tx, userId);
 
     // 4. Scrub + deactivate the User row. Email must remain unique but de-identified.
     //    Use a valid RFC-5321 local-part (no bracketed marker in the address
@@ -99,7 +102,7 @@ export async function pseudonymizeUser(
       data: {
         auditRowsAffected,
         scrubbed: { name: true, email: true, initials: true },
-        deleted: { accounts: true, sessions: true, invitations: true },
+        deleted: { accounts: true, sessions: true, invitations: true, resetLinks: true },
       },
     });
 

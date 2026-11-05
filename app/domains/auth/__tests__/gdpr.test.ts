@@ -350,6 +350,9 @@ describe("credential and invitation erasure", () => {
     const invite = await db.verification.create({
       data: { identifier: email, value: JSON.stringify({ token: `t${stamp}`, email }), expiresAt },
     });
+    const resetLink = await db.verification.create({
+      data: { identifier: `password-reset:synthetic-${stamp}`, value: target.id, expiresAt },
+    });
     const otherInvite = await db.verification.create({
       data: {
         identifier: `erase_cred_other_${stamp}@jiangtang.local`,
@@ -367,12 +370,15 @@ describe("credential and invitation erasure", () => {
       expect(await db.account.count({ where: { userId: target.id } })).toBe(0);
       expect(await db.session.count({ where: { userId: target.id } })).toBe(0);
       expect(await db.verification.findUnique({ where: { id: invite.id } })).toBeNull();
+      expect(await db.verification.findUnique({ where: { id: resetLink.id } })).toBeNull();
       // Other people's credentials and invitations are untouched.
       expect(await db.account.count({ where: { userId: bystander.id } })).toBe(1);
       expect(await db.verification.findUnique({ where: { id: otherInvite.id } })).not.toBeNull();
     } finally {
       await db.account.deleteMany({ where: { userId: bystander.id } });
-      await db.verification.deleteMany({ where: { id: { in: [invite.id, otherInvite.id] } } });
+      await db.verification.deleteMany({
+        where: { id: { in: [invite.id, resetLink.id, otherInvite.id] } },
+      });
     }
   });
 

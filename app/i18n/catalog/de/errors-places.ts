@@ -115,6 +115,11 @@ export const errorsPlacesDe = {
   "places.err.auth.capacityMax": "Kapazität kann höchstens 168 h/Woche sein.",
   "places.err.user.notFound": "Benutzer nicht gefunden.",
   "places.err.invite.notFound": "Einladung nicht gefunden oder abgelaufen.",
+  "places.err.reset.notFound":
+    "Dieser Link zum Zurücksetzen ist ungültig, abgelaufen oder wurde schon benutzt.",
+  "places.err.reset.noAccount": "Kein aktives Konto mit dieser E-Mail-Adresse.",
+  "places.err.reset.inactive":
+    "Das Konto ist deaktiviert. Aktiviere es, bevor du einen Link zum Zurücksetzen erstellst.",
   "places.err.invite.emailTaken": "Für diese E-Mail-Adresse gibt es bereits ein Konto.",
   "places.err.invite.initialsTaken": "Die Initialen {initials} sind bereits vergeben.",
   "places.err.invite.acceptEmailTaken":

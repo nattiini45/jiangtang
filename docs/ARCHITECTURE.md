@@ -87,7 +87,7 @@ are optional segments in `flatRoutes`, so the two surfaces are:
   `m.notes.new`, `m.board`, `m.rooms.*`, `m.tickets.*`, `m.search` and `m.offline`. It has its own
   shell, a web manifest and a service worker (`app/lib/pwa/`), and an offline queue that replays
   captured tasks and notes exactly once.
-- **Public or machine routes**: `login`, `logout`, `accept-invite.$token`, `healthz`,
+- **Public or machine routes**: `login`, `logout`, `accept-invite.$token`, `reset-password.$token`, `healthz`,
   `calendar.$token.ics` (token-gated iCal feed), `export.workspace[.]json`, `notes.$id.export`,
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`
   and `prefs.locale`.
@@ -187,7 +187,9 @@ manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission ma
 `requireRole` in `app/lib/auth.server.ts` guard loaders and actions. `sanitizeNext` restricts
 post-login redirects to local paths. Signed-in users change their own password on `/account`
 (linked from the user block in the sidebar) through Better Auth's `changePassword`, which needs the
-current password and signs out their other sessions. The first admin of a production installation comes from
+current password and signs out their other sessions. A forgotten password is reset through a
+one-time link (`app/domains/auth/password-reset.server.ts`) that an admin issues from the user's
+page or the operator prints with `pnpm admin:reset-password <email>`. The first admin of a production installation comes from
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
 while no active admin exists, so a fresh installation and a full lockout can both be recovered from
 the environment (recovering an existing account needs `ADMIN_PASSWORD` to match its current

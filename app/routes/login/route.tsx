@@ -18,7 +18,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   // with ?deactivated=1. Redirecting it straight back to `next` would ping-pong
   // between the two loaders (ERR_TOO_MANY_REDIRECTS); only active users leave.
   if (user && user.isActive !== false) throw redirect(next);
-  return { deactivated: user?.isActive === false || url.searchParams.has("deactivated"), next };
+  return {
+    deactivated: user?.isActive === false || url.searchParams.has("deactivated"),
+    passwordReset: url.searchParams.has("reset"),
+    next,
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -68,6 +72,14 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
         {loaderData.deactivated ? (
           <p className="bg-status-warning/15 text-foreground mt-4 rounded-md p-2 text-sm">
             {t("auth.login.deactivated")}
+          </p>
+        ) : null}
+        {loaderData.passwordReset && !loaderData.deactivated ? (
+          <p
+            role="status"
+            className="bg-status-info/15 text-foreground mt-4 rounded-md p-2 text-sm"
+          >
+            {t("auth.login.passwordReset")}
           </p>
         ) : null}
         {actionData && "error" in actionData && actionData.error ? (

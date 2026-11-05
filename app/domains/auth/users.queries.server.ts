@@ -5,6 +5,7 @@ import { db, type Tx } from "~/lib/db.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { hasSqlState, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
+import { deleteResetLinks } from "~/domains/auth/password-reset.server";
 import type { InviteInput, EditUserInput } from "~/domains/auth/users.schema";
 import { UserRole } from "~/generated/prisma/enums";
 
@@ -328,6 +329,9 @@ export async function updateUser(
         weeklyCapacityMinutes: capacityMinutes,
       },
     });
+    // A link issued before the deactivation must not work again after a
+    // reactivation.
+    if (input.isActive === false) await deleteResetLinks(tx, id);
     await audit({
       action: "UserUpdated",
       entityType: "user",

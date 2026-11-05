@@ -27,7 +27,7 @@ not an upgrade path.
 | `User` | name, email, initials, role, active flag, weekly capacity, optional image URL | `prisma/schema.prisma` |
 | `Session` | IP address, user agent, expiry | `prisma/schema.prisma` |
 | `Account` | password hash; provider tokens if an external identity provider is configured | `prisma/schema.prisma` |
-| `Verification` | pending invitation: email, name and initials in the token payload, expires after 7 days | `app/domains/auth/users.queries.server.ts` |
+| `Verification` | pending invitation: email, name and initials in the token payload, expires after 7 days; password reset link: user id and a hash of the token, expires after 1 day | `app/domains/auth/users.queries.server.ts`, `app/domains/auth/password-reset.server.ts` |
 | Tickets, tasks, notes, projects, time entries | free text written by users, plus reporter/assignee/author/lead references | `prisma/schema.prisma` |
 | Events | title, description, organiser and contact free-text fields, room names, times; service windows with a covering user | `prisma/schema.prisma` |
 | Vendors | contact name, email, phone, address | `prisma/schema.prisma` |
@@ -78,7 +78,8 @@ administrator. The operation runs in one transaction in `app/domains/auth/gdpr.s
    deleted.
 3. Attachment creator links are set to `null`; the attachment records and stored objects stay.
 4. The account's `Account` rows (the password hash and any provider tokens), its `Session` rows (IP
-   address and user agent) and any invitation still pending for its email are deleted.
+   address and user agent), its password reset links and any invitation still pending for its email
+   are deleted.
 5. The `User` row is scrubbed and deactivated: name becomes `[pseudonymisiert]`, email becomes
    `erased-<id>@erased.local`, initials become `null`, and `isActive` becomes `false`. The rewritten
    email keeps the unique-email constraint satisfied without exposing the original address.
@@ -94,7 +95,7 @@ erased account stays valid and the account cannot sign in again; `requireUser`
 After the operation, the following data can still exist:
 
 - The `User` row itself: id, role, weekly capacity, image URL, email-verified flag and the rewritten
-  email. Its `Account`, `Session` and pending invitation rows are deleted.
+  email. Its `Account`, `Session`, password reset link and pending invitation rows are deleted.
 - Other user references that are not part of the erasure path: project lead and creator,
   task creator and assignees, note author, location/inventory/vendor creator, time-entry user and
   creator, and event service-window covering user. These point at the deactivated user id.

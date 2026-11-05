@@ -61,6 +61,8 @@ export const historyEn = {
   "history.action.UserInvited": "Invited",
   "history.action.InviteAccepted": "Invitation accepted",
   "history.action.PasswordChanged": "Password changed",
+  "history.action.PasswordResetIssued": "Reset link created",
+  "history.action.PasswordReset": "Password reset",
   "history.action.UserUpdated": "Updated",
   "history.action.UserPseudonymized": "Pseudonymized",
   "history.action.NoteCreated": "Created",

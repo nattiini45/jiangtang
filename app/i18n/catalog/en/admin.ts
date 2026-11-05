@@ -36,6 +36,18 @@ export const adminEn = {
   "admin.user.status": "Account status",
   "admin.user.statusActive": "active",
   "admin.user.statusInactive": "inactive (login blocked)",
+  "admin.user.reset.title": "Password",
+  "admin.user.reset.hint":
+    "Creates a one-time link where this person sets a new password. It is valid for one day.",
+  "admin.user.reset.link": "Create reset link",
+  "admin.reset.meta": "Reset password · Jiangtang",
+  "admin.reset.title": "Reset password",
+  "admin.reset.subtitle": "For {user} ({email}).",
+  "admin.reset.hint":
+    "The link works once and for one day. Hand it to the person directly. A new link replaces the previous one, and setting the password signs out all of their sessions.",
+  "admin.reset.submit": "Create link",
+  "admin.reset.again": "Create a new link",
+  "admin.reset.created": "Reset link created",
   "admin.user.gdpr.title": "GDPR",
   "admin.user.gdpr.hint":
     "Pseudonymization separates the identity from the activity — the history is kept, based on initials.",
