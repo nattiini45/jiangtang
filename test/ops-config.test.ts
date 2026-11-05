@@ -1411,6 +1411,23 @@ const INVARIANTS_STEP = "Verify database invariants";
 const INVARIANTS_NEGATIVE_STEP = "Verify the invariant check fails when an invariant is missing";
 const SMOKE_STEP = "Smoke-test the application image";
 const APP_BUILD_STEP = "Build the application image";
+const SMOKE_DATABASE = "jiangtang_smoke";
+// Integrations the smoke container starts with blank, so nothing outside is called.
+const SMOKE_BLANK_VARIABLES = [
+  "EMBEDDING_BASE_URL",
+  "RERANK_BASE_URL",
+  "GENERATION_BASE_URL",
+  "GLITCHTIP_DSN",
+  "CALDAV_URL",
+  "CALDAV_USERNAME",
+  "CALDAV_PASSWORD",
+];
+// The only lines of the smoke step's cleanup() allowed to end in `|| true`: a failed log dump or an
+// already-removed container must not replace the exit status that triggered the trap.
+const SMOKE_CLEANUP_TOLERATED = [
+  "docker logs jiangtang-smoke || true",
+  "docker rm -f jiangtang-smoke > /dev/null 2>&1 || true",
+];
 
 type CIStep = {
   name?: string;
@@ -1418,6 +1435,7 @@ type CIStep = {
   uses?: string;
   if?: unknown;
   "continue-on-error"?: unknown;
+  env?: Record<string, unknown>;
 };
 
 type CIWorkflow = {
@@ -1738,6 +1756,18 @@ function ciWiringProblems(text: string): string[] {
         shellCommands(invariants.run).includes(INVARIANTS_COMMAND),
       ],
     ]);
+    // A `||`, `;` or pipe after the command (`|| echo skipped`) turns its failure into success
+    // without matching a swallowed-exit pattern, so the command must stand alone on its line.
+    if (shellCommands(invariants.run).includes(INVARIANTS_COMMAND)) {
+      requireContent(invariants, [
+        [
+          `the command \`${INVARIANTS_COMMAND}\` alone on its line, with nothing after it that could mask a failure`,
+          joinContinuedLines(invariants.run)
+            .split("\n")
+            .some((line) => line.trim() === INVARIANTS_COMMAND),
+        ],
+      ]);
+    }
   }
 
   // The negative control is only meaningful if the broken script is the real one
@@ -1783,15 +1813,51 @@ function ciWiringProblems(text: string): string[] {
     ]);
   }
 
-  // The smoke step's cleanup() ends in `|| true` on purpose (a failed log dump or
-  // an already-removed container must not mask the real exit status), so it is
-  // checked on its own and left out of the swallowed-exit scan.
+  // The smoke step's cleanup() tolerates a failed log dump and an already-removed container with
+  // `|| true` on those two lines only. Everything else in it is scanned like the rest of the step:
+  // an `exit 0` or `return` in an EXIT trap replaces the status of the probe that failed.
   const smoke = namedStep(SMOKE_STEP);
   if (smoke !== undefined) {
     const cleanupFunction = /^cleanup\(\) \{\n[\s\S]*?\n\}$/m;
+    // Comment lines are dropped first, so a commented-out `docker rm -f` is not a cleanup.
+    const live = smoke.run
+      .split(/\r?\n/)
+      .filter((line) => !line.trim().startsWith("#"))
+      .join("\n");
+    const cleanup = cleanupFunction.exec(live)?.[0] ?? "";
+    const tolerated = cleanup
+      .split("\n")
+      .map((line) =>
+        SMOKE_CLEANUP_TOLERATED.includes(line.trim()) ? line.replace(/ \|\| true$/, "") : line,
+      )
+      .join("\n");
     problems.push(
-      ...unconditionalDefects({ ...smoke, run: smoke.run.replace(cleanupFunction, "") }),
+      ...unconditionalDefects({
+        ...smoke,
+        run: cleanup === "" ? live : live.replace(cleanup, () => tolerated),
+      }),
     );
+    for (const command of shellCommands(cleanup)) {
+      if (/^(exit|return)\b/.test(command)) {
+        problems.push(
+          `step ${stepLabel(smoke)} cleanup() uses "${command}", which replaces the exit status of the failed step`,
+        );
+      }
+    }
+    const database = ((): string | undefined => {
+      const url = smoke.step.env?.SMOKE_DATABASE_URL;
+      try {
+        return typeof url === "string" ? new URL(url).pathname.slice(1) : undefined;
+      } catch {
+        return undefined;
+      }
+    })();
+    requireContent(smoke, [
+      [
+        `SMOKE_DATABASE_URL pointing at the database ${SMOKE_DATABASE}`,
+        database === SMOKE_DATABASE,
+      ],
+    ]);
     requireAfter(smoke, appBuild?.step, "the application image build");
     const script = joinContinuedLines(smoke.run);
     const lines = script.split("\n");
@@ -1801,17 +1867,28 @@ function ciWiringProblems(text: string): string[] {
         (line) => line.startsWith("docker run --rm ") && line.includes(" sh -c "),
       );
       const start = lines.find((line) => line.startsWith("docker run -d --name jiangtang-smoke "));
-      const healthz = script.indexOf("curl -fsS -o /dev/null http://127.0.0.1:3000/healthz");
-      const login = script.indexOf(
-        "curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login",
-      );
+      const healthzLine = lines.find((line) => /\bcurl\b.*:3000\/healthz/.test(line));
+      const loginLine = lines.find((line) => /\bcurl\b.*:3000\/login/.test(line));
       const order = [
         migrate === undefined ? -1 : script.indexOf(migrate),
         start === undefined ? -1 : script.indexOf(start),
-        healthz,
-        login,
+        healthzLine === undefined ? -1 : script.indexOf(healthzLine),
+        loginLine === undefined ? -1 : script.indexOf(loginLine),
       ];
-      const cleanup = cleanupFunction.exec(smoke.run)?.[0] ?? "";
+      // A probe must not wait forever on a server that accepts the connection and never answers.
+      const timeouts = (line: string): boolean =>
+        /--connect-timeout [1-9]\d*(\s|$)/.test(line) && /--max-time [1-9]\d*(\s|$)/.test(line);
+      // Isolation: each container shares the host network and uses only the job's own database.
+      const isolated = (what: string, line: string | undefined): Array<[string, boolean]> =>
+        line === undefined
+          ? []
+          : [
+              [`--network host on ${what}`, / --network host /.test(line)],
+              [
+                `-e DATABASE_URL="$SMOKE_DATABASE_URL" on ${what}`,
+                line.includes(' -e DATABASE_URL="$SMOKE_DATABASE_URL" '),
+              ],
+            ];
       requireContent(smoke, [
         [
           "the migrate job: `docker run --rm` of the application image with /ops mounted read-only",
@@ -1824,18 +1901,54 @@ function ciWiringProblems(text: string): string[] {
               migrate,
             ),
         ],
+        ...(migrate === undefined
+          ? []
+          : ([
+              [
+                "the migrate job as the end of its command, with nothing after it that could mask a failure",
+                /sh -c "[^"]*"$/.test(migrate),
+              ],
+            ] as Array<[string, boolean]>)),
+        ...isolated("the migrate job", migrate),
         [
           "the detached application container started in production mode from the application image",
           start !== undefined &&
             start.includes(" -e NODE_ENV=production ") &&
             start.endsWith(` ${tag}`),
         ],
-        ["the /healthz probe", healthz !== -1],
+        ...isolated("the application container", start),
+        ...(start === undefined
+          ? []
+          : SMOKE_BLANK_VARIABLES.map((name): [string, boolean] => [
+              `${name}= set blank on the application container`,
+              new RegExp(`(^| )-e ${name}=( |$)`).test(start),
+            ])),
+        ["the /healthz probe", healthzLine !== undefined],
+        ...(healthzLine === undefined
+          ? []
+          : ([
+              [
+                "a /healthz probe that is ready only on exactly HTTP 200",
+                /^\s*if \[ "\$\(curl [^)]*-w '%\{http_code\}'[^)]* http:\/\/127\.0\.0\.1:3000\/healthz[^)]*\)" = 200 \]; then$/.test(
+                  healthzLine,
+                ),
+              ],
+              ["--connect-timeout and --max-time on the /healthz probe", timeouts(healthzLine)],
+            ] as Array<[string, boolean]>)),
         [
           "the failure of the job when /healthz never answers",
           /\[ "\$\{ready:-\}" = 1 \] \|\| \{[^}\n]*exit 1; \}/.test(script),
         ],
-        ["the /login probe", login !== -1],
+        ["the /login probe", loginLine !== undefined],
+        ...(loginLine === undefined
+          ? []
+          : ([
+              ["--connect-timeout and --max-time on the /login probe", timeouts(loginLine)],
+              [
+                "the HTTP status of the /login probe captured with -w '%{http_code}'",
+                loginLine.includes("-w '%{http_code}'"),
+              ],
+            ] as Array<[string, boolean]>)),
         [
           "the failure of the job when /login does not return 200",
           /\[ "\$code" = 200 \] \|\| \{[^}\n]*exit 1; \}/.test(script),
@@ -1846,7 +1959,10 @@ function ciWiringProblems(text: string): string[] {
         ],
         [
           "the EXIT trap that removes the container",
-          /^trap cleanup EXIT$/m.test(script) && cleanup.includes("docker rm -f jiangtang-smoke"),
+          /^trap cleanup EXIT$/m.test(script) &&
+            shellCommands(cleanup).some((command) =>
+              command.startsWith("docker rm -f jiangtang-smoke"),
+            ),
         ],
       ]);
     }
@@ -2247,6 +2363,9 @@ describe("CI: in-image restore guards are wired", () => {
   const migrateLacks = `step "${SMOKE_STEP}" lacks the migrate job: \`docker run --rm\` of the application image with /ops mounted read-only`;
   const migrateChainLacks = `step "${SMOKE_STEP}" lacks \`prisma migrate deploy\` followed by the invariant check in the migrate job`;
   const INVARIANT_RUN_LINE = `run: ${INVARIANTS_COMMAND}`;
+  const invariantsMasked = `step "${INVARIANTS_STEP}" lacks the command \`${INVARIANTS_COMMAND}\` alone on its line, with nothing after it that could mask a failure`;
+  const migrateMasked = `step "${SMOKE_STEP}" lacks the migrate job as the end of its command, with nothing after it that could mask a failure`;
+  const smokeLacks = (what: string): string => `step "${SMOKE_STEP}" lacks ${what}`;
 
   it("verifies the database invariants once the migrations are applied, then proves the check can fail", async () => {
     const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
@@ -2328,6 +2447,47 @@ describe("CI: in-image restore guards are wired", () => {
     const fixture = withLineSuffix(live, INVARIANT_RUN_LINE, "|| true");
     expect(ciWiringProblems(fixture)).toEqual([
       `step "${INVARIANTS_STEP}" swallows a nonzero exit: command "true"`,
+      invariantsMasked,
+    ]);
+  });
+
+  // None of these match a swallowed-exit pattern, yet each makes the gate pass on failure.
+  for (const suffix of ["|| echo skipped", "|| echo skipped >&2"]) {
+    it(`rejects an invariant check followed by "${suffix}"`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withLineSuffix(live, INVARIANT_RUN_LINE, suffix);
+      expect(ciWiringProblems(fixture)).toEqual([invariantsMasked]);
+    });
+  }
+
+  for (const suffix of ["| cat", "&"]) {
+    it(`rejects an invariant check that is piped or backgrounded with "${suffix}"`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withLineSuffix(live, INVARIANT_RUN_LINE, suffix);
+      expect(ciWiringProblems(fixture)).toEqual([
+        `step "${INVARIANTS_STEP}" lacks the command \`${INVARIANTS_COMMAND}\``,
+      ]);
+    });
+  }
+
+  it("rejects an invariant check followed by ; true", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, INVARIANT_RUN_LINE, `${INVARIANT_RUN_LINE}; true`);
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_STEP}" swallows a nonzero exit: command "true"`,
+      invariantsMasked,
+    ]);
+  });
+
+  it("rejects a negative control whose final re-run of the real check is made non-blocking", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      `exit 1; }\n          ${INVARIANTS_COMMAND}\n`,
+      `exit 1; }\n          ${INVARIANTS_COMMAND} || echo skipped\n`,
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the final re-run of the real check, which proves the rollback`,
     ]);
   });
 
@@ -2503,8 +2663,21 @@ describe("CI: in-image restore guards are wired", () => {
     );
     expect(ciWiringProblems(fixture)).toEqual([
       `step "${SMOKE_STEP}" swallows a nonzero exit: command "true"`,
+      migrateMasked,
     ]);
   });
+
+  for (const suffix of ["|| echo skipped", "; echo skipped", "| cat"]) {
+    it(`rejects a smoke test whose migrate job is followed by "${suffix}"`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withReplacedOnce(
+        live,
+        '/ops/verify-invariants.sql"\n',
+        `/ops/verify-invariants.sql" ${suffix}\n`,
+      );
+      expect(ciWiringProblems(fixture)).toEqual([migrateMasked]);
+    });
+  }
 
   it("rejects a smoke test that no longer starts the application in production mode", async () => {
     const live = await readFile(CI_WORKFLOW_PATH, "utf8");
@@ -2516,7 +2689,7 @@ describe("CI: in-image restore guards are wired", () => {
 
   it("rejects a smoke test that no longer probes /healthz", async () => {
     const live = await readFile(CI_WORKFLOW_PATH, "utf8");
-    const fixture = withoutLine(live, "curl -fsS -o /dev/null http://127.0.0.1:3000/healthz");
+    const fixture = withoutLine(live, "3000/healthz");
     expect(ciWiringProblems(fixture)).toEqual([
       `step "${SMOKE_STEP}" lacks the /healthz probe`,
       `step "${SMOKE_STEP}" lacks the order: migrate job, application start, /healthz, /login`,
@@ -2527,8 +2700,8 @@ describe("CI: in-image restore guards are wired", () => {
     const live = await readFile(CI_WORKFLOW_PATH, "utf8");
     const fixture = withReplacedOnce(
       live,
-      'did not return 200 within 90 s"; exit 1; }',
-      'did not return 200 within 90 s"; exit 0; }',
+      'did not return 200 within 45 tries"; exit 1; }',
+      'did not return 200 within 45 tries"; exit 0; }',
     );
     expect(ciWiringProblems(fixture)).toEqual([
       `step "${SMOKE_STEP}" swallows a nonzero exit: command "exit 0"`,
@@ -2538,7 +2711,7 @@ describe("CI: in-image restore guards are wired", () => {
 
   it("rejects a smoke test that no longer probes /login", async () => {
     const live = await readFile(CI_WORKFLOW_PATH, "utf8");
-    const fixture = withoutLine(live, "curl -sS -o /dev/null -w '%{http_code}'");
+    const fixture = withoutLine(live, "3000/login");
     expect(ciWiringProblems(fixture)).toEqual([
       `step "${SMOKE_STEP}" lacks the /login probe`,
       `step "${SMOKE_STEP}" lacks the order: migrate job, application start, /healthz, /login`,
@@ -2576,6 +2749,196 @@ describe("CI: in-image restore guards are wired", () => {
       `step "${SMOKE_STEP}" lacks the EXIT trap that removes the container`,
     ]);
   });
+
+  // ── /healthz readiness and probe timeouts.
+  const healthzExact = smokeLacks("a /healthz probe that is ready only on exactly HTTP 200");
+  const healthzTimeouts = smokeLacks("--connect-timeout and --max-time on the /healthz probe");
+  const loginTimeouts = smokeLacks("--connect-timeout and --max-time on the /login probe");
+
+  it("rejects a /healthz readiness probe that accepts any non-error status, including a redirect", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      `if [ "$(curl -s --connect-timeout 1 --max-time 2 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/healthz 2> /dev/null)" = 200 ]; then`,
+      "if curl -fsS --connect-timeout 1 --max-time 2 -o /dev/null http://127.0.0.1:3000/healthz 2> /dev/null; then",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([healthzExact]);
+  });
+
+  it("rejects a /healthz readiness probe that no longer compares the status with 200", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, ')" = 200 ]; then', ')" != 000 ]; then');
+    expect(ciWiringProblems(fixture)).toEqual([healthzExact]);
+  });
+
+  it("rejects a /healthz probe without --connect-timeout", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, "--connect-timeout 1 ", "");
+    expect(ciWiringProblems(fixture)).toEqual([healthzTimeouts]);
+  });
+
+  it("rejects a /healthz probe without --max-time", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, "--max-time 2 ", "");
+    expect(ciWiringProblems(fixture)).toEqual([healthzTimeouts]);
+  });
+
+  it("rejects a /login probe without --connect-timeout", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, "--connect-timeout 2 ", "");
+    expect(ciWiringProblems(fixture)).toEqual([loginTimeouts]);
+  });
+
+  it("rejects a /login probe without --max-time", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, "--max-time 10 ", "");
+    expect(ciWiringProblems(fixture)).toEqual([loginTimeouts]);
+  });
+
+  it("rejects a /login probe that no longer captures the HTTP status", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      "-w '%{http_code}' http://127.0.0.1:3000/login",
+      "http://127.0.0.1:3000/login",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      smokeLacks("the HTTP status of the /login probe captured with -w '%{http_code}'"),
+    ]);
+  });
+
+  // ── The cleanup() trap must not change the status of the step.
+  const CLEANUP_LAST = "docker rm -f jiangtang-smoke > /dev/null 2>&1 || true\n";
+  const cleanupUses = (command: string): string =>
+    `step "${SMOKE_STEP}" cleanup() uses "${command}", which replaces the exit status of the failed step`;
+
+  it("rejects a smoke cleanup that ends in exit 0", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, CLEANUP_LAST, `${CLEANUP_LAST}            exit 0\n`);
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "exit 0"`,
+      cleanupUses("exit 0"),
+    ]);
+  });
+
+  it("rejects a smoke cleanup that returns early", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, CLEANUP_LAST, `${CLEANUP_LAST}            return 0\n`);
+    expect(ciWiringProblems(fixture)).toEqual([cleanupUses("return 0")]);
+  });
+
+  it("rejects a smoke cleanup that ends in exit with a nonzero code", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, CLEANUP_LAST, `${CLEANUP_LAST}            exit 1\n`);
+    expect(ciWiringProblems(fixture)).toEqual([cleanupUses("exit 1")]);
+  });
+
+  it("rejects a smoke cleanup whose log dump is followed by || exit 0", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      "docker logs jiangtang-smoke || true",
+      "docker logs jiangtang-smoke || exit 0",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "exit 0"`,
+      cleanupUses("exit 0"),
+    ]);
+  });
+
+  it("rejects a smoke cleanup that tolerates a failure on a line other than the two known ones", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withLineSuffix(live, 'echo "::endgroup::"', "|| true");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "true"`,
+    ]);
+  });
+
+  it("rejects a smoke cleanup whose docker rm is only commented out", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    // Commenting in place keeps the indentation, which a column-0 `#` would not inside the block.
+    const fixture = withReplacedOnce(
+      live,
+      "docker rm -f jiangtang-smoke > /dev/null 2>&1 || true",
+      "# docker rm -f jiangtang-smoke > /dev/null 2>&1 || true",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      smokeLacks("the EXIT trap that removes the container"),
+    ]);
+  });
+
+  // ── The smoke test stays isolated: host network, its own database, no integrations.
+  it("rejects a migrate job without --network host", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, "docker run --rm --network host ", "docker run --rm ");
+    expect(ciWiringProblems(fixture)).toEqual([smokeLacks("--network host on the migrate job")]);
+  });
+
+  it("rejects an application container without --network host", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      "--name jiangtang-smoke --network host",
+      "--name jiangtang-smoke",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      smokeLacks("--network host on the application container"),
+    ]);
+  });
+
+  it("rejects a migrate job that does not take its database from SMOKE_DATABASE_URL", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      '-e DATABASE_URL="$SMOKE_DATABASE_URL" -e TZ=Europe/Berlin',
+      "-e DATABASE_URL -e TZ=Europe/Berlin",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      smokeLacks('-e DATABASE_URL="$SMOKE_DATABASE_URL" on the migrate job'),
+    ]);
+  });
+
+  it("rejects an application container that does not take its database from SMOKE_DATABASE_URL", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      '-e DATABASE_URL="$SMOKE_DATABASE_URL" \\\n            -e BETTER_AUTH_SECRET',
+      "-e DATABASE_URL \\\n            -e BETTER_AUTH_SECRET",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      smokeLacks('-e DATABASE_URL="$SMOKE_DATABASE_URL" on the application container'),
+    ]);
+  });
+
+  it("rejects a SMOKE_DATABASE_URL that targets another database", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      "localhost:5432/jiangtang_smoke?schema",
+      "localhost:5432/jiangtang?schema",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      smokeLacks(`SMOKE_DATABASE_URL pointing at the database ${SMOKE_DATABASE}`),
+    ]);
+  });
+
+  for (const name of SMOKE_BLANK_VARIABLES) {
+    it(`rejects an application container that sets ${name} to a value`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withReplacedOnce(live, `-e ${name}=`, `-e ${name}=https://example.invalid`);
+      expect(ciWiringProblems(fixture)).toEqual([
+        smokeLacks(`${name}= set blank on the application container`),
+      ]);
+    });
+
+    it(`rejects an application container that no longer sets ${name}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withReplacedOnce(live, `-e ${name}=`, "");
+      expect(ciWiringProblems(fixture)).toEqual([
+        smokeLacks(`${name}= set blank on the application container`),
+      ]);
+    });
+  }
 
   it("rejects a workflow without the application image build the smoke test depends on", async () => {
     const live = await readFile(CI_WORKFLOW_PATH, "utf8");
