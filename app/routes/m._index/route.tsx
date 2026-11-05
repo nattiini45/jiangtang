@@ -102,6 +102,10 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   const [done, setDone] = React.useState(false);
   const [pendingPhotos, setPendingPhotos] = React.useState<File[]>([]);
   const formRef = React.useRef<HTMLFormElement>(null);
+  // The capture time of the current entry: the time of its first attempt, kept
+  // across retries. Held here, not in the DOM, since React re-applies the hidden
+  // input's default value on every render.
+  const capturedAt = React.useRef<string | null>(null);
   // Remounts the photo widget, whose own counter would still count dropped photos.
   const [photoKey, setPhotoKey] = React.useState(0);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
@@ -201,9 +205,14 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   // queueing would leave the photos behind without the person deciding so.
   const send = async (form: HTMLFormElement, queue: boolean) => {
     // The capture time travels with the entry (see the action).
-    const occurredAt = form.elements.namedItem("occurredAt");
-    if (occurredAt instanceof HTMLInputElement) occurredAt.value = new Date().toISOString();
+    capturedAt.current ??= new Date().toISOString();
+    const stamp = form.elements.namedItem("occurredAt");
+    if (stamp instanceof HTMLInputElement) stamp.value = capturedAt.current;
     const result = await submit(form, { queue });
+    // Sent or stored: the next submit is a new entry with its own time.
+    if (result?.state === "sent" || (result?.state === "queued" && queue)) {
+      capturedAt.current = null;
+    }
     if (result?.state === "sent") {
       if (result.id) setSentId(result.id);
       else void navigate("/m/rooms");
@@ -233,7 +242,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
       }}
     >
       <h1 className="text-lg font-semibold">{t("mobile.entry.title")}</h1>
-      <input type="hidden" name="occurredAt" defaultValue="" />
+      <input type="hidden" name="occurredAt" />
 
       <Label className="flex flex-col gap-1.5">
         <span>{t("mobile.entry.room")}</span>
@@ -341,6 +350,10 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
             disabled={busy}
             className="min-h-11"
             onClick={() => {
+              // The person chose to drop the photos: if the connection is back
+              // and the entry goes out now, they must not be uploaded after all.
+              setPendingPhotos([]);
+              setPhotoKey((k) => k + 1);
               if (formRef.current) void send(formRef.current, true);
             }}
           >

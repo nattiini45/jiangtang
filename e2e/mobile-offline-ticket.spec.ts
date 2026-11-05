@@ -145,6 +145,49 @@ test("a retry after a lost answer keeps one ticket and uploads its photo", async
   expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(1);
 });
 
+test("saving without photos drops them, even when the connection is back", async ({ page }) => {
+  const TITLE = `${RUN}Ohne-Fotos-${Date.now().toString(36)}`;
+  await openEntry(page);
+  await goOffline(page);
+  await page.locator('input[name="title"]').fill(TITLE);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "defekt.png",
+    mimeType: "image/png",
+    buffer: PNG,
+  });
+  await submitButton(page).click();
+  await expect(page.getByText("Nicht gesendet: keine Verbindung.", { exact: false })).toBeVisible();
+
+  // The connection returns before the person picks "without photos".
+  await page.unroute(isEntryPost);
+  await page.getByRole("button", { name: "Offline ohne Fotos speichern" }).click();
+  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
+  expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(0);
+});
+
+test("a retry keeps the time of the first attempt", async ({ page }) => {
+  const TITLE = `${RUN}Erster-Versuch-${Date.now().toString(36)}`;
+  await openEntry(page);
+  await goOffline(page);
+  await page.locator('input[name="title"]').fill(TITLE);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "defekt.png",
+    mimeType: "image/png",
+    buffer: PNG,
+  });
+  const firstAttempt = Date.now();
+  await submitButton(page).click();
+  await expect(page.getByText("Nicht gesendet: keine Verbindung.", { exact: false })).toBeVisible();
+
+  await page.waitForTimeout(3_000);
+  await page.unroute(isEntryPost);
+  await page.getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
+  expect(ticket.occurredAt.getTime()).toBeLessThan(firstAttempt + 2_000);
+});
+
 test("online, the entry is created and its photo uploaded", async ({ page }) => {
   const TITLE = `${RUN}Online-Foto-${Date.now().toString(36)}`;
   await openEntry(page);
