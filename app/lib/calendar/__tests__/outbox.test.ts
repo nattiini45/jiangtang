@@ -130,7 +130,7 @@ describe("drainOnce (seeded rows)", () => {
     expect(rows[1].status).toBe("PENDING"); // seq 1 untouched
   });
 
-  it("lets a newer update supersede a lower sequence that failed, on the next pass", async () => {
+  it("lets a newer update supersede a lower sequence that failed, once its backoff has passed", async () => {
     const uid = `${RUN}_supersede`;
     const id0 = await seed(uid, 0);
     const id1 = await seed(uid, 1);
@@ -141,10 +141,28 @@ describe("drainOnce (seeded rows)", () => {
       now: t0,
     });
 
-    // seq 0 still has not landed, but seq 1 carries the event's full current
-    // state, so it goes out without waiting for seq 0's backoff.
+    // A request that failed on the network may still be applied by the server a
+    // moment later. Until seq 0's backoff has passed, seq 1 waits behind it, so a
+    // late seq 0 write cannot land after seq 1.
+    const early = new FakePublisher();
+    await drainOnce(early, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(t0.getTime() + 15_000),
+    });
+    expect(early.calls.filter((c) => c.uid === uid)).toEqual([]);
+    expect((await db.calendarOutbox.findUniqueOrThrow({ where: { id: id0 } })).status).toBe(
+      "PENDING",
+    );
+
+    // Then seq 1, which carries the event's full current state, goes out instead
+    // of a retry of seq 0.
     const fake = new FakePublisher();
-    await drainOnce(fake, { batchSize: 100, eventUidPrefix: RUN, now: t0 });
+    await drainOnce(fake, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(t0.getTime() + 30_000),
+    });
     expect(fake.calls.filter((c) => c.uid === uid)).toEqual([{ op: "UPSERT", uid, sequence: 1 }]);
     const row0 = await db.calendarOutbox.findUniqueOrThrow({ where: { id: id0 } });
     const row1 = await db.calendarOutbox.findUniqueOrThrow({ where: { id: id1 } });
@@ -351,6 +369,34 @@ describe("drainOnce (integration with events domain)", () => {
 
     const after = await db.calendarOutbox.findMany({ where: { eventUid: created.uid } });
     expect(after.every((r) => r.status === "SENT")).toBe(true);
+  });
+});
+
+describe("drainOnce across app instances", () => {
+  it("runs one pass at a time: a second drainer skips while the first is publishing", async () => {
+    const uid = `${RUN}_lock`;
+    await seed(uid, 0);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    let entered: () => void = () => undefined;
+    const inFlight = new Promise<void>((r) => (entered = r));
+    const slow: CalendarPublisher = {
+      upsert: async () => {
+        entered();
+        await gate;
+      },
+      remove: async () => undefined,
+    };
+    const first = drainOnce(slow, { batchSize: 100, eventUidPrefix: uid });
+    await inFlight;
+
+    const second = new FakePublisher();
+    const res = await drainOnce(second, { batchSize: 100, eventUidPrefix: uid });
+    expect(res).toEqual({ sent: 0, failed: 0, skipped: 0, superseded: 0 });
+    expect(second.calls).toEqual([]);
+
+    release();
+    expect((await first).sent).toBe(1);
   });
 });
 

@@ -16,7 +16,10 @@ import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publishe
  * Every row carries the event's full state at its sequence, so a failed op is not
  * needed once a later one exists: at the start of each pass such a row is marked
  * SUPERSEDED and never sent, which lets the later op through instead of holding it
- * behind the failed one. A failed row with nothing after it is retried with
+ * behind the failed one. A PUT that failed on the network may still be applied by
+ * the server a moment later, so a failed row is superseded only once its backoff
+ * (at least 30 s) has passed, and until then it holds back the later ops of its
+ * uid, just as a retry of it would. A failed row with nothing after it is retried with
  * backoff until RETRY_WINDOW_MS after it was enqueued (and at least
  * MIN_ATTEMPTS_BEFORE_PARK times), then parked as FAILED
  * (where the event's next change still supersedes it). `calendarSyncHealth`
@@ -24,6 +27,9 @@ import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publishe
  */
 
 const BATCH_SIZE = 25;
+const DRAIN_LOCK_KEY = "jiangtang:calendar-outbox-drain";
+/** Upper bound for one locked pass of BATCH_SIZE pushes to a slow CalDAV server. */
+const DRAIN_LOCK_TIMEOUT_MS = 10 * 60_000;
 const MAX_ERROR_LEN = 500;
 
 // Exponential backoff after a failure: BASE * 2^(attempts-1), capped, measured
@@ -73,8 +79,8 @@ function backoffMs(attempts: number): number {
 
 /**
  * Marks every failed op that a later op of the same uid has made obsolete. Only
- * rows that already failed at least once are touched: an untried lower row is
- * simply sent first, in order.
+ * rows that already failed at least once and whose backoff has passed are
+ * touched: an untried lower row is simply sent first, in order.
  */
 async function supersedeObsolete(now: Date, prefix: string | null): Promise<number> {
   return db.$executeRaw`
@@ -82,6 +88,7 @@ async function supersedeObsolete(now: Date, prefix: string | null): Promise<numb
        SET status = 'SUPERSEDED', "processedAt" = ${now}, "nextAttemptAt" = NULL
      WHERE o.status IN ('PENDING', 'FAILED')
        AND o.attempts > 0
+       AND (o."nextAttemptAt" IS NULL OR o."nextAttemptAt" <= ${now})
        AND (${prefix}::text IS NULL OR starts_with(o."eventUid", ${prefix}::text))
        AND EXISTS (
          SELECT 1 FROM "CalendarOutbox" AS h
@@ -117,7 +124,8 @@ function payloadFromJson(raw: unknown): CalendarPayload {
 /**
  * Drain up to `batchSize` due PENDING outbox rows through `publisher`.
  *
- * - Failed ops made obsolete by a later op of their uid are superseded first.
+ * - Failed ops made obsolete by a later op of their uid are superseded first,
+ *   once their backoff has passed; until then they hold back that later op.
  * - Only due rows are taken (never tried, or past nextAttemptAt), ordered by
  *   (eventUid asc, sequence asc), so rows waiting out a backoff never fill the
  *   batch and starve the rest.
@@ -131,6 +139,24 @@ export async function drainOnce(
   publisher: CalendarPublisher,
   opts?: DrainOptions,
 ): Promise<DrainResult> {
+  // One pass at a time across every app instance: two drainers could otherwise
+  // publish the same row twice, or supersede a row whose PUT another instance
+  // still has in flight. The lock is transaction-scoped and non-blocking, so a
+  // second instance skips its pass, and a crashed instance releases it with its
+  // connection. The pass itself runs outside the transaction; holding it only
+  // keeps the lock.
+  return db.$transaction(
+    async (tx) => {
+      const [row] = await tx.$queryRaw<Array<{ locked: boolean }>>`
+        SELECT pg_try_advisory_xact_lock(hashtextextended(${DRAIN_LOCK_KEY}, 0)) AS locked`;
+      if (!row?.locked) return { sent: 0, failed: 0, skipped: 0, superseded: 0 };
+      return drainPass(publisher, opts);
+    },
+    { maxWait: 10_000, timeout: DRAIN_LOCK_TIMEOUT_MS },
+  );
+}
+
+async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Promise<DrainResult> {
   const now = opts?.now ?? new Date();
   const take = opts?.batchSize ?? BATCH_SIZE;
   const prefix = opts?.eventUidPrefix ?? null;
@@ -149,11 +175,28 @@ export async function drainOnce(
   });
   if (pending.length === 0) return result;
 
+  // A lower sequence still waiting out its backoff is not in `pending`, but it
+  // has not been superseded yet either, so later ops of its uid wait behind it.
+  const waiting = await db.calendarOutbox.findMany({
+    where: {
+      status: "PENDING",
+      eventUid: { in: [...new Set(pending.map((r) => r.eventUid))] },
+      nextAttemptAt: { gt: now },
+    },
+    select: { eventUid: true, sequence: true },
+  });
+  const lowestWaiting = new Map<string, number>();
+  for (const w of waiting) {
+    const cur = lowestWaiting.get(w.eventUid);
+    if (cur === undefined || w.sequence < cur) lowestWaiting.set(w.eventUid, w.sequence);
+  }
+
   // Per-uid "blocked from here on" flag, set once an earlier row fails this pass.
   const blocked = new Set<string>();
 
   for (const row of pending) {
-    if (blocked.has(row.eventUid)) {
+    const waitingSeq = lowestWaiting.get(row.eventUid);
+    if (blocked.has(row.eventUid) || (waitingSeq !== undefined && waitingSeq < row.sequence)) {
       result.skipped++;
       continue;
     }
@@ -178,13 +221,14 @@ export async function drainOnce(
       const message = (e instanceof Error ? e.message : String(e)).slice(0, MAX_ERROR_LEN);
       await db.calendarOutbox.update({
         where: { id: row.id },
-        data: parked
-          ? { attempts, lastError: message, status: "FAILED", nextAttemptAt: null }
-          : {
-              attempts,
-              lastError: message,
-              nextAttemptAt: new Date(now.getTime() + backoffMs(attempts)),
-            },
+        // A parked row keeps nextAttemptAt as the earliest instant a later op may
+        // supersede it.
+        data: {
+          attempts,
+          lastError: message,
+          nextAttemptAt: new Date(now.getTime() + backoffMs(attempts)),
+          ...(parked ? { status: "FAILED" as const } : {}),
+        },
       });
       if (parked) {
         console.error(

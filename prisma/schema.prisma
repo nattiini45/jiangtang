@@ -557,7 +557,8 @@ model CalendarOutbox {
   lastError   String?
   createdAt   DateTime     @default(now()) @db.Timestamptz(3)
   processedAt DateTime? @db.Timestamptz(3)
-  // Earliest instant the drain may retry this row; null until the first failure.
+  // Earliest instant the drain may retry this row, or a later op supersede it;
+  // null until the first failure.
   nextAttemptAt DateTime? @db.Timestamptz(3)
 
   // Idempotency is DB-enforced: one row per (event, iCal SEQUENCE), so a
