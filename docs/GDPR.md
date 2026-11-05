@@ -142,7 +142,8 @@ personal data:
   while the network is down or the session has expired is kept here with everything typed into the
   form, until it is sent or the person discards it. Each entry records the account that queued it;
   only that account sees, counts and sends it, and the server refuses a capture sent under another
-  account's session. Entries outlive sign-out on purpose, so that nothing typed is lost, and they
+  account's session. Entries queued by an older version of the app carry no owner: the first
+  account that signs in on that device takes them over and sends them in its own name. Entries outlive sign-out on purpose, so that nothing typed is lost, and they
   are not removed when an administrator erases the account.
 - **The service-worker cache** (CacheStorage `jiangtang-shell-*`). Pages, loader data, uploaded
   images and API answers the person opened, kept so the app can show the last version while
