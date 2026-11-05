@@ -193,6 +193,42 @@ describe("drainOnce (seeded rows)", () => {
     expect((await db.calendarOutbox.findUniqueOrThrow({ where: { id: id1 } })).status).toBe("SENT");
   });
 
+  it("holds a newer update behind a parked row until the parked row's backoff has passed", async () => {
+    const uid = `${RUN}_parked_wait`;
+    const t0 = new Date();
+    const id0 = await seed(uid, 0, {
+      status: "FAILED",
+      attempts: 40,
+      lastError: "boom",
+      nextAttemptAt: new Date(t0.getTime() + 60_000),
+    });
+    await seed(uid, 1);
+    const early = new FakePublisher();
+    await drainOnce(early, { batchSize: 100, eventUidPrefix: RUN, now: t0 });
+    expect(early.calls.filter((c) => c.uid === uid)).toEqual([]);
+    expect((await db.calendarOutbox.findUniqueOrThrow({ where: { id: id0 } })).status).toBe(
+      "FAILED",
+    );
+
+    const due = new FakePublisher();
+    await drainOnce(due, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(t0.getTime() + 60_000),
+    });
+    expect(due.calls.filter((c) => c.uid === uid)).toEqual([{ op: "UPSERT", uid, sequence: 1 }]);
+  });
+
+  it("stops starting new pushes once the pass has used up its time budget", async () => {
+    const uid = `${RUN}_budget`;
+    await seed(uid, 0);
+    await seed(`${uid}_b`, 0);
+    const fake = new FakePublisher();
+    const res = await drainOnce(fake, { batchSize: 100, eventUidPrefix: uid, passBudgetMs: 0 });
+    expect(fake.calls).toEqual([]);
+    expect(res.skipped).toBe(2);
+  });
+
   it("waits out the backoff from the last attempt, not from creation", async () => {
     const uid = `${RUN}_backoff`;
     // Created long ago: a delay measured from createdAt would always be due.

@@ -28,7 +28,13 @@ import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publishe
 
 const BATCH_SIZE = 25;
 const DRAIN_LOCK_KEY = "jiangtang:calendar-outbox-drain";
-/** Upper bound for one locked pass of BATCH_SIZE pushes to a slow CalDAV server. */
+/**
+ * A pass starts no new push after PASS_BUDGET_MS, and each push is bounded by
+ * CALDAV_REQUEST_TIMEOUT_MS, so a pass always ends well inside the lock's
+ * transaction timeout and no push is still in flight once another instance can
+ * take the lock.
+ */
+const PASS_BUDGET_MS = 5 * 60_000;
 const DRAIN_LOCK_TIMEOUT_MS = 10 * 60_000;
 const MAX_ERROR_LEN = 500;
 
@@ -71,6 +77,8 @@ export interface DrainOptions {
    * PENDING rows; production always drains every PENDING row.
    */
   eventUidPrefix?: string;
+  /** Override the pass's time budget (tests). */
+  passBudgetMs?: number;
 }
 
 function backoffMs(attempts: number): number {
@@ -158,6 +166,8 @@ export async function drainOnce(
 
 async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Promise<DrainResult> {
   const now = opts?.now ?? new Date();
+  // Wall-clock, not `now`: tests move `now` freely, but the budget guards the lock.
+  const deadline = Date.now() + (opts?.passBudgetMs ?? PASS_BUDGET_MS);
   const take = opts?.batchSize ?? BATCH_SIZE;
   const prefix = opts?.eventUidPrefix ?? null;
 
@@ -177,9 +187,11 @@ async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Pro
 
   // A lower sequence still waiting out its backoff is not in `pending`, but it
   // has not been superseded yet either, so later ops of its uid wait behind it.
+  // A parked FAILED row in its backoff counts too: it is superseded, not retried,
+  // once the backoff has passed.
   const waiting = await db.calendarOutbox.findMany({
     where: {
-      status: "PENDING",
+      status: { in: ["PENDING", "FAILED"] },
       eventUid: { in: [...new Set(pending.map((r) => r.eventUid))] },
       nextAttemptAt: { gt: now },
     },
@@ -196,7 +208,11 @@ async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Pro
 
   for (const row of pending) {
     const waitingSeq = lowestWaiting.get(row.eventUid);
-    if (blocked.has(row.eventUid) || (waitingSeq !== undefined && waitingSeq < row.sequence)) {
+    if (
+      Date.now() >= deadline ||
+      blocked.has(row.eventUid) ||
+      (waitingSeq !== undefined && waitingSeq < row.sequence)
+    ) {
       result.skipped++;
       continue;
     }
