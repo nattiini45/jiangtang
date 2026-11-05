@@ -8,7 +8,7 @@ import {
   type RouteObject,
 } from "react-router";
 import { describe, expect, it } from "vitest";
-import { CaptureQueueList } from "../capture-form";
+import { CaptureQueueList, CaptureQueuePanel } from "../capture-form";
 import { QueueBadge } from "../queue-badge";
 import type { QueuedCapture } from "~/lib/pwa/offline-queue";
 
@@ -77,6 +77,44 @@ describe("CaptureQueueList", () => {
     expect(html).not.toContain("/login");
     expect(html).not.toContain('role="status"');
     expect(html).toContain("Titel ca1");
+  });
+});
+
+describe("CaptureQueuePanel", () => {
+  const panel = (entries: QueuedCapture[], authRequired: boolean) =>
+    createElement(CaptureQueuePanel, {
+      url: "/m/tasks/new",
+      entries,
+      authRequired,
+      onDiscard: () => {},
+    });
+  const elsewhere = entry("cn1", { url: "/m/notes/new" });
+
+  it("asks for the sign-in even when every waiting entry belongs to another page", async () => {
+    const html = await render("en", panel([elsewhere], true));
+    expect(html).toContain("Sign in again to send it.");
+    expect(html).toContain('href="/login?next=%2Fm%2Ftasks%2Fnew"');
+    // No list of its own, and none of the other page's entries.
+    expect(html).not.toContain("<ul");
+    expect(html).not.toContain("Titel cn1");
+  });
+
+  it("lists only this page's entries next to the notice", async () => {
+    const html = await render("en", panel([entry("ca1"), elsewhere], true));
+    expect(html).toContain("Titel ca1");
+    expect(html).not.toContain("Titel cn1");
+    expect(html).toContain("Sign in again to send it.");
+  });
+
+  it("renders nothing when the session is fine and no entry is this page's", async () => {
+    expect(await render("en", panel([elsewhere], false))).toBe("");
+    expect(await render("en", panel([], false))).toBe("");
+  });
+
+  it("lists this page's entries without a notice while the session is fine", async () => {
+    const html = await render("en", panel([entry("ca1")], false));
+    expect(html).toContain("Titel ca1");
+    expect(html).not.toContain("/login");
   });
 });
 

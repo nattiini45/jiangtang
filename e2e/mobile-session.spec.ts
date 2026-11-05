@@ -46,15 +46,30 @@ test("an expired session keeps the capture, asks for sign-in, and sends it once 
   if (!email || !password) throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be set");
   const TITLE = `${RUN}Sitzung-Aufgabe-${Date.now().toString(36)}`;
 
+  // Once the realtime stream opens, the shell revalidates the page's loaders.
+  // That request must reach the server while the session still exists: with the
+  // cookies already cleared, the /m loader would redirect the page to /login
+  // before the form is filled.
+  const revalidated = page.waitForResponse(
+    (res) => res.request().method() === "GET" && res.url().includes("/m/tasks/new.data"),
+  );
   await page.goto("/m/tasks/new");
   await expect(page.getByRole("heading", { name: "Aufgabe anlegen" })).toBeVisible();
   // A click before hydration is a native form POST, not the queue.
   await page.waitForSelector("html[data-hydrated]");
+  await revalidated;
 
   // The session is gone: the next request meets requireUser's redirect to /login.
   await page.context().clearCookies();
   await page.locator("#title").fill(TITLE);
   await page.getByRole("button", { name: "Anlegen" }).click();
+
+  // The capture is stored, so the form is cleared (a second tap would queue it
+  // again), and the form itself confirms what happens next.
+  await expect(page.locator("#title")).toHaveValue("");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Gespeichert — wird nach der Anmeldung gesendet." }),
+  ).toBeVisible();
 
   // The notice links back to this very page after sign-in, the badge to /m.
   await expect(page.getByText("Melde dich erneut an")).toBeVisible();

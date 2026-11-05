@@ -54,21 +54,38 @@ export function useCaptureSubmit(action: string) {
 
 /**
  * The queued-state notice + this page's refused entries with a discard. The
- * sign-in notice follows the whole queue, not only this page's entries: a pass
- * stops at the first entry that meets the wall and flags only that one, so
- * entries behind it would otherwise never ask for a sign-in.
+ * sign-in notice follows the whole queue, not only this page's entries: it is
+ * shown even when every waiting entry belongs to another capture page, since
+ * those are blocked behind the same expired session.
  */
 export function CaptureQueueStatus({ url }: { url: string }) {
   const { entries, authRequired, discard } = useOfflineQueue();
-  const mine = entries.filter((e) => e.url === url);
-  if (mine.length === 0) return null;
   return (
-    <CaptureQueueList
+    <CaptureQueuePanel
       url={url}
-      entries={mine}
-      signInNeeded={authRequired}
+      entries={entries}
+      authRequired={authRequired}
       onDiscard={(clientId) => void discard(clientId)}
     />
+  );
+}
+
+/** `entries` is the whole visible queue; the panel picks this page's own. */
+export function CaptureQueuePanel({
+  url,
+  entries,
+  authRequired,
+  onDiscard,
+}: {
+  url: string;
+  entries: QueuedCapture[];
+  authRequired: boolean;
+  onDiscard: (clientId: string) => void;
+}) {
+  const mine = entries.filter((e) => e.url === url);
+  if (mine.length === 0 && !authRequired) return null;
+  return (
+    <CaptureQueueList url={url} entries={mine} signInNeeded={authRequired} onDiscard={onDiscard} />
   );
 }
 
@@ -100,31 +117,33 @@ export function CaptureQueueList({
           </Link>
         </p>
       ) : null}
-      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
-        {entries.map((e) => (
-          <li key={e.clientId} className="flex min-h-12 items-start gap-3 px-3 py-3 text-sm">
-            <span className="bg-status-warning/15 text-status-warning mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
-              <CloudOff className="size-3.5" strokeWidth={2} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold">
-                {t("mobile.capture.pending", {
-                  title: e.fields.title ?? e.fields.q ?? t("mobile.capture.entryFallback"),
-                })}
+      {entries.length > 0 ? (
+        <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
+          {entries.map((e) => (
+            <li key={e.clientId} className="flex min-h-12 items-start gap-3 px-3 py-3 text-sm">
+              <span className="bg-status-warning/15 text-status-warning mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
+                <CloudOff className="size-3.5" strokeWidth={2} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold">
+                  {t("mobile.capture.pending", {
+                    title: e.fields.title ?? e.fields.q ?? t("mobile.capture.entryFallback"),
+                  })}
+                </div>
+                {e.error ? <div className="text-destructive mt-0.5 text-xs">{e.error}</div> : null}
               </div>
-              {e.error ? <div className="text-destructive mt-0.5 text-xs">{e.error}</div> : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => onDiscard(e.clientId)}
-              aria-label={t("mobile.capture.discard")}
-              className="text-muted-foreground active:text-destructive active:bg-selected flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-80"
-            >
-              <Trash2 className="size-4" />
-            </button>
-          </li>
-        ))}
-      </ul>
+              <button
+                type="button"
+                onClick={() => onDiscard(e.clientId)}
+                aria-label={t("mobile.capture.discard")}
+                className="text-muted-foreground active:text-destructive active:bg-selected flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-80"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </>
   );
 }

@@ -14,22 +14,34 @@ import { UNSAFE_decodeViaTurboStream, useRouteLoaderData } from "react-router";
  * Every entry belongs to the person who was signed in when it was queued
  * (`userId`). A pass replays, and the UI lists and counts, only the current
  * user's entries; another user's stay stored, untouched, until that user
- * signs in on this device again. An entry without an owner was queued before
- * owners were recorded, by whoever used the device then: the first user whose
- * pass sees it adopts it, so it is neither stranded nor shown to a third person.
+ * signs in on this device again. The owner also travels with every POST
+ * (`CAPTURE_OWNER_HEADER`) and the capture actions answer 403 when it is not
+ * the signed-in user: tabs share one cookie jar, so a tab that still shows the
+ * previous user would otherwise replay their captures under the new session.
+ * The 403 is read as the authentication wall, so the entry stays queued.
+ *
+ * An entry without an owner was queued before owners were recorded, by whoever
+ * used the device then, and nobody can tell who that was. The first user whose
+ * pass sees it adopts it and sends it under their own name. That keeps the
+ * capture from being stranded, but if that user is not the person who wrote it,
+ * they see it and it is created in their name; this is accepted for the few
+ * entries that predate owners.
  *
  * Replay rules:
  *   2xx                    → remove (a retried create is deduped by clientId)
- *   authentication wall    → KEEP, flagged `authRequired`, and stop the pass:
- *                            a redirect to /login (single-fetch 202 or a
- *                            followed one), 401 or 403. The capture is still
- *                            unsent; it goes out after the next sign-in.
+ *   authentication wall    → KEEP and stop the pass: a redirect to /login
+ *                            (single-fetch 202 or a followed one), 401 or 403.
+ *                            The captures are still unsent; they go out after
+ *                            the next sign-in. Every remaining entry of that
+ *                            user is flagged `authRequired`, not only the one
+ *                            that met the wall: the flag describes the queue.
  *   4xx validation refusal → KEEP, with the server's error on the entry
  *   5xx / network error    → KEEP, retry on the next pass
  *   any other redirect     → KEEP, retry (not a confirmation, see postEntry)
- * The `authRequired` flag is cleared only by evidence that the session works
- * (the entry was sent, or the action itself answered with a refusal); a network
- * error, a 5xx or an unconfirmed redirect says nothing about the session.
+ * The `authRequired` flag is cleared from all of the user's entries only by
+ * evidence that the session works (an entry of the pass was sent, or the action
+ * itself answered with a refusal) and no wall came after it; a network error, a
+ * 5xx or an unconfirmed redirect says nothing about the session.
  *
  * Every POST targets the route's `.data` URL. A POST to the route *path* is a
  * document request: React Router runs the action and then renders the route
@@ -152,6 +164,12 @@ function notifyChanged() {
 
 /** Header marking a queue/capture POST — capture actions answer it with JSON. */
 export const CAPTURE_HEADER = "x-jiangtang-capture";
+
+/**
+ * Header naming the user a capture was queued by. The capture actions refuse
+ * it (403) when it differs from the signed-in user, before writing anything.
+ */
+export const CAPTURE_OWNER_HEADER = "x-jiangtang-capture-owner";
 
 export interface CaptureResult {
   state: "sent" | "queued" | "refused";
@@ -287,6 +305,7 @@ async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
         [CAPTURE_HEADER]: "1",
+        ...(entry.userId ? { [CAPTURE_OWNER_HEADER]: entry.userId } : {}),
       },
       body,
     });
@@ -330,10 +349,11 @@ async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise
 /**
  * Replay the queued captures of `userId` in creation order (every entry when
  * no user is given). 2xx → remove; 4xx → keep with the server's error stored
- * on the entry; 5xx/network → keep. An authentication wall keeps the entry
- * flagged `authRequired` and ends the pass (`authRequired: true` in the
- * result): the remaining entries would meet the same wall, and the next pass
- * runs after the person signs in again. Other users' entries are not touched.
+ * on the entry; 5xx/network → keep. An authentication wall keeps the entry,
+ * flags it and every other waiting entry of the user `authRequired`, and ends
+ * the pass (`authRequired: true` in the result): the remaining entries would
+ * meet the same wall, and the next pass runs after the person signs in again.
+ * Other users' entries are not touched.
  *
  * Both the mobile shell badge and a capture page mount `useOfflineQueue`, so
  * two replays can start in the same tick. They share one in-flight pass:
@@ -387,11 +407,14 @@ async function replayQueueOnce(
       changed = true;
     }
   }
+  // The pass's entries that are still stored when it ends, in queue order.
+  const remaining: QueuedCapture[] = [];
   for (const [index, entry] of entries.entries()) {
     // A 4xx-refused entry waits for the user (discard or fix); replaying it on
     // every pass only repeats the same refusal. It stays visible with its error.
     if (entry.error) {
       kept += 1;
+      remaining.push(entry);
       continue;
     }
     const outcome = await postEntry(entry, fetchImpl);
@@ -402,21 +425,39 @@ async function replayQueueOnce(
     } else if (outcome.kind === "refused") {
       // The action itself answered, so any sign-in notice on the entry is stale.
       const { authRequired: _stale, ...rest } = entry;
-      await store.put({ ...rest, error: outcome.error });
+      const refusedEntry = { ...rest, error: outcome.error };
+      await store.put(refusedEntry);
+      remaining.push(refusedEntry);
       refused += 1;
       changed = true;
     } else if (outcome.kind === "auth") {
-      if (!entry.authRequired) {
-        await store.put({ ...entry, authRequired: true });
-        changed = true;
-      }
       authRequired = true;
       // The rest of the queue would meet the same wall.
       kept += entries.length - index;
+      remaining.push(...entries.slice(index));
       break;
     } else {
       // Inconclusive about the session, so the sign-in flag stays as it is.
       kept += 1;
+      remaining.push(entry);
+    }
+  }
+  // The flag describes the queue behind the wall, not one entry: a wall flags
+  // everything still waiting, and proof that the session works (a send, or the
+  // action's own refusal) clears it from all of the user's entries.
+  const flag = authRequired ? true : sent + refused > 0 ? false : null;
+  if (flag !== null) {
+    for (const entry of remaining) {
+      if (flag) {
+        // A refused entry waits for the user, not for a sign-in.
+        if (entry.authRequired || entry.error) continue;
+        await store.put({ ...entry, authRequired: true });
+      } else {
+        if (!entry.authRequired) continue;
+        const { authRequired: _stale, ...rest } = entry;
+        await store.put(rest);
+      }
+      changed = true;
     }
   }
   if (changed) notifyChanged();
@@ -445,11 +486,18 @@ export function useOfflineQueue(storeOverride?: OfflineQueueStore) {
   // render would retrigger the effect deps below on each state update.
   const store = React.useMemo(() => storeOverride ?? defaultStore(), [storeOverride]);
   const userId = useQueueOwner();
-  const [entries, setEntries] = React.useState<QueuedCapture[]>([]);
+  // The stored list as read, unfiltered: the user can change without a remount
+  // (another tab signs out and in), and a read that started for the previous
+  // user must not decide what the new one sees. Filtering happens at render.
+  const [raw, setRaw] = React.useState<QueuedCapture[]>([]);
+  const latestRead = React.useRef(0);
 
   const refresh = React.useCallback(async () => {
-    setEntries(visibleEntries(await store.list(), userId));
-  }, [store, userId]);
+    const read = ++latestRead.current;
+    const list = await store.list();
+    // A newer read is already in flight or done; its result is the fresher one.
+    if (read === latestRead.current) setRaw(list);
+  }, [store]);
 
   const discard = React.useCallback(
     async (clientId: string) => {
@@ -475,7 +523,8 @@ export function useOfflineQueue(storeOverride?: OfflineQueueStore) {
     };
   }, [store, userId, refresh]);
 
+  const entries = React.useMemo(() => visibleEntries(raw, userId), [raw, userId]);
   const authRequired = entries.some((e) => e.authRequired);
 
-  return { entries, pending: entries.length, authRequired, discard, refresh, userId };
+  return { entries, pending: entries.length, authRequired, discard, refresh };
 }
