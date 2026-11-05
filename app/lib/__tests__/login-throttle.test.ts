@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   clientIpFromHeaders,
   createLoginThrottle,
+  LOGIN_MAX_IP_FAILURES,
   normalizeLoginEmail,
 } from "~/lib/login-throttle.server";
 
@@ -179,5 +180,98 @@ describe("clientIpFromHeaders", () => {
     expect(clientIpFromHeaders(new Headers())).toBeNull();
     expect(clientIpFromHeaders(new Headers({ "x-forwarded-for": " " }))).toBeNull();
     expect(clientIpFromHeaders(undefined)).toBeNull();
+  });
+});
+
+describe("clientIpFromHeaders: address normalisation", () => {
+  const key = (value: string) => clientIpFromHeaders(new Headers({ "x-forwarded-for": value }));
+
+  it("keeps an IPv4 address as it is and drops a port", () => {
+    expect(key("203.0.113.7")).toBe("203.0.113.7");
+    expect(key("203.0.113.7:54321")).toBe("203.0.113.7");
+  });
+
+  it("gives every spelling of addresses in one /64 the same key", () => {
+    const spellings = [
+      "2001:db8:abcd:12::1",
+      "2001:db8:abcd:12:ffff:ffff:ffff:ffff",
+      "2001:0DB8:ABCD:0012:0000:0000:0000:0001",
+      "2001:DB8:abcd:12::",
+      "[2001:db8:abcd:12::5]",
+      "[2001:db8:abcd:12::5]:443",
+      "2001:db8:abcd:12::1%eth0",
+    ];
+    const keys = new Set(spellings.map(key));
+    expect(keys.size).toBe(1);
+    expect([...keys][0]).not.toBe(key("2001:db8:abcd:13::1"));
+  });
+
+  it("separates different /64 prefixes, including ones that differ in one group", () => {
+    const prefixes = [
+      "2001:db8:abcd:12::1",
+      "2001:db8:abcd:13::1",
+      "2001:db8:abce:12::1",
+      "2001:db9:abcd:12::1",
+      "2002:db8:abcd:12::1",
+      "::1",
+      "fe80::1",
+    ];
+    expect(new Set(prefixes.map(key)).size).toBe(prefixes.length);
+  });
+
+  it("treats the loopback and an expanded loopback alike, and brackets as noise", () => {
+    expect(key("[::1]")).toBe(key("0:0:0:0:0:0:0:1"));
+    expect(key("::1")).toBe(key("[::1]"));
+  });
+
+  it("maps IPv4-mapped IPv6 addresses, in dotted and hex form, to the IPv4 key", () => {
+    const v4 = key("192.0.2.1");
+    expect(v4).toBe("192.0.2.1");
+    expect(key("::ffff:192.0.2.1")).toBe(v4);
+    expect(key("::FFFF:192.0.2.1")).toBe(v4);
+    expect(key("::ffff:c000:0201")).toBe(v4);
+    expect(key("::ffff:c000:201")).toBe(v4);
+    expect(key("0:0:0:0:0:ffff:c000:201")).toBe(v4);
+    expect(key("[::ffff:192.0.2.1]:8080")).toBe(v4);
+  });
+
+  it("does not fold other embedded IPv4 forms into an IPv4 key", () => {
+    expect(key("::192.0.2.1")).not.toBe(key("192.0.2.1"));
+    expect(key("64:ff9b::192.0.2.1")).not.toBe(key("192.0.2.1"));
+  });
+
+  it("keys unparseable input on the trimmed raw string, bounded", () => {
+    expect(key("  not-an-ip  ")).toBe("not-an-ip");
+    expect(key("1.2.3")).toBe("1.2.3");
+    expect(key("x".repeat(500))).toBe("x".repeat(64));
+    expect(key(":::".repeat(100))!.length).toBeLessThanOrEqual(64);
+  });
+});
+
+describe("login throttle: IPv6 client address ranges", () => {
+  const fromHeader = (value: string) =>
+    clientIpFromHeaders(new Headers({ "x-forwarded-for": value }));
+
+  it("trips the IP limit for failures spread across one /64", () => {
+    const { throttle } = setup({ maxEmailFailures: 1000 });
+    const ipFor = (i: number) =>
+      fromHeader(`2001:db8:abcd:12:${i.toString(16)}::${i.toString(16)}`);
+    for (let i = 0; i < LOGIN_MAX_IP_FAILURES; i++) {
+      expect(throttle.begin({ email: `user${i}@example.test`, ip: ipFor(i) }).allowed).toBe(true);
+    }
+    expect(throttle.begin({ email: "fresh@example.test", ip: ipFor(9999) }).allowed).toBe(false);
+    expect(throttle.size().ips).toBe(1);
+    // Another /64 is unaffected.
+    const other = fromHeader("2001:db8:abcd:13::1");
+    expect(throttle.begin({ email: "fresh@example.test", ip: other }).allowed).toBe(true);
+  });
+
+  it("counts an IPv4-mapped client together with its plain IPv4 form", () => {
+    const { throttle } = setup({ maxIpFailures: 2, maxEmailFailures: 100 });
+    const plain = fromHeader("192.0.2.1");
+    const mapped = fromHeader("::ffff:c000:201");
+    expect(throttle.begin({ email: "a@example.test", ip: plain }).allowed).toBe(true);
+    expect(throttle.begin({ email: "b@example.test", ip: mapped }).allowed).toBe(true);
+    expect(throttle.begin({ email: "c@example.test", ip: plain }).allowed).toBe(false);
   });
 });
