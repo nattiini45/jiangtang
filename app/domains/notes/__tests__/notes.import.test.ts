@@ -21,6 +21,9 @@ afterAll(async () => {
   for (const id of [...createdIds].reverse()) {
     await db.note.delete({ where: { id } }).catch(() => undefined);
   }
+  // Also catches notes a failing import case wrote, which would otherwise keep
+  // the user (Restrict) and collide with the next run.
+  await db.note.deleteMany({ where: { authorId: { in: userIds } } });
   await db.user.deleteMany({ where: { id: { in: userIds } } });
   await db.$disconnect();
 });
@@ -154,5 +157,58 @@ describe("importMarkdownNotes", () => {
         { name: `${RUN}-loc.md`, text: `---\ntitle: x\nlocation: noloc123\n---\n\nbody` },
       ]),
     ).rejects.toMatchObject({ formErrors: [expect.stringContaining("noloc123")] });
+  });
+
+  it("a body over 200,000 characters rejects the batch and names the file", async () => {
+    await ensureActor();
+    const long = "x".repeat(200_001);
+    const attempt = importMarkdownNotes(actor, [
+      { name: `${RUN}-fine.md`, text: `# ${RUN} fine\n\nshort` },
+      { name: `${RUN}-huge.md`, text: `# ${RUN} huge\n\n${long}` },
+    ]);
+    await expect(attempt).rejects.toBeInstanceOf(ValidationError);
+    await expect(attempt).rejects.toMatchObject({
+      formErrors: [expect.stringContaining(`${RUN}-huge.md`)],
+    });
+    // All-or-nothing: the valid file before it is not kept either.
+    expect(await db.note.count({ where: { title: { startsWith: `${RUN} fine` } } })).toBe(0);
+    expect(await db.note.count({ where: { title: { startsWith: `${RUN} huge` } } })).toBe(0);
+  });
+
+  it("a title over 300 characters rejects the file, also when it updates an existing note", async () => {
+    await ensureActor();
+    const note = await createNote(actor, {
+      title: `${RUN} kurz`,
+      body: "bleibt",
+      pinned: false,
+      tags: [],
+      projectId: undefined,
+      locationId: undefined,
+    });
+    createdIds.push(note.id);
+    const longTitle = `${RUN} ${"t".repeat(300)}`;
+    await expect(
+      importMarkdownNotes(actor, [
+        { name: `${RUN}-title.md`, text: `---\nid: ${note.id}\ntitle: ${longTitle}\n---\n\nneu` },
+      ]),
+    ).rejects.toMatchObject({ formErrors: [expect.stringContaining(`${RUN}-title.md`)] });
+    const after = await getNote(note.id);
+    expect(after?.title).toBe(`${RUN} kurz`);
+    expect(after?.body).toBe("bleibt");
+  });
+
+  it("every rejected file is reported, not only the first", async () => {
+    await ensureActor();
+    const long = "y".repeat(200_001);
+    const attempt = importMarkdownNotes(actor, [
+      { name: `${RUN}-big1.md`, text: `# ${RUN} big1\n\n${long}` },
+      { name: `${RUN}-big2.md`, text: `# ${RUN} big2\n\n${long}` },
+    ]);
+    await expect(attempt).rejects.toMatchObject({
+      formErrors: [
+        expect.stringContaining(`${RUN}-big1.md`),
+        expect.stringContaining(`${RUN}-big2.md`),
+      ],
+    });
   });
 });

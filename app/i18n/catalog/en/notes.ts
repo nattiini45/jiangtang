@@ -51,6 +51,7 @@ export const notesEn = {
   "notes.import.pickFolderAria": "Choose a folder of markdown files",
   "notes.import.limits": "At most {maxFiles} files, {maxMb} MB each.",
   "notes.import.done": "{created} created, {updated} updated.",
+  "notes.import.rejected": "Nothing was imported. Fix these files and try again:",
   "notes.import.backToList": "Back to notes",
 
   "notes.new.title": "New note",
