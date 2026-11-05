@@ -167,7 +167,12 @@ export async function drainOnce(
 async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Promise<DrainResult> {
   const now = opts?.now ?? new Date();
   // Wall-clock, not `now`: tests move `now` freely, but the budget guards the lock.
-  const deadline = Date.now() + (opts?.passBudgetMs ?? PASS_BUDGET_MS);
+  const startedAt = Date.now();
+  const deadline = startedAt + (opts?.passBudgetMs ?? PASS_BUDGET_MS);
+  // The instant a push failed, on `now`'s clock. A PUT can run up to its timeout
+  // before it fails, and the server may still apply it a moment after that, so
+  // the backoff that holds later ops back must start here, not at pass start.
+  const failedAt = (): number => now.getTime() + (Date.now() - startedAt);
   const take = opts?.batchSize ?? BATCH_SIZE;
   const prefix = opts?.eventUidPrefix ?? null;
 
@@ -242,7 +247,7 @@ async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Pro
         data: {
           attempts,
           lastError: message,
-          nextAttemptAt: new Date(now.getTime() + backoffMs(attempts)),
+          nextAttemptAt: new Date(failedAt() + backoffMs(attempts)),
           ...(parked ? { status: "FAILED" as const } : {}),
         },
       });

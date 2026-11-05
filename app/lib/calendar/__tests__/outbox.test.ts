@@ -83,6 +83,16 @@ async function seed(
   return row.id;
 }
 
+/**
+ * The backoff runs from the moment the push failed, which is the pass's `now`
+ * plus however long the pass has been running: a few milliseconds here.
+ */
+function expectBackoffFrom(actual: Date | null, earliest: number): void {
+  expect(actual).not.toBeNull();
+  expect(actual!.getTime()).toBeGreaterThanOrEqual(earliest);
+  expect(actual!.getTime()).toBeLessThan(earliest + 5_000);
+}
+
 afterAll(async () => {
   await db.calendarOutbox.deleteMany({ where: { id: { in: seededOutboxIds } } });
   await db.calendarOutbox.deleteMany({ where: { eventUid: { startsWith: RUN } } });
@@ -161,7 +171,7 @@ describe("drainOnce (seeded rows)", () => {
     await drainOnce(fake, {
       batchSize: 100,
       eventUidPrefix: RUN,
-      now: new Date(t0.getTime() + 30_000),
+      now: new Date(t0.getTime() + 31_000),
     });
     expect(fake.calls.filter((c) => c.uid === uid)).toEqual([{ op: "UPSERT", uid, sequence: 1 }]);
     const row0 = await db.calendarOutbox.findUniqueOrThrow({ where: { id: id0 } });
@@ -241,7 +251,7 @@ describe("drainOnce (seeded rows)", () => {
     });
     let row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
     expect(row.attempts).toBe(1);
-    expect(row.nextAttemptAt?.getTime()).toBe(t0.getTime() + 30_000);
+    expectBackoffFrom(row.nextAttemptAt, t0.getTime() + 30_000);
 
     const early = new FakePublisher();
     await drainOnce(early, {
@@ -255,11 +265,27 @@ describe("drainOnce (seeded rows)", () => {
     await drainOnce(due, {
       batchSize: 100,
       eventUidPrefix: RUN,
-      now: new Date(t0.getTime() + 30_000),
+      now: new Date(t0.getTime() + 31_000),
     });
     expect(due.calls.filter((c) => c.uid === uid)).toHaveLength(1);
     row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
     expect(row.status).toBe("SENT");
+  });
+
+  it("starts the backoff when a slow push fails, not when the pass started", async () => {
+    const uid = `${RUN}_slowfail`;
+    const id = await seed(uid, 0);
+    const slowFail: CalendarPublisher = {
+      upsert: async () => {
+        await new Promise((r) => setTimeout(r, 400));
+        throw new Error("timed out");
+      },
+      remove: async () => undefined,
+    };
+    const t0 = new Date();
+    await drainOnce(slowFail, { batchSize: 100, eventUidPrefix: uid, now: t0 });
+    const row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
+    expect(row.nextAttemptAt!.getTime()).toBeGreaterThanOrEqual(t0.getTime() + 30_000 + 400);
   });
 
   it("keeps retrying well past five attempts while inside the retry window", async () => {
@@ -279,7 +305,7 @@ describe("drainOnce (seeded rows)", () => {
     expect(row.status).toBe("PENDING");
     expect(row.attempts).toBe(13);
     // Doubling from 30 s is capped at one hour between attempts.
-    expect(row.nextAttemptAt?.getTime()).toBe(t0.getTime() + 60 * 60_000);
+    expectBackoffFrom(row.nextAttemptAt, t0.getTime() + 60 * 60_000);
   });
 
   it("parks a row as FAILED once the retry window has run out, then skips it", async () => {
