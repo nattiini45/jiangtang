@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { auth, getOptionalUser, requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { createInvite, resolveInvite, acceptInvite } from "~/domains/auth/users.queries.server";
+import { ValidationError } from "~/lib/errors.server";
 
 /** The configured synthetic auth origin (BETTER_AUTH_URL in the test environment). */
 const AUTH_ORIGIN = (process.env.BETTER_AUTH_URL ?? "http://localhost:3000").replace(/\/+$/, "");
@@ -128,5 +129,94 @@ describe("invite flow", () => {
     }
     expect(redirected?.status).toBe(302);
     expect(redirected?.headers.get("location")).toBe("/login?deactivated=1");
+  });
+});
+
+/** Captures the ValidationError a call throws, failing the test when it throws anything else. */
+async function validationErrorOf(run: () => Promise<unknown>): Promise<ValidationError> {
+  try {
+    await run();
+  } catch (e) {
+    if (e instanceof ValidationError) return e;
+    throw e;
+  }
+  throw new Error("expected a ValidationError");
+}
+
+describe("invite clashes", () => {
+  it("refuses to invite an email that already has an account, in any letter case", async () => {
+    const stamp = Date.now();
+    const email = `taken_${stamp}@jiangtang.local`;
+    const existing = await db.user.create({ data: { email, name: "Taken", initials: `TK` } });
+    createdUserIds.push(existing.id);
+    createdEmails.push(email, email.toUpperCase());
+
+    const error = await validationErrorOf(() =>
+      createInvite(
+        { email: email.toUpperCase(), name: "Again", initials: "ag", role: "MEMBER" },
+        ACTOR,
+      ),
+    );
+    expect(error.fieldErrors.email?.[0]).toMatch(/bereits ein Konto/);
+    expect(
+      await db.verification.count({ where: { identifier: { in: [email, email.toUpperCase()] } } }),
+    ).toBe(0);
+  });
+
+  it("refuses initials that another user already holds", async () => {
+    const stamp = Date.now();
+    const holder = await db.user.create({
+      data: { email: `holder_${stamp}@jiangtang.local`, name: "Holder", initials: "QXZ" },
+    });
+    createdUserIds.push(holder.id);
+    const email = `newcomer_${stamp}@jiangtang.local`;
+    createdEmails.push(email);
+
+    const error = await validationErrorOf(() =>
+      createInvite({ email, name: "Newcomer", initials: "qxz", role: "MEMBER" }, ACTOR),
+    );
+    expect(error.fieldErrors.initials?.[0]).toMatch(/QXZ/);
+    expect(await db.verification.count({ where: { identifier: email } })).toBe(0);
+  });
+
+  it("refuses acceptance when the email got an account after the invite, without a 500", async () => {
+    const stamp = Date.now();
+    const email = `late_${stamp}@jiangtang.local`;
+    createdEmails.push(email);
+    const token = await createInvite(
+      { email, name: "Late", initials: "lt", role: "MEMBER" },
+      ACTOR,
+    );
+    const invite = await resolveInvite(token);
+    const meanwhile = await db.user.create({ data: { email, name: "Meanwhile" } });
+    createdUserIds.push(meanwhile.id);
+
+    const error = await validationErrorOf(() => acceptInvite(invite, "a-valid-password-4"));
+    expect(error.formErrors[0]).toMatch(/bereits ein Konto/);
+    expect(await db.user.count({ where: { email } })).toBe(1);
+    expect(await db.account.count({ where: { userId: meanwhile.id } })).toBe(0);
+  });
+
+  it("creates nothing when the invited initials were taken after the invite", async () => {
+    const stamp = Date.now();
+    const email = `clash_${stamp}@jiangtang.local`;
+    createdEmails.push(email);
+    const token = await createInvite(
+      { email, name: "Clash", initials: "wqy", role: "ADMIN" },
+      ACTOR,
+    );
+    const invite = await resolveInvite(token);
+    const holder = await db.user.create({
+      data: { email: `wqy_${stamp}@jiangtang.local`, name: "Holder", initials: "WQY" },
+    });
+    createdUserIds.push(holder.id);
+
+    const error = await validationErrorOf(() => acceptInvite(invite, "a-valid-password-5"));
+    expect(error.formErrors[0]).toMatch(/WQY/);
+    // No orphan account: neither the user nor a credential exists for the invitee.
+    expect(await db.user.findUnique({ where: { email } })).toBeNull();
+    expect(await db.account.count({ where: { user: { email } } })).toBe(0);
+    // The invite stays usable once the admin sorts out the clash.
+    await expect(resolveInvite(token)).resolves.toMatchObject({ email });
   });
 });

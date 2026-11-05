@@ -10,6 +10,9 @@ import { db } from "~/lib/db.server";
  */
 export const MIN_PASSWORD_LENGTH = 8;
 
+/** Longest password Better Auth accepts, at sign-in as well as when it is set. */
+export const MAX_PASSWORD_LENGTH = 128;
+
 /**
  * Better Auth bootstrap. Email/password authentication; the Account table
  * already carries the OIDC columns. Our domain fields role/initials/isActive
@@ -27,12 +30,13 @@ export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
   // Invitation-only access: the HTTP router rejects public email sign-up
   // (disabledPaths is an onRequest hook; programmatic auth.api.signUpEmail used
-  // by bootstrap, dev-seed and invite acceptance is unaffected).
+  // by bootstrap and dev-seed is unaffected).
   disabledPaths: ["/sign-up/email"],
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
     minPasswordLength: MIN_PASSWORD_LENGTH,
+    maxPasswordLength: MAX_PASSWORD_LENGTH,
   },
   user: {
     additionalFields: {
