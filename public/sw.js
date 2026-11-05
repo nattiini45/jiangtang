@@ -202,6 +202,28 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Keeps the worker alive for the cache writes a fetch handler starts. The lifetime promise is
+// registered while the event is still being dispatched, which every browser allows; the handlers
+// add their writes to it after awaiting the network instead of calling event.waitUntil late,
+// which an engine may refuse with InvalidStateError — inside networkFirst's try block that would
+// turn a good network answer into the offline fallback. It settles once the answer is out and
+// every write added before then has finished; a failed write never rejects it.
+function extendLifetime(event) {
+  let release;
+  event.waitUntil(new Promise((resolve) => (release = resolve)));
+  const writes = [];
+  return {
+    waitUntil: (promise) => void writes.push(Promise.resolve(promise).catch(() => undefined)),
+    respondWith: (answer) => {
+      event.respondWith(answer);
+      Promise.resolve(answer)
+        .catch(() => undefined)
+        .then(() => Promise.all(writes))
+        .then(() => release());
+    },
+  };
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
@@ -214,15 +236,16 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/api/realtime") return;
 
   // Hashed assets: cache-first (immutable).
+  const lifetime = extendLifetime(event);
   if (url.pathname.startsWith("/assets/")) {
-    event.respondWith(cacheFirst(request, (p) => event.waitUntil(p)));
+    lifetime.respondWith(cacheFirst(request, lifetime.waitUntil));
     return;
   }
   // Navigations + everything else under /m: network-first (no stale data).
   if (request.mode === "navigate" || url.pathname.startsWith("/m") || url.pathname.startsWith("/api")) {
-    event.respondWith(networkFirst(request, (p) => event.waitUntil(p)));
+    lifetime.respondWith(networkFirst(request, lifetime.waitUntil));
     return;
   }
   // Default: try network, fall back to cache.
-  event.respondWith(networkFirst(request, (p) => event.waitUntil(p)));
+  lifetime.respondWith(networkFirst(request, lifetime.waitUntil));
 });
