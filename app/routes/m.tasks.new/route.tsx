@@ -86,9 +86,15 @@ export default function MobileTaskNew({ loaderData }: Route.ComponentProps) {
         className="flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
-          const result = await submit(e.currentTarget);
+          // React clears currentTarget once the handler yields, so keep the form.
+          const form = e.currentTarget;
+          const result = await submit(form);
           if (result?.state === "sent") {
             void navigate(result.id ? `/m/tasks/${result.id}` : "/m/tasks");
+          } else if (result?.state === "queued") {
+            // The capture is stored and listed below; a filled form invites a second tap,
+            // which would queue the same capture again under a new id.
+            form.reset();
           }
         }}
       >
@@ -114,9 +120,9 @@ export default function MobileTaskNew({ loaderData }: Route.ComponentProps) {
           <Input id="dueAt" name="dueAt" type="date" className="min-h-11" />
         </div>
 
-        {state === "queued" ? (
+        {state === "queued" || state === "signin" ? (
           <p role="status" className="bg-status-warning/15 rounded-md px-3 py-2 text-sm">
-            {tr("mobile.capture.queued")}
+            {tr(state === "signin" ? "mobile.capture.queuedSignIn" : "mobile.capture.queued")}
           </p>
         ) : null}
         {state === "refused" && error ? (
