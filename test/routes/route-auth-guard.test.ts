@@ -134,6 +134,24 @@ const callAnonymously = async (handler: Handler, kind: "loader" | "action"): Pro
   return { outcome, databaseAccesses: [...dbProbe.state.accesses] };
 };
 
+/**
+ * The verdict for one handler: an empty list when it turned the anonymous request away before
+ * touching the database, otherwise one message per way it failed to. Database access is judged
+ * first because a handler that read before its check is wrong even when it still ends in the
+ * right redirect.
+ */
+const judge = (kind: "loader" | "action", probe: Probe): string[] => {
+  if (probe.databaseAccesses.length > 0) {
+    return [
+      `${kind}: reached the database before turning the request away (${probe.databaseAccesses.join(", ")})`,
+    ];
+  }
+  if (probe.outcome.kind !== "redirect-to-login") {
+    return [`${kind}: expected a redirect to /login, got ${probe.outcome.detail}`];
+  }
+  return [];
+};
+
 describe("route auth guard — the route table", () => {
   it("sees the real route table", () => {
     // Control for the control: an empty walk would make every check below pass vacuously.
@@ -211,6 +229,74 @@ describe("route auth guard — the probe itself", () => {
     expect(probe.databaseAccesses).toEqual(["db.room"]);
   });
 
+  it("the probe is wired to the client the real auth module uses", async () => {
+    // The anonymous checks above record nothing because Better Auth answers a request without
+    // a session cookie before it reads anything. A zero there would look the same if
+    // auth.server stopped using the mocked client. A cookie with a valid signature for a token
+    // nobody issued gets past that early exit and makes the real getOptionalUser look the
+    // session up, so the probe has to see the read.
+    const { auth, getOptionalUser } = await import("~/lib/auth.server");
+    const context = await auth.$context;
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new TextEncoder().encode(context.secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const token = "unknown-session-token";
+    const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(token));
+    const signed = encodeURIComponent(`${token}.${Buffer.from(mac).toString("base64")}`);
+    const request = new Request("http://localhost/rooms", {
+      headers: { cookie: `${context.authCookies.sessionToken.name}=${signed}` },
+    });
+
+    dbProbe.state.accesses = [];
+    dbProbe.state.armed = true;
+    try {
+      // The probe refuses the read, so the lookup itself fails; only the recorded access counts.
+      await getOptionalUser(request).catch(() => undefined);
+    } finally {
+      dbProbe.state.armed = false;
+    }
+    expect(dbProbe.state.accesses).toContain("db.session");
+  });
+
+  it("judges a handler that reads first and then redirects as a failure naming the access", async () => {
+    const { requireUser } = await import("~/lib/auth.server");
+    const { db } = await import("~/lib/db.server");
+    const readsThenRedirects: Handler = async ({ request }) => {
+      try {
+        await (db as unknown as { room: { findMany: () => Promise<unknown> } }).room.findMany();
+      } catch {
+        // Swallowed on purpose: the access must still be reported.
+      }
+      await requireUser(request);
+      return null;
+    };
+    const probe = await callAnonymously(readsThenRedirects, "loader");
+    expect(probe.outcome.kind).toBe("redirect-to-login");
+    const failures = judge("loader", probe);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toContain("reached the database");
+    expect(failures[0]).toContain("db.room");
+  });
+
+  it("judges a handler that returns data as a failure", async () => {
+    const returnsData: Handler = async () => ({ rooms: [] });
+    const failures = judge("loader", await callAnonymously(returnsData, "loader"));
+    expect(failures).toEqual(["loader: expected a redirect to /login, got returned data"]);
+  });
+
+  it("judges a handler that redirects first as a pass", async () => {
+    const { requireUser } = await import("~/lib/auth.server");
+    const redirectsFirst: Handler = async ({ request }) => {
+      await requireUser(request);
+      return null;
+    };
+    expect(judge("action", await callAnonymously(redirectsFirst, "action"))).toEqual([]);
+  });
+
   it("accepts a handler that checks first", async () => {
     const { requireUser } = await import("~/lib/auth.server");
     const checksFirst: Handler = async ({ request }) => {
@@ -240,14 +326,7 @@ describe("route auth guard — anonymous requests are turned away", () => {
 
       const failures: string[] = [];
       for (const [kind, handler] of calls) {
-        const { outcome, databaseAccesses } = await callAnonymously(handler, kind);
-        if (databaseAccesses.length > 0) {
-          failures.push(
-            `${kind}: reached the database before turning the request away (${databaseAccesses.join(", ")})`,
-          );
-        } else if (outcome.kind !== "redirect-to-login") {
-          failures.push(`${kind}: expected a redirect to /login, got ${outcome.detail}`);
-        }
+        failures.push(...judge(kind, await callAnonymously(handler, kind)));
       }
       expect(failures, failures.join("; ")).toEqual([]);
     },
