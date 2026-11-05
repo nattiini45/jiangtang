@@ -12,8 +12,9 @@
 // The shell cache holds signed-in content (SSR HTML, loader data, uploaded images, API answers),
 // keyed by URL and not by person. The sign-in page empties every "jiangtang-shell-*" cache
 // (app/lib/pwa/purge-caches.ts), so keep that prefix when bumping the version. Bump the version
-// when old entries must not survive: activate deletes any other jiangtang-* cache.
-const SHELL_CACHE = "jiangtang-shell-v2";
+// when old entries must not survive: activate deletes any other jiangtang-* cache. v3 replaces the
+// precached /m/offline page, which was cached without the inline reload script.
+const SHELL_CACHE = "jiangtang-shell-v3";
 const ASSET_CACHE = "jiangtang-assets-v1";
 const SHELL_URLS = ["/m/", "/m/offline"];
 const OFFLINE_URL = "/m/offline";
@@ -78,8 +79,7 @@ const OFFLINE_FALLBACK_LANG = "en";
 // Runs in the placeholder page, not in the worker (it is stringified into the HTML below). The
 // language is chosen here because the Request a fetch event sees rarely carries Accept-Language
 // (Chromium adds it below the worker). It follows the app's own order: the "locale" cookie (not
-// HttpOnly), then the browser languages, then the fallback. The page also keeps its promise to
-// refresh once the connection is back.
+// HttpOnly), then the browser languages, then the fallback.
 function offlinePageMain(copy, fallback) {
   var lang = fallback;
   var cookie = /(?:^|;\s*)locale=(de|en)\s*(?:;|$)/.exec(document.cookie || "");
@@ -99,16 +99,29 @@ function offlinePageMain(copy, fallback) {
   document.title = copy[lang].title;
   document.getElementById("offline-title").textContent = copy[lang].title;
   document.getElementById("offline-body").textContent = copy[lang].body;
-  window.addEventListener("online", function () {
-    location.reload();
-  });
 }
+
+// Keeps the page's promise to refresh once the connection is back: reloads on "online" and, when
+// the page loads while the browser already reports itself online, retries with a backoff (the
+// event can fire before the network works and never repeats). Same script as the app's
+// /m/offline page, which the worker cannot import: app/lib/pwa/offline-reload-script.ts. Keep the
+// two identical; app/lib/pwa/__tests__ runs both against the same scenarios.
+const OFFLINE_RELOAD_SCRIPT =
+  '(function(){var K="jt-offline-reload",MAX=8,done=0;' +
+  "function go(){if(!done){done=1;location.reload()}}" +
+  'window.addEventListener("online",go);' +
+  "if(!navigator.onLine)return;" +
+  "try{var s=window.sessionStorage,p=(s.getItem(K)||'').split(','),n=+p[0]||0,now=Date.now();" +
+  "if(now-(+p[1]||0)>120000)n=0;" +
+  "if(n>=MAX)return;" +
+  "s.setItem(K,(n+1)+','+now);" +
+  "setTimeout(go,Math.min(5000*Math.pow(2,n),60000))}catch(e){}})();";
 
 // The texts are constants, but "<" is escaped anyway so they can never close the script element.
 const OFFLINE_SCRIPT =
   "(" + offlinePageMain + ")(" +
   JSON.stringify(OFFLINE_COPY).split("<").join(String.fromCharCode(92) + "u003c") + "," +
-  JSON.stringify(OFFLINE_FALLBACK_LANG) + ");";
+  JSON.stringify(OFFLINE_FALLBACK_LANG) + ");" + OFFLINE_RELOAD_SCRIPT;
 
 function builtInOffline() {
   const { title, body } = OFFLINE_COPY[OFFLINE_FALLBACK_LANG];

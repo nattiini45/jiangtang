@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import vm from "node:vm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { purgeSignedInCaches } from "../purge-caches";
+import { createTab, describeOfflineReload } from "./reload-harness";
+import { OFFLINE_RELOAD_SCRIPT } from "../offline-reload-script";
 import { mobileDe } from "~/i18n/catalog/de/mobile";
 import { mobileEn } from "~/i18n/catalog/en/mobile";
 
@@ -25,8 +27,11 @@ type FakeResponse = {
   clone: () => FakeResponse;
 };
 
-/** How a cache write behaves: the default stores, "reject" fails like a full quota, "hang" never settles. */
-type PutMode = "store" | "reject" | "hang";
+/**
+ * How a cache write behaves: the default stores, "reject" fails like a full quota, "hang" never
+ * settles, "gate" stores once the test releases it.
+ */
+type PutMode = "store" | "reject" | "hang" | "gate";
 
 function response(url: string, body: string, init: Partial<FakeResponse> = {}): FakeResponse {
   const r: FakeResponse = {
@@ -45,6 +50,8 @@ function response(url: string, body: string, init: Partial<FakeResponse> = {}): 
 function createCaches() {
   const stores = new Map<string, Map<string, FakeResponse>>();
   const putMode = { value: "store" as PutMode };
+  let release = () => undefined as void;
+  const gate = new Promise<void>((resolve) => void (release = resolve));
   const keyOf = (r: string | { url: string }) => abs(typeof r === "string" ? r : r.url);
   const open = async (name: string) => {
     if (!stores.has(name)) stores.set(name, new Map());
@@ -54,6 +61,7 @@ function createCaches() {
         if (putMode.value === "reject")
           throw new DOMException("quota exceeded", "QuotaExceededError");
         if (putMode.value === "hang") return new Promise<void>(() => undefined);
+        if (putMode.value === "gate") await gate;
         store.set(keyOf(req), res);
       },
       match: async (req: string | { url: string }) => store.get(keyOf(req)),
@@ -62,6 +70,7 @@ function createCaches() {
   return {
     stores,
     putMode,
+    releasePuts: () => release(),
     open,
     keys: async () => [...stores.keys()],
     delete: async (name: string) => stores.delete(name),
@@ -72,8 +81,6 @@ type OfflineEnv = { cookie: string; languages: string[] };
 
 /** Runs the placeholder's inline script against a minimal document and reports what it did. */
 function runOfflineScript(html: string, env: OfflineEnv) {
-  const source = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
-  if (!source) throw new Error("the placeholder has no inline script");
   const nodes = {
     "offline-title": { textContent: "" },
     "offline-body": { textContent: "" },
@@ -84,21 +91,23 @@ function runOfflineScript(html: string, env: OfflineEnv) {
     documentElement: { lang: "en" },
     getElementById: (id: string) => nodes[id],
   };
-  const listeners: Record<string, () => void> = {};
-  let reloads = 0;
-  vm.runInNewContext(source, {
+  const page = createTab().load(scriptOf(html), {
+    onLine: false,
     document,
     navigator: { languages: env.languages, language: env.languages[0] },
-    window: { addEventListener: (type: string, fn: () => void) => void (listeners[type] = fn) },
-    location: { reload: () => void (reloads += 1) },
   });
   return {
     lang: document.documentElement.lang,
     title: nodes["offline-title"]!.textContent,
     body: nodes["offline-body"]!.textContent,
-    reloads: () => reloads,
-    fireOnline: () => listeners.online?.(),
+    page,
   };
+}
+
+function scriptOf(html: string) {
+  const source = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+  if (!source) throw new Error("the placeholder has no inline script");
+  return source;
 }
 
 type Handler = (event: Record<string, unknown>) => void;
@@ -145,8 +154,9 @@ function loadWorker(network: (url: string) => FakeResponse) {
     return result;
   }
 
-  // The answer alone, without waiting for the work handed to waitUntil.
+  // The answer alone, plus every promise the worker handed to waitUntil, without waiting for them.
   function respond(path: string, opts: { mode?: string } = {}) {
+    const waited: Promise<unknown>[] = [];
     let responded: Promise<FakeResponse> | undefined;
     handlers.fetch!({
       request: {
@@ -158,9 +168,9 @@ function loadWorker(network: (url: string) => FakeResponse) {
       respondWith: (p: Promise<FakeResponse>) => {
         responded = p;
       },
-      waitUntil: () => undefined,
+      waitUntil: (p: Promise<unknown>) => void waited.push(p),
     });
-    return responded!;
+    return { answer: responded!, waited };
   }
 
   return {
@@ -182,7 +192,7 @@ function loadWorker(network: (url: string) => FakeResponse) {
 }
 
 const cachedUrls = (w: ReturnType<typeof loadWorker>) =>
-  [...(w.caches.stores.get("jiangtang-shell-v2")?.keys() ?? [])].sort();
+  [...(w.caches.stores.get("jiangtang-shell-v3")?.keys() ?? [])].sort();
 
 const asStorage = (w: ReturnType<typeof loadWorker>) => w.caches as unknown as CacheStorage;
 
@@ -254,9 +264,48 @@ describe("service worker caching", () => {
   it("answers a hashed asset without waiting for the cache write", async () => {
     worker.caches.putMode.value = "hang";
 
-    const asset = await worker.respond("/assets/app-abc123.js");
+    const { answer } = worker.respond("/assets/app-abc123.js");
 
-    expect(asset.body).toBe("body of /assets/app-abc123.js");
+    expect((await answer).body).toBe("body of /assets/app-abc123.js");
+  });
+
+  describe.each([
+    ["cacheFirst (hashed asset)", "/assets/app-abc123.js"],
+    ["networkFirst (data request)", "/m/tickets.data"],
+  ])("%s cache write", (_name, path) => {
+    const settled = (p: Promise<unknown>) =>
+      Promise.race([p.then(() => true), new Promise((r) => setTimeout(() => r(false), 20))]);
+
+    it("hands the write to waitUntil, so the worker is kept alive until it is stored", async () => {
+      worker.caches.putMode.value = "gate";
+
+      const { answer, waited } = worker.respond(path);
+      const res = await answer;
+
+      // The answer is out while the write is still pending ...
+      expect(res.body).toBe(`body of ${path}`);
+      expect(worker.caches.stores.get("jiangtang-assets-v1")?.size ?? 0).toBe(0);
+      expect(worker.caches.stores.get("jiangtang-shell-v3")?.size ?? 0).toBe(0);
+      // ... and that write is what waitUntil holds on to.
+      expect(waited).toHaveLength(1);
+      expect(await settled(Promise.all(waited))).toBe(false);
+
+      worker.caches.releasePuts();
+      await Promise.all(waited);
+
+      const stored = [...worker.caches.stores.values()].some((store) => store.has(abs(path)));
+      expect(stored).toBe(true);
+    });
+
+    it("keeps a failed write from rejecting what waitUntil holds", async () => {
+      worker.caches.putMode.value = "reject";
+
+      const { answer, waited } = worker.respond(path);
+      await answer;
+
+      expect(waited).toHaveLength(1);
+      await expect(Promise.all(waited)).resolves.toBeDefined();
+    });
   });
 
   it("still answers a navigation when the cache write fails", async () => {
@@ -291,7 +340,7 @@ describe("service worker caching", () => {
 
     await worker.request("/api/tickets");
 
-    expect(worker.caches.stores.has("jiangtang-shell-v2")).toBe(false);
+    expect(worker.caches.stores.has("jiangtang-shell-v3")).toBe(false);
   });
 
   describe("built-in offline placeholder", () => {
@@ -350,16 +399,32 @@ describe("service worker caching", () => {
       expect(html).toContain(`<p id="offline-body">${mobileEn["mobile.offline.body"]}</p>`);
     });
 
-    it("reloads when the browser comes back online, as its text promises", async () => {
+    it("ends with the same reload script as the app's /m/offline page", async () => {
       const { html } = await builtIn();
 
-      const page = runOfflineScript(html, { cookie: "", languages: ["en"] });
-      expect(page.reloads()).toBe(0);
-      page.fireOnline();
-
-      expect(page.reloads()).toBe(1);
+      expect(scriptOf(html).endsWith(OFFLINE_RELOAD_SCRIPT)).toBe(true);
     });
   });
+
+  describeOfflineReload(
+    "built-in offline placeholder",
+    async () => {
+      await worker.request("/m/tickets", { mode: "navigate" });
+      await purgeSignedInCaches(asStorage(worker));
+      worker.online.value = false;
+      const res = (await worker.request("/m/tickets", { mode: "navigate" })) as unknown as Response;
+      return scriptOf(await res.text());
+    },
+    () => ({
+      document: {
+        cookie: "",
+        title: "",
+        documentElement: { lang: "en" },
+        getElementById: () => ({ textContent: "" }),
+      },
+      navigator: { languages: ["en"], language: "en" },
+    }),
+  );
 
   it("re-caches the offline page on the next signed-in navigation after a purge", async () => {
     await worker.install();
@@ -382,13 +447,14 @@ describe("service worker caching", () => {
   it("removes older versioned caches on activate and keeps the current ones", async () => {
     await worker.caches.open("jiangtang-shell-v1");
     await worker.caches.open("jiangtang-shell-v2");
+    await worker.caches.open("jiangtang-shell-v3");
     await worker.caches.open("jiangtang-assets-v1");
 
     await worker.activate();
 
     expect([...worker.caches.stores.keys()].sort()).toEqual([
       "jiangtang-assets-v1",
-      "jiangtang-shell-v2",
+      "jiangtang-shell-v3",
     ]);
   });
 
