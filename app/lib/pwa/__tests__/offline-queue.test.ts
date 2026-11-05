@@ -947,5 +947,48 @@ describe("offline queue", () => {
       expect(b).toMatchObject({ fields: { title: "edited" }, error: "Nope." });
       expect(b?.authRequired).toBeUndefined();
     });
+
+    it("an entry discarded while its own POST is out stays discarded when the action refuses it", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(A, 1));
+      const net = gatedFetch();
+      const pass = replayQueue(store, net.impl);
+      await untilPosted(net.sent, 1);
+      await store.remove(A);
+      net.answer(0, json({ error: "Titel fehlt." }, 400));
+      expect(await pass).toEqual({ sent: 0, refused: 0, kept: 0 });
+      expect(await store.list()).toEqual([]);
+    });
+
+    it("an entry discarded between the pass's last read and its flag write stays discarded", async () => {
+      // Discards B right after the pass's final read, before any flag is written.
+      class DiscardAfterLastRead extends MemoryQueueStore {
+        reads = 0;
+        discardOnRead = 0;
+        override async list() {
+          const entries = await super.list();
+          this.reads += 1;
+          if (this.reads === this.discardOnRead) await this.remove(B);
+          return entries;
+        }
+      }
+      const store = new DiscardAfterLastRead();
+      await store.put(mkEntry(A, 1));
+      await store.put(mkEntry(B, 2));
+      // Reads: the pass's start, A before its POST, then the final read before the flag writes
+      // (the pass stops at A's wall, so B is never read on its own).
+      store.discardOnRead = 3;
+      const pass = replayQueue(store, fakeFetch([new Response("Unauthorized", { status: 401 })]));
+      expect(await pass).toMatchObject({ authRequired: true });
+      expect((await store.list()).map((e) => e.clientId)).toEqual([A]);
+    });
+
+    it("the IndexedDB-free store rewrites in one step and reports a missing entry", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(A, 1));
+      expect(await store.update(A, (e) => ({ ...e, error: "x" }))).toMatchObject({ error: "x" });
+      expect(await store.update(B, (e) => e)).toBeNull();
+      expect(await store.list()).toHaveLength(1);
+    });
   });
 });

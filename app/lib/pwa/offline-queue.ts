@@ -78,6 +78,16 @@ export interface OfflineQueueStore {
   list(): Promise<QueuedCapture[]>;
   put(entry: QueuedCapture): Promise<void>;
   remove(clientId: string): Promise<void>;
+  /**
+   * Rewrite the stored entry in one step, or do nothing when it is gone, and
+   * return what was written (null when gone). A replay pass writes back through
+   * this, so a discard that lands while the pass awaits the network is never
+   * undone.
+   */
+  update(
+    clientId: string,
+    change: (entry: QueuedCapture) => QueuedCapture,
+  ): Promise<QueuedCapture | null>;
 }
 
 /** In-memory store — unit tests and the non-DOM fallback. */
@@ -91,6 +101,16 @@ export class MemoryQueueStore implements OfflineQueueStore {
   }
   async remove(clientId: string): Promise<void> {
     this.entries.delete(clientId);
+  }
+  async update(
+    clientId: string,
+    change: (entry: QueuedCapture) => QueuedCapture,
+  ): Promise<QueuedCapture | null> {
+    const current = this.entries.get(clientId);
+    if (!current) return null;
+    const next = change(current);
+    this.entries.set(clientId, next);
+    return next;
   }
 }
 
@@ -133,6 +153,28 @@ export class IdbQueueStore implements OfflineQueueStore {
   }
   async remove(clientId: string): Promise<void> {
     await this.run("readwrite", (s) => s.delete(clientId));
+  }
+  async update(
+    clientId: string,
+    change: (entry: QueuedCapture) => QueuedCapture,
+  ): Promise<QueuedCapture | null> {
+    const db = await this.db();
+    // The read and the write share one readwrite transaction, so nothing can
+    // remove the entry in between.
+    return await new Promise<QueuedCapture | null>((resolve, reject) => {
+      const tx = db.transaction(STORE, "readwrite");
+      const objects = tx.objectStore(STORE);
+      let written: QueuedCapture | null = null;
+      const req = objects.get(clientId) as IDBRequest<QueuedCapture | undefined>;
+      req.onsuccess = () => {
+        if (!req.result) return;
+        written = change(req.result);
+        objects.put(written);
+      };
+      tx.oncomplete = () => resolve(written);
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
   }
 }
 
@@ -401,8 +443,10 @@ async function replayQueueOnce(
     if (userId === undefined || stored.userId === userId) {
       entries.push(stored);
     } else if (stored.userId === undefined) {
-      const adopted = { ...stored, userId };
-      await store.put(adopted);
+      const adopted = await store.update(stored.clientId, (current) =>
+        current.userId === undefined ? { ...current, userId } : current,
+      );
+      if (adopted?.userId !== userId) continue;
       entries.push(adopted);
       changed = true;
     }
@@ -429,13 +473,17 @@ async function replayQueueOnce(
       changed = true;
     } else if (outcome.kind === "refused") {
       // The action itself answered, so any sign-in notice on the entry is stale.
-      const { authRequired: _stale, ...rest } = entry;
-      const refusedEntry = { ...rest, error: outcome.error };
-      await store.put(refusedEntry);
-      remaining.push(refusedEntry);
-      refusedHere.add(entry.clientId);
-      refused += 1;
-      changed = true;
+      // Written onto the stored copy: discarded while its request was out, it stays gone.
+      const refusedEntry = await store.update(entry.clientId, (current) => {
+        const { authRequired: _stale, ...rest } = current;
+        return { ...rest, error: outcome.error };
+      });
+      if (refusedEntry) {
+        remaining.push(refusedEntry);
+        refusedHere.add(entry.clientId);
+        refused += 1;
+        changed = true;
+      }
     } else if (outcome.kind === "auth") {
       authRequired = true;
       // The rest of the queue would meet the same wall.
@@ -458,17 +506,18 @@ async function replayQueueOnce(
   const kept = waiting.filter((e) => !refusedHere.has(e.clientId)).length;
   const flag = authRequired ? true : sent + refused > 0 ? false : null;
   if (flag !== null) {
+    // A refused entry waits for the user, not for a sign-in.
+    const needsChange = (entry: QueuedCapture) =>
+      flag ? !entry.authRequired && !entry.error : entry.authRequired === true;
     for (const entry of waiting) {
-      if (flag) {
-        // A refused entry waits for the user, not for a sign-in.
-        if (entry.authRequired || entry.error) continue;
-        await store.put({ ...entry, authRequired: true });
-      } else {
-        if (!entry.authRequired) continue;
-        const { authRequired: _stale, ...rest } = entry;
-        await store.put(rest);
-      }
-      changed = true;
+      if (!needsChange(entry)) continue;
+      const written = await store.update(entry.clientId, (current) => {
+        if (!needsChange(current)) return current;
+        if (flag) return { ...current, authRequired: true };
+        const { authRequired: _stale, ...rest } = current;
+        return rest;
+      });
+      if (written) changed = true;
     }
   }
   if (changed) notifyChanged();
