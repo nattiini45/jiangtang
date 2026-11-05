@@ -5,12 +5,13 @@ import { requireUser } from "~/lib/auth.server";
 import { maybeRegisterServiceWorker } from "~/lib/pwa/register-sw";
 import { MobileShell } from "~/components/mobile/mobile-shell";
 
-// Mobile PWA surface, served under /m with its own design. Auth-guarded by
-// default: the whole /m tree requires a signed-in user — requireUser
-// redirects anonymous requests to /login (with ?next= so they return here).
+// Mobile PWA surface, served under /m with its own design. requireUser redirects
+// anonymous requests to /login (with ?next= so they return here). Child loaders and
+// actions check sign-in themselves too, because a single-fetch request can run a
+// child loader without this one.
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
-  return { user: { name: user.name, initials: user.initials, role: user.role } };
+  return { user: { id: user.id, name: user.name, initials: user.initials, role: user.role } };
 }
 
 export default function MobileLayout() {

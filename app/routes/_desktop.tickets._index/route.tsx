@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { listTickets } from "~/domains/tickets/tickets.queries.server";
 import { TicketStatus, TicketType } from "~/generated/prisma/enums";
 import { parseEnumParam } from "~/lib/validation.server";
@@ -18,6 +19,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const type = parseEnumParam(TicketType, url.searchParams.get("type"));
   const status = parseEnumParam(TicketStatus, url.searchParams.get("status"));

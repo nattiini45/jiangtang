@@ -55,6 +55,28 @@ describe("checkWithTimeout", () => {
   });
 });
 
+describe("SSE stream opening", () => {
+  it("writes a comment line right after the headers, before any timer fires", () => {
+    const res = mockRes();
+
+    startSseStream({ headers: {} }, res);
+
+    expect(res.writeHead).toHaveBeenCalledTimes(1);
+    expect(res.chunks).toEqual([": connected\n\n"]);
+    expect(res.writeHead.mock.invocationCallOrder[0]).toBeLessThan(
+      res.write.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("opens the same way when a liveness check is given", () => {
+    const res = mockRes();
+
+    startSseStream({ headers: {} }, res, async () => true);
+
+    expect(res.chunks).toEqual([": connected\n\n"]);
+  });
+});
+
 describe("SSE stream liveness re-check", () => {
   it("keeps an active stream open across heartbeats", async () => {
     const res = mockRes();
@@ -162,5 +184,6 @@ describe("SSE stream liveness re-check", () => {
 
     expect(res.end).not.toHaveBeenCalled();
     expect(res.chunks.filter((c) => c.startsWith(": ping ")).length).toBe(2);
+    expect(res.chunks[0]).toBe(": connected\n\n");
   });
 });

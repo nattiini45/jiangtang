@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
@@ -21,7 +22,8 @@ export function meta({ data, matches }: Route.MetaArgs) {
   return [{ title: translate(locale, "rooms.meta.detail", { name }) }];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const data = await getRoomDashboard(params.slug!);
   if (!data) throw toErrorResponse(new NotFoundError(tr("err.room.notFound")));
   return { data };

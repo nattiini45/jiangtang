@@ -127,7 +127,10 @@ pnpm build
 
 CI (`.github/workflows/ci.yml`) runs on `main` and pull requests. It runs the guards and their
 self-test, the Python backup-selector tests and the in-image WAL-G checks, builds the production
-application image without pushing it, generates the client, migrates its own database, then runs
+application image without pushing it, generates the client, migrates its own database and runs
+`ops/postgres/verify-invariants.sql` against it (plus a negative control that must fail), then
+smoke-tests the built image the way production runs it: its migrate job against a database of its
+own, then the app in production mode until `/healthz` and `/login` answer 200. After that it runs
 typecheck, lint, Vitest and the production build. It then runs the Playwright E2E browser
 gate: it installs Chromium and runs `pnpm test:e2e` against an isolated E2E database. The live
 retrieval evaluation (`pnpm eval:live`) is not part of CI.

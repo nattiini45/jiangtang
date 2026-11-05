@@ -1,7 +1,8 @@
 /**
  * Service-worker registration. Registered only on the /m
  * surface so the desktop never installs a SW. The SW precaches the shell +
- * serves a NetworkFirst strategy so stale bookings are never shown.
+ * serves a NetworkFirst strategy so stale bookings are never shown. What it
+ * caches is signed-in content; the sign-in page clears it (purge-caches.ts).
  *
  * Client-only (guards `navigator`) — call from the mobile layout's useEffect.
  */

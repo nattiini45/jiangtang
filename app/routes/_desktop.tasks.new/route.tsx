@@ -28,6 +28,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const projectParam = url.searchParams.get("project")?.trim() || undefined;
   const parentParam = url.searchParams.get("parent")?.trim() || undefined;
