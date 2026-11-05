@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { listStock } from "~/domains/inventory/inventory.stock.queries.server";
 import { stockListOptionsSchema } from "~/domains/inventory/inventory.stock.schema";
 import { listLocationTree } from "~/domains/locations/locations.tree.server";
@@ -26,16 +27,13 @@ import { useLocale, useT } from "~/i18n/use-t";
  * **Equipment detail page** at the canonical stock URL. Silently, because a cursed link
  * renders a real page rather than an error. `test/routes/route-resolution.test.ts` is the
  * guard, and it asserts that the stock URL resolves to `stock._index`, not to the equipment page.
- *
- * **No `requireUser` here**, for the reason every other `_desktop` route omits it: the
- * tree is auth-guarded at `app/routes/_desktop/route.tsx`, and a second copy would be a
- * second thing to drift.
  */
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.stock") }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   // The filter lives in the URL and nowhere else, so a copied link reproduces the view.
   // Parsed through the domain's own options schema rather than field by field — that is

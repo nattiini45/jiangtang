@@ -35,7 +35,8 @@ export function meta({ data, matches }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const [source, campuses] = await Promise.all([getRoomBySlug(params.slug), listCampuses()]);
   if (!source) throw toErrorResponse(new NotFoundError(tr("err.room.notFound")));
   return { source, campuses };

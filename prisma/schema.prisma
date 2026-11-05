@@ -870,6 +870,11 @@ model Note {
 
   tags String[]
 
+  // Optimistic-concurrency token for the editor: bumped by editor saves and
+  // imports only, so the pin and archive buttons on the same page do not
+  // invalidate the version an open editor is holding.
+  version Int @default(1)
+
   archivedAt DateTime? @db.Timestamptz(3)
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)

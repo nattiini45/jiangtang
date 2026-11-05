@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { listEquipment } from "~/domains/inventory/inventory.queries.server";
 import { EquipmentCategory, EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
 import { statusToken } from "~/lib/status";
@@ -18,6 +19,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const categoryParam = url.searchParams.get("category") || "";
   const statusParam = url.searchParams.get("status") || "";

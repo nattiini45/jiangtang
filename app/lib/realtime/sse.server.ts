@@ -65,6 +65,11 @@ export function startSseStream(
     // Caddy / nginx must not buffer the stream — flush each event immediately.
     "X-Accel-Buffering": "no",
   });
+  // Node holds the headers back until the first body write. Without this line
+  // the browser's EventSource `open` event, which triggers the page revalidation,
+  // would wait for the first event or the next heartbeat. Being a comment, it
+  // also pushes bytes through any proxy that buffers the first chunk.
+  res.write(": connected\n\n");
 
   // Each connection gets a stable session id for its lifetime so subscribe/
   // unsubscribe line up even after a broker replay.

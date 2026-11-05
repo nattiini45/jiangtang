@@ -1,6 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { AuthUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
-import { loader as ticketsLoader } from "~/routes/_desktop.tickets._index/route";
 import { listEvents } from "~/domains/events/events.queries.server";
 
 /**
@@ -10,14 +10,29 @@ import { listEvents } from "~/domains/events/events.queries.server";
  * guards; this pins that behaviour so a future refactor can't turn a hostile query
  * string into an error.
  *
- * The tickets index loader has no auth, so we call it directly against the real
- * DB. The events index loader calls `requireUser` (Better Auth session) — mocking
- * that is disproportionately heavy for a parse test, so we cover the events
- * `status` guard at the domain layer via `listEvents`, which shares the exact
- * `in EventStatus` contract (see notes in the structured output).
+ * The tickets index loader is called directly against the real DB with `requireUser`
+ * mocked to a fixed actor (the sign-in check itself is covered by
+ * `route-auth-guard.test.ts`). The events `status` guard is covered at the domain
+ * layer via `listEvents`, which shares the exact `in EventStatus` contract.
  *
  * All seeded rows are RUN-prefixed and removed in afterAll (no ActivityLog rows).
  */
+
+vi.mock("~/lib/auth.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("~/lib/auth.server")>();
+  const user = {
+    id: "filter-parsing-tester",
+    name: "Filter Tester",
+    email: "filter-parsing@test.local",
+    initials: "FT",
+    role: "MEMBER",
+    isActive: true,
+  } as AuthUser;
+  return { ...actual, requireUser: vi.fn(async () => user) };
+});
+
+// Imported after the mock so the route module sees the mocked requireUser.
+const { loader: ticketsLoader } = await import("~/routes/_desktop.tickets._index/route");
 
 const RUN = `t_flt_${Date.now()}`;
 const ticketIds = { incidentOpen: `${RUN}_t_io`, requestResolved: `${RUN}_t_rr` };

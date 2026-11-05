@@ -30,6 +30,8 @@ export const errorsWorkDe = {
   "work.err.project.notFound": "Projekt nicht gefunden.",
   "work.err.project.unknown": "Unbekanntes Projekt.",
   "work.err.note.notFound": "Notiz nicht gefunden.",
+  "work.err.note.conflict":
+    "Jemand anderes hat diese Notiz gespeichert, während du sie bearbeitet hast.",
   "work.err.note.authorRequired": "Notiz benötigt einen angemeldeten Autor.",
   "work.err.noteImport.authorRequired": "Notiz-Import benötigt einen angemeldeten Autor.",
   "work.err.note.alreadyArchived": "Die Notiz ist bereits archiviert.",

@@ -62,7 +62,10 @@ guards, the relevant Vitest files, and `pnpm test` for anything touching the dat
   `server.ts` for them. Unref timers and clear them in `ctx.onShutdown`.
 - Routing is filesystem based (`flatRoutes()` in `app/routes.ts`): add route folders, do not edit
   that file. Desktop: `app/routes/_desktop.<feature>/route.tsx`. Mobile:
-  `app/routes/m.<feature>/route.tsx`. Both layouts require sign-in by default.
+  `app/routes/m.<feature>/route.tsx`. Both layouts require sign-in, and every loader and action
+  must also call `requireUser` or `requireRole` itself: a single-fetch `.data` request can run a
+  child loader without its layout's. `test/routes/route-auth-guard.test.ts` enforces this; a
+  deliberately public route goes on its `PUBLIC` list with a reason.
 - Domain code lives in `app/domains/<area>/` (`*.queries.server.ts`, `*.mutations.server.ts`,
   `*.schema.ts`, `__tests__`). Routes call domain functions, not Prisma.
 - Validate with `parseForm` / `safeParseForm` and map errors with `toErrorResponse`

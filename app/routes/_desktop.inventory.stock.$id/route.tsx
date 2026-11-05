@@ -75,7 +75,8 @@ export function meta({ data, matches }: Route.MetaArgs) {
 /** The two actions, so a test cannot assert a string the component does not render. */
 export const STOCK_ITEM_INTENTS = { save: "save", delete: "delete" } as const;
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const item = await getStockItemWithRefs(params.id);
   if (!item) throw toErrorResponse(new NotFoundError(tr("err.stockItem.notFound")));
   const [locations, vendors] = await Promise.all([listLocationTree(), listVendors()]);

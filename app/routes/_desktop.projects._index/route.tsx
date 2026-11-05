@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { ProjectStatus } from "~/generated/prisma/enums";
 import { listProjects } from "~/domains/projects/projects.queries.server";
 import { projectListOptionsSchema } from "~/domains/projects/projects.schema";
@@ -26,15 +27,13 @@ import { useLocale, useT } from "~/i18n/use-t";
  * parsed through the domain's own options schema so the list and `listProjects`
  * cannot drift apart. Garbage degrades rather than throws (every field is an
  * optional string).
- *
- * No `requireUser` here: the `_desktop` tree is auth-guarded at
- * `app/routes/_desktop/route.tsx`.
  */
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "projects.meta.list") }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const options = parseInput(projectListOptionsSchema, {
     // `parseEnumParam`, not the schema's own z.enum field: a garbage

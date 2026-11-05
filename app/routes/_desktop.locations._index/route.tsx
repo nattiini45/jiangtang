@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { parseEnumParam } from "~/lib/validation.server";
 import { LocationKind } from "~/generated/prisma/enums";
 import { listLocationTree } from "~/domains/locations/locations.tree.server";
@@ -20,16 +21,13 @@ import { useT } from "~/i18n/use-t";
  * the unfiltered list rather than throwing (the `list-filter-parsing.test.ts`
  * contract, reused here because a hostile query string is a hostile query
  * string on every list page).
- *
- * No `requireUser` in this loader: the whole `_desktop` tree is auth-guarded by
- * the layout at `app/routes/_desktop/route.tsx`, which is the existing contract
- * for this surface — repeating it here would be a second, divergable copy.
  */
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "locations.meta.list") }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const kind = parseEnumParam(LocationKind, new URL(request.url).searchParams.get("kind"));
   return { nodes: await listLocationTree(kind ? { kind } : {}), kind: kind ?? "" };
 }

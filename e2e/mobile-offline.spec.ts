@@ -36,6 +36,8 @@ test("offline capture queues, replays once online, badge clears", async ({ page 
   await page.getByRole("button", { name: "Anlegen" }).click();
 
   await expect(page.getByText("Offline gespeichert")).toBeVisible();
+  // The queued capture is stored, so the form is cleared: a second tap must not queue it twice.
+  await expect(page.locator("#title")).toHaveValue("");
   // The shell badge counts queued captures.
   await expect(page.getByRole("status").filter({ hasText: "1" }).first()).toBeVisible();
   expect(await db.task.count({ where: { title: TITLE } })).toBe(0);
