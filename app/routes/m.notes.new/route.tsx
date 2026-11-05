@@ -11,6 +11,7 @@ import { noteCreateSchema } from "~/domains/notes/notes.schema";
 import { createNote } from "~/domains/notes/notes.mutations.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { CAPTURE_HEADER } from "~/lib/pwa/offline-queue";
+import { assertCaptureOwner } from "~/lib/pwa/capture-owner.server";
 import { CaptureQueueStatus, useCaptureSubmit } from "~/components/mobile/capture-form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -34,6 +35,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
+  assertCaptureOwner(request, actor);
   const locale = resolveLocale(request);
   const wantsJson = request.headers.get(CAPTURE_HEADER) === "1";
   const obj = formDataToObject(await request.formData());
@@ -91,8 +93,12 @@ export default function MobileNoteNew() {
         className="flex flex-col gap-4"
         onSubmit={async (e) => {
           e.preventDefault();
-          const result = await submit(e.currentTarget);
-          if (result?.state === "sent") e.currentTarget.reset();
+          // React clears currentTarget once the handler yields, so keep the form.
+          const form = e.currentTarget;
+          const result = await submit(form);
+          // A queued capture is stored and listed below; a filled form invites a second
+          // tap, which would queue the same capture again under a new id.
+          if (result?.state === "sent" || result?.state === "queued") form.reset();
         }}
       >
         <div className="flex flex-col gap-1.5">
@@ -110,9 +116,9 @@ export default function MobileNoteNew() {
           <Input id="tags" name="tags" className="min-h-11" />
         </div>
 
-        {state === "queued" ? (
+        {state === "queued" || state === "signin" ? (
           <p role="status" className="bg-status-warning/15 rounded-md px-3 py-2 text-sm">
-            {tr("mobile.capture.queued")}
+            {tr(state === "signin" ? "mobile.capture.queuedSignIn" : "mobile.capture.queued")}
           </p>
         ) : null}
         {state === "refused" && error ? (

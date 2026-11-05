@@ -20,6 +20,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const roomId = url.searchParams.get("roomId") || undefined;
   const [models, rooms] = await Promise.all([listModels(), listRooms()]);

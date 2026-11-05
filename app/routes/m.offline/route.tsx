@@ -3,6 +3,7 @@ import type { Route } from "./+types/route";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { OFFLINE_RELOAD_SCRIPT } from "~/lib/pwa/offline-reload-script";
 
 /**
  * Offline fallback shell (PWA). Precached by the service
@@ -30,6 +31,10 @@ export default function MobileOffline() {
       </span>
       <h1 className="text-lg font-semibold">{t("mobile.offline.title")}</h1>
       <p className="text-muted-foreground text-sm">{t("mobile.offline.body")}</p>
+      {/* The body promises a refresh once the connection is back. The worker serves this page's
+          HTML in place of the one that failed, so reloading re-requests that URL. It is markup,
+          not an effect, because the route's JS is normally not available offline to hydrate. */}
+      <script dangerouslySetInnerHTML={{ __html: OFFLINE_RELOAD_SCRIPT }} />
     </div>
   );
 }

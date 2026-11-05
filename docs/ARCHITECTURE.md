@@ -92,7 +92,10 @@ are optional segments in `flatRoutes`, so the two surfaces are:
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`
   and `prefs.locale`.
 
-Both layouts require a signed-in user by default. A new public surface must opt out explicitly.
+Both layouts redirect anonymous visitors to `/login`, but they are not the guard: every loader and
+action calls `requireUser` or `requireRole` itself (see [Authentication and roles](#authentication-and-roles)).
+A new public route goes on the `PUBLIC` list in `test/routes/route-auth-guard.test.ts`, with its
+reason.
 
 ### Server entry and boot modules
 
@@ -188,7 +191,20 @@ Better Auth (`app/lib/auth.server.ts`) provides email and password sign-in with 
 Access is invitation-only: the public `/sign-up/email` path is disabled, and admins create one-time
 invitation links in `/admin/users` (`accept-invite.$token`). The two roles are `ADMIN` (also
 manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission matrix (`can`, `roleRequiredFor`); `requireUser` and
-`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. `sanitizeNext` restricts
+`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. Every protected route's loader
+and action calls one of them itself rather than relying on its layout, because a single-fetch `.data`
+request with `?_routes=` runs only the named loaders. `test/routes/route-auth-guard.test.ts` calls
+every handler anonymously and fails unless it redirects to `/login` without touching the database
+client first; the public routes (sign-in, sign-out, invitation acceptance, the token-gated iCal
+feed, the health check, the language switch and the 404 catch-all) are on its explicit list.
+Failed sign-ins are throttled per email (10) and per client address (30; an IPv6 client counts per
+/64) within 15 minutes by `app/lib/login-throttle.server.ts`; it runs as a Better Auth hook, so the
+login form and `/api/auth/sign-in/email` share it. The client address is the right-most
+`X-Forwarded-For` entry, which assumes exactly one proxy (Caddy) in front of the app. While an
+email is over its limit even the right password is refused, so anyone who knows an address can keep
+that account locked by repeating failed attempts. The state is in memory for the single app
+process: restarting the app container clears every lock.
+`sanitizeNext` restricts
 post-login redirects to local paths. The first admin of a production installation comes from
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
 while no active admin exists, so a fresh installation and a full lockout can both be recovered from

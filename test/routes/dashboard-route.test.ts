@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "~/lib/db.server";
 import type { AuthUser } from "~/lib/auth.server";
+import { reindexSource } from "~/lib/search/indexer.server";
 
 /**
  * `/` — the workspace dashboard. The loader composes one real query per
@@ -49,6 +50,10 @@ beforeAll(async () => {
       isActive: true,
     },
   });
+  // The search-health card counts index chunks, and the demo seed indexes nothing. Without
+  // this the card's count depended on whether another test file had indexed something first.
+  const note = await db.note.findFirstOrThrow({ select: { id: true } });
+  await reindexSource("NOTE", note.id);
 });
 
 afterAll(async () => {

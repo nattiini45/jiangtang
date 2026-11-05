@@ -51,7 +51,8 @@ export function meta({ data, matches }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const e = await getEquipment(params.id);
   if (!e) throw toErrorResponse(new NotFoundError(tr("err.equipment.notFound")));
   // For pooled units, fetch availability over the next 30 days (utilization view).

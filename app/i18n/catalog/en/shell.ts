@@ -51,5 +51,4 @@ export const shellEn = {
   "mobile.menu.newTask": "New task",
   "mobile.menu.newNote": "New note",
   "mobile.menu.desktop": "Desktop version",
-  "mobile.offlinePending": "Entries saved offline, sent once you are back online",
 } satisfies Record<keyof typeof shellDe, string>;

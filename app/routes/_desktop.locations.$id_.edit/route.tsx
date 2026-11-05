@@ -54,6 +54,7 @@ export function meta({ data, matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const locale = resolveLocale(request);
   const location = await getLocation(params.id);
   if (!location) throw toErrorResponse(new NotFoundError(t(locale, "err.location.notFound")));

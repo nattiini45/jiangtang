@@ -20,6 +20,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const typeParam = url.searchParams.get("type") || "";
   const targets = await listTicketTargets();

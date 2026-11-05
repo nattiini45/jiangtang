@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { listModels } from "~/domains/catalog/catalog.queries.server";
 import { DataGrid } from "~/components/data-grid";
 import { modelColumns } from "~/components/inventory/model-columns";
@@ -13,7 +14,8 @@ export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.models") }];
 }
 
-export async function loader(_: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   return { models: await listModels() };
 }
 
