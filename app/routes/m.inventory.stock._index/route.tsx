@@ -21,9 +21,8 @@ import { useLocale, useT } from "~/i18n/use-t";
  * and ticket triage, and a warehouse move is done where the shelf is.
  *
  * **Same `listStock` module as the desktop surface**: one query, two renderings, no forked
- * read path. `requireUser` IS called here (unlike the `_desktop` routes) because the `m`
- * layout guards too, and the m.tickets precedent guards in the route as well — belt and
- * braces on the surface that leaves the building.
+ * read path. `requireUser` is called here, as in every route: a single-fetch request can
+ * run this loader without the `m` layout's.
  *
  * Item links go to the **desktop** `/inventory/stock/:id`, exactly as `/m/locations` links
  * to `/locations/:id`: the phone answers "where is this thing", the desk does the work.
