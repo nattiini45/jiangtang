@@ -1945,6 +1945,10 @@ function ciWiringProblems(text: string): string[] {
           : ([
               ["--connect-timeout and --max-time on the /login probe", timeouts(loginLine)],
               [
+                "a /login probe whose transport failure reaches the guard as code=000",
+                /^code="\$\(curl [^)]*\)" \|\| code=000$/.test(loginLine.trim()),
+              ],
+              [
                 "the HTTP status of the /login probe captured with -w '%{http_code}'",
                 loginLine.includes("-w '%{http_code}'"),
               ],
@@ -2715,6 +2719,31 @@ describe("CI: in-image restore guards are wired", () => {
     expect(ciWiringProblems(fixture)).toEqual([
       `step "${SMOKE_STEP}" lacks the /login probe`,
       `step "${SMOKE_STEP}" lacks the order: migrate job, application start, /healthz, /login`,
+    ]);
+  });
+
+  const loginFallback = smokeLacks(
+    "a /login probe whose transport failure reaches the guard as code=000",
+  );
+
+  it("rejects a /login probe without the code=000 fallback, which would abort before the guard", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, ')" || code=000', ')"');
+    expect(ciWiringProblems(fixture)).toEqual([loginFallback]);
+  });
+
+  it("rejects a /login probe whose fallback reports a healthy status", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, ')" || code=000', ')" || code=200');
+    expect(ciWiringProblems(fixture)).toEqual([loginFallback]);
+  });
+
+  it("rejects a /login probe whose transport failure is swallowed with || true", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, ')" || code=000', ')" || true');
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "true"`,
+      loginFallback,
     ]);
   });
 
