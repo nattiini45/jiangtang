@@ -1403,6 +1403,14 @@ const RESTORE_ARGV = "bash /ops/test-restore-guards.sh";
 const SELECTOR_ARGV = "python3 -m unittest discover -s /ops -p test_select_backup.py";
 const RUNNER_SELECTOR_ARGV =
   "python3 -m unittest discover -s ops/postgres -p test_select_backup.py";
+const APP_BUILD = /^docker build --platform linux\/amd64 -t (\S+) \.$/;
+const DB_DEPLOY_COMMAND = "pnpm db:deploy";
+const INVARIANTS_FILE = "ops/postgres/verify-invariants.sql";
+const INVARIANTS_COMMAND = `pnpm exec prisma db execute --file ${INVARIANTS_FILE}`;
+const INVARIANTS_STEP = "Verify database invariants";
+const INVARIANTS_NEGATIVE_STEP = "Verify the invariant check fails when an invariant is missing";
+const SMOKE_STEP = "Smoke-test the application image";
+const APP_BUILD_STEP = "Build the application image";
 
 type CIStep = {
   name?: string;
@@ -1686,6 +1694,164 @@ function ciWiringProblems(text: string): string[] {
     );
   }
 
+  // (4b) The application image and the two production gates built on it: the
+  // database-invariant check (with a negative control) and the image smoke test.
+  const appBuilds = steps.flatMap((step) =>
+    shellCommands(step.run)
+      .filter((command) => command.startsWith("docker build ") && !isWalgBuild(command))
+      .map((command) => ({ step, tag: APP_BUILD.exec(command)?.[1] })),
+  );
+  const appBuild = appBuilds[0];
+  if (appBuilds.length !== 1 || appBuild?.tag === undefined) {
+    problems.push(
+      `expected exactly one executable step running the pinned application image build ("docker build --platform linux/amd64 -t <tag> ."), found ${appBuilds.length}`,
+    );
+  } else {
+    problems.push(...unconditionalDefects(appBuild.step));
+  }
+  const deployStep = steps.find((step) => shellCommands(step.run).includes(DB_DEPLOY_COMMAND));
+  const namedStep = (name: string): CIRunStep | undefined => {
+    const found = steps.filter((step) => step.name === name);
+    if (found.length !== 1) {
+      problems.push(`expected exactly one executable step named "${name}", found ${found.length}`);
+    }
+    return found[0];
+  };
+  const requireAfter = (step: CIRunStep, anchor: CIRunStep | undefined, label: string): void => {
+    if (anchor !== undefined && step.index < anchor.index) {
+      problems.push(`step ${stepLabel(step)} must run after ${label}`);
+    }
+  };
+  const requireContent = (step: CIRunStep, checks: Array<[string, boolean]>): void => {
+    for (const [what, present] of checks) {
+      if (!present) problems.push(`step ${stepLabel(step)} lacks ${what}`);
+    }
+  };
+
+  const invariants = namedStep(INVARIANTS_STEP);
+  if (invariants !== undefined) {
+    problems.push(...unconditionalDefects(invariants));
+    requireAfter(invariants, deployStep, DB_DEPLOY_COMMAND);
+    requireContent(invariants, [
+      [
+        `the command \`${INVARIANTS_COMMAND}\``,
+        shellCommands(invariants.run).includes(INVARIANTS_COMMAND),
+      ],
+    ]);
+  }
+
+  // The negative control is only meaningful if the broken script is the real one
+  // with a checked constraint dropped, the job fails when that script passes, and
+  // the only accepted failure is the script's own marker.
+  const control = namedStep(INVARIANTS_NEGATIVE_STEP);
+  if (control !== undefined) {
+    problems.push(...unconditionalDefects(control));
+    requireAfter(control, deployStep, DB_DEPLOY_COMMAND);
+    const script = joinContinuedLines(control.run);
+    const commands = shellCommands(control.run);
+    const dropConstraint =
+      "echo 'ALTER TABLE \"EventRoomBooking\" DROP CONSTRAINT event_room_no_overlap;'";
+    const sequence = [
+      "echo 'BEGIN;'",
+      dropConstraint,
+      `cat ${INVARIANTS_FILE}`,
+      "echo 'ROLLBACK;'",
+    ].map((part) => script.indexOf(part));
+    requireContent(control, [
+      ["the transaction opened with BEGIN", script.includes("echo 'BEGIN;'")],
+      ["the dropped EXCLUDE constraint", script.includes(dropConstraint)],
+      ["the real invariant script appended", script.includes(`cat ${INVARIANTS_FILE}`)],
+      ["the trailing ROLLBACK", script.includes("echo 'ROLLBACK;'")],
+      [
+        "the order BEGIN, drop, real script, ROLLBACK",
+        sequence.includes(-1) || sequence.every((p, i) => p > (sequence[i - 1] ?? -1)),
+      ],
+      [
+        "the failure of the job when the broken script passes",
+        /if output=\$\(pnpm exec prisma db execute --file "\$RUNNER_TEMP\/invariants-negative\.sql" 2>&1\); then\n\s*echo "::error::[^\n]*"\n\s*exit 1\n\s*fi\n/.test(
+          script,
+        ),
+      ],
+      [
+        "the 'invariant check FAILED' marker check that fails the job",
+        /grep -q 'invariant check FAILED' <<<"\$output" \|\| \{[^}\n]*exit 1; \}/.test(script),
+      ],
+      [
+        "the final re-run of the real check, which proves the rollback",
+        commands[commands.length - 1] === INVARIANTS_COMMAND,
+      ],
+    ]);
+  }
+
+  // The smoke step's cleanup() ends in `|| true` on purpose (a failed log dump or
+  // an already-removed container must not mask the real exit status), so it is
+  // checked on its own and left out of the swallowed-exit scan.
+  const smoke = namedStep(SMOKE_STEP);
+  if (smoke !== undefined) {
+    const cleanupFunction = /^cleanup\(\) \{\n[\s\S]*?\n\}$/m;
+    problems.push(
+      ...unconditionalDefects({ ...smoke, run: smoke.run.replace(cleanupFunction, "") }),
+    );
+    requireAfter(smoke, appBuild?.step, "the application image build");
+    const script = joinContinuedLines(smoke.run);
+    const lines = script.split("\n");
+    const tag = appBuild?.tag;
+    if (tag !== undefined) {
+      const migrate = lines.find(
+        (line) => line.startsWith("docker run --rm ") && line.includes(" sh -c "),
+      );
+      const start = lines.find((line) => line.startsWith("docker run -d --name jiangtang-smoke "));
+      const healthz = script.indexOf("curl -fsS -o /dev/null http://127.0.0.1:3000/healthz");
+      const login = script.indexOf(
+        "curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login",
+      );
+      const order = [
+        migrate === undefined ? -1 : script.indexOf(migrate),
+        start === undefined ? -1 : script.indexOf(start),
+        healthz,
+        login,
+      ];
+      const cleanup = cleanupFunction.exec(smoke.run)?.[0] ?? "";
+      requireContent(smoke, [
+        [
+          "the migrate job: `docker run --rm` of the application image with /ops mounted read-only",
+          migrate !== undefined && migrate.includes(`${IMAGE_MOUNT} ${tag} sh -c `),
+        ],
+        [
+          "`prisma migrate deploy` followed by the invariant check in the migrate job",
+          migrate !== undefined &&
+            /sh -c "\.\/node_modules\/\.bin\/prisma migrate deploy && \.\/node_modules\/\.bin\/prisma db execute --file \/ops\/verify-invariants\.sql"/.test(
+              migrate,
+            ),
+        ],
+        [
+          "the detached application container started in production mode from the application image",
+          start !== undefined &&
+            start.includes(" -e NODE_ENV=production ") &&
+            start.endsWith(` ${tag}`),
+        ],
+        ["the /healthz probe", healthz !== -1],
+        [
+          "the failure of the job when /healthz never answers",
+          /\[ "\$\{ready:-\}" = 1 \] \|\| \{[^}\n]*exit 1; \}/.test(script),
+        ],
+        ["the /login probe", login !== -1],
+        [
+          "the failure of the job when /login does not return 200",
+          /\[ "\$code" = 200 \] \|\| \{[^}\n]*exit 1; \}/.test(script),
+        ],
+        [
+          "the order: migrate job, application start, /healthz, /login",
+          order.every((position, index) => position !== -1 && position > (order[index - 1] ?? -1)),
+        ],
+        [
+          "the EXIT trap that removes the container",
+          /^trap cleanup EXIT$/m.test(script) && cleanup.includes("docker rm -f jiangtang-smoke"),
+        ],
+      ]);
+    }
+  }
+
   // (5) Least privilege, no secrets, no publication of any artifact type.
   const stepDefs = workflow.jobs?.ci?.steps ?? [];
   const uses = stepDefs.map((step) => step.uses ?? "");
@@ -1764,6 +1930,50 @@ function withStepKey(text: string, stepName: string, key: string): string {
   if (runIndex === -1) throw new Error(`fixture anchor step has no run: line: ${stepName}`);
   lines.splice(runIndex, 0, `        ${key}`);
   return lines.join("\n");
+}
+
+/** One step's line range, from its header (`- name: X` or `- run: X`) up to the next step or comment. */
+function stepRange(lines: string[], header: string): [number, number] {
+  const starts = lines.flatMap((line, index) =>
+    line.trim() === header && /^ {6}- /.test(line) ? [index] : [],
+  );
+  if (starts.length !== 1) {
+    throw new Error(`fixture anchor step must appear once, found ${starts.length}: ${header}`);
+  }
+  const start = starts[0] as number;
+  const next = lines.findIndex((line, index) => index > start && /^ {6}(- |#)/.test(line));
+  return [start, next === -1 ? lines.length : next];
+}
+
+function withoutStep(text: string, stepName: string): string {
+  const lines = text.split(/\r?\n/);
+  const [start, end] = stepRange(lines, `- name: ${stepName}`);
+  lines.splice(start, end - start);
+  return lines.join("\n");
+}
+
+function withStepDuplicated(text: string, stepName: string): string {
+  const lines = text.split(/\r?\n/);
+  const [start, end] = stepRange(lines, `- name: ${stepName}`);
+  lines.splice(end, 0, ...lines.slice(start, end));
+  return lines.join("\n");
+}
+
+function withStepMovedBefore(text: string, stepName: string, anchorHeader: string): string {
+  const lines = text.split(/\r?\n/);
+  const [start, end] = stepRange(lines, `- name: ${stepName}`);
+  const block = lines.splice(start, end - start);
+  const [anchor] = stepRange(lines, anchorHeader);
+  lines.splice(anchor, 0, ...block);
+  return lines.join("\n");
+}
+
+function withReplacedOnce(text: string, from: string, to: string): string {
+  const parts = text.split(from);
+  if (parts.length !== 2) {
+    throw new Error(`fixture anchor must appear once, found ${parts.length - 1}: ${from}`);
+  }
+  return parts.join(to);
 }
 
 describe("CI: in-image restore guards are wired", () => {
@@ -2027,6 +2237,351 @@ describe("CI: in-image restore guards are wired", () => {
     expect(fixture).toContain(RESTORE_ARGV);
     expect(ciWiringProblems(fixture)).toEqual([
       `no executable workflow step runs \`${RESTORE_ARGV}\` inside the built image (a comment or an unexecuted text mention does not satisfy this)`,
+    ]);
+  });
+
+  // ── The invariant check, its negative control and the image smoke test.
+  const gated = "if: github.event_name == 'push'";
+  const gatedMessage = (name: string): string =>
+    `step "${name}" is gated by if: github.event_name == 'push' and could be skipped`;
+  const migrateLacks = `step "${SMOKE_STEP}" lacks the migrate job: \`docker run --rm\` of the application image with /ops mounted read-only`;
+  const migrateChainLacks = `step "${SMOKE_STEP}" lacks \`prisma migrate deploy\` followed by the invariant check in the migrate job`;
+  const INVARIANT_RUN_LINE = `run: ${INVARIANTS_COMMAND}`;
+
+  it("verifies the database invariants once the migrations are applied, then proves the check can fail", async () => {
+    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
+    const steps = ciRunSteps(workflow);
+    const deploy = steps.find((step) => shellCommands(step.run).includes(DB_DEPLOY_COMMAND));
+    const check = steps.filter((step) => step.name === INVARIANTS_STEP);
+    const control = steps.filter((step) => step.name === INVARIANTS_NEGATIVE_STEP);
+    expect(deploy).toBeDefined();
+    expect(check).toHaveLength(1);
+    expect(control).toHaveLength(1);
+    expect((check[0] as CIRunStep).index).toBeGreaterThan((deploy as CIRunStep).index);
+    expect((control[0] as CIRunStep).index).toBeGreaterThan((deploy as CIRunStep).index);
+    expect(unconditionalDefects(check[0] as CIRunStep)).toEqual([]);
+    expect(unconditionalDefects(control[0] as CIRunStep)).toEqual([]);
+    expect(shellCommands((check[0] as CIRunStep).run)).toContain(INVARIANTS_COMMAND);
+  });
+
+  it("drops a constraint and expects a failure marker that verify-invariants.sql really has", () => {
+    const sql = readFileSync(
+      fileURLToPath(new URL(`../${INVARIANTS_FILE}`, import.meta.url)),
+      "utf8",
+    );
+    expect(sql).toContain("conname = 'event_room_no_overlap'");
+    expect(sql).toContain("invariant check FAILED");
+  });
+
+  it("smoke-tests the application image with the same migrate command as production", async () => {
+    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
+    const smoke = ciRunSteps(workflow).filter((step) => step.name === SMOKE_STEP);
+    expect(smoke).toHaveLength(1);
+    const script = joinContinuedLines((smoke[0] as CIRunStep).run);
+    const compose = parse(await readFile(COMPOSE_PATH, "utf8")) as Compose;
+    const migrate = compose.services.migrate?.command;
+    expect(Array.isArray(migrate)).toBe(true);
+    const [shell, flag, command] = migrate as string[];
+    expect(script).toContain(`jiangtang:ci ${shell} ${flag} "${command}"`);
+    expect(script).toContain(IMAGE_MOUNT);
+  });
+
+  for (const name of [INVARIANTS_STEP, INVARIANTS_NEGATIVE_STEP, SMOKE_STEP]) {
+    it(`rejects a workflow with the "${name}" step removed`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withoutStep(live, name);
+      expect(fixture).not.toContain(`- name: ${name}`);
+      expect(ciWiringProblems(fixture)).toEqual([
+        `expected exactly one executable step named "${name}", found 0`,
+      ]);
+    });
+
+    it(`rejects a workflow with the "${name}" step duplicated`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(ciWiringProblems(withStepDuplicated(live, name))).toEqual([
+        `expected exactly one executable step named "${name}", found 2`,
+      ]);
+    });
+
+    it(`rejects an if: gate on the "${name}" step`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(ciWiringProblems(withStepKey(live, name, gated))).toEqual([gatedMessage(name)]);
+    });
+
+    it(`rejects continue-on-error on the "${name}" step`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture = withStepKey(live, name, "continue-on-error: true");
+      expect(ciWiringProblems(fixture)).toEqual([`step "${name}" sets continue-on-error: true`]);
+    });
+  }
+
+  it("rejects an invariant check that no longer runs verify-invariants.sql", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, INVARIANT_RUN_LINE, "run: pnpm exec prisma validate");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_STEP}" lacks the command \`${INVARIANTS_COMMAND}\``,
+    ]);
+  });
+
+  it("rejects an invariant check made non-blocking with || true", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withLineSuffix(live, INVARIANT_RUN_LINE, "|| true");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_STEP}" swallows a nonzero exit: command "true"`,
+    ]);
+  });
+
+  it("rejects an invariant check ordered before the migrations are applied", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withStepMovedBefore(live, INVARIANTS_STEP, `- run: ${DB_DEPLOY_COMMAND}`);
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_STEP}" must run after ${DB_DEPLOY_COMMAND}`,
+    ]);
+  });
+
+  it("rejects an invariant negative control ordered before the migrations are applied", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withStepMovedBefore(
+      live,
+      INVARIANTS_NEGATIVE_STEP,
+      `- run: ${DB_DEPLOY_COMMAND}`,
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" must run after ${DB_DEPLOY_COMMAND}`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer opens a transaction", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "echo 'BEGIN;'");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the transaction opened with BEGIN`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer drops a checked constraint", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "DROP CONSTRAINT event_room_no_overlap");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the dropped EXCLUDE constraint`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer appends the real invariant script", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, `cat ${INVARIANTS_FILE}`);
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the real invariant script appended`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer rolls back", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "echo 'ROLLBACK;'");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the trailing ROLLBACK`,
+    ]);
+  });
+
+  it("rejects a negative control that drops the constraint after the real script", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const drop = `echo 'ALTER TABLE "EventRoomBooking" DROP CONSTRAINT event_room_no_overlap;'`;
+    const cat = `cat ${INVARIANTS_FILE}`;
+    const fixture = withReplacedOnce(
+      live,
+      `${drop}
+            ${cat}
+`,
+      `${cat}
+            ${drop}
+`,
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the order BEGIN, drop, real script, ROLLBACK`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer fails the job when the broken script passes", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      'dropped"\n            exit 1\n          fi',
+      'dropped"\n          fi',
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the failure of the job when the broken script passes`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer requires the invariant failure marker", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "grep -q 'invariant check FAILED'");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the 'invariant check FAILED' marker check that fails the job`,
+    ]);
+  });
+
+  it("rejects a negative control whose marker check is made non-blocking with || true", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withLineSuffix(live, "grep -q 'invariant check FAILED'", "|| true");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" swallows a nonzero exit: command "true"`,
+    ]);
+  });
+
+  it("rejects a negative control whose marker check exits 0", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      'not through the invariant check"; exit 1; }',
+      'not through the invariant check"; exit 0; }',
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" swallows a nonzero exit: command "exit 0"`,
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the 'invariant check FAILED' marker check that fails the job`,
+    ]);
+  });
+
+  it("rejects a negative control that no longer re-runs the real check after the rollback", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      `exit 1; }\n          ${INVARIANTS_COMMAND}\n`,
+      "exit 1; }\n",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${INVARIANTS_NEGATIVE_STEP}" lacks the final re-run of the real check, which proves the rollback`,
+    ]);
+  });
+
+  it("rejects a smoke test ordered before the application image build", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withStepMovedBefore(live, SMOKE_STEP, `- name: ${APP_BUILD_STEP}`);
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" must run after the application image build`,
+    ]);
+  });
+
+  it("rejects a smoke test whose migrate job runs in another image", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      `${IMAGE_MOUNT} jiangtang:ci`,
+      `${IMAGE_MOUNT} jiangtang-postgres-walg:ci`,
+    );
+    expect(ciWiringProblems(fixture)).toEqual([migrateLacks]);
+  });
+
+  it("rejects a smoke test whose migrate job lacks the read-only /ops mount", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, `${IMAGE_MOUNT} jiangtang:ci`, "jiangtang:ci");
+    expect(ciWiringProblems(fixture)).toEqual([migrateLacks]);
+  });
+
+  it("rejects a smoke test that no longer migrates", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(live, "prisma migrate deploy && ", "");
+    expect(ciWiringProblems(fixture)).toEqual([migrateChainLacks]);
+  });
+
+  it("rejects a smoke test whose migrate job no longer checks the invariants", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      " && ./node_modules/.bin/prisma db execute --file /ops/verify-invariants.sql",
+      "",
+    );
+    expect(ciWiringProblems(fixture)).toEqual([migrateChainLacks]);
+  });
+
+  it("rejects a smoke test whose migrate job is made non-blocking with || true", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      '/ops/verify-invariants.sql"\n',
+      '/ops/verify-invariants.sql" || true\n',
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "true"`,
+    ]);
+  });
+
+  it("rejects a smoke test that no longer starts the application in production mode", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "-e NODE_ENV=production");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" lacks the detached application container started in production mode from the application image`,
+    ]);
+  });
+
+  it("rejects a smoke test that no longer probes /healthz", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "curl -fsS -o /dev/null http://127.0.0.1:3000/healthz");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" lacks the /healthz probe`,
+      `step "${SMOKE_STEP}" lacks the order: migrate job, application start, /healthz, /login`,
+    ]);
+  });
+
+  it("rejects a smoke test whose /healthz timeout exits 0", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      'did not return 200 within 90 s"; exit 1; }',
+      'did not return 200 within 90 s"; exit 0; }',
+    );
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "exit 0"`,
+      `step "${SMOKE_STEP}" lacks the failure of the job when /healthz never answers`,
+    ]);
+  });
+
+  it("rejects a smoke test that no longer probes /login", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "curl -sS -o /dev/null -w '%{http_code}'");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" lacks the /login probe`,
+      `step "${SMOKE_STEP}" lacks the order: migrate job, application start, /healthz, /login`,
+    ]);
+  });
+
+  it("rejects a smoke test whose /login check is made non-blocking with || true", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withLineSuffix(live, '[ "$code" = 200 ]', "|| true");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" swallows a nonzero exit: command "true"`,
+    ]);
+  });
+
+  it("rejects a smoke test that no longer requires a 200 from /login", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, '[ "$code" = 200 ]');
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" lacks the failure of the job when /login does not return 200`,
+    ]);
+  });
+
+  it("rejects a smoke test that no longer cleans up its container", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "trap cleanup EXIT");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" lacks the EXIT trap that removes the container`,
+    ]);
+  });
+
+  it("rejects a smoke test whose cleanup no longer removes the container", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutLine(live, "docker rm -f jiangtang-smoke");
+    expect(ciWiringProblems(fixture)).toEqual([
+      `step "${SMOKE_STEP}" lacks the EXIT trap that removes the container`,
+    ]);
+  });
+
+  it("rejects a workflow without the application image build the smoke test depends on", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withoutStep(live, APP_BUILD_STEP);
+    expect(ciWiringProblems(fixture)).toEqual([
+      `expected exactly one executable step running the pinned application image build ("docker build --platform linux/amd64 -t <tag> ."), found 0`,
     ]);
   });
 });
