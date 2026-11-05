@@ -1,7 +1,14 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { redirect } from "react-router";
 import { db } from "~/lib/db.server";
+import {
+  clientIpFromHeaders,
+  loginThrottle,
+  normalizeLoginEmail,
+  type LoginAttempt,
+} from "~/lib/login-throttle.server";
 
 /**
  * Shortest password Better Auth accepts on sign-up and password change. The
@@ -9,6 +16,23 @@ import { db } from "~/lib/db.server";
  * at boot instead of leaving the first admin uncreated.
  */
 export const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * Who is signing in, for the failed-sign-in throttle. Both entry points reach
+ * it: the HTTP router passes the request headers, and the login form forwards
+ * its X-Forwarded-For header to `auth.api.signInEmail`.
+ */
+function loginAttemptOf(ctx: {
+  body?: unknown;
+  headers?: Headers;
+  request?: Request;
+}): LoginAttempt {
+  const body = ctx.body as { email?: unknown } | undefined;
+  return {
+    email: normalizeLoginEmail(body?.email),
+    ip: clientIpFromHeaders(ctx.headers ?? ctx.request?.headers),
+  };
+}
 
 /**
  * Better Auth bootstrap. Email/password authentication; the Account table
@@ -29,6 +53,29 @@ export const auth = betterAuth({
   // (disabledPaths is an onRequest hook; programmatic auth.api.signUpEmail used
   // by bootstrap, dev-seed and invite acceptance is unaffected).
   disabledPaths: ["/sign-up/email"],
+  // Hooks run for the HTTP router and for `auth.api.*` calls alike. Better
+  // Auth's own rate limiter lives in the router only, so it never sees the
+  // login form, and it would not limit failures per account anyway.
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      const decision = loginThrottle.begin(loginAttemptOf(ctx));
+      if (decision.allowed) return;
+      throw new APIError(
+        "TOO_MANY_REQUESTS",
+        { message: "Too many failed sign-in attempts", code: "TOO_MANY_FAILED_SIGN_INS" },
+        { "Retry-After": String(Math.ceil(decision.retryAfterMs / 1000)) },
+      );
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-in/email") return;
+      // The attempt was already counted as a failure in `before`; a result that
+      // is not an error means the password was right.
+      const returned = ctx.context.returned;
+      if (returned === undefined || isAPIError(returned)) return;
+      loginThrottle.succeeded(loginAttemptOf(ctx));
+    }),
+  },
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,

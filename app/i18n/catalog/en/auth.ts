@@ -5,6 +5,7 @@ export const authEn = {
   "auth.login.subtitle": "Sign in to your AV workspace.",
   "auth.login.deactivated": "This account has been deactivated.",
   "auth.login.invalidCredentials": "Invalid email or password.",
+  "auth.login.throttled": "Too many failed sign-in attempts. Try again in {minutes} min.",
   "auth.login.email": "Email",
   "auth.login.password": "Password",
   "auth.login.submit": "Sign in",
