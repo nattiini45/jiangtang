@@ -86,7 +86,8 @@ are optional segments in `flatRoutes`, so the two surfaces are:
 - **Mobile PWA**: the `m` prefix (`/m`), for example `app/routes/m._index`, `m.tasks.*`,
   `m.notes.new`, `m.board`, `m.rooms.*`, `m.tickets.*`, `m.search` and `m.offline`. It has its own
   shell, a web manifest and a service worker (`app/lib/pwa/`), and an offline queue that replays
-  captured tasks and notes exactly once.
+  captured tickets, tasks and notes exactly once (ticket photos are never queued: offline, the
+  `/m` entry form keeps them until the person retries or saves the ticket without them).
 - **Public or machine routes**: `login`, `logout`, `accept-invite.$token`, `healthz`,
   `calendar.$token.ics` (token-gated iCal feed), `export.workspace[.]json`, `notes.$id.export`,
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`

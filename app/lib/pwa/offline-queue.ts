@@ -56,7 +56,7 @@ import { createLatestReader } from "~/lib/pwa/latest-reader";
 export interface QueuedCapture {
   /** Dedupe key AND the entity's future id — cuid-shaped (`c` + hex). */
   clientId: string;
-  /** POST target, e.g. `/m/tasks/new`. */
+  /** POST target, e.g. `/m/tasks/new` (or `/m?index` for an index route). */
   url: string;
   fields: Record<string, string>;
   createdAt: number;
@@ -337,12 +337,23 @@ function isLoginTarget(target: string): boolean {
  */
 const SINGLE_FETCH_REDIRECT_STATUS = 202;
 
+/**
+ * The `.data` URL React Router answers an action on: the suffix goes on the
+ * path, before any query, so the index route `/m?index` posts to `/m.data?index`.
+ */
+function dataUrlOf(url: string): string {
+  const at = url.indexOf("?");
+  const path = at === -1 ? url : url.slice(0, at);
+  const query = at === -1 ? "" : url.slice(at);
+  return path.endsWith(".data") ? url : `${path}.data${query}`;
+}
+
 async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise<PostOutcome> {
   try {
     const body = new URLSearchParams({ ...entry.fields, clientId: entry.clientId });
     // A POST to the route path renders the document; `.data` is the data
     // request that carries the action's result back to `fetch`.
-    const dataUrl = entry.url.endsWith(".data") ? entry.url : `${entry.url}.data`;
+    const dataUrl = dataUrlOf(entry.url);
     const res = await fetchImpl(dataUrl, {
       method: "POST",
       headers: {

@@ -161,6 +161,21 @@ describe("offline queue", () => {
     expect(calls).toEqual(["/m/notes/new.data"]);
   });
 
+  it("puts .data before the query of an index route's surface URL", async () => {
+    const store = new MemoryQueueStore();
+    const calls: string[] = [];
+    await captureOrQueue(
+      "/m?index",
+      { title: "ticket" },
+      store,
+      fakeFetch([new TypeError("fetch failed")], calls),
+    );
+    // React Router's data URL for the /m index action is /m.data?index.
+    expect(calls).toEqual(["/m.data?index"]);
+    const [entry] = await store.list();
+    expect(entry.url).toBe("/m?index");
+  });
+
   it("decodes a single-fetch 2xx payload and carries the returned id", async () => {
     const store = new MemoryQueueStore();
     const res = await captureOrQueue(

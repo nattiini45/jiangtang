@@ -4,6 +4,7 @@ import { CloudOff, Trash2 } from "lucide-react";
 import {
   captureOrQueue,
   defaultStore,
+  MemoryQueueStore,
   useOfflineQueue,
   useQueueOwner,
   type CaptureResult,
@@ -17,26 +18,38 @@ import { useT } from "~/i18n/use-t";
  * client-generated id and shows the "saved offline" notice. The action treats the
  * capture header as a JSON request and dedupes on `clientId`, so a replayed
  * entry can never create a second row.
+ *
+ * `submit(form, { queue: false })` sends without the fallback: a capture the
+ * queue cannot hold in full (a ticket with photos) is then never stored, the
+ * result is still `queued` (nothing was sent), and the state is `unsent` or
+ * `unsentSignin` so the page can keep the form and let the person choose.
  */
 export function useCaptureSubmit(action: string) {
-  const [state, setState] = React.useState<"idle" | "sending" | "queued" | "signin" | "refused">(
-    "idle",
-  );
+  const [state, setState] = React.useState<
+    "idle" | "sending" | "queued" | "signin" | "unsent" | "unsentSignin" | "refused"
+  >("idle");
   const [error, setError] = React.useState<string | null>(null);
   const t = useT();
   const userId = useQueueOwner();
 
   const submit = React.useCallback(
-    async (form: HTMLFormElement): Promise<CaptureResult | null> => {
+    async (
+      form: HTMLFormElement,
+      { queue = true }: { queue?: boolean } = {},
+    ): Promise<CaptureResult | null> => {
       const fields: Record<string, string> = {};
       new FormData(form).forEach((v, k) => {
         if (typeof v === "string") fields[k] = v;
       });
       setState("sending");
       setError(null);
-      const result = await captureOrQueue(action, fields, defaultStore(), fetch, userId);
+      // Without the fallback the "queued" entry lands in a throwaway store.
+      const store = queue ? defaultStore() : new MemoryQueueStore();
+      const result = await captureOrQueue(action, fields, store, fetch, userId);
       if (result.state === "sent") {
         setState("idle");
+      } else if (result.state === "queued" && !queue) {
+        setState(result.authRequired ? "unsentSignin" : "unsent");
       } else if (result.state === "queued") {
         // "signin" is announced by CaptureQueueStatus, which reads the stored entry.
         setState(result.authRequired ? "signin" : "queued");

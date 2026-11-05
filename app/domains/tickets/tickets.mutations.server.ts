@@ -3,9 +3,10 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { TicketStatus } from "~/generated/prisma/enums";
 import type { Ticket } from "~/generated/prisma/client";
-import type { Tx } from "~/lib/db.server";
+import { db, type Tx } from "~/lib/db.server";
 import type { TicketCreateInput, TicketEditInput, TicketTransitionInput } from "./tickets.schema";
 import { laneOfTicketStatus, TICKET_LANE_STATUS, type Lane } from "~/domains/tasks/tasks.lanes";
+import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 
 /**
  * Tickets-domain mutations. Every write funnels through txWithAudit so the
@@ -53,11 +54,12 @@ function ticketLinks(input: { roomId?: string; equipmentId?: string; eventId?: s
 export async function createTicketInTx(
   tx: Tx,
   audit: AuditFn,
-  input: TicketCreateInput & { taskId?: string },
+  input: TicketCreateInput & { taskId?: string; id?: string },
 ): Promise<Ticket> {
   const resolved = isResolved(input.status);
   const ticket = await tx.ticket.create({
     data: {
+      ...(input.id ? { id: input.id } : {}),
       type: input.type,
       status: input.status,
       title: input.title,
@@ -90,14 +92,55 @@ export async function createTicketInTx(
  * Create a ticket. A born-resolved entry (status RESOLVED at creation — a logged
  * past repair) carries its resolution and stamps resolvedAt to the occurrence
  * time, so the logbook reads truthfully even when back-dated.
+ *
+ * `clientId` (the offline capture queue's id, cuid-shaped) becomes the ticket's
+ * id and makes the create idempotent: a replay of a capture whose first send
+ * did arrive returns that ticket — no second row, no second audit entry.
  */
-export async function createTicket(actor: AuditActor, input: TicketCreateInput): Promise<Ticket> {
-  return txWithAudit(actor, (tx, audit) =>
-    createTicketInTx(tx, audit, {
-      ...input,
-      reporterId: input.reporterId ?? actor.id ?? undefined,
-    }),
-  );
+export async function createTicket(
+  actor: AuditActor,
+  input: TicketCreateInput,
+  clientId?: string,
+): Promise<Ticket> {
+  if (clientId !== undefined && !CUID_PATTERN.test(clientId)) {
+    throw new ValidationError({ clientId: [tr("work.err.invalidClientId")] });
+  }
+  try {
+    return await txWithAudit(actor, async (tx, audit) => {
+      if (clientId !== undefined) {
+        const existing = await tx.ticket.findUnique({ where: { id: clientId } });
+        if (existing) return existing;
+      }
+      return createTicketInTx(tx, audit, {
+        ...input,
+        reporterId: input.reporterId ?? actor.id ?? undefined,
+        ...(clientId !== undefined ? { id: clientId } : {}),
+      });
+    });
+  } catch (error) {
+    // Two replays can both pass the lookup above; the loser's insert then hits
+    // the primary key after the winner committed, so its row is the answer.
+    if (clientId !== undefined && isUniqueViolation(error)) {
+      const existing = await db.ticket.findUnique({ where: { id: clientId } });
+      if (existing) return existing;
+    }
+    throw error;
+  }
+}
+
+/** P2002 or the driver-adapter's structured unique violation, at any depth. */
+function isUniqueViolation(error: unknown): boolean {
+  let cur: unknown = error;
+  for (let depth = 0; cur && depth < 6; depth++) {
+    const e = cur as {
+      code?: unknown;
+      meta?: { driverAdapterError?: { cause?: { kind?: unknown } } };
+    };
+    if (e.code === "P2002") return true;
+    if (e.meta?.driverAdapterError?.cause?.kind === "UniqueConstraintViolation") return true;
+    cur = (cur as { cause?: unknown }).cause;
+  }
+  return false;
 }
 
 /**

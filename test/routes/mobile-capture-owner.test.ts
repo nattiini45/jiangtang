@@ -28,10 +28,12 @@ vi.mock("~/lib/auth.server", async (importOriginal) => {
 
 const taskRoute = await import("~/routes/m.tasks.new/route");
 const noteRoute = await import("~/routes/m.notes.new/route");
+const entryRoute = await import("~/routes/m._index/route");
 
 const userIds: string[] = [];
 const taskIds: string[] = [];
 const noteIds: string[] = [];
+const ticketIds: string[] = [];
 
 beforeAll(async () => {
   const user = await db.user.create({
@@ -44,6 +46,7 @@ beforeAll(async () => {
 afterAll(async () => {
   for (const id of taskIds) await db.task.delete({ where: { id } }).catch(() => undefined);
   for (const id of noteIds) await db.note.delete({ where: { id } }).catch(() => undefined);
+  for (const id of ticketIds) await db.ticket.delete({ where: { id } }).catch(() => undefined);
   for (const id of userIds) await db.user.delete({ where: { id } }).catch(() => undefined);
   await db.$disconnect();
 });
@@ -85,6 +88,13 @@ const surfaces = [
     run: (request: Request) => noteRoute.action({ request } as never),
     find: (clientId: string) => db.note.findUnique({ where: { id: clientId } }),
     track: (id: string) => noteIds.push(id),
+  },
+  {
+    name: "/m (ticket entry)",
+    path: "/m",
+    run: (request: Request) => entryRoute.action({ request } as never),
+    find: (clientId: string) => db.ticket.findUnique({ where: { id: clientId } }),
+    track: (id: string) => ticketIds.push(id),
   },
 ];
 
@@ -135,5 +145,44 @@ describe.each(surfaces)("$name capture owner", (surface) => {
     )) as Response;
     expect(await res.json()).toEqual({ id: clientId });
     expect(await surface.find(clientId)).not.toBeNull();
+  });
+});
+
+describe("/m (ticket entry) capture", () => {
+  it("answers a capture with { id } and creates the ticket under the client id", async () => {
+    const clientId = newClientId();
+    ticketIds.push(clientId);
+    const res = (await entryRoute.action({
+      request: captureRequest(
+        "/m",
+        { title: `${RUN} ticket`, type: "INCIDENT", status: "OPEN", clientId },
+        ACTOR.id,
+      ),
+    } as never)) as Response;
+    expect(await res.json()).toEqual({ id: clientId });
+    const ticket = await db.ticket.findUnique({ where: { id: clientId } });
+    expect(ticket).toMatchObject({ title: `${RUN} ticket`, reporterId: ACTOR.id });
+  });
+
+  it("a replay of the same capture keeps one ticket", async () => {
+    const clientId = newClientId();
+    ticketIds.push(clientId);
+    for (let i = 0; i < 2; i++) {
+      const res = (await entryRoute.action({
+        request: captureRequest("/m", { title: `${RUN} replay`, clientId }, ACTOR.id),
+      } as never)) as Response;
+      expect(await res.json()).toEqual({ id: clientId });
+    }
+    expect(await db.ticket.count({ where: { id: clientId } })).toBe(1);
+  });
+
+  it("answers an invalid capture with a 400 JSON error the queue can show", async () => {
+    const clientId = newClientId();
+    const res = (await entryRoute.action({
+      request: captureRequest("/m", { title: "", clientId }, ACTOR.id),
+    } as never)) as Response;
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toEqual(expect.any(String));
+    expect(await db.ticket.findUnique({ where: { id: clientId } })).toBeNull();
   });
 });
