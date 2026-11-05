@@ -110,6 +110,103 @@ jobs:
       # Apply migrations (incl. the hand-folded EXCLUDE + audit-immutability SQL).
       - run: pnpm db:deploy
 
+      # Production's migrate job runs this same read-only check after
+      # `migrate deploy`; without it here a migration that silently loses a
+      # hand-written invariant (EXCLUDE constraint, audit trigger, extension)
+      # would pass CI and fail only at deploy.
+      - name: Verify database invariants
+        run: pnpm exec prisma db execute --file ops/postgres/verify-invariants.sql
+
+      # Negative control: the same script with one EXCLUDE constraint dropped
+      # inside a transaction that is rolled back (the failing script never
+      # reaches its own end, so the connection closing rolls it back too; the
+      # trailing ROLLBACK covers a script that unexpectedly passes). It must
+      # exit non-zero because of the invariant check, not for another reason.
+      - name: Verify the invariant check fails when an invariant is missing
+        run: |
+          {
+            echo 'BEGIN;'
+            echo 'ALTER TABLE "EventRoomBooking" DROP CONSTRAINT event_room_no_overlap;'
+            cat ops/postgres/verify-invariants.sql
+            echo 'ROLLBACK;'
+          } > "$RUNNER_TEMP/invariants-negative.sql"
+          if output=$(pnpm exec prisma db execute --file "$RUNNER_TEMP/invariants-negative.sql" 2>&1); then
+            echo "::error::the invariant check passed although an EXCLUDE constraint was dropped"
+            exit 1
+          fi
+          grep -q 'invariant check FAILED' <<<"$output" || { echo "$output"; echo "::error::the script failed, but not through the invariant check"; exit 1; }
+          pnpm exec prisma db execute --file ops/postgres/verify-invariants.sql
+
+      # ── Application image smoke test ─────────────────────────────────────
+      # Runs the image built above the way production does: its own migrate job
+      # (same command and read-only /ops mount as docker-compose.yml's `migrate`
+      # service), then the app in production mode. A runtime image that crashes
+      # on boot, or a production-only boot check that refuses to start, would
+      # otherwise surface only at deploy. A database of its own keeps this away
+      # from the Vitest and browser-gate databases. --network host lets the
+      # containers reach the service Postgres and the runner reach the app.
+      # Every secret is generated for this job; integrations are explicitly
+      # blank and there is no admin bootstrap, so nothing outside is called.
+      - name: Smoke-test the application image
+        env:
+          SMOKE_DATABASE_URL: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang_smoke?schema=public
+        run: |
+          node --input-type=module -e '
+          import pg from "pg";
+          const client = new pg.Client({ connectionString: "postgresql://jiangtang:jiangtang@localhost:5432/postgres" });
+          await client.connect();
+          await client.query("CREATE DATABASE jiangtang_smoke");
+          await client.end();
+          '
+
+          cleanup() {
+            status=$?
+            if [ "$status" -ne 0 ]; then
+              echo "::group::docker logs jiangtang-smoke"
+              docker logs jiangtang-smoke || true
+              echo "::endgroup::"
+            fi
+            docker rm -f jiangtang-smoke > /dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --rm --network host --no-healthcheck \
+            -e DATABASE_URL="$SMOKE_DATABASE_URL" -e TZ=Europe/Berlin \
+            -v "$PWD/ops/postgres:/ops:ro" jiangtang:ci \
+            sh -c "./node_modules/.bin/prisma migrate deploy && ./node_modules/.bin/prisma db execute --file /ops/verify-invariants.sql"
+
+          BETTER_AUTH_SECRET="$(openssl rand -base64 48)"
+          STORAGE_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+          export BETTER_AUTH_SECRET STORAGE_ENCRYPTION_KEY
+          docker run -d --name jiangtang-smoke --network host \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            -e NODE_ENV=production -e PORT=3000 -e TZ=Europe/Berlin \
+            -e DATABASE_URL="$SMOKE_DATABASE_URL" \
+            -e BETTER_AUTH_SECRET -e BETTER_AUTH_URL=http://127.0.0.1:3000 \
+            -e STORAGE_DIR=/data/uploads -e STORAGE_ENCRYPTION_KEY \
+            -e EMBEDDING_BASE_URL= -e RERANK_BASE_URL= -e GENERATION_BASE_URL= \
+            -e GLITCHTIP_DSN= -e CALDAV_URL= -e CALDAV_USERNAME= -e CALDAV_PASSWORD= \
+            jiangtang:ci
+
+          # Bounded wait: 45 tries, 2 s apart (90 s). A container that exited
+          # fails at once instead of waiting out the bound.
+          for _ in $(seq 1 45); do
+            if curl -fsS -o /dev/null http://127.0.0.1:3000/healthz 2> /dev/null; then
+              ready=1
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' jiangtang-smoke)" != "true" ]; then
+              echo "::error::the application container exited before /healthz answered"
+              exit 1
+            fi
+            sleep 2
+          done
+          [ "${ready:-}" = 1 ] || { echo "::error::/healthz did not return 200 within 90 s"; exit 1; }
+
+          code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)"
+          [ "$code" = 200 ] || { echo "::error::/login returned HTTP $code, expected 200"; exit 1; }
+          echo "image smoke test passed"
+
       - run: pnpm typecheck
 
       # Correctness lint (floating promises, hook deps); formatting is not gated.
