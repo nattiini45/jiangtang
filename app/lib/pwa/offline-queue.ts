@@ -1,5 +1,6 @@
 import * as React from "react";
 import { UNSAFE_decodeViaTurboStream, useRouteLoaderData } from "react-router";
+import { createLatestReader } from "~/lib/pwa/latest-reader";
 
 /**
  * Offline capture queue — client module. When a mobile capture submit
@@ -393,7 +394,6 @@ async function replayQueueOnce(
 ): Promise<ReplaySummary> {
   let sent = 0;
   let refused = 0;
-  let kept = 0;
   let authRequired = false;
   let changed = false;
   const entries: QueuedCapture[] = [];
@@ -407,13 +407,18 @@ async function replayQueueOnce(
       changed = true;
     }
   }
-  // The pass's entries that are still stored when it ends, in queue order.
+  // The pass's entries that may still be stored when it ends, in queue order,
+  // and the ones this pass refused (counted as refused, not kept).
   const remaining: QueuedCapture[] = [];
-  for (const [index, entry] of entries.entries()) {
+  const refusedHere = new Set<string>();
+  for (const [index, snapshot] of entries.entries()) {
+    // The pass can take long on a slow network, and the person may discard an
+    // entry meanwhile: read it again, and send nothing that is no longer stored.
+    const entry = (await store.list()).find((e) => e.clientId === snapshot.clientId);
+    if (!entry) continue;
     // A 4xx-refused entry waits for the user (discard or fix); replaying it on
     // every pass only repeats the same refusal. It stays visible with its error.
     if (entry.error) {
-      kept += 1;
       remaining.push(entry);
       continue;
     }
@@ -428,26 +433,32 @@ async function replayQueueOnce(
       const refusedEntry = { ...rest, error: outcome.error };
       await store.put(refusedEntry);
       remaining.push(refusedEntry);
+      refusedHere.add(entry.clientId);
       refused += 1;
       changed = true;
     } else if (outcome.kind === "auth") {
       authRequired = true;
       // The rest of the queue would meet the same wall.
-      kept += entries.length - index;
       remaining.push(...entries.slice(index));
       break;
     } else {
       // Inconclusive about the session, so the sign-in flag stays as it is.
-      kept += 1;
       remaining.push(entry);
     }
   }
   // The flag describes the queue behind the wall, not one entry: a wall flags
   // everything still waiting, and proof that the session works (a send, or the
   // action's own refusal) clears it from all of the user's entries.
+  //
+  // Flags are written onto the stored copy, read again now: the snapshot is as
+  // old as the pass, and an entry discarded or changed in the meantime (this
+  // tab, or another one) must not be written back as it was.
+  const live = new Map((await store.list()).map((e) => [e.clientId, e]));
+  const waiting = remaining.flatMap((e) => live.get(e.clientId) ?? []);
+  const kept = waiting.filter((e) => !refusedHere.has(e.clientId)).length;
   const flag = authRequired ? true : sent + refused > 0 ? false : null;
   if (flag !== null) {
-    for (const entry of remaining) {
+    for (const entry of waiting) {
       if (flag) {
         // A refused entry waits for the user, not for a sign-in.
         if (entry.authRequired || entry.error) continue;
@@ -490,14 +501,12 @@ export function useOfflineQueue(storeOverride?: OfflineQueueStore) {
   // (another tab signs out and in), and a read that started for the previous
   // user must not decide what the new one sees. Filtering happens at render.
   const [raw, setRaw] = React.useState<QueuedCapture[]>([]);
-  const latestRead = React.useRef(0);
+  const [readLatest] = React.useState(createLatestReader);
 
-  const refresh = React.useCallback(async () => {
-    const read = ++latestRead.current;
-    const list = await store.list();
-    // A newer read is already in flight or done; its result is the fresher one.
-    if (read === latestRead.current) setRaw(list);
-  }, [store]);
+  const refresh = React.useCallback(
+    () => readLatest(() => store.list(), setRaw),
+    [readLatest, store],
+  );
 
   const discard = React.useCallback(
     async (clientId: string) => {

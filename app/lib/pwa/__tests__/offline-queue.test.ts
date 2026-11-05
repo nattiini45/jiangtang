@@ -861,4 +861,91 @@ describe("offline queue", () => {
       expect(visibleEntries(all, undefined)).toEqual([]);
     });
   });
+
+  describe("changes made to the store while a pass is running", () => {
+    const A = "ca11111111111111111111111";
+    const B = "cb22222222222222222222222";
+
+    /**
+     * A fetch whose first call waits for `answer`; any further call fails as if
+     * offline, so a POST the pass should not make shows up in `sent` instead of
+     * hanging the test.
+     */
+    function gatedFetch() {
+      const sent: string[] = [];
+      const gates: ((res: Response | Error) => void)[] = [];
+      const impl = ((_input: RequestInfo | URL, init?: RequestInit) => {
+        sent.push(new URLSearchParams(String(init?.body)).get("clientId") ?? "");
+        if (sent.length > 1) return Promise.reject(new TypeError("offline"));
+        return new Promise<Response>((resolve, reject) => {
+          gates.push((res) => (res instanceof Error ? reject(res) : resolve(res)));
+        });
+      }) as typeof fetch;
+      return { impl, sent, answer: (i: number, res: Response | Error) => gates[i]!(res) };
+    }
+
+    /** Wait until the pass has issued the given number of POSTs. */
+    async function untilPosted(sent: string[], count: number) {
+      await vi.waitFor(() => expect(sent).toHaveLength(count));
+    }
+
+    it("an entry discarded while an earlier POST is pending is not sent in the same pass", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(A, 1));
+      await store.put(mkEntry(B, 2));
+      const net = gatedFetch();
+      const pass = replayQueue(store, net.impl);
+      await untilPosted(net.sent, 1);
+      await store.remove(B);
+      net.answer(0, json({ id: A }));
+      await pass;
+      expect(net.sent).toEqual([A]);
+      expect(await store.list()).toEqual([]);
+    });
+
+    it("an entry discarded during a pass that meets the wall stays discarded", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(A, 1));
+      await store.put(mkEntry(B, 2));
+      const net = gatedFetch();
+      const pass = replayQueue(store, net.impl);
+      await untilPosted(net.sent, 1);
+      await store.remove(B);
+      net.answer(0, new Response("Unauthorized", { status: 401 }));
+      expect(await pass).toEqual({ sent: 0, refused: 0, kept: 1, authRequired: true });
+      const left = await store.list();
+      expect(left.map((e) => e.clientId)).toEqual([A]);
+      expect(left[0]?.authRequired).toBe(true);
+    });
+
+    it("an entry discarded during a pass that clears the sign-in flag stays discarded", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(A, 1));
+      // Kept for a refusal it carries; the flag on it is stale.
+      await store.put({ ...mkEntry(B, 2), error: "Titel ist zu lang.", authRequired: true });
+      const net = gatedFetch();
+      const pass = replayQueue(store, net.impl);
+      await untilPosted(net.sent, 1);
+      await store.remove(B);
+      net.answer(0, json({ id: A }));
+      await pass;
+      expect(await store.list()).toEqual([]);
+    });
+
+    it("the flag write keeps what another tab stored in the meantime", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(A, 1));
+      await store.put(mkEntry(B, 2));
+      const net = gatedFetch();
+      const pass = replayQueue(store, net.impl);
+      await untilPosted(net.sent, 1);
+      // Another tab refused B while this pass was waiting on A.
+      await store.put({ ...mkEntry(B, 2), fields: { title: "edited" }, error: "Nope." });
+      net.answer(0, new Response("Unauthorized", { status: 401 }));
+      await pass;
+      const b = (await store.list()).find((e) => e.clientId === B);
+      expect(b).toMatchObject({ fields: { title: "edited" }, error: "Nope." });
+      expect(b?.authRequired).toBeUndefined();
+    });
+  });
 });
