@@ -116,6 +116,26 @@ describe("buildMonthCells", () => {
     expect(dec.length % 7).toBe(0);
   });
 
+  it("gives February 28 days, and 29 in a leap year", () => {
+    const feb2027 = buildMonthCells(2027, 1).filter((c) => c.date);
+    expect(feb2027).toHaveLength(28);
+    expect(feb2027.at(-1)).toEqual({ day: 28, date: "2027-02-28" });
+
+    // 1 February 2028 is a Tuesday: one padding cell before it.
+    const feb2028 = buildMonthCells(2028, 1);
+    expect(feb2028[0]).toEqual({ day: null, date: null });
+    expect(feb2028[1]).toEqual({ day: 1, date: "2028-02-01" });
+    expect(feb2028.filter((c) => c.date)).toHaveLength(29);
+    expect(feb2028.filter((c) => c.date).at(-1)).toEqual({ day: 29, date: "2028-02-29" });
+  });
+
+  it("buckets an event across a leap day onto both February days and March", () => {
+    // 28 Feb 2028 10:00 to 1 Mar 2028 10:00 Berlin (CET, UTC+1).
+    const across = ev("leap", "2028-02-28T09:00:00Z", "2028-03-01T09:00:00Z");
+    expect(keysOf([across], { year: 2028, month: 1 })).toEqual(["2028-02-28", "2028-02-29"]);
+    expect(keysOf([across], { year: 2028, month: 2 })).toEqual(["2028-03-01"]);
+  });
+
   describe("on a host east of Berlin", () => {
     const original = process.env.TZ;
     afterEach(() => {
