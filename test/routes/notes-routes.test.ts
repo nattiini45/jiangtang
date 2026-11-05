@@ -267,7 +267,25 @@ describe("/notes/import", () => {
         ],
       }),
     } as never)) as { formErrors?: string[] };
-    expect(res.formErrors?.[0]).toContain(`${RUN}-bad.md`);
+    expect(res.formErrors?.[0]).toMatch(/nichts importiert/);
+    expect(res.formErrors?.slice(1)).toEqual([expect.stringContaining(`${RUN}-bad.md`)]);
     expect(await db.note.count({ where: { title: `${RUN} imp-ok` } })).toBe(0);
+  });
+
+  it("an over-long note is rejected by name, beside every other rejected file", async () => {
+    const res = (await importRoute.action({
+      request: post("http://localhost/notes/import", {
+        files: [
+          new File([`# ${RUN} imp-fine\n\nkurz`], `${RUN}-fine.md`),
+          new File([`# ${RUN} imp-long\n\n${"z".repeat(200_001)}`], `${RUN}-long.md`),
+          new File([`---\ntitle: x\nproject: gibt-es-nicht\n---\n\ny`], `${RUN}-slug.md`),
+        ],
+      }),
+    } as never)) as { formErrors?: string[] };
+    expect(res.formErrors?.slice(1)).toEqual([
+      expect.stringMatching(new RegExp(`${RUN}-long\\.md.*zu lang`)),
+      expect.stringContaining(`${RUN}-slug.md`),
+    ]);
+    expect(await db.note.count({ where: { title: { startsWith: `${RUN} imp-` } } })).toBe(0);
   });
 });

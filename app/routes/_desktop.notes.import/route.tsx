@@ -70,7 +70,13 @@ export async function action({ request }: Route.ActionArgs) {
     };
   } catch (e) {
     if (e instanceof ValidationError) {
-      return { formErrors: e.formErrors.concat(Object.values(e.fieldErrors).flat()) };
+      return {
+        formErrors: [
+          t(locale, "notes.import.rejected"),
+          ...e.formErrors,
+          ...Object.values(e.fieldErrors).flat(),
+        ],
+      };
     }
     throw toErrorResponse(e);
   }
