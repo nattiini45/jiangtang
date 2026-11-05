@@ -207,8 +207,12 @@ jobs:
           done
           [ "${ready:-}" = 1 ] || { echo "::error::/healthz did not return 200 within 45 tries"; exit 1; }
 
-          code="$(curl -sS --connect-timeout 2 --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)"
-          [ "$code" = 200 ] || { echo "::error::/login returned HTTP $code, expected 200"; exit 1; }
+          # bash -e aborts on a failed assignment before the next line runs, so a refused
+          # connection or a timeout (curl exits 7 or 28) would end the step with no
+          # annotation. Falling back to 000 hands that case to the check below, which fails
+          # the step with a message.
+          code="$(curl -sS --connect-timeout 2 --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)" || code=000
+          [ "$code" = 200 ] || { echo "::error::/login returned HTTP $code, expected 200 (000 means no response)"; exit 1; }
           echo "image smoke test passed"
 
       - run: pnpm typecheck
