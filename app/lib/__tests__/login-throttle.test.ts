@@ -124,6 +124,37 @@ describe("login throttle: IP key", () => {
   });
 });
 
+describe("login throttle: concurrent attempts", () => {
+  it("counts every attempt before any answer, so one more is refused", () => {
+    const limit = 5;
+    const { throttle } = setup({ maxEmailFailures: limit, maxIpFailures: 1000 });
+    const attempt = { email: "a@example.test", ip: "203.0.113.7" };
+    // All guesses are in flight: none has been answered by succeeded() yet.
+    const decisions = Array.from({ length: limit }, () => throttle.begin(attempt));
+    expect(decisions.every((decision) => decision.allowed)).toBe(true);
+    expect(throttle.begin(attempt).allowed).toBe(false);
+  });
+
+  it("keeps the IP count consistent when a success and a failure interleave", () => {
+    const { throttle } = setup({ maxIpFailures: 2, maxEmailFailures: 1 });
+    const ip = "203.0.113.7";
+    const good = { email: "good@example.test", ip };
+    const bad = { email: "bad@example.test", ip };
+
+    expect(throttle.begin(good).allowed).toBe(true);
+    expect(throttle.begin(bad).allowed).toBe(true);
+    // The correct password is answered while the wrong one is still counted.
+    throttle.succeeded(good);
+
+    // One failure remains on the IP: one more attempt fits, a further one does not.
+    expect(throttle.begin({ email: "c@example.test", ip }).allowed).toBe(true);
+    expect(throttle.begin({ email: "d@example.test", ip }).allowed).toBe(false);
+    // The failing email stays locked, the succeeded one was cleared.
+    expect(throttle.begin({ ...bad, ip: null }).allowed).toBe(false);
+    expect(throttle.begin({ ...good, ip: null }).allowed).toBe(true);
+  });
+});
+
 describe("login throttle: memory", () => {
   it("caps the number of tracked keys and keeps the most recent ones", () => {
     const { throttle } = setup({ maxKeys: 5, maxEmailFailures: 1, maxIpFailures: 1000 });
@@ -134,6 +165,83 @@ describe("login throttle: memory", () => {
     // The newest key is still tracked, the oldest was dropped.
     expect(throttle.begin({ email: "user49@example.test", ip: null }).allowed).toBe(false);
     expect(throttle.begin({ email: "user0@example.test", ip: null }).allowed).toBe(true);
+  });
+
+  it("keeps a locked email through a flood of distinct junk emails", () => {
+    const { throttle, advance } = setup({ maxKeys: 5, maxEmailFailures: 2, maxIpFailures: 1000 });
+    const target = { email: "target@example.test", ip: null };
+    throttle.begin(target);
+    throttle.begin(target);
+    advance(MINUTE);
+    const before = throttle.begin(target);
+    expect(before.allowed).toBe(false);
+
+    for (let i = 0; i < 100; i++) {
+      throttle.begin({ email: `junk${i}@example.test`, ip: null });
+    }
+
+    expect(throttle.size().emails).toBe(5);
+    expect(throttle.begin(target)).toEqual(before);
+  });
+
+  it("keeps a locked IP through a flood of distinct junk IPs", () => {
+    const { throttle } = setup({ maxKeys: 5, maxIpFailures: 2, maxEmailFailures: 1000 });
+    const target = { email: null, ip: "203.0.113.7" };
+    throttle.begin(target);
+    throttle.begin(target);
+    const before = throttle.begin(target);
+    expect(before.allowed).toBe(false);
+
+    for (let i = 0; i < 100; i++) {
+      throttle.begin({ email: null, ip: `198.51.100.${i}` });
+    }
+
+    expect(throttle.size().ips).toBe(5);
+    expect(throttle.begin(target)).toEqual(before);
+  });
+
+  it("evicts a lock that has run out, but not one still running", () => {
+    const { throttle, advance } = setup({
+      maxKeys: 3,
+      maxEmailFailures: 1,
+      windowMs: 15 * MINUTE,
+    });
+    throttle.begin({ email: "old@example.test", ip: null });
+    advance(10 * MINUTE);
+    throttle.begin({ email: "newer@example.test", ip: null });
+    advance(6 * MINUTE);
+    // old's window is over, newer is still locked.
+    throttle.begin({ email: "x@example.test", ip: null });
+    throttle.begin({ email: "y@example.test", ip: null });
+
+    expect(throttle.size().emails).toBe(3);
+    expect(throttle.begin({ email: "newer@example.test", ip: null }).allowed).toBe(false);
+    expect(throttle.begin({ email: "old@example.test", ip: null }).allowed).toBe(true);
+  });
+
+  it("drops the lock that expires soonest when every tracked key is locked", () => {
+    const { throttle, advance } = setup({
+      maxKeys: 2,
+      maxEmailFailures: 2,
+      windowMs: 15 * MINUTE,
+    });
+    const a = { email: "a@example.test", ip: null };
+    const b = { email: "b@example.test", ip: null };
+    throttle.begin(a);
+    advance(1);
+    throttle.begin(b);
+    advance(1);
+    throttle.begin(b);
+    advance(1);
+    // Both are locked now. a was touched last, so it is the most recent in map
+    // order, but its lock still runs out first.
+    throttle.begin(a);
+    advance(1);
+    throttle.begin({ email: "c@example.test", ip: null });
+
+    expect(throttle.size().emails).toBe(2);
+    expect(throttle.begin(b).allowed).toBe(false);
+    expect(throttle.begin(a).allowed).toBe(true);
   });
 
   it("prunes expired keys instead of keeping them forever", () => {

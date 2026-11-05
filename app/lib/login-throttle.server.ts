@@ -18,7 +18,10 @@ export type LoginThrottleOptions = {
   /** Failed attempts allowed per client IP inside the window. */
   maxIpFailures?: number;
   windowMs?: number;
-  /** Cap on tracked keys per kind (emails, IPs); the least recently used key is dropped first. */
+  /**
+   * Cap on tracked keys per kind (emails, IPs). Past it, the least recently used
+   * key that is not locked is dropped first.
+   */
   maxKeys?: number;
   /** Injectable for tests. */
   now?: () => number;
@@ -151,17 +154,46 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
     }
   }
 
-  function record(bucket: Bucket, key: string, at: number) {
+  /** Whether the key is refused right now: `limit` failures still inside the window. */
+  function isLocked(stamps: number[], limit: number, at: number): boolean {
+    return stamps.length >= limit && stamps[stamps.length - limit]! > at - windowMs;
+  }
+
+  /**
+   * Makes room by dropping the least recently used key that is not locked. A
+   * lock is a single entry, so evicting it would hand an attacker who floods the
+   * map with junk keys a fresh set of guesses on the locked account. Only when
+   * every other key is locked does a lock go, the one that runs out soonest
+   * (the first in map order on a tie). The scan stops at the first key that is
+   * not locked and never passes `maxKeys` entries, each checked in O(1).
+   */
+  function evictOne(bucket: Bucket, limit: number, at: number, keep: string) {
+    let soonest: string | undefined;
+    let soonestExpiry = Number.POSITIVE_INFINITY;
+    for (const [key, stamps] of bucket) {
+      if (key === keep) continue;
+      if (!isLocked(stamps, limit, at)) {
+        bucket.delete(key);
+        return;
+      }
+      const expiry = stamps[stamps.length - limit]! + windowMs;
+      if (expiry < soonestExpiry) {
+        soonest = key;
+        soonestExpiry = expiry;
+      }
+    }
+    if (soonest !== undefined) bucket.delete(soonest);
+    // Nothing but `keep` is left: the cap is below one, and the key stays.
+    else bucket.delete(keep);
+  }
+
+  function record(bucket: Bucket, key: string, limit: number, at: number) {
     const stamps = live(bucket, key, at);
     stamps.push(at);
     // Re-inserting keeps Map order = least recently used first.
     bucket.delete(key);
     bucket.set(key, stamps);
-    while (bucket.size > maxKeys) {
-      const oldest = bucket.keys().next().value;
-      if (oldest === undefined) break;
-      bucket.delete(oldest);
-    }
+    while (bucket.size > maxKeys) evictOne(bucket, limit, at, key);
   }
 
   function retryAfter(stamps: number[], limit: number, at: number): number {
@@ -194,8 +226,8 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       }
       if (retryAfterMs > 0) return { allowed: false, retryAfterMs };
 
-      if (email) record(emails, email, at);
-      if (ip) record(ips, ip, at);
+      if (email) record(emails, email, maxEmailFailures, at);
+      if (ip) record(ips, ip, maxIpFailures, at);
       return { allowed: true };
     },
 
