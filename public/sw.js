@@ -110,12 +110,13 @@ const OFFLINE_RELOAD_SCRIPT =
   '(function(){var K="jt-offline-reload",MAX=8,done=0;' +
   "function go(){if(!done){done=1;location.reload()}}" +
   'window.addEventListener("online",go);' +
-  "if(!navigator.onLine)return;" +
+  'if(!navigator.onLine||location.pathname==="/m/offline")return;' +
   "try{var s=window.sessionStorage,p=(s.getItem(K)||'').split(','),n=+p[0]||0,now=Date.now();" +
-  "if(now-(+p[1]||0)>120000)n=0;" +
+  "if(now-(+p[1]||0)>600000)n=0;" +
   "if(n>=MAX)return;" +
-  "s.setItem(K,(n+1)+','+now);" +
-  "setTimeout(go,Math.min(5000*Math.pow(2,n),60000))}catch(e){}})();";
+  "var d=Math.min(5000*Math.pow(2,n),60000);" +
+  "s.setItem(K,(n+1)+','+(now+d));" +
+  "setTimeout(go,d)}catch(e){}})();";
 
 // The texts are constants, but "<" is escaped anyway so they can never close the script element.
 const OFFLINE_SCRIPT =

@@ -19,7 +19,14 @@ export function createTab(opts: { storage?: "works" | "throws" } = {}) {
   /** One page load: a fresh script context that shares the tab's storage and clock. */
   function load(
     source: string,
-    env: { onLine: boolean; document?: object; navigator?: object; extra?: object },
+    env: {
+      onLine: boolean;
+      document?: object;
+      navigator?: object;
+      extra?: object;
+      /** The URL the page shows: the worker serves the placeholder in place of the page that failed. */
+      pathname?: string;
+    },
   ) {
     const listeners: Record<string, () => void> = {};
     const timers: { delay: number; fn: () => void }[] = [];
@@ -32,7 +39,7 @@ export function createTab(opts: { storage?: "works" | "throws" } = {}) {
         addEventListener: (type: string, fn: () => void) => void (listeners[type] = fn),
         sessionStorage,
       },
-      location: { reload: () => void (reloads += 1) },
+      location: { reload: () => void (reloads += 1), pathname: env.pathname ?? "/m/tasks" },
       setTimeout: (fn: () => void, delay: number) => void timers.push({ delay, fn }),
       Date: { now: () => clock.now },
       Math,
@@ -67,8 +74,8 @@ export function describeOfflineReload(
   extra: () => { document?: object; navigator?: object } = () => ({}),
 ) {
   describe(`${name}: reload once the connection is back`, () => {
-    const open = async (tab: ReturnType<typeof createTab>, onLine: boolean) =>
-      tab.load(await source(), { onLine, ...extra() });
+    const open = async (tab: ReturnType<typeof createTab>, onLine: boolean, pathname?: string) =>
+      tab.load(await source(), { onLine, pathname, ...extra() });
 
     it("reloads once on the online event, however often it fires", async () => {
       const page = await open(createTab(), false);
@@ -126,14 +133,39 @@ export function describeOfflineReload(
       expect(last.reloads()).toBe(1);
     });
 
+    it("keeps the bound when every failing reload is slow", async () => {
+      const tab = createTab();
+      let scheduled = 0;
+      // Once a load schedules nothing, nothing reloads the page any more; the bound is how many
+      // loads it takes to get there.
+      for (let i = 0; i < 20; i += 1) {
+        const page = await open(tab, true);
+        if (page.delays().length === 0) break;
+        scheduled += page.delays().length;
+        page.runTimers();
+        // The reload itself takes long to fail before the placeholder comes back.
+        tab.clock.now += 3 * 60_000;
+      }
+
+      expect(scheduled).toBe(8);
+    });
+
     it("starts counting again once the last attempt is long past", async () => {
       const tab = createTab();
       for (let i = 0; i < 20; i += 1) (await open(tab, true)).runTimers();
       expect((await open(tab, true)).delays()).toEqual([]);
 
-      tab.clock.now += 10 * 60_000;
+      tab.clock.now += 11 * 60_000;
 
       expect((await open(tab, true)).delays()).toEqual([5000]);
+    });
+
+    it("never retries on its own as the /m/offline page itself, but still reacts to online", async () => {
+      const page = await open(createTab(), true, "/m/offline");
+
+      expect(page.delays()).toEqual([]);
+      page.fireOnline();
+      expect(page.reloads()).toBe(1);
     });
 
     it("keeps to the online event when session storage is not available", async () => {
