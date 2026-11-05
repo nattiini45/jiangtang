@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { hashPassword } from "better-auth/crypto";
 import { auth } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
@@ -16,6 +17,12 @@ import {
   createPasswordResetForEmail,
   resolvePasswordReset,
 } from "~/domains/auth/password-reset.server";
+
+// Pass-through spy, so a test can tell whether the password KDF ran.
+vi.mock("better-auth/crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("better-auth/crypto")>();
+  return { ...actual, hashPassword: vi.fn(actual.hashPassword) };
+});
 
 /**
  * One-time password reset links: issued by an admin (or the operator command),
@@ -101,6 +108,14 @@ describe("password reset links", () => {
     const second = await createPasswordReset(member.id, ADMIN);
     await expect(resolvePasswordReset(first)).rejects.toBeInstanceOf(NotFoundError);
     await expect(resolvePasswordReset(second)).resolves.toMatchObject({ email: member.email });
+  });
+
+  it("refuses an unknown link before hashing the submitted password", async () => {
+    vi.mocked(hashPassword).mockClear();
+    await expect(completePasswordReset("f".repeat(64), "any-password-123")).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+    expect(hashPassword).not.toHaveBeenCalled();
   });
 
   it("refuses an expired link", async () => {

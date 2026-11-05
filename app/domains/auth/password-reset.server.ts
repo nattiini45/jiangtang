@@ -95,6 +95,9 @@ export async function resolvePasswordReset(token: string): Promise<PasswordReset
  * consume the link and delete every session of the account, all or nothing.
  */
 export async function completePasswordReset(token: string, password: string): Promise<void> {
+  // The page is public: refuse an unknown or expired token before spending the
+  // password KDF on it. The transaction below checks again, for races.
+  await findResetLink(db, token);
   const passwordHash = await hashPassword(password);
   const actor: AuditActor = {};
   await txWithAudit(actor, async (tx, audit) => {
