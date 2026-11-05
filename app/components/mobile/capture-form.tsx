@@ -1,7 +1,14 @@
 import * as React from "react";
 import { Link } from "react-router";
 import { CloudOff, Trash2 } from "lucide-react";
-import { captureOrQueue, useOfflineQueue, type CaptureResult } from "~/lib/pwa/offline-queue";
+import {
+  captureOrQueue,
+  defaultStore,
+  useOfflineQueue,
+  useQueueOwner,
+  type CaptureResult,
+  type QueuedCapture,
+} from "~/lib/pwa/offline-queue";
 import { useT } from "~/i18n/use-t";
 
 /**
@@ -17,6 +24,7 @@ export function useCaptureSubmit(action: string) {
   );
   const [error, setError] = React.useState<string | null>(null);
   const t = useT();
+  const userId = useQueueOwner();
 
   const submit = React.useCallback(
     async (form: HTMLFormElement): Promise<CaptureResult | null> => {
@@ -26,7 +34,7 @@ export function useCaptureSubmit(action: string) {
       });
       setState("sending");
       setError(null);
-      const result = await captureOrQueue(action, fields);
+      const result = await captureOrQueue(action, fields, defaultStore(), fetch, userId);
       if (result.state === "sent") {
         setState("idle");
       } else if (result.state === "queued") {
@@ -38,19 +46,44 @@ export function useCaptureSubmit(action: string) {
       }
       return result;
     },
-    [action, t],
+    [action, t, userId],
   );
 
   return { state, error, submit };
 }
 
-/** The queued-state notice + this page's refused entries with a discard. */
+/**
+ * The queued-state notice + this page's refused entries with a discard. The
+ * sign-in notice follows the whole queue, not only this page's entries: a pass
+ * stops at the first entry that meets the wall and flags only that one, so
+ * entries behind it would otherwise never ask for a sign-in.
+ */
 export function CaptureQueueStatus({ url }: { url: string }) {
-  const { entries, discard } = useOfflineQueue();
-  const t = useT();
+  const { entries, authRequired, discard } = useOfflineQueue();
   const mine = entries.filter((e) => e.url === url);
   if (mine.length === 0) return null;
-  const signInNeeded = mine.some((e) => e.authRequired);
+  return (
+    <CaptureQueueList
+      url={url}
+      entries={mine}
+      signInNeeded={authRequired}
+      onDiscard={(clientId) => void discard(clientId)}
+    />
+  );
+}
+
+export function CaptureQueueList({
+  url,
+  entries,
+  signInNeeded,
+  onDiscard,
+}: {
+  url: string;
+  entries: QueuedCapture[];
+  signInNeeded: boolean;
+  onDiscard: (clientId: string) => void;
+}) {
+  const t = useT();
   return (
     <>
       {signInNeeded ? (
@@ -68,7 +101,7 @@ export function CaptureQueueStatus({ url }: { url: string }) {
         </p>
       ) : null}
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
-        {mine.map((e) => (
+        {entries.map((e) => (
           <li key={e.clientId} className="flex min-h-12 items-start gap-3 px-3 py-3 text-sm">
             <span className="bg-status-warning/15 text-status-warning mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
               <CloudOff className="size-3.5" strokeWidth={2} />
@@ -83,7 +116,7 @@ export function CaptureQueueStatus({ url }: { url: string }) {
             </div>
             <button
               type="button"
-              onClick={() => void discard(e.clientId)}
+              onClick={() => onDiscard(e.clientId)}
               aria-label={t("mobile.capture.discard")}
               className="text-muted-foreground active:text-destructive active:bg-selected flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-80"
             >

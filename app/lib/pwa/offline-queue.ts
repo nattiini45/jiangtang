@@ -1,5 +1,5 @@
 import * as React from "react";
-import { UNSAFE_decodeViaTurboStream } from "react-router";
+import { UNSAFE_decodeViaTurboStream, useRouteLoaderData } from "react-router";
 
 /**
  * Offline capture queue — client module. When a mobile capture submit
@@ -11,6 +11,13 @@ import { UNSAFE_decodeViaTurboStream } from "react-router";
  * Storage is behind `OfflineQueueStore`: IndexedDB in the browser, an
  * in-memory implementation for unit tests — no new dependency.
  *
+ * Every entry belongs to the person who was signed in when it was queued
+ * (`userId`). A pass replays, and the UI lists and counts, only the current
+ * user's entries; another user's stay stored, untouched, until that user
+ * signs in on this device again. An entry without an owner was queued before
+ * owners were recorded, by whoever used the device then: the first user whose
+ * pass sees it adopts it, so it is neither stranded nor shown to a third person.
+ *
  * Replay rules:
  *   2xx                    → remove (a retried create is deduped by clientId)
  *   authentication wall    → KEEP, flagged `authRequired`, and stop the pass:
@@ -20,6 +27,9 @@ import { UNSAFE_decodeViaTurboStream } from "react-router";
  *   4xx validation refusal → KEEP, with the server's error on the entry
  *   5xx / network error    → KEEP, retry on the next pass
  *   any other redirect     → KEEP, retry (not a confirmation, see postEntry)
+ * The `authRequired` flag is cleared only by evidence that the session works
+ * (the entry was sent, or the action itself answered with a refusal); a network
+ * error, a 5xx or an unconfirmed redirect says nothing about the session.
  *
  * Every POST targets the route's `.data` URL. A POST to the route *path* is a
  * document request: React Router runs the action and then renders the route
@@ -44,6 +54,11 @@ export interface QueuedCapture {
    * as usual, and the flag only tells the UI to ask for a new sign-in.
    */
   authRequired?: boolean;
+  /**
+   * Id of the user who queued the capture. Absent on entries queued before
+   * owners were recorded (see the module comment for how those behave).
+   */
+  userId?: string;
 }
 
 export interface OfflineQueueStore {
@@ -112,6 +127,15 @@ export function defaultStore(): OfflineQueueStore {
   return typeof indexedDB !== "undefined" ? new IdbQueueStore() : new MemoryQueueStore();
 }
 
+/**
+ * The entries the given user may see, send and count: their own, plus those
+ * without a recorded owner. Nothing is visible without a known user.
+ */
+export function visibleEntries(entries: QueuedCapture[], userId: string | undefined) {
+  if (!userId) return [];
+  return entries.filter((e) => e.userId === undefined || e.userId === userId);
+}
+
 /** `c` + 24 hex chars — matches the cuid shape the domains enforce. */
 export function newClientId(): string {
   return `c${crypto.randomUUID().replaceAll("-", "").slice(0, 24)}`;
@@ -146,16 +170,24 @@ export interface CaptureResult {
 /**
  * Submit a capture form now, or queue it when the network is down. `fields`
  * are the form's serialised fields; `clientId` is added by this function —
- * callers do not set it.
+ * callers do not set it. `userId` is the signed-in user a queued entry is
+ * bound to.
  */
 export async function captureOrQueue(
   url: string,
   fields: Record<string, string>,
   store: OfflineQueueStore = defaultStore(),
   fetchImpl: typeof fetch = fetch,
+  userId?: string,
 ): Promise<CaptureResult> {
   const clientId = newClientId();
-  const entry: QueuedCapture = { clientId, url, fields, createdAt: Date.now() };
+  const entry: QueuedCapture = {
+    clientId,
+    url,
+    fields,
+    createdAt: Date.now(),
+    ...(userId ? { userId } : {}),
+  };
   const outcome = await postEntry(entry, fetchImpl);
   switch (outcome.kind) {
     case "sent":
@@ -296,24 +328,32 @@ async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise
 }
 
 /**
- * Replay every queued capture in creation order. 2xx → remove; 4xx → keep
- * with the server's error stored on the entry; 5xx/network → keep. An
- * authentication wall keeps the entry flagged `authRequired` and ends the pass
- * (`authRequired: true` in the result): the remaining entries would meet the
- * same wall, and the next pass runs after the person signs in again.
+ * Replay the queued captures of `userId` in creation order (every entry when
+ * no user is given). 2xx → remove; 4xx → keep with the server's error stored
+ * on the entry; 5xx/network → keep. An authentication wall keeps the entry
+ * flagged `authRequired` and ends the pass (`authRequired: true` in the
+ * result): the remaining entries would meet the same wall, and the next pass
+ * runs after the person signs in again. Other users' entries are not touched.
  *
  * Both the mobile shell badge and a capture page mount `useOfflineQueue`, so
  * two replays can start in the same tick. They share one in-flight pass:
  * without this, the same entry is POSTed twice and the create races itself.
+ * A pass for another user waits for the running one instead of joining it,
+ * because signing out and in again does not reload the page.
  */
 export function replayQueue(
   store: OfflineQueueStore = defaultStore(),
   fetchImpl: typeof fetch = fetch,
+  userId?: string,
 ): Promise<ReplaySummary> {
-  replayInFlight ??= replayQueueOnce(store, fetchImpl).finally(() => {
-    replayInFlight = null;
+  if (replayInFlight && replayInFlight.userId === userId) return replayInFlight.promise;
+  const previous = replayInFlight?.promise.catch(() => undefined);
+  const run = () => replayQueueOnce(store, fetchImpl, userId);
+  const promise = (previous ? previous.then(run) : run()).finally(() => {
+    if (replayInFlight?.promise === promise) replayInFlight = null;
   });
-  return replayInFlight;
+  replayInFlight = { userId, promise };
+  return promise;
 }
 
 export interface ReplaySummary {
@@ -324,18 +364,29 @@ export interface ReplaySummary {
   authRequired?: boolean;
 }
 
-let replayInFlight: Promise<ReplaySummary> | null = null;
+let replayInFlight: { userId: string | undefined; promise: Promise<ReplaySummary> } | null = null;
 
 async function replayQueueOnce(
   store: OfflineQueueStore,
   fetchImpl: typeof fetch,
+  userId: string | undefined,
 ): Promise<ReplaySummary> {
   let sent = 0;
   let refused = 0;
   let kept = 0;
   let authRequired = false;
   let changed = false;
-  const entries = await store.list();
+  const entries: QueuedCapture[] = [];
+  for (const stored of await store.list()) {
+    if (userId === undefined || stored.userId === userId) {
+      entries.push(stored);
+    } else if (stored.userId === undefined) {
+      const adopted = { ...stored, userId };
+      await store.put(adopted);
+      entries.push(adopted);
+      changed = true;
+    }
+  }
   for (const [index, entry] of entries.entries()) {
     // A 4xx-refused entry waits for the user (discard or fix); replaying it on
     // every pass only repeats the same refusal. It stays visible with its error.
@@ -349,6 +400,7 @@ async function replayQueueOnce(
       sent += 1;
       changed = true;
     } else if (outcome.kind === "refused") {
+      // The action itself answered, so any sign-in notice on the entry is stale.
       const { authRequired: _stale, ...rest } = entry;
       await store.put({ ...rest, error: outcome.error });
       refused += 1;
@@ -363,12 +415,7 @@ async function replayQueueOnce(
       kept += entries.length - index;
       break;
     } else {
-      if (entry.authRequired) {
-        // Reached the server without a wall: the sign-in notice is stale.
-        const { authRequired: _stale, ...rest } = entry;
-        await store.put(rest);
-        changed = true;
-      }
+      // Inconclusive about the session, so the sign-in flag stays as it is.
       kept += 1;
     }
   }
@@ -377,20 +424,32 @@ async function replayQueueOnce(
 }
 
 /**
+ * The signed-in user's id, from the /m layout loader. Queued captures are bound
+ * to it. `undefined` outside that layout, where nothing is listed or replayed.
+ */
+export function useQueueOwner(): string | undefined {
+  const data = useRouteLoaderData("routes/m") as { user?: { id?: unknown } } | undefined;
+  return typeof data?.user?.id === "string" ? data.user.id : undefined;
+}
+
+/**
  * React side of the queue: the pending count for the shell badge, the entry
  * list for capture pages (refused entries show their error + a discard
- * button), and the two replay triggers — the `online` event and mount.
+ * button), and the two replay triggers — the `online` event and mount. Only the
+ * signed-in user's entries are listed, counted and replayed; `authRequired`
+ * covers all of them, not just one page's.
  * No-op during SSR (`defaultStore` falls back to memory there).
  */
 export function useOfflineQueue(storeOverride?: OfflineQueueStore) {
   // `defaultStore()` must not be a default parameter — a fresh instance every
   // render would retrigger the effect deps below on each state update.
   const store = React.useMemo(() => storeOverride ?? defaultStore(), [storeOverride]);
+  const userId = useQueueOwner();
   const [entries, setEntries] = React.useState<QueuedCapture[]>([]);
 
   const refresh = React.useCallback(async () => {
-    setEntries(await store.list());
-  }, [store]);
+    setEntries(visibleEntries(await store.list(), userId));
+  }, [store, userId]);
 
   const discard = React.useCallback(
     async (clientId: string) => {
@@ -403,18 +462,20 @@ export function useOfflineQueue(storeOverride?: OfflineQueueStore) {
 
   React.useEffect(() => {
     void refresh();
-    void replayQueue(store);
-    const onOnline = () => void replayQueue(store).then(refresh);
+    const replay = () => {
+      if (userId) void replayQueue(store, fetch, userId).then(refresh);
+    };
+    replay();
     const onChanged = () => void refresh();
-    window.addEventListener("online", onOnline);
+    window.addEventListener("online", replay);
     window.addEventListener(QUEUE_CHANGED_EVENT, onChanged);
     return () => {
-      window.removeEventListener("online", onOnline);
+      window.removeEventListener("online", replay);
       window.removeEventListener(QUEUE_CHANGED_EVENT, onChanged);
     };
-  }, [store, refresh]);
+  }, [store, userId, refresh]);
 
   const authRequired = entries.some((e) => e.authRequired);
 
-  return { entries, pending: entries.length, authRequired, discard, refresh };
+  return { entries, pending: entries.length, authRequired, discard, refresh, userId };
 }

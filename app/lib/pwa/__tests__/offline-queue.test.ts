@@ -1,10 +1,12 @@
 import { createRequestHandler, redirect, type ServerBuild } from "react-router";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   captureOrQueue,
   MemoryQueueStore,
   newClientId,
+  QUEUE_CHANGED_EVENT,
   replayQueue,
+  visibleEntries,
   type QueuedCapture,
 } from "../offline-queue";
 import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
@@ -374,12 +376,72 @@ describe("offline queue", () => {
       expect(await store.list()).toHaveLength(0);
     });
 
-    it("clears the sign-in marker when a later pass fails for another reason", async () => {
+    it("keeps the sign-in marker when a later pass fails for a reason that says nothing about the session", async () => {
+      // A network error, a 5xx and an unconfirmed redirect are all
+      // inconclusive: the session may still be gone.
       const store = new MemoryQueueStore();
       await store.put({ ...mkEntry(ENTRY_ID), authRequired: true });
-      await replayQueue(store, fakeFetch([new Response("", { status: 503 })]));
+      for (const outcome of [
+        new Response("", { status: 503 }),
+        new TypeError("offline"),
+        await singleFetchRedirect("/m/rooms"),
+        followed("http://localhost/m/rooms"),
+      ]) {
+        await replayQueue(store, fakeFetch([outcome]));
+        const [entry] = await store.list();
+        expect(entry.authRequired).toBe(true);
+        expect(entry.error).toBeUndefined();
+      }
+    });
+
+    it("drops a stale sign-in marker when the action answers with a refusal", async () => {
+      // A validation refusal comes from the action itself, so the session works.
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry(ENTRY_ID), authRequired: true });
+      const summary = await replayQueue(
+        store,
+        fakeFetch([json({ error: "Titel ist zu lang." }, 400)]),
+      );
+      expect(summary).toEqual({ sent: 0, refused: 1, kept: 0 });
       const [entry] = await store.list();
+      expect(entry.error).toBe("Titel ist zu lang.");
       expect(entry.authRequired).toBeUndefined();
+    });
+
+    describe("a 202 that is not a confirmed redirect to /login", () => {
+      const odd: [string, () => Response][] = [
+        ["has an empty body", () => new Response("", { status: 202 })],
+        [
+          "is not a single-fetch body",
+          () =>
+            new Response("accepted", { status: 202, headers: { "content-type": "text/plain" } }),
+        ],
+        ["decodes to an action result, not a redirect", () => turbo(TURBO_ID, 202)],
+      ];
+      for (const [label, make] of odd) {
+        it(`captureOrQueue queues it when it ${label}`, async () => {
+          const store = new MemoryQueueStore();
+          const res = await captureOrQueue(
+            "/m/tasks/new",
+            { title: "t" },
+            store,
+            fakeFetch([make()]),
+          );
+          expect(res.state).toBe("queued");
+          expect(res.authRequired).toBeUndefined();
+          const [entry] = await store.list();
+          expect(entry.authRequired).toBeUndefined();
+          expect(entry.error).toBeUndefined();
+        });
+
+        it(`replay keeps the entry when it ${label}`, async () => {
+          const store = new MemoryQueueStore();
+          await store.put(mkEntry(ENTRY_ID));
+          const summary = await replayQueue(store, fakeFetch([make()]));
+          expect(summary).toEqual({ sent: 0, refused: 0, kept: 1 });
+          expect(await store.list()).toHaveLength(1);
+        });
+      }
     });
 
     it("a single-fetch redirect elsewhere is not a confirmation: the capture stays queued", async () => {
@@ -430,6 +492,199 @@ describe("offline queue", () => {
         error: "Titel ist zu lang.",
       });
       expect(entry.authRequired).toBeUndefined();
+    });
+  });
+
+  describe("change notifications", () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    function countEvents(): () => number {
+      const target = new EventTarget();
+      vi.stubGlobal("window", target);
+      let n = 0;
+      target.addEventListener(QUEUE_CHANGED_EVENT, () => (n += 1));
+      return () => n;
+    }
+
+    it("fires when a pass only sets the sign-in flag, and not when it was already set", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(ENTRY_ID));
+      const events = countEvents();
+
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      expect((await store.list())[0]?.authRequired).toBe(true);
+      expect(events()).toBe(1);
+
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      expect(events()).toBe(1);
+    });
+
+    it("fires when a pass clears the sign-in flag", async () => {
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry(ENTRY_ID), authRequired: true });
+      const events = countEvents();
+      await replayQueue(store, fakeFetch([json({ error: "Titel ist zu lang." }, 400)]));
+      expect((await store.list())[0]?.authRequired).toBeUndefined();
+      expect(events()).toBe(1);
+    });
+
+    it("stays quiet when nothing in the store changed", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(ENTRY_ID));
+      const events = countEvents();
+      await replayQueue(store, fakeFetch([new Response("", { status: 503 })]));
+      expect(events()).toBe(0);
+    });
+  });
+
+  describe("owner binding", () => {
+    const ALICE = "cuseralice000000000000001";
+    const BOB = "cuserbob00000000000000002";
+    const owned = (clientId: string, userId: string | undefined, createdAt = 1): QueuedCapture => ({
+      ...mkEntry(clientId, createdAt),
+      ...(userId ? { userId } : {}),
+    });
+
+    it("captureOrQueue records the signed-in user on the queued entry", async () => {
+      const store = new MemoryQueueStore();
+      const offline = await captureOrQueue(
+        "/m/tasks/new",
+        { title: "t" },
+        store,
+        fakeFetch([new TypeError("offline")]),
+        ALICE,
+      );
+      const wall = await captureOrQueue(
+        "/m/tasks/new",
+        { title: "u" },
+        store,
+        fakeFetch([new Response("", { status: 401 })]),
+        ALICE,
+      );
+      const entries = await store.list();
+      expect(entries.map((e) => e.clientId).sort()).toEqual(
+        [offline.clientId, wall.clientId].sort(),
+      );
+      expect(entries.every((e) => e.userId === ALICE)).toBe(true);
+    });
+
+    it("replays only the current user's entries and leaves the others untouched", async () => {
+      const store = new MemoryQueueStore();
+      const theirs = owned("cb22222222222222222222222", BOB, 2);
+      const theirsFlagged = {
+        ...owned("cc33333333333333333333333", BOB, 3),
+        authRequired: true,
+      };
+      await store.put(owned("ca11111111111111111111111", ALICE, 1));
+      await store.put(theirs);
+      await store.put(theirsFlagged);
+      const calls: string[] = [];
+      const summary = await replayQueue(
+        store,
+        fakeFetch([json({ id: "ca11111111111111111111111" })], calls),
+        ALICE,
+      );
+      expect(calls).toHaveLength(1);
+      expect(summary).toEqual({ sent: 1, refused: 0, kept: 0 });
+      expect(await store.list()).toEqual([theirs, theirsFlagged]);
+    });
+
+    it("an entry replays once its owner is the current user", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(owned("cb22222222222222222222222", BOB));
+      const calls: string[] = [];
+      expect(await replayQueue(store, fakeFetch([], calls), ALICE)).toEqual({
+        sent: 0,
+        refused: 0,
+        kept: 0,
+      });
+      expect(calls).toHaveLength(0);
+      const summary = await replayQueue(
+        store,
+        fakeFetch([json({ id: "cb22222222222222222222222" })], calls),
+        BOB,
+      );
+      expect(summary).toEqual({ sent: 1, refused: 0, kept: 0 });
+      expect(calls).toHaveLength(1);
+      expect(await store.list()).toHaveLength(0);
+    });
+
+    it("a wall met by one user's entry does not stop the next user's pass", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(owned("ca11111111111111111111111", ALICE, 1));
+      await store.put(owned("cb22222222222222222222222", BOB, 2));
+      const wall = await replayQueue(store, fakeFetch([new Response("", { status: 401 })]), ALICE);
+      expect(wall.authRequired).toBe(true);
+      const calls: string[] = [];
+      const summary = await replayQueue(
+        store,
+        fakeFetch([json({ id: "cb22222222222222222222222" })], calls),
+        BOB,
+      );
+      expect(summary).toEqual({ sent: 1, refused: 0, kept: 0 });
+      expect(calls).toHaveLength(1);
+    });
+
+    it("passes for different users never overlap", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(owned("ca11111111111111111111111", ALICE, 1));
+      await store.put(owned("cb22222222222222222222222", BOB, 2));
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const order: string[] = [];
+      const slowFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const clientId = new URLSearchParams(String(init?.body)).get("clientId") ?? String(input);
+        order.push(`start ${clientId}`);
+        await gate;
+        order.push(`end ${clientId}`);
+        return json({ id: clientId });
+      }) as typeof fetch;
+      const first = replayQueue(store, slowFetch, ALICE);
+      const second = replayQueue(store, slowFetch, BOB);
+      release();
+      await Promise.all([first, second]);
+      expect(order).toEqual([
+        "start ca11111111111111111111111",
+        "end ca11111111111111111111111",
+        "start cb22222222222222222222222",
+        "end cb22222222222222222222222",
+      ]);
+      expect(await store.list()).toHaveLength(0);
+    });
+
+    it("an entry queued before owners were recorded is adopted by the first user to replay", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(owned("ca11111111111111111111111", undefined));
+      const summary = await replayQueue(store, fakeFetch([new TypeError("offline")]), ALICE);
+      expect(summary).toEqual({ sent: 0, refused: 0, kept: 1 });
+      expect((await store.list())[0]?.userId).toBe(ALICE);
+      // From now on it belongs to her: another user neither sees nor sends it.
+      const calls: string[] = [];
+      expect(await replayQueue(store, fakeFetch([], calls), BOB)).toEqual({
+        sent: 0,
+        refused: 0,
+        kept: 0,
+      });
+      expect(calls).toHaveLength(0);
+    });
+
+    it("visibleEntries lists, and so counts, only the user's entries plus unowned ones", () => {
+      const all = [
+        owned("ca11111111111111111111111", ALICE, 1),
+        owned("cb22222222222222222222222", BOB, 2),
+        owned("cc33333333333333333333333", undefined, 3),
+      ];
+      expect(visibleEntries(all, ALICE).map((e) => e.clientId)).toEqual([
+        "ca11111111111111111111111",
+        "cc33333333333333333333333",
+      ]);
+      expect(visibleEntries(all, BOB).map((e) => e.clientId)).toEqual([
+        "cb22222222222222222222222",
+        "cc33333333333333333333333",
+      ]);
+      expect(visibleEntries(all, undefined)).toEqual([]);
     });
   });
 });
