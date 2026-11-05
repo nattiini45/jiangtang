@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { TicketStatus } from "~/generated/prisma/enums";
 import type { Ticket } from "~/generated/prisma/client";
 import { db, type Tx } from "~/lib/db.server";
+import { isUniqueViolation } from "~/lib/db-errors.server";
 import type { TicketCreateInput, TicketEditInput, TicketTransitionInput } from "./tickets.schema";
 import { laneOfTicketStatus, TICKET_LANE_STATUS, type Lane } from "~/domains/tasks/tasks.lanes";
 import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
@@ -126,21 +127,6 @@ export async function createTicket(
     }
     throw error;
   }
-}
-
-/** P2002 or the driver-adapter's structured unique violation, at any depth. */
-function isUniqueViolation(error: unknown): boolean {
-  let cur: unknown = error;
-  for (let depth = 0; cur && depth < 6; depth++) {
-    const e = cur as {
-      code?: unknown;
-      meta?: { driverAdapterError?: { cause?: { kind?: unknown } } };
-    };
-    if (e.code === "P2002") return true;
-    if (e.meta?.driverAdapterError?.cause?.kind === "UniqueConstraintViolation") return true;
-    cur = (cur as { cause?: unknown }).cause;
-  }
-  return false;
 }
 
 /**

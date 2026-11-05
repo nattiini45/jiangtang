@@ -5,6 +5,7 @@ import {
   captureOrQueue,
   defaultStore,
   MemoryQueueStore,
+  newClientId,
   useOfflineQueue,
   useQueueOwner,
   type CaptureResult,
@@ -23,6 +24,9 @@ import { useT } from "~/i18n/use-t";
  * queue cannot hold in full (a ticket with photos) is then never stored, the
  * result is still `queued` (nothing was sent), and the state is `unsent` or
  * `unsentSignin` so the page can keep the form and let the person choose.
+ * Every attempt at the same entry goes out under one clientId, kept until the
+ * entry is sent or stored: an attempt whose answer was lost may have created
+ * the row, and the shared id makes the retry return it instead of a second one.
  */
 export function useCaptureSubmit(action: string) {
   const [state, setState] = React.useState<
@@ -31,6 +35,7 @@ export function useCaptureSubmit(action: string) {
   const [error, setError] = React.useState<string | null>(null);
   const t = useT();
   const userId = useQueueOwner();
+  const entryId = React.useRef<string | null>(null);
 
   const submit = React.useCallback(
     async (
@@ -45,7 +50,12 @@ export function useCaptureSubmit(action: string) {
       setError(null);
       // Without the fallback the "queued" entry lands in a throwaway store.
       const store = queue ? defaultStore() : new MemoryQueueStore();
-      const result = await captureOrQueue(action, fields, store, fetch, userId);
+      entryId.current ??= newClientId();
+      const result = await captureOrQueue(action, fields, store, fetch, userId, entryId.current);
+      // Sent, or stored in the real queue: the next submit is a new entry.
+      if (result.state === "sent" || (result.state === "queued" && queue)) {
+        entryId.current = null;
+      }
       if (result.state === "sent") {
         setState("idle");
       } else if (result.state === "queued" && !queue) {

@@ -230,9 +230,11 @@ export interface CaptureResult {
 
 /**
  * Submit a capture form now, or queue it when the network is down. `fields`
- * are the form's serialised fields; `clientId` is added by this function —
- * callers do not set it. `userId` is the signed-in user a queued entry is
- * bound to.
+ * are the form's serialised fields; `clientId` is added by this function, not
+ * by the fields. `userId` is the signed-in user a queued entry is bound to.
+ * Pass `clientId` to send a retry of the same entry under the id of its
+ * earlier attempt: an attempt whose answer was lost may have created the row,
+ * and the id is what makes the retry return that row instead of a second one.
  */
 export async function captureOrQueue(
   url: string,
@@ -240,8 +242,8 @@ export async function captureOrQueue(
   store: OfflineQueueStore = defaultStore(),
   fetchImpl: typeof fetch = fetch,
   userId?: string,
+  clientId: string = newClientId(),
 ): Promise<CaptureResult> {
-  const clientId = newClientId();
   const entry: QueuedCapture = {
     clientId,
     url,

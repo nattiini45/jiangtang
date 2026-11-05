@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
@@ -59,6 +59,11 @@ export async function action({ request }: Route.ActionArgs) {
   const wantsJson = request.headers.get(CAPTURE_HEADER) === "1";
   const { clientId, ...rest } = formDataToObject(await request.formData());
   const parsed = safeParse(ticketCreateSchema, rest, locale);
+  // A queued entry carries its capture time, so a replay hours later is still
+  // logged when it happened. The phone's clock may run ahead: never later than now.
+  if (parsed.success && parsed.data.occurredAt && parsed.data.occurredAt > new Date()) {
+    parsed.data.occurredAt = new Date();
+  }
   try {
     if (!parsed.success) {
       throw new ValidationError(parsed.fieldErrors, parsed.formErrors);
@@ -97,6 +102,8 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   const [done, setDone] = React.useState(false);
   const [pendingPhotos, setPendingPhotos] = React.useState<File[]>([]);
   const formRef = React.useRef<HTMLFormElement>(null);
+  // Remounts the photo widget, whose own counter would still count dropped photos.
+  const [photoKey, setPhotoKey] = React.useState(0);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const startedRef = React.useRef(false);
@@ -193,6 +200,9 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   // `queue: false` while photos are attached: the queue holds fields only, and
   // queueing would leave the photos behind without the person deciding so.
   const send = async (form: HTMLFormElement, queue: boolean) => {
+    // The capture time travels with the entry (see the action).
+    const occurredAt = form.elements.namedItem("occurredAt");
+    if (occurredAt instanceof HTMLInputElement) occurredAt.value = new Date().toISOString();
     const result = await submit(form, { queue });
     if (result?.state === "sent") {
       if (result.id) setSentId(result.id);
@@ -203,6 +213,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
       form.reset();
       setDone(false);
       setPendingPhotos([]);
+      setPhotoKey((k) => k + 1);
     }
   };
 
@@ -212,6 +223,9 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
     <form
       ref={formRef}
       method="post"
+      // Before hydration this is a native post: `?index` targets this index
+      // route's action rather than the /m layout.
+      action={CAPTURE_URL}
       className="flex flex-col gap-4 px-4 py-4"
       onSubmit={(e) => {
         e.preventDefault();
@@ -219,6 +233,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
       }}
     >
       <h1 className="text-lg font-semibold">{t("mobile.entry.title")}</h1>
+      <input type="hidden" name="occurredAt" defaultValue="" />
 
       <Label className="flex flex-col gap-1.5">
         <span>{t("mobile.entry.room")}</span>
@@ -277,6 +292,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold">{t("mobile.entry.photo")}</span>
         <MobilePhotoCapture
+          key={photoKey}
           onCapture={(f) => setPendingPhotos((p) => [...p, f])}
           existingCount={0}
         />
@@ -319,14 +335,6 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
               state === "unsentSignin" ? "mobile.entry.unsentSignIn" : "mobile.entry.unsentPhotos",
             )}
           </p>
-          {state === "unsentSignin" ? (
-            <Link
-              to={`/login?next=${encodeURIComponent("/m")}`}
-              className="flex min-h-11 items-center text-sm font-semibold underline underline-offset-4"
-            >
-              {t("mobile.capture.signInAction")}
-            </Link>
-          ) : null}
           <Button
             type="button"
             variant="outline"

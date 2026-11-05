@@ -87,10 +87,13 @@ test("an offline ticket with a photo is not queued until the person drops the ph
   await expect(page.getByText("Nicht gesendet: keine Verbindung.", { exact: false })).toBeVisible();
   await expect(page.locator('input[name="title"]')).toHaveValue(TITLE);
   await expect(page.getByText(`${TITLE} — ausstehend`)).toHaveCount(0);
+  await expect(page.getByText("1 Foto(s) an diesem Ticket")).toBeVisible();
 
   await page.getByRole("button", { name: "Offline ohne Fotos speichern" }).click();
   await expect(page.getByText("Offline gespeichert")).toBeVisible();
   await expect(page.getByText(`${TITLE} — ausstehend`)).toBeVisible();
+  // The dropped photo is no longer counted on the cleared form.
+  await expect(page.getByText(/Foto\(s\) an diesem Ticket/)).toHaveCount(0);
 
   await goOnline(page);
   await expect
@@ -98,6 +101,48 @@ test("an offline ticket with a photo is not queued until the person drops the ph
     .toBe(1);
   const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
   expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(0);
+});
+
+test.describe("without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("the native form post reaches the entry action, not the /m layout", async ({ page }) => {
+    const TITLE = `${RUN}Ohne-JS-${Date.now().toString(36)}`;
+    await page.goto("/m");
+    await page.locator('input[name="title"]').fill(TITLE);
+    await submitButton(page).click();
+    await expect
+      .poll(async () => db.ticket.count({ where: { title: TITLE } }), { timeout: 15_000 })
+      .toBe(1);
+  });
+});
+
+test("a retry after a lost answer keeps one ticket and uploads its photo", async ({ page }) => {
+  const TITLE = `${RUN}Verlorene-Antwort-${Date.now().toString(36)}`;
+  await openEntry(page);
+  // The server creates the ticket, but the answer never reaches the page.
+  await page.route(isEntryPost, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    await route.fetch();
+    await route.abort("internetdisconnected");
+  });
+
+  await page.locator('input[name="title"]').fill(TITLE);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "defekt.png",
+    mimeType: "image/png",
+    buffer: PNG,
+  });
+  await submitButton(page).click();
+  await expect(page.getByText("Nicht gesendet: keine Verbindung.", { exact: false })).toBeVisible();
+  expect(await db.ticket.count({ where: { title: TITLE } })).toBe(1);
+
+  await page.unroute(isEntryPost);
+  await page.getByRole("button", { name: "Erneut versuchen" }).click();
+  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  expect(await db.ticket.count({ where: { title: TITLE } })).toBe(1);
+  const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
+  expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(1);
 });
 
 test("online, the entry is created and its photo uploaded", async ({ page }) => {

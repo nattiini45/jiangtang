@@ -176,6 +176,25 @@ describe("/m (ticket entry) capture", () => {
     expect(await db.ticket.count({ where: { id: clientId } })).toBe(1);
   });
 
+  it("keeps the capture time of a replayed entry, and never a time in the future", async () => {
+    const past = newClientId();
+    const future = newClientId();
+    ticketIds.push(past, future);
+    const capturedAt = new Date(Date.now() - 10 * 60 * 60 * 1000);
+    for (const [clientId, occurredAt] of [
+      [past, capturedAt.toISOString()],
+      [future, new Date(Date.now() + 60 * 60 * 1000).toISOString()],
+    ] as const) {
+      await entryRoute.action({
+        request: captureRequest("/m", { title: `${RUN} when`, occurredAt, clientId }, ACTOR.id),
+      } as never);
+    }
+    const replayed = await db.ticket.findUniqueOrThrow({ where: { id: past } });
+    expect(replayed.occurredAt.toISOString()).toBe(capturedAt.toISOString());
+    const skewed = await db.ticket.findUniqueOrThrow({ where: { id: future } });
+    expect(skewed.occurredAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
   it("answers an invalid capture with a 400 JSON error the queue can show", async () => {
     const clientId = newClientId();
     const res = (await entryRoute.action({
