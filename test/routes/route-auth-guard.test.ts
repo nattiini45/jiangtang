@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 /**
  * Standing guard: every route module that exports a `loader` or an `action` must turn an
- * anonymous request away itself, unless it is on the explicit PUBLIC list below.
+ * anonymous request away itself, before it touches the database, unless it is on the explicit
+ * PUBLIC list below.
  *
  * Why the layout's check is not enough: React Router single-fetch (`<path>.data`) honours
  * `?_routes=<route ids>` and then runs only the loaders of the routes named there. A signed-out
@@ -15,10 +16,41 @@ import path from "node:path";
  * The test is behavioural. It enumerates the real route table with `flatRoutes()` (the same way
  * `route-resolution.test.ts` does), imports every route module, and calls each exported loader
  * and action with an anonymous request: no cookie, `GET` for loaders and `POST` for actions.
- * The only accepted outcome is a rejection before any data is read: a thrown (or returned)
- * redirect to `/login`. Any other throw, such as a database error, does not count, because that
- * would mean the handler got as far as reading data.
+ * Two things must hold for every handler:
+ *
+ * 1. It rejects with a redirect to `/login`, thrown or returned.
+ * 2. It never reaches the database on the way there. `~/lib/db.server` is replaced by a client
+ *    that records and refuses any access while a handler runs, so a handler that reads or writes
+ *    first and calls `requireUser` afterwards fails even though it ends in the same redirect.
+ *
+ * The real `~/lib/auth.server` stays in place, so each handler meets the real `requireUser`
+ * or `requireRole`, which must answer an anonymous request without touching the database
+ * either. Out of scope: other data stores a handler could read before its check, namely object
+ * storage on disk and the AI endpoints; only the database is observed.
  */
+
+/**
+ * A stand-in for the shared Prisma client. While `armed` it records every property read
+ * (`db.room`, `db.$transaction`, ...) and throws, so the first data access of a handler is both
+ * visible to the test and fatal to the handler. While disarmed, which covers loading the route
+ * modules, it answers `undefined`: import-time code must not need a database.
+ */
+const dbProbe = vi.hoisted(() => {
+  const state = { armed: false, accesses: [] as string[] };
+  const client = new Proxy(
+    {},
+    {
+      get: (_target, key) => {
+        if (!state.armed || typeof key !== "string") return undefined;
+        state.accesses.push(`db.${key}`);
+        throw new Error(`database access (db.${key}) before the sign-in check`);
+      },
+    },
+  );
+  return { state, client };
+});
+
+vi.mock("~/lib/db.server", () => ({ db: dbProbe.client }));
 
 type AppDirectoryGlobal = { __reactRouterAppDirectory?: string };
 const APP_DIR = fileURLToPath(new URL("../../app", import.meta.url));
@@ -82,16 +114,24 @@ const classify = (value: unknown): Outcome => {
   return { kind: "other", detail: "returned data" };
 };
 
-const callAnonymously = async (handler: Handler, kind: "loader" | "action"): Promise<Outcome> => {
+type Probe = { outcome: Outcome; databaseAccesses: string[] };
+
+const callAnonymously = async (handler: Handler, kind: "loader" | "action"): Promise<Probe> => {
   const request = new Request("http://localhost/anonymous-probe", {
     method: kind === "action" ? "POST" : "GET",
     ...(kind === "action" ? { body: new URLSearchParams({ probe: "1" }) } : {}),
   });
+  dbProbe.state.accesses = [];
+  dbProbe.state.armed = true;
+  let outcome: Outcome;
   try {
-    return classify(await handler({ request, params: fakeParams(), context: {} }));
+    outcome = classify(await handler({ request, params: fakeParams(), context: {} }));
   } catch (thrown) {
-    return classify(thrown);
+    outcome = classify(thrown);
+  } finally {
+    dbProbe.state.armed = false;
   }
+  return { outcome, databaseAccesses: [...dbProbe.state.accesses] };
 };
 
 describe("route auth guard — the route table", () => {
@@ -118,6 +158,71 @@ describe("route auth guard — the route table", () => {
   });
 });
 
+describe("route auth guard — the probe itself", () => {
+  const anonymous = (url = "http://localhost/rooms?campus=a b") => new Request(url);
+
+  it("the real requireUser sends an anonymous request to /login and keeps the way back", async () => {
+    const { requireUser } = await import("~/lib/auth.server");
+    dbProbe.state.accesses = [];
+    dbProbe.state.armed = true;
+    let thrown: unknown;
+    try {
+      await requireUser(anonymous());
+    } catch (error) {
+      thrown = error;
+    } finally {
+      dbProbe.state.armed = false;
+    }
+    expect(thrown).toBeInstanceOf(Response);
+    expect((thrown as Response).status).toBe(302);
+    expect((thrown as Response).headers.get("Location")).toBe(
+      `/login?next=${encodeURIComponent("/rooms?campus=a%20b")}`,
+    );
+    expect(dbProbe.state.accesses).toEqual([]);
+  });
+
+  it("the real requireRole and getOptionalUser treat an anonymous request the same way", async () => {
+    const { requireRole, getOptionalUser } = await import("~/lib/auth.server");
+    dbProbe.state.accesses = [];
+    dbProbe.state.armed = true;
+    try {
+      await expect(requireRole(anonymous(), "ADMIN")).rejects.toMatchObject({ status: 302 });
+      await expect(getOptionalUser(anonymous())).resolves.toBeNull();
+    } finally {
+      dbProbe.state.armed = false;
+    }
+    expect(dbProbe.state.accesses).toEqual([]);
+  });
+
+  it("flags a handler that reads before its check, even when the read ends in a redirect", async () => {
+    const { requireUser } = await import("~/lib/auth.server");
+    const { db } = await import("~/lib/db.server");
+    const readsFirst: Handler = async ({ request }) => {
+      try {
+        await (db as unknown as { room: { findMany: () => Promise<unknown> } }).room.findMany();
+      } catch {
+        // A handler that swallows the failure must not hide the access.
+      }
+      await requireUser(request);
+      return null;
+    };
+    const probe = await callAnonymously(readsFirst, "loader");
+    expect(probe.outcome.kind).toBe("redirect-to-login");
+    expect(probe.databaseAccesses).toEqual(["db.room"]);
+  });
+
+  it("accepts a handler that checks first", async () => {
+    const { requireUser } = await import("~/lib/auth.server");
+    const checksFirst: Handler = async ({ request }) => {
+      await requireUser(request);
+      return null;
+    };
+    const probe = await callAnonymously(checksFirst, "action");
+    expect(probe.outcome.kind).toBe("redirect-to-login");
+    expect(probe.databaseAccesses).toEqual([]);
+  });
+});
+
 describe("route auth guard — anonymous requests are turned away", () => {
   const protectedRoutes = ROUTES.filter((r) => !(r.id in PUBLIC));
 
@@ -135,8 +240,12 @@ describe("route auth guard — anonymous requests are turned away", () => {
 
       const failures: string[] = [];
       for (const [kind, handler] of calls) {
-        const outcome = await callAnonymously(handler, kind);
-        if (outcome.kind !== "redirect-to-login") {
+        const { outcome, databaseAccesses } = await callAnonymously(handler, kind);
+        if (databaseAccesses.length > 0) {
+          failures.push(
+            `${kind}: reached the database before turning the request away (${databaseAccesses.join(", ")})`,
+          );
+        } else if (outcome.kind !== "redirect-to-login") {
           failures.push(`${kind}: expected a redirect to /login, got ${outcome.detail}`);
         }
       }
