@@ -9,25 +9,108 @@
 // kept hand-rolled and small for solo-maintainability: mainstream, minimal
 // moving parts.
 
-const SHELL_CACHE = "jiangtang-shell-v1";
+// The shell cache holds signed-in content (SSR HTML, loader data, uploaded images, API answers),
+// keyed by URL and not by person. The sign-in page empties every "jiangtang-shell-*" cache
+// (app/lib/pwa/purge-caches.ts), so keep that prefix when bumping the version. Bump the version
+// when old entries must not survive: activate deletes any other jiangtang-* cache.
+const SHELL_CACHE = "jiangtang-shell-v2";
 const ASSET_CACHE = "jiangtang-assets-v1";
 const SHELL_URLS = ["/m/", "/m/offline"];
+const OFFLINE_URL = "/m/offline";
+const LOGIN_PATH = "/login";
+
+// Whether a network answer may be stored. Only a plain 200 from this origin: a redirected answer
+// or one whose final URL is the sign-in page is what a signed-out fetch gets, and storing it would
+// plant the login page under an /m URL. A single-fetch redirect is a 202, so it is excluded too.
+function isCacheable(request, response) {
+  if (request.method !== "GET") return false;
+  if (response.status !== 200 || response.type !== "basic" || response.redirected) return false;
+  return !isLoginUrl(response.url);
+}
+
+function isLoginUrl(url) {
+  if (!url) return false;
+  try {
+    return new URL(url).pathname === LOGIN_PATH;
+  } catch {
+    return false;
+  }
+}
+
+// A followed redirect that ended on the sign-in page: the session is gone.
+function isSignedOutAnswer(response) {
+  return response.redirected && isLoginUrl(response.url);
+}
+
+// Fetch and store the shell pages that are not cached yet. Skips whatever is not cacheable, so a
+// signed-out visitor never gets the login page stored in their place.
+async function precache(urls) {
+  const cache = await caches.open(SHELL_CACHE);
+  await Promise.all(
+    urls.map(async (url) => {
+      try {
+        if (await cache.match(url)) return;
+        const request = new Request(new URL(url, self.location.origin));
+        const response = await fetch(request);
+        if (isCacheable(request, response)) await cache.put(request, response);
+      } catch {
+        // Offline at install: the next signed-in navigation tries again.
+      }
+    }),
+  );
+}
+
+// Same wording as mobile.offline.* in the app catalogs; the worker cannot import them. Shown when
+// an offline navigation has nothing cached, e.g. right after the sign-in page cleared the caches
+// (the cached /m/offline page carries the previous person's name, so it goes with them).
+const OFFLINE_COPY = {
+  de: {
+    title: "Offline",
+    body: "Keine Verbindung. Sobald du wieder online bist, wird die Seite automatisch aktualisiert.",
+  },
+  en: {
+    title: "Offline",
+    body: "No connection. The page refreshes automatically once you are back online.",
+  },
+};
+
+function builtInOffline(request) {
+  const accept = request.headers ? request.headers.get("accept-language") || "" : "";
+  const lang = /^\s*de\b/i.test(accept) ? "de" : "en";
+  const { title, body } = OFFLINE_COPY[lang];
+  const html =
+    '<!doctype html><html lang="' + lang + '"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    "<title>" + title + "</title></head>" +
+    '<body style="font-family:system-ui,sans-serif;text-align:center;padding:3rem 1rem">' +
+    "<h1>" + title + "</h1><p>" + body + "</p></body></html>";
+  return new Response(html, {
+    status: 503,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  });
+}
 
 // NetworkFirst: try the network; on failure, fall back to cache. For navigations
 // this means a transient offline shows the last shell (then the route loader
 // re-fetches data on reconnect — React Router refetches via the SSE reconnect).
-async function networkFirst(request) {
+async function networkFirst(request, waitUntil) {
   const cache = await caches.open(SHELL_CACHE);
   try {
     const network = await fetch(request);
-    // Only cache successful, same-origin GETs.
-    if (network.ok && request.method === "GET") cache.put(request, network.clone());
+    if (isCacheable(request, network)) {
+      waitUntil(cache.put(request, network.clone()).catch(() => undefined));
+      // After the sign-in page emptied the cache, the next signed-in navigation restores the
+      // offline page so a later outage still shows the app's own placeholder.
+      if (request.mode === "navigate") waitUntil(precache([OFFLINE_URL]));
+    } else if (isSignedOutAnswer(network)) {
+      waitUntil(caches.delete(SHELL_CACHE));
+    }
     return network;
   } catch {
     const cached = await cache.match(request);
     if (cached) return cached;
     // Navigation offline with no cache → the offline placeholder.
-    if (request.mode === "navigate") return cache.match("/m/offline");
+    if (request.mode === "navigate") return (await cache.match(OFFLINE_URL)) || builtInOffline(request);
     throw new Error("offline and not cached");
   }
 }
@@ -38,15 +121,14 @@ async function cacheFirst(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
   const network = await fetch(request);
-  if (network.ok) cache.put(request, network.clone());
+  if (isCacheable(request, network)) await cache.put(request, network.clone());
   return network;
 }
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(SHELL_CACHE);
-      await Promise.all(SHELL_URLS.map((u) => cache.add(u).catch(() => undefined)));
+      await precache(SHELL_URLS);
       self.skipWaiting();
     })(),
   );
@@ -58,7 +140,9 @@ self.addEventListener("activate", (event) => {
       // Drop old shell caches on version bump.
       const keys = await caches.keys();
       await Promise.all(
-        keys.filter((k) => k.startsWith("jiangtang-") && ![SHELL_CACHE, ASSET_CACHE].includes(k)).map((k) => caches.delete(k)),
+        keys
+          .filter((k) => k.startsWith("jiangtang-") && ![SHELL_CACHE, ASSET_CACHE].includes(k))
+          .map((k) => caches.delete(k)),
       );
       await self.clients.claim();
     })(),
@@ -83,9 +167,9 @@ self.addEventListener("fetch", (event) => {
   }
   // Navigations + everything else under /m: network-first (no stale data).
   if (request.mode === "navigate" || url.pathname.startsWith("/m") || url.pathname.startsWith("/api")) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(networkFirst(request, (p) => event.waitUntil(p)));
     return;
   }
   // Default: try network, fall back to cache.
-  event.respondWith(networkFirst(request));
+  event.respondWith(networkFirst(request, (p) => event.waitUntil(p)));
 });

@@ -1,4 +1,5 @@
 import { isAPIError } from "better-auth/api";
+import { useEffect } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
@@ -10,6 +11,7 @@ import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { purgeSignedInCaches } from "~/lib/pwa/purge-caches";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
@@ -72,6 +74,13 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
   const t = useT();
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
+
+  // Sign-out and every expired-session redirect land here, and a signed-in visit is redirected
+  // away before this renders. The installed app caches signed-in pages by URL, so clear them or
+  // the next person offline on this device would be served the previous person's pages.
+  useEffect(() => {
+    void purgeSignedInCaches();
+  }, []);
 
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
