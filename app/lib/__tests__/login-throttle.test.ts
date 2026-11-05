@@ -200,23 +200,33 @@ describe("login throttle: memory", () => {
     expect(throttle.begin(target)).toEqual(before);
   });
 
-  it("evicts a lock that has run out, but not one still running", () => {
+  it("evicts a lock that has run out before an unlocked key, and keeps one still running", () => {
+    // Every step stays inside one sweep interval, so the expired lock is still
+    // in the map when the cap is hit and only the eviction check can drop it.
     const { throttle, advance } = setup({
       maxKeys: 3,
-      maxEmailFailures: 1,
-      windowMs: 15 * MINUTE,
+      maxEmailFailures: 2,
+      windowMs: 30_000,
     });
-    throttle.begin({ email: "old@example.test", ip: null });
-    advance(10 * MINUTE);
-    throttle.begin({ email: "newer@example.test", ip: null });
-    advance(6 * MINUTE);
-    // old's window is over, newer is still locked.
+    const old = { email: "old@example.test", ip: null };
+    const newer = { email: "newer@example.test", ip: null };
+    const mid = { email: "mid@example.test", ip: null };
+    throttle.begin(old);
+    throttle.begin(old);
+    advance(20_000);
+    throttle.begin(newer);
+    throttle.begin(newer);
+    throttle.begin(mid);
+    advance(20_000);
+    // old's window is over (it is first in map order), newer is still locked and
+    // mid is not locked at all.
     throttle.begin({ email: "x@example.test", ip: null });
-    throttle.begin({ email: "y@example.test", ip: null });
 
     expect(throttle.size().emails).toBe(3);
-    expect(throttle.begin({ email: "newer@example.test", ip: null }).allowed).toBe(false);
-    expect(throttle.begin({ email: "old@example.test", ip: null }).allowed).toBe(true);
+    expect(throttle.begin(newer).allowed).toBe(false);
+    // mid kept its one failure: a second attempt fills the limit, a third is refused.
+    expect(throttle.begin(mid).allowed).toBe(true);
+    expect(throttle.begin(mid).allowed).toBe(false);
   });
 
   it("drops the lock that expires soonest when every tracked key is locked", () => {
@@ -242,6 +252,16 @@ describe("login throttle: memory", () => {
     expect(throttle.size().emails).toBe(2);
     expect(throttle.begin(b).allowed).toBe(false);
     expect(throttle.begin(a).allowed).toBe(true);
+  });
+
+  it.each([0, -3, -1_000_000])("terminates and stays bounded when maxKeys is %i", (maxKeys) => {
+    const { throttle } = setup({ maxKeys, maxEmailFailures: 1, maxIpFailures: 1 });
+    for (let i = 0; i < 20; i++) {
+      throttle.begin({ email: `user${i}@example.test`, ip: `198.51.100.${i}` });
+    }
+    expect(throttle.size()).toEqual({ emails: 1, ips: 1 });
+    // The key just recorded is the one that stays.
+    expect(throttle.begin({ email: "user19@example.test", ip: null }).allowed).toBe(false);
   });
 
   it("prunes expired keys instead of keeping them forever", () => {
