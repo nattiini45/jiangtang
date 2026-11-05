@@ -350,6 +350,14 @@ describe("credential and invitation erasure", () => {
     const invite = await db.verification.create({
       data: { identifier: email, value: JSON.stringify({ token: `t${stamp}`, email }), expiresAt },
     });
+    // Invitations created before emails were lower-cased kept the typed case.
+    const legacyInvite = await db.verification.create({
+      data: {
+        identifier: email.toUpperCase(),
+        value: JSON.stringify({ token: `l${stamp}` }),
+        expiresAt,
+      },
+    });
     const resetLink = await db.verification.create({
       data: { identifier: `password-reset:synthetic-${stamp}`, value: target.id, expiresAt },
     });
@@ -371,13 +379,14 @@ describe("credential and invitation erasure", () => {
       expect(await db.session.count({ where: { userId: target.id } })).toBe(0);
       expect(await db.verification.findUnique({ where: { id: invite.id } })).toBeNull();
       expect(await db.verification.findUnique({ where: { id: resetLink.id } })).toBeNull();
+      expect(await db.verification.findUnique({ where: { id: legacyInvite.id } })).toBeNull();
       // Other people's credentials and invitations are untouched.
       expect(await db.account.count({ where: { userId: bystander.id } })).toBe(1);
       expect(await db.verification.findUnique({ where: { id: otherInvite.id } })).not.toBeNull();
     } finally {
       await db.account.deleteMany({ where: { userId: bystander.id } });
       await db.verification.deleteMany({
-        where: { id: { in: [invite.id, resetLink.id, otherInvite.id] } },
+        where: { id: { in: [invite.id, legacyInvite.id, resetLink.id, otherInvite.id] } },
       });
     }
   });

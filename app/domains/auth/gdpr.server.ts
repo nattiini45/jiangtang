@@ -73,7 +73,11 @@ export async function pseudonymizeUser(
     //    go in this transaction so a failed erasure leaves the account as it was.
     await tx.account.deleteMany({ where: { userId } });
     await tx.session.deleteMany({ where: { userId } });
-    await tx.verification.deleteMany({ where: { identifier: user.email } });
+    // Case-insensitive: invitations created before emails were lower-cased kept
+    // the email as typed.
+    await tx.verification.deleteMany({
+      where: { identifier: { equals: user.email, mode: "insensitive" } },
+    });
     await deleteResetLinks(tx, userId);
 
     // 4. Scrub + deactivate the User row. Email must remain unique but de-identified.
