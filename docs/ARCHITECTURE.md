@@ -191,9 +191,13 @@ manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission ma
 calls one of them itself rather than relying on its layout, because a single-fetch `.data` request
 with `?_routes=` runs only the named loaders; `test/routes/route-auth-guard.test.ts` calls every
 handler anonymously and fails unless it redirects to `/login` or is on an explicit public list.
-Failed sign-ins are throttled per email (10) and per client IP (30) within 15 minutes by
-`app/lib/login-throttle.server.ts`; it runs as a Better Auth hook, so the login form and
-`/api/auth/sign-in/email` share it, and its state is in memory for the single app process.
+Failed sign-ins are throttled per email (10) and per client address (30; an IPv6 client counts per
+/64) within 15 minutes by `app/lib/login-throttle.server.ts`; it runs as a Better Auth hook, so the
+login form and `/api/auth/sign-in/email` share it. The client address is the right-most
+`X-Forwarded-For` entry, which assumes exactly one proxy (Caddy) in front of the app. While an
+email is over its limit even the right password is refused, so anyone who knows an address can keep
+that account locked by repeating failed attempts. The state is in memory for the single app
+process: restarting the app container clears every lock.
 `sanitizeNext` restricts
 post-login redirects to local paths. The first admin of a production installation comes from
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
