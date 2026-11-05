@@ -139,16 +139,36 @@ function loadWorker(network: (url: string) => FakeResponse) {
     console,
   });
 
+  /**
+   * Dispatches an event the way a strict engine would: waitUntil is accepted only while the
+   * listener runs. The spec also allows it later while a lifetime promise is pending, but an
+   * engine that refuses it there must not cost the page its network answer.
+   */
+  function dispatch(type: string, event: Record<string, unknown>, pending: Promise<unknown>[]) {
+    let dispatching = true;
+    handlers[type]!({
+      ...event,
+      waitUntil: (p: Promise<unknown>) => {
+        if (!dispatching) throw new DOMException("event is no longer active", "InvalidStateError");
+        pending.push(p);
+      },
+    });
+    dispatching = false;
+  }
+
   async function run(type: string, extra: Record<string, unknown> = {}) {
     const pending: Promise<unknown>[] = [];
     let responded: Promise<FakeResponse> | undefined;
-    handlers[type]!({
-      ...extra,
-      respondWith: (p: Promise<FakeResponse>) => {
-        responded = p;
+    dispatch(
+      type,
+      {
+        ...extra,
+        respondWith: (p: Promise<FakeResponse>) => {
+          responded = p;
+        },
       },
-      waitUntil: (p: Promise<unknown>) => void pending.push(p),
-    });
+      pending,
+    );
     const result = responded ? await responded : undefined;
     await Promise.all(pending);
     return result;
@@ -158,18 +178,21 @@ function loadWorker(network: (url: string) => FakeResponse) {
   function respond(path: string, opts: { mode?: string } = {}) {
     const waited: Promise<unknown>[] = [];
     let responded: Promise<FakeResponse> | undefined;
-    handlers.fetch!({
-      request: {
-        url: abs(path),
-        method: "GET",
-        mode: opts.mode ?? "same-origin",
-        headers: new Headers(),
+    dispatch(
+      "fetch",
+      {
+        request: {
+          url: abs(path),
+          method: "GET",
+          mode: opts.mode ?? "same-origin",
+          headers: new Headers(),
+        },
+        respondWith: (p: Promise<FakeResponse>) => {
+          responded = p;
+        },
       },
-      respondWith: (p: Promise<FakeResponse>) => {
-        responded = p;
-      },
-      waitUntil: (p: Promise<unknown>) => void waited.push(p),
-    });
+      waited,
+    );
     return { answer: responded!, waited };
   }
 
