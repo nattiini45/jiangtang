@@ -12,6 +12,7 @@ import { createTask } from "~/domains/tasks/tasks.mutations.server";
 import { listProjects } from "~/domains/projects/projects.queries.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { CAPTURE_HEADER } from "~/lib/pwa/offline-queue";
+import { assertCaptureOwner } from "~/lib/pwa/capture-owner.server";
 import { CaptureQueueStatus, useCaptureSubmit } from "~/components/mobile/capture-form";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -40,6 +41,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
+  assertCaptureOwner(request, actor);
   const locale = resolveLocale(request);
   const wantsJson = request.headers.get(CAPTURE_HEADER) === "1";
   const obj = formDataToObject(await request.formData());

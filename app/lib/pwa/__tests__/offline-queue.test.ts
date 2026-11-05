@@ -1,6 +1,7 @@
 import { createRequestHandler, redirect, type ServerBuild } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  CAPTURE_OWNER_HEADER,
   captureOrQueue,
   MemoryQueueStore,
   newClientId,
@@ -341,7 +342,7 @@ describe("offline queue", () => {
       });
     }
 
-    it("the replay pass stops at the first wall and leaves later entries untouched", async () => {
+    it("the replay pass stops at the first wall and never requests the later entries", async () => {
       const store = new MemoryQueueStore();
       await store.put(mkEntry("ca11111111111111111111111", 1));
       await store.put(mkEntry("cb22222222222222222222222", 2));
@@ -366,6 +367,119 @@ describe("offline queue", () => {
         "cc33333333333333333333333",
       ]);
       expect(left.every((e) => e.error === undefined)).toBe(true);
+    });
+
+    it("a wall flags every entry still waiting, not only the one that met it", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      await store.put(mkEntry("cc33333333333333333333333", 3));
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      expect((await store.list()).map((e) => e.authRequired)).toEqual([true, true, true]);
+    });
+
+    it("discarding the entry that met the wall leaves the rest of the queue asking for sign-in", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      await store.remove("ca11111111111111111111111");
+      const left = await store.list();
+      expect(left).toHaveLength(1);
+      expect(left.some((e) => e.authRequired)).toBe(true);
+    });
+
+    it("a wall flags an earlier entry that only failed for a transient reason", async () => {
+      // c1 got a 503, c2 met the wall: both still sit behind the expired session.
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      await replayQueue(
+        store,
+        fakeFetch([new Response("", { status: 503 }), new Response("", { status: 401 })]),
+      );
+      expect((await store.list()).map((e) => e.authRequired)).toEqual([true, true]);
+    });
+
+    it("a wall does not flag a refused entry, which waits for the user and not for a sign-in", async () => {
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry("ca11111111111111111111111", 1), error: "Titel ist zu lang." });
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      const [refused, waiting] = await store.list();
+      expect(refused?.authRequired).toBeUndefined();
+      expect(waiting?.authRequired).toBe(true);
+    });
+
+    it("a sent entry clears the flag from every entry, also when another entry failed transiently", async () => {
+      // After sign-in: c1 gets a 503 (says nothing about the session), c2 is
+      // sent. The session works, so c1 must not keep asking for a sign-in.
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry("ca11111111111111111111111", 1), authRequired: true });
+      await store.put({ ...mkEntry("cb22222222222222222222222", 2), authRequired: true });
+      await store.put({ ...mkEntry("cc33333333333333333333333", 3), authRequired: true });
+      const summary = await replayQueue(
+        store,
+        fakeFetch([
+          new Response("", { status: 503 }),
+          json({ id: "cb22222222222222222222222" }),
+          new TypeError("offline"),
+        ]),
+      );
+      expect(summary).toEqual({ sent: 1, refused: 0, kept: 2 });
+      const left = await store.list();
+      expect(left.map((e) => e.clientId)).toEqual([
+        "ca11111111111111111111111",
+        "cc33333333333333333333333",
+      ]);
+      expect(left.every((e) => e.authRequired === undefined)).toBe(true);
+    });
+
+    it("a refusal clears the flag from the other entries too", async () => {
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry("ca11111111111111111111111", 1), authRequired: true });
+      await store.put({ ...mkEntry("cb22222222222222222222222", 2), authRequired: true });
+      await replayQueue(
+        store,
+        fakeFetch([json({ error: "Titel ist zu lang." }, 400), new Response("", { status: 503 })]),
+      );
+      const [first, second] = await store.list();
+      expect(first?.error).toBe("Titel ist zu lang.");
+      expect(first?.authRequired).toBeUndefined();
+      expect(second?.authRequired).toBeUndefined();
+    });
+
+    it("a wall after a send wins: what is left still waits for the sign-in", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      await store.put({ ...mkEntry("cc33333333333333333333333", 3), authRequired: true });
+      await replayQueue(
+        store,
+        fakeFetch([json({ id: "ca11111111111111111111111" }), new Response("", { status: 401 })]),
+      );
+      expect((await store.list()).map((e) => e.authRequired)).toEqual([true, true]);
+    });
+
+    it("only the current user's flags change", async () => {
+      const store = new MemoryQueueStore();
+      const theirs = {
+        ...mkEntry("cb22222222222222222222222", 2),
+        userId: "cuserbob00000000000000002",
+        authRequired: true,
+      };
+      await store.put({
+        ...mkEntry("ca11111111111111111111111", 1),
+        userId: "cuseralice000000000000001",
+        authRequired: true,
+      });
+      await store.put(theirs);
+      await replayQueue(
+        store,
+        fakeFetch([json({ id: "ca11111111111111111111111" })]),
+        "cuseralice000000000000001",
+      );
+      expect(await store.list()).toEqual([theirs]);
     });
 
     it("an entry that waited for sign-in is sent and removed once the session is back", async () => {
@@ -528,6 +642,30 @@ describe("offline queue", () => {
       expect(events()).toBe(1);
     });
 
+    it("fires once for a wall that flags several entries, and not when they are all flagged already", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      const events = countEvents();
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      expect(events()).toBe(1);
+      await replayQueue(store, fakeFetch([new Response("", { status: 401 })]));
+      expect(events()).toBe(1);
+    });
+
+    it("fires when a send clears the flag of an entry that was not itself sent", async () => {
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry("ca11111111111111111111111", 1), authRequired: true });
+      await store.put({ ...mkEntry("cb22222222222222222222222", 2), authRequired: true });
+      const events = countEvents();
+      await replayQueue(
+        store,
+        fakeFetch([new Response("", { status: 503 }), json({ id: "cb22222222222222222222222" })]),
+      );
+      expect(events()).toBe(1);
+      expect((await store.list())[0]?.authRequired).toBeUndefined();
+    });
+
     it("stays quiet when nothing in the store changed", async () => {
       const store = new MemoryQueueStore();
       await store.put(mkEntry(ENTRY_ID));
@@ -566,6 +704,42 @@ describe("offline queue", () => {
         [offline.clientId, wall.clientId].sort(),
       );
       expect(entries.every((e) => e.userId === ALICE)).toBe(true);
+    });
+
+    it("sends the owner with every POST, on submit and on replay", async () => {
+      const store = new MemoryQueueStore();
+      const seen: (string | null)[] = [];
+      const offline = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        seen.push(new Headers(init?.headers).get(CAPTURE_OWNER_HEADER));
+        throw new TypeError("offline");
+      }) as typeof fetch;
+      await captureOrQueue("/m/tasks/new", { title: "t" }, store, offline, ALICE);
+      await replayQueue(store, offline, ALICE);
+      expect(seen).toEqual([ALICE, ALICE]);
+    });
+
+    it("sends no owner header for a capture that has none", async () => {
+      const seen: (string | null)[] = [];
+      const spy = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+        seen.push(new Headers(init?.headers).get(CAPTURE_OWNER_HEADER));
+        return json({ id: "cabc12345678901234567890" });
+      }) as typeof fetch;
+      await captureOrQueue("/m/tasks/new", { title: "t" }, new MemoryQueueStore(), spy);
+      expect(seen).toEqual([null]);
+    });
+
+    it("a 403 for a foreign owner keeps the entry and flags it, as for an expired session", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(owned("ca11111111111111111111111", ALICE, 1));
+      const summary = await replayQueue(
+        store,
+        fakeFetch([new Response("Forbidden", { status: 403 })]),
+        ALICE,
+      );
+      expect(summary).toEqual({ sent: 0, refused: 0, kept: 1, authRequired: true });
+      const [entry] = await store.list();
+      expect(entry).toMatchObject({ userId: ALICE, authRequired: true });
+      expect(entry?.error).toBeUndefined();
     });
 
     it("replays only the current user's entries and leaves the others untouched", async () => {
