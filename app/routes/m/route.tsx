@@ -11,7 +11,7 @@ import { MobileShell } from "~/components/mobile/mobile-shell";
 // child loader without this one.
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
-  return { user: { name: user.name, initials: user.initials, role: user.role } };
+  return { user: { id: user.id, name: user.name, initials: user.initials, role: user.role } };
 }
 
 export default function MobileLayout() {

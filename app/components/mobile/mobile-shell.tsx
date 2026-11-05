@@ -1,19 +1,12 @@
 import * as React from "react";
 import { Form, Link, NavLink } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  Camera,
-  Building2,
-  Ticket,
-  MoreHorizontal,
-  ListTodo,
-  CloudOff,
-  ChevronRight,
-} from "lucide-react";
+import { Camera, Building2, Ticket, MoreHorizontal, ListTodo, ChevronRight } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { spring } from "~/lib/springs";
 import { useLiveRefetch } from "~/lib/realtime/use-live-refetch";
 import { useOfflineQueue } from "~/lib/pwa/offline-queue";
+import { QueueBadge } from "~/components/mobile/queue-badge";
 import { NavPendingIndicator } from "~/components/states/nav-pending";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
 import { WeightLabel } from "~/components/ui/weight-label";
@@ -86,26 +79,7 @@ export function MobileShell({ user, children }: { user: MobileUser; children: Re
           <span className="font-semibold">Jiangtang</span>
         </span>
         <span className="flex items-center gap-2">
-          {pending > 0 && authRequired ? (
-            <Link
-              to="/login?next=%2Fm"
-              className="bg-status-warning/15 nums flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold"
-              title={t("mobile.signInPending")}
-            >
-              <CloudOff className="size-3.5" strokeWidth={2} />
-              {pending}
-              <span>{t("mobile.capture.signInAction")}</span>
-            </Link>
-          ) : pending > 0 ? (
-            <span
-              role="status"
-              className="bg-status-warning/15 nums flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold"
-              title={t("mobile.offlinePending")}
-            >
-              <CloudOff className="size-3.5" strokeWidth={2} />
-              {pending}
-            </span>
-          ) : null}
+          <QueueBadge pending={pending} authRequired={authRequired} />
           <span className="bg-tint type-micro flex size-7 items-center justify-center rounded-full font-semibold">
             {user.initials ?? user.name.slice(0, 2)}
           </span>

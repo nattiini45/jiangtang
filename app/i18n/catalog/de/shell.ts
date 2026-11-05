@@ -50,5 +50,4 @@ export const shellDe = {
   "mobile.menu.newTask": "Neue Aufgabe",
   "mobile.menu.newNote": "Neue Notiz",
   "mobile.menu.desktop": "Desktop-Version",
-  "mobile.offlinePending": "Offline gespeicherte Einträge — werden bei Verbindung gesendet",
 };

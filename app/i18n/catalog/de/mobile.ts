@@ -9,8 +9,9 @@ export const mobileDe = {
   "mobile.capture.signInNeeded":
     "Auf diesem Gerät gespeichert. Melde dich erneut an, damit es gesendet wird.",
   "mobile.capture.signInAction": "Anmelden",
-  "mobile.signInPending":
-    "Auf diesem Gerät gespeicherte Einträge — werden nach erneuter Anmeldung gesendet",
+  "mobile.badge.signIn":
+    "Anmelden, um die auf diesem Gerät gespeicherten Einträge zu senden ({count})",
+  "mobile.badge.pending": "Einträge, die auf das Senden warten ({count})",
   "mobile.capture.saving": "Speichern…",
   "mobile.capture.create": "Anlegen",
   "mobile.capture.rejected": "Vom Server abgelehnt.",
