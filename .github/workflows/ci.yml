@@ -188,10 +188,14 @@ jobs:
             -e GLITCHTIP_DSN= -e CALDAV_URL= -e CALDAV_USERNAME= -e CALDAV_PASSWORD= \
             jiangtang:ci
 
-          # Bounded wait: 45 tries, 2 s apart (90 s). A container that exited
-          # fails at once instead of waiting out the bound.
+          # Bounded wait: 45 tries, 2 s apart. Each probe is capped at 2 s, so a
+          # server that accepts the connection and never answers costs at most
+          # 4 s a try instead of stalling the job until its timeout. Only an
+          # exact 200 counts as ready: a redirect or an error page is not a
+          # healthy application. A container that exited fails at once instead
+          # of waiting out the bound.
           for _ in $(seq 1 45); do
-            if curl -fsS -o /dev/null http://127.0.0.1:3000/healthz 2> /dev/null; then
+            if [ "$(curl -s --connect-timeout 1 --max-time 2 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/healthz 2> /dev/null)" = 200 ]; then
               ready=1
               break
             fi
@@ -201,9 +205,9 @@ jobs:
             fi
             sleep 2
           done
-          [ "${ready:-}" = 1 ] || { echo "::error::/healthz did not return 200 within 90 s"; exit 1; }
+          [ "${ready:-}" = 1 ] || { echo "::error::/healthz did not return 200 within 45 tries"; exit 1; }
 
-          code="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)"
+          code="$(curl -sS --connect-timeout 2 --max-time 10 -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/login)"
           [ "$code" = 200 ] || { echo "::error::/login returned HTTP $code, expected 200"; exit 1; }
           echo "image smoke test passed"
 
