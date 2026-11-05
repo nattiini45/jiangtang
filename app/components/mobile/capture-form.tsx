@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Link } from "react-router";
 import { CloudOff, Trash2 } from "lucide-react";
 import { captureOrQueue, useOfflineQueue, type CaptureResult } from "~/lib/pwa/offline-queue";
 import { useT } from "~/i18n/use-t";
@@ -11,7 +12,9 @@ import { useT } from "~/i18n/use-t";
  * entry can never create a second row.
  */
 export function useCaptureSubmit(action: string) {
-  const [state, setState] = React.useState<"idle" | "sending" | "queued" | "refused">("idle");
+  const [state, setState] = React.useState<"idle" | "sending" | "queued" | "signin" | "refused">(
+    "idle",
+  );
   const [error, setError] = React.useState<string | null>(null);
   const t = useT();
 
@@ -27,7 +30,8 @@ export function useCaptureSubmit(action: string) {
       if (result.state === "sent") {
         setState("idle");
       } else if (result.state === "queued") {
-        setState("queued");
+        // "signin" is announced by CaptureQueueStatus, which reads the stored entry.
+        setState(result.authRequired ? "signin" : "queued");
       } else {
         setState("refused");
         setError(result.error ?? t("mobile.capture.rejected"));
@@ -46,31 +50,48 @@ export function CaptureQueueStatus({ url }: { url: string }) {
   const t = useT();
   const mine = entries.filter((e) => e.url === url);
   if (mine.length === 0) return null;
+  const signInNeeded = mine.some((e) => e.authRequired);
   return (
-    <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
-      {mine.map((e) => (
-        <li key={e.clientId} className="flex min-h-12 items-start gap-3 px-3 py-3 text-sm">
-          <span className="bg-status-warning/15 text-status-warning mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
-            <CloudOff className="size-3.5" strokeWidth={2} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold">
-              {t("mobile.capture.pending", {
-                title: e.fields.title ?? e.fields.q ?? t("mobile.capture.entryFallback"),
-              })}
-            </div>
-            {e.error ? <div className="text-destructive mt-0.5 text-xs">{e.error}</div> : null}
-          </div>
-          <button
-            type="button"
-            onClick={() => void discard(e.clientId)}
-            aria-label={t("mobile.capture.discard")}
-            className="text-muted-foreground active:text-destructive active:bg-selected flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-80"
+    <>
+      {signInNeeded ? (
+        <p
+          role="status"
+          className="bg-status-warning/15 flex flex-wrap items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
+        >
+          {t("mobile.capture.signInNeeded")}
+          <Link
+            to={`/login?next=${encodeURIComponent(url)}`}
+            className="flex min-h-11 items-center font-semibold underline underline-offset-4"
           >
-            <Trash2 className="size-4" />
-          </button>
-        </li>
-      ))}
-    </ul>
+            {t("mobile.capture.signInAction")}
+          </Link>
+        </p>
+      ) : null}
+      <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
+        {mine.map((e) => (
+          <li key={e.clientId} className="flex min-h-12 items-start gap-3 px-3 py-3 text-sm">
+            <span className="bg-status-warning/15 text-status-warning mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full">
+              <CloudOff className="size-3.5" strokeWidth={2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold">
+                {t("mobile.capture.pending", {
+                  title: e.fields.title ?? e.fields.q ?? t("mobile.capture.entryFallback"),
+                })}
+              </div>
+              {e.error ? <div className="text-destructive mt-0.5 text-xs">{e.error}</div> : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => void discard(e.clientId)}
+              aria-label={t("mobile.capture.discard")}
+              className="text-muted-foreground active:text-destructive active:bg-selected flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-80"
+            >
+              <Trash2 className="size-4" />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

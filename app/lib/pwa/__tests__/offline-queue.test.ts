@@ -1,3 +1,4 @@
+import { createRequestHandler, redirect, type ServerBuild } from "react-router";
 import { describe, expect, it } from "vitest";
 import {
   captureOrQueue,
@@ -12,7 +13,7 @@ import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
  * Offline capture queue logic — the store-agnostic rules, driven
  * through MemoryQueueStore and a fake fetch: submit-or-queue, then the
  * replay contract (2xx removes, 4xx keeps with the server's error,
- * network/5xx keeps silently).
+ * network/5xx keeps silently, an authentication wall keeps and stops the pass).
  */
 
 function fakeFetch(outcomes: (Response | Error)[], calls: string[] = []): typeof fetch {
@@ -36,6 +37,64 @@ const turbo = (body: string, status = 200) =>
   new Response(body, { status, headers: { "content-type": "text/x-script; charset=utf-8" } });
 const TURBO_ID = '[{"_1":2},"data",{"_3":4},"id","cabc12345678901234567890"]';
 const TURBO_REFUSAL = '[{"_1":2},"data",{"_3":4},"error","Titel ist zu lang."]';
+
+// The response an expired session really produces: React Router's own request
+// handler runs a `.data` POST against an action that throws `redirect(target)`
+// (what `requireUser` does), so status, headers and the turbo-stream body come
+// from the real encoder rather than a hand-written fixture.
+async function singleFetchRedirect(target: string): Promise<Response> {
+  const build = {
+    entry: { module: { default: () => new Response("document") } },
+    routes: {
+      root: { id: "root", path: "", module: { default: () => null } },
+      "m/tasks/new": {
+        id: "m/tasks/new",
+        parentId: "root",
+        path: "m/tasks/new",
+        module: {
+          default: () => null,
+          action: () => {
+            throw redirect(target);
+          },
+        },
+      },
+    },
+    assets: { version: "test", entry: { module: "", imports: [] }, routes: {}, url: "" },
+    future: {},
+    ssr: true,
+    publicPath: "/",
+    basename: "/",
+    isSpaMode: false,
+    routeDiscovery: { mode: "initial" },
+    allowedActionOrigins: false,
+  } as unknown as ServerBuild;
+  return createRequestHandler(
+    build,
+    "test",
+  )(
+    new Request("http://localhost/m/tasks/new.data", {
+      method: "POST",
+      body: new URLSearchParams({ title: "t" }),
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+    }),
+  );
+}
+
+// fetch followed a redirect: the platform sets `redirected` and the final `url`.
+function followed(url: string, status = 200): Response {
+  const res = new Response("<!doctype html>", { status, headers: { "content-type": "text/html" } });
+  Object.defineProperty(res, "redirected", { value: true });
+  Object.defineProperty(res, "url", { value: url });
+  return res;
+}
+
+const ENTRY_ID = "c9a9a9a9a9a9a9a9a9a9a9a9a";
+const mkEntry = (clientId: string, createdAt = 1): QueuedCapture => ({
+  clientId,
+  url: "/m/tasks/new",
+  fields: { title: clientId },
+  createdAt,
+});
 
 describe("offline queue", () => {
   it("newClientId mints the cuid shape the domains enforce", () => {
@@ -225,5 +284,152 @@ describe("offline queue", () => {
     expect(calls).toHaveLength(0);
     expect(summary).toEqual({ sent: 0, refused: 0, kept: 1 });
     expect((await store.list())[0]?.error).toBe("Titel ist zu lang.");
+  });
+
+  describe("authentication wall", () => {
+    const walls: [string, () => Promise<Response> | Response][] = [
+      [
+        "a single-fetch redirect to /login",
+        () => singleFetchRedirect("/login?next=%2Fm%2Ftasks%2Fnew"),
+      ],
+      [
+        "a single-fetch redirect to /login for a deactivated user",
+        () => singleFetchRedirect("/login?deactivated=1"),
+      ],
+      [
+        "a followed redirect to the /login page",
+        () => followed("http://localhost/login?next=%2Fm"),
+      ],
+      ["HTTP 401", () => new Response("Unauthorized", { status: 401 })],
+      ["HTTP 403", () => new Response("Forbidden", { status: 403 })],
+    ];
+
+    it("the single-fetch redirect fixture is what React Router really answers", async () => {
+      const res = await singleFetchRedirect("/login?next=%2Fm");
+      expect(res.status).toBe(202);
+      expect(res.headers.get("content-type")).toContain("text/x-script");
+    });
+
+    for (const [label, wall] of walls) {
+      it(`captureOrQueue queues ${label} and asks for sign-in`, async () => {
+        const store = new MemoryQueueStore();
+        const res = await captureOrQueue(
+          "/m/tasks/new",
+          { title: "t" },
+          store,
+          fakeFetch([await wall()]),
+        );
+        expect(res).toMatchObject({ state: "queued", authRequired: true });
+        const [entry] = await store.list();
+        expect(entry).toMatchObject({ clientId: res.clientId, fields: { title: "t" } });
+        // Waiting for a sign-in is not a refusal: replay must still try it.
+        expect(entry.error).toBeUndefined();
+        expect(entry.authRequired).toBe(true);
+      });
+
+      it(`replay keeps an entry that meets ${label}, without an error`, async () => {
+        const store = new MemoryQueueStore();
+        await store.put(mkEntry(ENTRY_ID));
+        const summary = await replayQueue(store, fakeFetch([await wall()]));
+        expect(summary).toEqual({ sent: 0, refused: 0, kept: 1, authRequired: true });
+        const [entry] = await store.list();
+        expect(entry.clientId).toBe(ENTRY_ID);
+        expect(entry.error).toBeUndefined();
+        expect(entry.authRequired).toBe(true);
+      });
+    }
+
+    it("the replay pass stops at the first wall and leaves later entries untouched", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      await store.put(mkEntry("cc33333333333333333333333", 3));
+      const calls: string[] = [];
+      const summary = await replayQueue(
+        store,
+        fakeFetch(
+          [
+            json({ id: "ca11111111111111111111111" }), // sent → removed
+            await singleFetchRedirect("/login?next=%2Fm%2Ftasks%2Fnew"), // wall
+            json({ id: "cc33333333333333333333333" }), // must never be requested
+          ],
+          calls,
+        ),
+      );
+      expect(calls).toHaveLength(2);
+      expect(summary).toEqual({ sent: 1, refused: 0, kept: 2, authRequired: true });
+      const left = await store.list();
+      expect(left.map((e) => e.clientId)).toEqual([
+        "cb22222222222222222222222",
+        "cc33333333333333333333333",
+      ]);
+      expect(left.every((e) => e.error === undefined)).toBe(true);
+    });
+
+    it("an entry that waited for sign-in is sent and removed once the session is back", async () => {
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry(ENTRY_ID), authRequired: true });
+      const summary = await replayQueue(store, fakeFetch([json({ id: ENTRY_ID })]));
+      expect(summary).toEqual({ sent: 1, refused: 0, kept: 0 });
+      expect(await store.list()).toHaveLength(0);
+    });
+
+    it("clears the sign-in marker when a later pass fails for another reason", async () => {
+      const store = new MemoryQueueStore();
+      await store.put({ ...mkEntry(ENTRY_ID), authRequired: true });
+      await replayQueue(store, fakeFetch([new Response("", { status: 503 })]));
+      const [entry] = await store.list();
+      expect(entry.authRequired).toBeUndefined();
+    });
+
+    it("a single-fetch redirect elsewhere is not a confirmation: the capture stays queued", async () => {
+      // Capture actions answer JSON on success, never a redirect, so any other
+      // redirect means the create was not confirmed. Replaying is safe (the
+      // create is idempotent on clientId).
+      const store = new MemoryQueueStore();
+      const res = await captureOrQueue(
+        "/m/tasks/new",
+        { title: "t" },
+        store,
+        fakeFetch([await singleFetchRedirect("/m/rooms")]),
+      );
+      expect(res.state).toBe("queued");
+      expect(res.authRequired).toBeUndefined();
+      const [entry] = await store.list();
+      expect(entry.error).toBeUndefined();
+      expect(entry.authRequired).toBeUndefined();
+
+      const summary = await replayQueue(store, fakeFetch([await singleFetchRedirect("/m/rooms")]));
+      expect(summary).toEqual({ sent: 0, refused: 0, kept: 1 });
+      expect(await store.list()).toHaveLength(1);
+    });
+
+    it("a followed redirect to another page is not a confirmation either", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry(ENTRY_ID));
+      const summary = await replayQueue(store, fakeFetch([followed("http://localhost/m/rooms")]));
+      expect(summary).toEqual({ sent: 0, refused: 0, kept: 1 });
+      expect(await store.list()).toHaveLength(1);
+    });
+
+    it("a genuine 2xx still removes and a 4xx validation refusal still stores its error", async () => {
+      const store = new MemoryQueueStore();
+      await store.put(mkEntry("ca11111111111111111111111", 1));
+      await store.put(mkEntry("cb22222222222222222222222", 2));
+      const summary = await replayQueue(
+        store,
+        fakeFetch([
+          json({ id: "ca11111111111111111111111" }),
+          json({ error: "Titel ist zu lang." }, 400),
+        ]),
+      );
+      expect(summary).toEqual({ sent: 1, refused: 1, kept: 0 });
+      const [entry] = await store.list();
+      expect(entry).toMatchObject({
+        clientId: "cb22222222222222222222222",
+        error: "Titel ist zu lang.",
+      });
+      expect(entry.authRequired).toBeUndefined();
+    });
   });
 });

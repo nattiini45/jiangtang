@@ -13,8 +13,13 @@ import { UNSAFE_decodeViaTurboStream } from "react-router";
  *
  * Replay rules:
  *   2xx                    → remove (a retried create is deduped by clientId)
+ *   authentication wall    → KEEP, flagged `authRequired`, and stop the pass:
+ *                            a redirect to /login (single-fetch 202 or a
+ *                            followed one), 401 or 403. The capture is still
+ *                            unsent; it goes out after the next sign-in.
  *   4xx validation refusal → KEEP, with the server's error on the entry
  *   5xx / network error    → KEEP, retry on the next pass
+ *   any other redirect     → KEEP, retry (not a confirmation, see postEntry)
  *
  * Every POST targets the route's `.data` URL. A POST to the route *path* is a
  * document request: React Router runs the action and then renders the route
@@ -34,6 +39,11 @@ export interface QueuedCapture {
   createdAt: number;
   /** Last refusal message (a 4xx the user must resolve or discard). */
   error?: string;
+  /**
+   * The last attempt hit the sign-in wall. Not a refusal: the entry is replayed
+   * as usual, and the flag only tells the UI to ask for a new sign-in.
+   */
+  authRequired?: boolean;
 }
 
 export interface OfflineQueueStore {
@@ -126,6 +136,11 @@ export interface CaptureResult {
   clientId: string;
   /** The created row's id when the action answered JSON (`{ id }`). */
   id?: string;
+  /**
+   * With `state === "queued"`: the session has expired, so the capture waits on
+   * the device until the person signs in again (not merely until online).
+   */
+  authRequired?: boolean;
 }
 
 /**
@@ -147,6 +162,10 @@ export async function captureOrQueue(
       return { state: "sent", clientId, id: outcome.id };
     case "refused":
       return { state: "refused", error: outcome.error, clientId };
+    case "auth":
+      await store.put({ ...entry, authRequired: true });
+      notifyChanged();
+      return { state: "queued", clientId, authRequired: true };
     case "retry":
       await store.put(entry);
       notifyChanged();
@@ -155,7 +174,10 @@ export async function captureOrQueue(
 }
 
 type PostOutcome =
-  { kind: "sent"; id?: string } | { kind: "refused"; error: string } | { kind: "retry" };
+  | { kind: "sent"; id?: string }
+  | { kind: "refused"; error: string }
+  | { kind: "auth" }
+  | { kind: "retry" };
 
 /** The capture action's own payload, as returned by a `.data` request. */
 interface ActionPayload {
@@ -181,26 +203,46 @@ function asActionPayload(value: unknown): ActionPayload | null {
  */
 async function readActionPayload(
   res: Response,
-): Promise<{ payload: ActionPayload | null; text: string }> {
+): Promise<{ payload: ActionPayload | null; redirect: string | null; text: string }> {
   const text = await res.text().catch(() => "");
-  if (!text) return { payload: null, text };
+  if (!text) return { payload: null, redirect: null, text };
   const contentType = res.headers.get("content-type") ?? "";
   if (contentType.includes("text/x-script")) {
     try {
       const decoded = await UNSAFE_decodeViaTurboStream(new Response(text).body!, globalThis);
       await decoded.done;
-      const envelope = decoded.value as { data?: unknown } | null;
-      return { payload: asActionPayload(envelope?.data), text };
+      // An action result is `{ data }`; a redirect thrown by the action is
+      // `{ redirect, status, ... }` without that envelope.
+      const envelope = decoded.value as { data?: unknown; redirect?: unknown } | null;
+      const redirect = typeof envelope?.redirect === "string" ? envelope.redirect : null;
+      return { payload: asActionPayload(envelope?.data), redirect, text };
     } catch {
-      return { payload: null, text };
+      return { payload: null, redirect: null, text };
     }
   }
   try {
-    return { payload: asActionPayload(JSON.parse(text)), text };
+    return { payload: asActionPayload(JSON.parse(text)), redirect: null, text };
   } catch {
-    return { payload: null, text };
+    return { payload: null, redirect: null, text };
   }
 }
+
+/** True for the sign-in page, whatever its query (`?next=`, `?deactivated=1`). */
+function isLoginTarget(target: string): boolean {
+  try {
+    return /^\/login\/?$/.test(new URL(target, "http://localhost").pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * React Router answers a redirect to a `.data` request with HTTP 202 and a
+ * turbo-stream body instead of a 3xx, so `res.ok` is true for it. Single fetch
+ * uses 202 for nothing else, which is why an undecodable 202 is treated as a
+ * redirect nobody could confirm.
+ */
+const SINGLE_FETCH_REDIRECT_STATUS = 202;
 
 async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise<PostOutcome> {
   try {
@@ -216,7 +258,22 @@ async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise
       },
       body,
     });
-    if (res.ok || res.redirected) {
+    // An expired session surfaces as a redirect to /login (requireUser): either
+    // as the 202 single-fetch redirect, or as a redirect fetch followed itself.
+    if (res.status === 401 || res.status === 403) return { kind: "auth" };
+    if (res.redirected && isLoginTarget(res.url)) return { kind: "auth" };
+    if (res.status === SINGLE_FETCH_REDIRECT_STATUS) {
+      const { redirect } = await readActionPayload(res);
+      if (redirect !== null && isLoginTarget(redirect)) return { kind: "auth" };
+      // A capture action answers `{ id }` on success and never redirects, so
+      // any other redirect confirms nothing. Keep the entry: the create is
+      // idempotent on clientId, so replaying a row that exists is harmless,
+      // while dropping it could lose the capture.
+      return { kind: "retry" };
+    }
+    // Likewise a followed redirect to a page other than /login.
+    if (res.redirected) return { kind: "retry" };
+    if (res.ok) {
       // Capture actions answer the header with `{ id }` — the page needs it to
       // navigate to the new row; a non-JSON 2xx simply counts as sent.
       const { payload } = await readActionPayload(res);
@@ -240,7 +297,10 @@ async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise
 
 /**
  * Replay every queued capture in creation order. 2xx → remove; 4xx → keep
- * with the server's error stored on the entry; 5xx/network → keep.
+ * with the server's error stored on the entry; 5xx/network → keep. An
+ * authentication wall keeps the entry flagged `authRequired` and ends the pass
+ * (`authRequired: true` in the result): the remaining entries would meet the
+ * same wall, and the next pass runs after the person signs in again.
  *
  * Both the mobile shell badge and a capture page mount `useOfflineQueue`, so
  * two replays can start in the same tick. They share one in-flight pass:
@@ -249,23 +309,34 @@ async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise
 export function replayQueue(
   store: OfflineQueueStore = defaultStore(),
   fetchImpl: typeof fetch = fetch,
-): Promise<{ sent: number; refused: number; kept: number }> {
+): Promise<ReplaySummary> {
   replayInFlight ??= replayQueueOnce(store, fetchImpl).finally(() => {
     replayInFlight = null;
   });
   return replayInFlight;
 }
 
-let replayInFlight: Promise<{ sent: number; refused: number; kept: number }> | null = null;
+export interface ReplaySummary {
+  sent: number;
+  refused: number;
+  kept: number;
+  /** Present (true) only when the pass stopped at an authentication wall. */
+  authRequired?: boolean;
+}
+
+let replayInFlight: Promise<ReplaySummary> | null = null;
 
 async function replayQueueOnce(
   store: OfflineQueueStore,
   fetchImpl: typeof fetch,
-): Promise<{ sent: number; refused: number; kept: number }> {
+): Promise<ReplaySummary> {
   let sent = 0;
   let refused = 0;
   let kept = 0;
-  for (const entry of await store.list()) {
+  let authRequired = false;
+  let changed = false;
+  const entries = await store.list();
+  for (const [index, entry] of entries.entries()) {
     // A 4xx-refused entry waits for the user (discard or fix); replaying it on
     // every pass only repeats the same refusal. It stays visible with its error.
     if (entry.error) {
@@ -276,15 +347,33 @@ async function replayQueueOnce(
     if (outcome.kind === "sent") {
       await store.remove(entry.clientId);
       sent += 1;
+      changed = true;
     } else if (outcome.kind === "refused") {
-      await store.put({ ...entry, error: outcome.error });
+      const { authRequired: _stale, ...rest } = entry;
+      await store.put({ ...rest, error: outcome.error });
       refused += 1;
+      changed = true;
+    } else if (outcome.kind === "auth") {
+      if (!entry.authRequired) {
+        await store.put({ ...entry, authRequired: true });
+        changed = true;
+      }
+      authRequired = true;
+      // The rest of the queue would meet the same wall.
+      kept += entries.length - index;
+      break;
     } else {
+      if (entry.authRequired) {
+        // Reached the server without a wall: the sign-in notice is stale.
+        const { authRequired: _stale, ...rest } = entry;
+        await store.put(rest);
+        changed = true;
+      }
       kept += 1;
     }
   }
-  if (sent + refused > 0) notifyChanged();
-  return { sent, refused, kept };
+  if (changed) notifyChanged();
+  return authRequired ? { sent, refused, kept, authRequired } : { sent, refused, kept };
 }
 
 /**
@@ -325,5 +414,7 @@ export function useOfflineQueue(storeOverride?: OfflineQueueStore) {
     };
   }, [store, refresh]);
 
-  return { entries, pending: entries.length, discard, refresh };
+  const authRequired = entries.some((e) => e.authRequired);
+
+  return { entries, pending: entries.length, authRequired, discard, refresh };
 }
