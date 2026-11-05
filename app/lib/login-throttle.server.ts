@@ -20,7 +20,8 @@ export type LoginThrottleOptions = {
   windowMs?: number;
   /**
    * Cap on tracked keys per kind (emails, IPs). Past it, the least recently used
-   * key that is not locked is dropped first.
+   * key that is not locked is dropped first. Values below one are raised to one:
+   * the key being recorded always stays.
    */
   maxKeys?: number;
   /** Injectable for tests. */
@@ -128,7 +129,7 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
   const maxEmailFailures = options.maxEmailFailures ?? LOGIN_MAX_EMAIL_FAILURES;
   const maxIpFailures = options.maxIpFailures ?? LOGIN_MAX_IP_FAILURES;
   const windowMs = options.windowMs ?? LOGIN_WINDOW_MS;
-  const maxKeys = options.maxKeys ?? DEFAULT_MAX_KEYS;
+  const maxKeys = Math.max(1, Math.floor(options.maxKeys ?? DEFAULT_MAX_KEYS));
   const now = options.now ?? Date.now;
 
   const emails: Bucket = new Map();
@@ -165,7 +166,9 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
    * map with junk keys a fresh set of guesses on the locked account. Only when
    * every other key is locked does a lock go, the one that runs out soonest
    * (the first in map order on a tie). The scan stops at the first key that is
-   * not locked and never passes `maxKeys` entries, each checked in O(1).
+   * not locked and never passes `maxKeys` entries, each checked in O(1). Called
+   * only while the bucket holds more than `maxKeys` (at least one) keys, so there
+   * is always a key other than `keep` to drop.
    */
   function evictOne(bucket: Bucket, limit: number, at: number, keep: string) {
     let soonest: string | undefined;
@@ -183,8 +186,6 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       }
     }
     if (soonest !== undefined) bucket.delete(soonest);
-    // Nothing but `keep` is left: the cap is below one, and the key stays.
-    else bucket.delete(keep);
   }
 
   function record(bucket: Bucket, key: string, limit: number, at: number) {
