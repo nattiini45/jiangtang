@@ -57,6 +57,7 @@ export function meta({ data, matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const locale = resolveLocale(request);
   const detail = await getEventDetail(params.id);
   if (!detail) throw toErrorResponse(new NotFoundError(t(locale, "err.event.notFound")));

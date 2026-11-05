@@ -6,9 +6,11 @@ import { getRunningEntry } from "~/domains/time/time.queries.server";
 import { AppShell } from "~/components/layout/app-shell";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 
-// Desktop surface — pathless layout. The whole desktop tree is auth-guarded here
-// (requireUser redirects anonymous users to /login). Feature tracks add routes as
-// `app/routes/_desktop.<feature>/`.
+// Desktop surface — pathless layout. requireUser redirects anonymous users to /login.
+// Every child loader and action calls requireUser itself as well: a single-fetch
+// `.data` request with `?_routes=<child id>` runs only that child's loader and never
+// reaches this one (test/routes/route-auth-guard.test.ts enforces it). Feature tracks
+// add routes as `app/routes/_desktop.<feature>/`.
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
   // The header's running-timer indicator — one indexed lookup per load.

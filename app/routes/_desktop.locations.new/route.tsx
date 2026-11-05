@@ -32,6 +32,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const parents = await listLocationTree();
   const requested = new URL(request.url).searchParams.get("parent");
   const defaultParentId = parents.some((p) => p.id === requested) ? requested : null;

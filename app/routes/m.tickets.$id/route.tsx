@@ -33,7 +33,8 @@ export function meta({ data, matches }: Route.MetaArgs) {
   return [{ title: translate(locale, "tickets.meta.detail", { title }) }];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const ticket = await getTicket(params.id);
   if (!ticket) throw toErrorResponse(new NotFoundError(tr("err.ticket.notFound")));
   const attachments = await listAttachments({ ticketId: params.id });
