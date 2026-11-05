@@ -7,6 +7,9 @@ export const mobileEn = {
   "mobile.meta.offline": "Offline · Jiangtang",
 
   "mobile.capture.queued": "Saved offline. It will be sent once you are back online.",
+  "mobile.capture.signInNeeded": "Saved on this device. Sign in again to send it.",
+  "mobile.capture.signInAction": "Sign in",
+  "mobile.signInPending": "Entries saved on this device, sent after you sign in again",
   "mobile.capture.saving": "Saving…",
   "mobile.capture.create": "Create",
   "mobile.capture.rejected": "Rejected by the server.",

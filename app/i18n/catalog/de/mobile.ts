@@ -6,6 +6,11 @@ export const mobileDe = {
   "mobile.meta.offline": "Offline · Jiangtang",
 
   "mobile.capture.queued": "Offline gespeichert — wird gesendet, sobald du online bist.",
+  "mobile.capture.signInNeeded":
+    "Auf diesem Gerät gespeichert. Melde dich erneut an, damit es gesendet wird.",
+  "mobile.capture.signInAction": "Anmelden",
+  "mobile.signInPending":
+    "Auf diesem Gerät gespeicherte Einträge — werden nach erneuter Anmeldung gesendet",
   "mobile.capture.saving": "Speichern…",
   "mobile.capture.create": "Anlegen",
   "mobile.capture.rejected": "Vom Server abgelehnt.",

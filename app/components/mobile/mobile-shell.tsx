@@ -59,7 +59,7 @@ export function MobileShell({ user, children }: { user: MobileUser; children: Re
   const t = useT();
   const locale = useLocale();
   // Replays the capture queue on mount + `online`, and gives the badge.
-  const { pending } = useOfflineQueue();
+  const { pending, authRequired } = useOfflineQueue();
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   // Hydration marker: e2e waits for `html[data-hydrated]` before interacting —
@@ -86,7 +86,17 @@ export function MobileShell({ user, children }: { user: MobileUser; children: Re
           <span className="font-semibold">Jiangtang</span>
         </span>
         <span className="flex items-center gap-2">
-          {pending > 0 ? (
+          {pending > 0 && authRequired ? (
+            <Link
+              to="/login?next=%2Fm"
+              className="bg-status-warning/15 nums flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold"
+              title={t("mobile.signInPending")}
+            >
+              <CloudOff className="size-3.5" strokeWidth={2} />
+              {pending}
+              <span>{t("mobile.capture.signInAction")}</span>
+            </Link>
+          ) : pending > 0 ? (
             <span
               role="status"
               className="bg-status-warning/15 nums flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold"
