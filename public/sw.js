@@ -73,17 +73,53 @@ const OFFLINE_COPY = {
     body: "No connection. The page refreshes automatically once you are back online.",
   },
 };
+const OFFLINE_FALLBACK_LANG = "en";
 
-function builtInOffline(request) {
-  const accept = request.headers ? request.headers.get("accept-language") || "" : "";
-  const lang = /^\s*de\b/i.test(accept) ? "de" : "en";
-  const { title, body } = OFFLINE_COPY[lang];
+// Runs in the placeholder page, not in the worker (it is stringified into the HTML below). The
+// language is chosen here because the Request a fetch event sees rarely carries Accept-Language
+// (Chromium adds it below the worker). It follows the app's own order: the "locale" cookie (not
+// HttpOnly), then the browser languages, then the fallback. The page also keeps its promise to
+// refresh once the connection is back.
+function offlinePageMain(copy, fallback) {
+  var lang = fallback;
+  var cookie = /(?:^|;\s*)locale=(de|en)\s*(?:;|$)/.exec(document.cookie || "");
+  if (cookie) {
+    lang = cookie[1];
+  } else {
+    var tags = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < tags.length; i++) {
+      var primary = String(tags[i]).toLowerCase().split(/[-_]/)[0];
+      if (primary === "de" || primary === "en") {
+        lang = primary;
+        break;
+      }
+    }
+  }
+  document.documentElement.lang = lang;
+  document.title = copy[lang].title;
+  document.getElementById("offline-title").textContent = copy[lang].title;
+  document.getElementById("offline-body").textContent = copy[lang].body;
+  window.addEventListener("online", function () {
+    location.reload();
+  });
+}
+
+// The texts are constants, but "<" is escaped anyway so they can never close the script element.
+const OFFLINE_SCRIPT =
+  "(" + offlinePageMain + ")(" +
+  JSON.stringify(OFFLINE_COPY).split("<").join(String.fromCharCode(92) + "u003c") + "," +
+  JSON.stringify(OFFLINE_FALLBACK_LANG) + ");";
+
+function builtInOffline() {
+  const { title, body } = OFFLINE_COPY[OFFLINE_FALLBACK_LANG];
   const html =
-    '<!doctype html><html lang="' + lang + '"><head><meta charset="utf-8">' +
+    '<!doctype html><html lang="' + OFFLINE_FALLBACK_LANG + '"><head><meta charset="utf-8">' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">' +
     "<title>" + title + "</title></head>" +
     '<body style="font-family:system-ui,sans-serif;text-align:center;padding:3rem 1rem">' +
-    "<h1>" + title + "</h1><p>" + body + "</p></body></html>";
+    '<h1 id="offline-title">' + title + "</h1>" +
+    '<p id="offline-body">' + body + "</p>" +
+    "<script>" + OFFLINE_SCRIPT + "</script></body></html>";
   return new Response(html, {
     status: 503,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
@@ -110,18 +146,21 @@ async function networkFirst(request, waitUntil) {
     const cached = await cache.match(request);
     if (cached) return cached;
     // Navigation offline with no cache → the offline placeholder.
-    if (request.mode === "navigate") return (await cache.match(OFFLINE_URL)) || builtInOffline(request);
+    if (request.mode === "navigate") return (await cache.match(OFFLINE_URL)) || builtInOffline();
     throw new Error("offline and not cached");
   }
 }
 
-// CacheFirst for immutable hashed assets.
-async function cacheFirst(request) {
+// CacheFirst for immutable hashed assets. The store happens after the answer is on its way, and a
+// failed write (full quota, Vary: *) costs only the cache entry, never the asset.
+async function cacheFirst(request, waitUntil) {
   const cache = await caches.open(ASSET_CACHE);
   const cached = await cache.match(request);
   if (cached) return cached;
   const network = await fetch(request);
-  if (isCacheable(request, network)) await cache.put(request, network.clone());
+  if (isCacheable(request, network)) {
+    waitUntil(cache.put(request, network.clone()).catch(() => undefined));
+  }
   return network;
 }
 
@@ -162,7 +201,7 @@ self.addEventListener("fetch", (event) => {
 
   // Hashed assets: cache-first (immutable).
   if (url.pathname.startsWith("/assets/")) {
-    event.respondWith(cacheFirst(request));
+    event.respondWith(cacheFirst(request, (p) => event.waitUntil(p)));
     return;
   }
   // Navigations + everything else under /m: network-first (no stale data).
