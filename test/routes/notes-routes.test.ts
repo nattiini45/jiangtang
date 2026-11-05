@@ -143,18 +143,52 @@ describe("/notes/:id — actions", () => {
       _action: "autosave",
       title: `${RUN} as`,
       body: "neu",
-    })) as { ok?: boolean };
-    expect(changed.ok).toBe(true);
+      version: String(n.version),
+    })) as { ok?: boolean; version?: number };
+    expect(changed).toEqual({ ok: true, version: n.version + 1 });
     expect((await db.note.findUniqueOrThrow({ where: { id: n.id } })).body).toBe("neu");
 
     const same = (await postDetail(n.id, {
       _action: "autosave",
       title: `${RUN} as`,
       body: "neu",
-    })) as { ok?: boolean };
-    expect(same.ok).toBe(true);
+      version: String(n.version + 1),
+    })) as { ok?: boolean; version?: number };
+    expect(same).toEqual({ ok: true, version: n.version + 1 });
     const rows = await auditFor(n.id);
     expect(rows.map((r) => r.action)).toEqual(["NoteCreated", "NoteUpdated"]);
+  });
+
+  it("a stale autosave answers {conflict} with the stored note and writes nothing", async () => {
+    const n = await makeNote({ title: `${RUN} cf`, body: "Ausgang" });
+    await postDetail(n.id, {
+      _action: "autosave",
+      title: `${RUN} cf`,
+      body: "von Tab A",
+      version: String(n.version),
+    });
+    const stale = (await postDetail(n.id, {
+      _action: "autosave",
+      title: `${RUN} cf`,
+      body: "von Tab B",
+      version: String(n.version),
+    })) as { conflict?: { message: string; current: { body: string; version: number } } };
+    expect(stale.conflict?.message).toMatch(/gespeichert/);
+    expect(stale.conflict?.current).toMatchObject({ body: "von Tab A", version: n.version + 1 });
+    expect((await db.note.findUniqueOrThrow({ where: { id: n.id } })).body).toBe("von Tab A");
+    expect((await auditFor(n.id)).map((r) => r.action)).toEqual(["NoteCreated", "NoteUpdated"]);
+  });
+
+  it("an autosave without a version is refused as invalid input", async () => {
+    const n = await makeNote({ title: `${RUN} nv`, body: "bleibt" });
+    const res = (await postDetail(n.id, {
+      _action: "autosave",
+      title: `${RUN} nv`,
+      body: "ohne Version",
+    })) as { ok?: boolean; error?: string };
+    expect(res.ok).toBeUndefined();
+    expect(res.error).toBeTruthy();
+    expect((await db.note.findUniqueOrThrow({ where: { id: n.id } })).body).toBe("bleibt");
   });
 
   it("pin, archive, unarchive and delete ride the one action via _action", async () => {

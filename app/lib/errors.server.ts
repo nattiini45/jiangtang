@@ -3,6 +3,7 @@ import { localizeMessage } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
 import { currentLocale, tr } from "~/i18n/request-locale.server";
 import { logger } from "~/lib/observability/logger.server";
+import type { Note } from "~/generated/prisma/client";
 
 /**
  * Canonical error → HTTP mapping. Loaders/actions may THROW these
@@ -50,6 +51,20 @@ export class BookingConflictError extends Error {
   constructor(message = tr("err.bookingConflict")) {
     super(message);
     this.name = "BookingConflictError";
+  }
+}
+
+/**
+ * 409 — a note save carried a version older than the stored one: someone else
+ * saved in between. `current` is the stored note, so the editor can offer it
+ * without a second round trip.
+ */
+export class NoteConflictError extends Error {
+  readonly current: Note;
+  constructor(current: Note, message = tr("work.err.note.conflict")) {
+    super(message);
+    this.name = "NoteConflictError";
+    this.current = current;
   }
 }
 
@@ -103,6 +118,7 @@ function json(body: ErrorBody, status: number): Response {
  * Map any thrown value to a Response:
  *   ZodError / ValidationError → 422
  *   BookingConflictError or raw 23P01 → 409
+ *   NoteConflictError → 409
  *   NotFoundError → 404
  *   an already-formed Response → passthrough
  *   else → 500
@@ -146,6 +162,10 @@ export function toErrorResponse(error: unknown): Response {
       return json({ error: "BookingConflictError", message: error.message }, 409);
     }
     return json(internalErrorBody(error), 409);
+  }
+
+  if (error instanceof NoteConflictError) {
+    return json({ error: "NoteConflictError", message: error.message }, 409);
   }
 
   if (error instanceof NotFoundError) {

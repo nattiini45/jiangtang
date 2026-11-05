@@ -50,6 +50,31 @@ export function noteToMarkdown(note: MarkdownNote): string {
   return `---\n${stringifyYaml(frontMatter)}---\n\n${note.body}`;
 }
 
+/** An unsaved editor draft, as the conflict notice offers it for download. */
+export interface MarkdownDraft {
+  title: string;
+  body: string;
+  tags: string[];
+  pinned: boolean;
+  projectSlug?: string;
+  locationId?: string;
+}
+
+/**
+ * The export format without `id` (and without timestamps): importing the file
+ * creates a new note instead of overwriting the one it was drafted against.
+ */
+export function draftToMarkdown(draft: MarkdownDraft): string {
+  const frontMatter: Record<string, unknown> = {
+    title: draft.title,
+    tags: draft.tags,
+    pinned: draft.pinned,
+  };
+  if (draft.projectSlug) frontMatter.project = draft.projectSlug;
+  if (draft.locationId) frontMatter.location = draft.locationId;
+  return `---\n${stringifyYaml(frontMatter)}---\n\n${draft.body}`;
+}
+
 export interface ParsedMarkdownNote {
   id?: string;
   title: string;

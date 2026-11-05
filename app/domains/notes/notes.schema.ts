@@ -63,6 +63,14 @@ export const noteCreateSchema = noteCreateObject;
 /** Edit: the same fields — autosave always submits the whole document. */
 export const noteEditSchema = noteCreateObject.extend({ id: z.string().min(1) });
 
+/**
+ * Editor save: the whole document plus the `version` the editor loaded, which
+ * `updateNote` compares against the stored one.
+ */
+export const noteUpdateSchema = noteCreateObject.extend({
+  version: z.coerce.number().int().min(1, msgKey("err.invalidInput")),
+});
+
 export type NoteCreateInput = z.infer<typeof noteCreateSchema>;
 export type NoteEditInput = z.infer<typeof noteEditSchema>;
 
