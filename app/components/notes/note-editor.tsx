@@ -1,8 +1,9 @@
 import * as React from "react";
-import { useFetcher } from "react-router";
+import { useFetcher, useRevalidator } from "react-router";
 import { formatTime } from "~/i18n/format";
 import { useLocale, useT } from "~/i18n/use-t";
 import { cn } from "~/lib/utils";
+import { draftToMarkdown } from "~/domains/notes/notes.markdown";
 import { MarkdownPreview } from "./markdown-preview";
 import {
   applySlashCommand,
@@ -28,6 +29,14 @@ import { Textarea } from "~/components/ui/textarea";
  * when the action answers an error. Ctrl/Cmd+S saves immediately;
  * `beforeunload` warns while dirty.
  *
+ * Concurrency: every save carries the `version` this editor loaded (advanced
+ * by each clean write). A save against a newer stored version comes back as
+ * `{conflict}`; autosave then stops and an alert offers to load the stored
+ * version (remounting the form from it) or to download the local draft (title,
+ * body, tags, project, location) as a Markdown file that the note import
+ * accepts as a new note. Nothing local is discarded until the person chooses
+ * to reload.
+ *
  * The `/` command row: `/` at the start of a line opens a listbox filtered by
  * what follows; arrows + Enter insert, Escape closes. The insertion itself is
  * pure (`slash-commands.ts`) — this file only wires the textarea to it.
@@ -41,9 +50,20 @@ export interface EditableNote {
   pinned: boolean;
   projectId: string | null;
   locationId: string | null;
+  version: number;
+}
+
+interface SaveResult {
+  ok?: boolean;
+  version?: number;
+  error?: string;
+  conflict?: { message: string; current: EditableNote };
 }
 
 const DEBOUNCE_MS = 1500;
+
+type Options = Array<{ id: string; name: string }>;
+type ProjectOptions = Array<{ id: string; name: string; slug: string }>;
 
 export function NoteEditor({
   note,
@@ -51,12 +71,56 @@ export function NoteEditor({
   locations,
 }: {
   note: EditableNote;
-  projects: Array<{ id: string; name: string }>;
-  locations: Array<{ id: string; name: string }>;
+  projects: ProjectOptions;
+  locations: Options;
+}) {
+  const revalidator = useRevalidator();
+  // The loader's note seeds the form once; later loader data must not replace
+  // what the person is typing. Only an explicit reload after a conflict swaps
+  // the base and remounts the form.
+  const [base, setBase] = React.useState(note);
+  const [generation, setGeneration] = React.useState(0);
+  // The conflict snapshot or the revalidated loader note, whichever is newer:
+  // a save landing after the conflict must not leave the form one version behind.
+  const latestRef = React.useRef(note);
+  latestRef.current = note;
+  const reload = React.useCallback(
+    (current: EditableNote) => {
+      const latest = latestRef.current;
+      setBase(latest.version > current.version ? latest : current);
+      setGeneration((g) => g + 1);
+      void revalidator.revalidate();
+    },
+    [revalidator],
+  );
+  return (
+    <NoteEditorForm
+      key={generation}
+      note={base}
+      pinned={note.pinned}
+      projects={projects}
+      locations={locations}
+      onReload={reload}
+    />
+  );
+}
+
+function NoteEditorForm({
+  note,
+  pinned,
+  projects,
+  locations,
+  onReload,
+}: {
+  note: EditableNote;
+  pinned: boolean;
+  projects: ProjectOptions;
+  locations: Options;
+  onReload: (current: EditableNote) => void;
 }) {
   const locale = useLocale();
   const t = useT();
-  const fetcher = useFetcher<{ ok?: boolean; error?: string }>();
+  const fetcher = useFetcher<SaveResult>();
   const formRef = React.useRef<HTMLFormElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,10 +133,14 @@ export function NoteEditor({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [mobilePane, setMobilePane] = React.useState<"edit" | "preview">("edit");
   const [slash, setSlash] = React.useState<{ query: string; index: number } | null>(null);
+  const [version, setVersion] = React.useState(note.version);
+  const [conflict, setConflict] = React.useState<SaveResult["conflict"] | null>(null);
+  const conflictRef = React.useRef(false);
 
   const save = React.useCallback(() => {
     if (!formRef.current) return;
     if (fetcher.state !== "idle") return; // never overlap two saves
+    if (conflictRef.current) return; // every further save would be refused too
     inflightRef.current = versionRef.current;
     void fetcher.submit(formRef.current, { method: "post" });
   }, [fetcher]);
@@ -90,6 +158,7 @@ export function NoteEditor({
   // flight, the leftover dirty schedules the next save here.
   React.useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.ok) {
+      if (fetcher.data.version !== undefined) setVersion(fetcher.data.version);
       if (inflightRef.current === versionRef.current) setDirty(false);
       else if (debounceRef.current) clearTimeout(debounceRef.current);
       if (inflightRef.current !== versionRef.current) {
@@ -97,6 +166,10 @@ export function NoteEditor({
       }
       setSavedAt(new Date());
       setSaveError(null);
+    } else if (fetcher.state === "idle" && fetcher.data?.conflict) {
+      conflictRef.current = true;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setConflict(fetcher.data.conflict);
     } else if (fetcher.state === "idle" && fetcher.data?.error) {
       setSaveError(fetcher.data.error);
     }
@@ -176,15 +249,39 @@ export function NoteEditor({
     }
   }
 
-  const statusText = saveError
-    ? t("notes.editor.notSaved", { error: saveError })
-    : fetcher.state !== "idle"
-      ? t("common.saving")
-      : dirty
+  const downloadLocalCopy = React.useCallback(() => {
+    const form = formRef.current ? new FormData(formRef.current) : null;
+    const field = (name: string) => String(form?.get(name) ?? "").trim();
+    const title = field("title");
+    const projectId = field("projectId");
+    const text = draftToMarkdown({
+      title: title || note.title,
+      body,
+      tags: (form?.getAll("tags") ?? []).map((v) => String(v).trim()).filter((v) => v !== ""),
+      pinned,
+      projectSlug: projects.find((p) => p.id === projectId)?.slug,
+      locationId: field("locationId") || undefined,
+    });
+    const url = URL.createObjectURL(new Blob([text], { type: "text/markdown;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${fileStem(title || note.title)}.md`;
+    a.click();
+    // Revoking in the same task can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, [body, note.title, pinned, projects]);
+
+  const statusText = conflict
+    ? t("notes.editor.notSaved", { error: conflict.message })
+    : saveError
+      ? t("notes.editor.notSaved", { error: saveError })
+      : fetcher.state !== "idle"
         ? t("common.saving")
-        : savedAt
-          ? t("notes.editor.savedAt", { time: formatTime(locale, savedAt) })
-          : "";
+        : dirty
+          ? t("common.saving")
+          : savedAt
+            ? t("notes.editor.savedAt", { time: formatTime(locale, savedAt) })
+            : "";
 
   return (
     <form
@@ -198,9 +295,35 @@ export function NoteEditor({
       className="flex flex-col gap-3"
     >
       <input type="hidden" name="_action" value="autosave" />
+      <input type="hidden" name="version" value={version} />
       {/* pinned rides along — updateNote takes the whole document, and a pin
           made via its own button must not be reverted by the next autosave. */}
-      <input type="hidden" name="pinned" value={note.pinned ? "true" : ""} />
+      <input type="hidden" name="pinned" value={pinned ? "true" : ""} />
+
+      {conflict ? (
+        <div
+          role="alert"
+          className="bg-destructive/15 text-foreground flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md px-3 py-2 text-sm"
+        >
+          <p className="min-w-0 flex-1">
+            {conflict.message} {t("notes.editor.conflict.hint")}
+          </p>
+          <Button type="button" size="compact" variant="secondary" onClick={downloadLocalCopy}>
+            {t("notes.editor.conflict.download")}
+          </Button>
+          <Button
+            type="button"
+            size="compact"
+            variant="secondary"
+            onClick={() => {
+              if (dirty && !confirm(t("notes.editor.conflict.confirmReload"))) return;
+              onReload(conflict.current);
+            }}
+          >
+            {t("notes.editor.conflict.reload")}
+          </Button>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <Input
@@ -344,4 +467,13 @@ export function NoteEditor({
       </div>
     </form>
   );
+}
+
+/** A download name from the note title: path and control characters out. */
+function fileStem(title: string): string {
+  // Control characters are exactly what must go from a file name.
+  // eslint-disable-next-line no-control-regex
+  const unsafe = /[\\/:*?"<>|\u0000-\u001f]+/g;
+  const stem = title.replace(unsafe, "-").slice(0, 80).trim();
+  return stem || "note";
 }

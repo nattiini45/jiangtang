@@ -70,7 +70,10 @@ describe("importMarkdownNotes", () => {
       { name: "x.md", text: `---\nid: ${note.id}\ntitle: ${RUN} upd\n---\n\nneu` },
     ]);
     expect(result).toEqual({ created: 0, updated: 1 });
-    expect((await getNote(note.id))?.body).toBe("neu");
+    const after = await getNote(note.id);
+    expect(after?.body).toBe("neu");
+    // An editor still open on the pre-import text must hit a conflict, not overwrite it.
+    expect(after?.version).toBe(note.version + 1);
     const rows = await db.activityLog.findMany({
       where: { entityType: "note", entityId: note.id },
       orderBy: [{ insertedAt: "asc" }, { id: "asc" }],

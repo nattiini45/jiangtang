@@ -1,5 +1,5 @@
 import { tr } from "~/i18n/request-locale.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { NotFoundError, NoteConflictError, ValidationError } from "~/lib/errors.server";
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { type Tx } from "~/lib/db.server";
 import type { Note } from "~/generated/prisma/client";
@@ -15,6 +15,10 @@ import type { NoteCreateInput } from "./notes.schema";
  * every 1.5 s while a note is open: a save that rewrites identical values is
  * not an event, and the audit row names only the changed FIELD names — the
  * body text never enters the log.
+ *
+ * **`updateNote` is optimistic**: the caller passes the `version` it loaded,
+ * and a write against any other version is refused with `NoteConflictError`,
+ * so a stale tab cannot silently replace a colleague's newer text.
  */
 
 /** FK refs validated as field errors, like the locations domain does. */
@@ -88,10 +92,12 @@ export async function updateNote(
   actor: AuditActor,
   id: string,
   input: NoteCreateInput,
+  expectedVersion: number,
 ): Promise<Note> {
   return txWithAudit(actor, async (tx, audit) => {
     const before = await tx.note.findUnique({ where: { id } });
     if (!before) throw new NotFoundError(tr("work.err.note.notFound"));
+    if (before.version !== expectedVersion) throw new NoteConflictError(before);
     await validateRefs(tx, input);
 
     const changed: string[] = [];
@@ -103,8 +109,10 @@ export async function updateNote(
     if ((input.locationId ?? null) !== before.locationId) changed.push("locationId");
     if (changed.length === 0) return before; // autosave no-op: no write, no audit
 
-    const note = await tx.note.update({
-      where: { id },
+    // The version in the WHERE is the real guard: the read above can race a
+    // concurrent save, but this row-locked compare-and-set cannot.
+    const { count } = await tx.note.updateMany({
+      where: { id, version: expectedVersion },
       data: {
         title: input.title,
         body: input.body,
@@ -112,8 +120,15 @@ export async function updateNote(
         tags: input.tags,
         projectId: input.projectId ?? null,
         locationId: input.locationId ?? null,
+        version: { increment: 1 },
       },
     });
+    if (count === 0) {
+      const current = await tx.note.findUnique({ where: { id } });
+      if (!current) throw new NotFoundError(tr("work.err.note.notFound"));
+      throw new NoteConflictError(current);
+    }
+    const note = await tx.note.findUniqueOrThrow({ where: { id } });
     await audit({
       action: "NoteUpdated",
       entityType: "note",
@@ -241,6 +256,7 @@ export async function updateNoteInTx(
       tags: input.tags,
       projectId: input.projectId ?? null,
       locationId: input.locationId ?? null,
+      version: { increment: 1 },
     },
   });
   await audit({

@@ -211,6 +211,10 @@ describe("workspace transfer", () => {
     // Re-import is idempotent: upserts + edge skip, no crash.
     const again = await importWorkspace(authed, doc);
     expect(again).toEqual({ projects: 2, tasks: 2, notes: 1, edges: 0 });
+    // The re-import overwrote the note: an editor open on the earlier text
+    // must now get a conflict instead of saving over the imported one.
+    const reimported = await db.note.findUniqueOrThrow({ where: { id: note.id } });
+    expect(reimported.version).toBe(restoredNote.version + 1);
   });
 
   it("refuses a dependency cycle all-or-nothing", async () => {

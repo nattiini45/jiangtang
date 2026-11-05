@@ -4,7 +4,12 @@ import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
-import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  NotFoundError,
+  NoteConflictError,
+  toErrorResponse,
+  ValidationError,
+} from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import {
   archiveNote,
@@ -14,7 +19,7 @@ import {
   updateNote,
 } from "~/domains/notes/notes.mutations.server";
 import { getNote } from "~/domains/notes/notes.queries.server";
-import { noteCreateSchema } from "~/domains/notes/notes.schema";
+import { noteUpdateSchema } from "~/domains/notes/notes.schema";
 import { listProjectOptions } from "~/domains/projects/projects.queries.server";
 import { listLocationOptions } from "~/domains/locations/locations.queries.server";
 import { listEntityHistory } from "~/domains/tickets/tickets.history.server";
@@ -30,8 +35,9 @@ import { useT } from "~/i18n/use-t";
 /**
  * `/notes/:id` — the note editor. One `action` dispatches on `_action`:
  *
- * - `autosave` — the fetcher path. `updateNote` on the whole document, answers
- *   `{ok}`/`{error}` JSON; a redirect would tear the editor down every 1.5 s.
+ * - `autosave` — the fetcher path. `updateNote` on the whole document plus the
+ *   version the editor holds, answers `{ok, version}` / `{error}` /
+ *   `{conflict}` JSON; a redirect would tear the editor down every 1.5 s.
  * - `pin` / `unpin`, `archive` / `unarchive`, `delete` — document posts that
  *   redirect back to the note (or to `/notes` after delete); refusals render
  *   as form errors, not error pages.
@@ -71,7 +77,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   try {
     switch (intent) {
       case "autosave": {
-        const result = safeParse(noteCreateSchema, formDataToObject(form), locale);
+        const result = safeParse(noteUpdateSchema, formDataToObject(form), locale);
         if (!result.success) {
           const message =
             result.formErrors[0] ??
@@ -79,9 +85,10 @@ export async function action({ request, params }: Route.ActionArgs) {
             t(locale, "err.invalidInput");
           return { error: message };
         }
-        await updateNote(actor, id, result.data);
+        const { version, ...input } = result.data;
+        const saved = await updateNote(actor, id, input, version);
         await touched();
-        return { ok: true as const };
+        return { ok: true as const, version: saved.version };
       }
       case "pin": {
         await setNotePinned(actor, id, true);
@@ -112,6 +119,24 @@ export async function action({ request, params }: Route.ActionArgs) {
         throw new ValidationError({}, [t(locale, "err.unknownActionNamed", { intent })]);
     }
   } catch (e) {
+    if (e instanceof NoteConflictError && intent === "autosave") {
+      const c = e.current;
+      return {
+        conflict: {
+          message: e.message,
+          current: {
+            id: c.id,
+            title: c.title,
+            body: c.body,
+            tags: c.tags,
+            pinned: c.pinned,
+            projectId: c.projectId,
+            locationId: c.locationId,
+            version: c.version,
+          },
+        },
+      };
+    }
     if (e instanceof ValidationError) {
       // The autosave path speaks {error}; document posts speak formErrors.
       if (intent === "autosave") {
@@ -189,7 +214,7 @@ export default function NoteDetail({ loaderData, actionData }: Route.ComponentPr
       <NoteEditor
         key={note.id}
         note={note}
-        projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+        projects={projects.map((p) => ({ id: p.id, name: p.name, slug: p.slug }))}
         locations={locations.map((l) => ({ id: l.id, name: l.name }))}
       />
 

@@ -64,6 +64,12 @@ export const notesEn = {
   "notes.new.submit": "Create note",
 
   "notes.editor.notSaved": "Not saved — {error}",
+  "notes.editor.conflict.hint":
+    "Your changes are still here but not saved. Download them, then load the current version.",
+  "notes.editor.conflict.download": "Download my text",
+  "notes.editor.conflict.reload": "Load current version",
+  "notes.editor.conflict.confirmReload":
+    "Loading the current version discards your unsaved changes. Continue?",
   "notes.editor.titleAria": "Title",
   "notes.editor.projectAria": "Project",
   "notes.editor.locationAria": "Location",
