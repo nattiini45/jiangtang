@@ -97,7 +97,9 @@ export function NoteEditor({
     <NoteEditorForm
       key={generation}
       note={base}
-      pinned={note.pinned}
+      // Pin buttons do not bump the version, so the loader note wins on a tie;
+      // only a reload snapshot newer than the loader decides the pin itself.
+      pinned={note.version >= base.version ? note.pinned : base.pinned}
       projects={projects}
       locations={locations}
       onReload={reload}
