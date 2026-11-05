@@ -73,4 +73,9 @@ export const adminEn = {
   "admin.index.col.embedded": "embedded",
   "admin.index.failedJobs": "Failed jobs",
   "admin.index.attempt": "Attempt {count}",
+  "admin.index.calendar": "Calendar sync",
+  "admin.index.calendar.off": "CalDAV is not configured.",
+  "admin.index.calendar.counts": "{pending} pending · {retrying} retrying · {failed} failed",
+  "admin.index.calendar.stuckSince": "stuck since {since}",
+  "admin.index.calendar.deletedEvent": "Deleted event",
 } satisfies Record<keyof typeof adminDe, string>;

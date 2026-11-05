@@ -80,6 +80,13 @@ function payloadToFeedEvent(payload: CalendarPayload, cancelled: boolean): ICalF
   };
 }
 
+/**
+ * Upper bound for one PUT. The outbox drain holds its cross-instance lock for a
+ * bounded time, so a server that never answers must not keep a push in flight
+ * past it. A timed-out PUT counts as failed and is retried with backoff.
+ */
+export const CALDAV_REQUEST_TIMEOUT_MS = 60_000;
+
 export class CalDavPublisher implements CalendarPublisher {
   constructor(
     private readonly config: CalDavConfig,
@@ -111,6 +118,16 @@ export class CalDavPublisher implements CalendarPublisher {
   /** Unconditional PUT of an `.ics` resource; non-2xx throws. */
   private async put(uid: string, body: string): Promise<void> {
     const url = resourceUrl(this.config.url, uid);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CALDAV_REQUEST_TIMEOUT_MS);
+    try {
+      await this.send(url, body, controller.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async send(url: string, body: string, signal: AbortSignal): Promise<void> {
     const res = await this.fetchImpl(url, {
       method: "PUT",
       headers: {
@@ -118,6 +135,7 @@ export class CalDavPublisher implements CalendarPublisher {
         Authorization: basicAuthHeader(this.config.username, this.config.password),
       },
       body,
+      signal,
     });
     if (!res.ok) {
       // Include a short snippet of the response for operator diagnosis, but keep it

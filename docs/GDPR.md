@@ -33,7 +33,7 @@ not an upgrade path.
 | Vendors | contact name, email, phone, address | `prisma/schema.prisma` |
 | Attachments | original filename, creator reference, content type and dimensions; the bytes live outside PostgreSQL | `prisma/schema.prisma` |
 | `ActivityLog` | actor id, an actor snapshot (name, email, initials) and a structured detail object | `prisma/schema.prisma`, `app/lib/audit.server.ts` |
-| `CalendarOutbox` | a serialized event payload (title, description, room names, times), retained as `PENDING`, `SENT` or `FAILED` rows | `prisma/schema.prisma`, `app/lib/calendar/publisher.server.ts` |
+| `CalendarOutbox` | a serialized event payload (title, description, room names, times), retained as `PENDING`, `SENT`, `FAILED` or `SUPERSEDED` rows | `prisma/schema.prisma`, `app/lib/calendar/publisher.server.ts` |
 | `Chunk` | a derived text copy of the records above, including vendor contact details, project lead names and ticket/note/task bodies; optional embedding vector | `app/lib/search/sources.server.ts` |
 
 Free-text fields are not classified automatically. A ticket description, event description, note,

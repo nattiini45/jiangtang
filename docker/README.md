@@ -20,7 +20,8 @@ is [docs/DEPLOY.md](../docs/DEPLOY.md); the recovery runbook is [docs/BACKUP.md]
   retention.
 - `restore` — profile-gated (`--profile restore`), data directory writable, runs
   `ops/postgres/restore.sh`: the rehearsed, destructive restore path (see DEPLOY.md).
-- `alerting` — sidecar that polls `/healthz` and posts to `ALERT_WEBHOOK`; it idles when the webhook
+- `alerting` — sidecar that polls `/healthz`, reads backup and WAL-archive failures from the
+  `backup-status` volume and posts to `ALERT_WEBHOOK`; it idles when the webhook
   is empty.
 - `app` — `node --import tsx server.ts`, started directly by Node, not through pnpm or cross-env. It
   sets `NODE_ENV=production`. Starts only after `migrate` has completed successfully. Serves on

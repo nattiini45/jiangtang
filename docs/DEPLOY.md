@@ -164,7 +164,8 @@ curl -fsS https://<APP_DOMAIN>/healthz  # {"status":"ok","db":"up"}
 container, not returned to the caller.
 
 The container's own healthcheck polls `/login`; Compose marks `app` healthy only once the server
-answers. The alerting sidecar polls `/healthz` every 60 seconds when `ALERT_WEBHOOK` is set.
+answers. The alerting sidecar polls `/healthz` every 60 seconds when `ALERT_WEBHOOK` is set, and
+posts failed base backups and failing WAL archiving too (see [BACKUP.md](BACKUP.md#failure-alerts)).
 
 ## 6. First login
 
