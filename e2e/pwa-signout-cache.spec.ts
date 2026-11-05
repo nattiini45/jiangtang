@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { db } from "~/lib/db.server";
 
 /**
  * The installed app caches signed-in pages by URL. Signing out must not leave them behind for
@@ -32,6 +33,19 @@ async function signIn(page: Page) {
   await page.waitForURL((url) => !url.pathname.startsWith("/login"));
 }
 
+/** Whether a signed-in cache holds an entry for this path (the cache the page just filled, not the install-time precache). */
+function isCached(page: Page, path: string) {
+  return page.evaluate(
+    async ([prefix, target]) => {
+      for (const name of await caches.keys()) {
+        if (name.startsWith(prefix) && (await (await caches.open(name)).match(target))) return true;
+      }
+      return false;
+    },
+    [SHELL_PREFIX, path] as const,
+  );
+}
+
 /** Total entries across the worker's signed-in caches. */
 function shellEntryCount(page: Page) {
   return page.evaluate(async (prefix) => {
@@ -52,7 +66,13 @@ test("signing out empties the cached signed-in pages and offline shows only the 
   await page.waitForSelector("html[data-hydrated]");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.goto("/m/tasks");
-  await expect.poll(() => shellEntryCount(page), { timeout: 15_000 }).toBeGreaterThan(0);
+  // The install-time precache already fills the cache with /m/ and /m/offline, so wait for the
+  // page the visit above should have stored.
+  await expect.poll(() => isCached(page, "/m/tasks"), { timeout: 15_000 }).toBe(true);
+  const { name: userName } = await db.user.findFirstOrThrow({
+    where: { email: credentials().email },
+    select: { name: true },
+  });
 
   // The layout's sign-out is a POST to /logout; it ends only this test's own session.
   const out = await page.request.post("/logout", { maxRedirects: 0 });
@@ -65,5 +85,6 @@ test("signing out empties the cached signed-in pages and offline shows only the 
   await page.goto("/m/tasks");
   await expect(page.getByRole("heading", { name: "Offline" })).toBeVisible();
   await expect(page.locator("body")).not.toContainText(credentials().email);
+  await expect(page.locator("body")).not.toContainText(userName);
   await context.setOffline(false);
 });

@@ -1,4 +1,5 @@
 import { WifiOff } from "lucide-react";
+import { useEffect } from "react";
 import type { Route } from "./+types/route";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -23,6 +24,13 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export default function MobileOffline() {
   const t = useT();
+  // The text promises a refresh once the connection is back. The worker serves this page in place
+  // of the one that failed, so reloading re-requests that URL.
+  useEffect(() => {
+    const reload = () => window.location.reload();
+    window.addEventListener("online", reload);
+    return () => window.removeEventListener("online", reload);
+  }, []);
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
       <span className="bg-tint flex size-14 items-center justify-center rounded-full">

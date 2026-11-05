@@ -25,6 +25,9 @@ type FakeResponse = {
   clone: () => FakeResponse;
 };
 
+/** How a cache write behaves: the default stores, "reject" fails like a full quota, "hang" never settles. */
+type PutMode = "store" | "reject" | "hang";
+
 function response(url: string, body: string, init: Partial<FakeResponse> = {}): FakeResponse {
   const r: FakeResponse = {
     status: 200,
@@ -41,20 +44,60 @@ function response(url: string, body: string, init: Partial<FakeResponse> = {}): 
 /** An in-memory CacheStorage keyed by absolute URL, enough for the worker's use. */
 function createCaches() {
   const stores = new Map<string, Map<string, FakeResponse>>();
+  const putMode = { value: "store" as PutMode };
   const keyOf = (r: string | { url: string }) => abs(typeof r === "string" ? r : r.url);
   const open = async (name: string) => {
     if (!stores.has(name)) stores.set(name, new Map());
     const store = stores.get(name)!;
     return {
-      put: async (req: { url: string }, res: FakeResponse) => void store.set(keyOf(req), res),
+      put: async (req: { url: string }, res: FakeResponse) => {
+        if (putMode.value === "reject")
+          throw new DOMException("quota exceeded", "QuotaExceededError");
+        if (putMode.value === "hang") return new Promise<void>(() => undefined);
+        store.set(keyOf(req), res);
+      },
       match: async (req: string | { url: string }) => store.get(keyOf(req)),
     };
   };
   return {
     stores,
+    putMode,
     open,
     keys: async () => [...stores.keys()],
     delete: async (name: string) => stores.delete(name),
+  };
+}
+
+type OfflineEnv = { cookie: string; languages: string[] };
+
+/** Runs the placeholder's inline script against a minimal document and reports what it did. */
+function runOfflineScript(html: string, env: OfflineEnv) {
+  const source = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+  if (!source) throw new Error("the placeholder has no inline script");
+  const nodes = {
+    "offline-title": { textContent: "" },
+    "offline-body": { textContent: "" },
+  } as Record<string, { textContent: string }>;
+  const document = {
+    cookie: env.cookie,
+    title: "",
+    documentElement: { lang: "en" },
+    getElementById: (id: string) => nodes[id],
+  };
+  const listeners: Record<string, () => void> = {};
+  let reloads = 0;
+  vm.runInNewContext(source, {
+    document,
+    navigator: { languages: env.languages, language: env.languages[0] },
+    window: { addEventListener: (type: string, fn: () => void) => void (listeners[type] = fn) },
+    location: { reload: () => void (reloads += 1) },
+  });
+  return {
+    lang: document.documentElement.lang,
+    title: nodes["offline-title"]!.textContent,
+    body: nodes["offline-body"]!.textContent,
+    reloads: () => reloads,
+    fireOnline: () => listeners.online?.(),
   };
 }
 
@@ -102,18 +145,37 @@ function loadWorker(network: (url: string) => FakeResponse) {
     return result;
   }
 
+  // The answer alone, without waiting for the work handed to waitUntil.
+  function respond(path: string, opts: { mode?: string } = {}) {
+    let responded: Promise<FakeResponse> | undefined;
+    handlers.fetch!({
+      request: {
+        url: abs(path),
+        method: "GET",
+        mode: opts.mode ?? "same-origin",
+        headers: new Headers(),
+      },
+      respondWith: (p: Promise<FakeResponse>) => {
+        responded = p;
+      },
+      waitUntil: () => undefined,
+    });
+    return responded!;
+  }
+
   return {
     caches,
     online,
+    respond,
     install: () => run("install"),
     activate: () => run("activate"),
-    request: (path: string, opts: { mode?: string; method?: string; lang?: string } = {}) =>
+    request: (path: string, opts: { mode?: string; method?: string } = {}) =>
       run("fetch", {
         request: {
           url: abs(path),
           method: opts.method ?? "GET",
           mode: opts.mode ?? "same-origin",
-          headers: new Headers(opts.lang ? { "accept-language": opts.lang } : {}),
+          headers: new Headers(),
         },
       }),
   };
@@ -170,6 +232,50 @@ describe("service worker caching", () => {
     expect(cachedUrls(direct)).toEqual([]);
   });
 
+  it("does not cache or choke on an opaque redirect, which is what a signed-out navigation fetch returns", async () => {
+    const opaque = loadWorker(() =>
+      response("/m/tickets", "", { type: "opaqueredirect", status: 0, redirected: false, url: "" }),
+    );
+
+    const answer = await opaque.request("/m/tickets", { mode: "navigate" });
+
+    expect(answer?.type).toBe("opaqueredirect");
+    expect(cachedUrls(opaque)).toEqual([]);
+  });
+
+  it("still answers a hashed asset when the cache write fails", async () => {
+    worker.caches.putMode.value = "reject";
+
+    const asset = await worker.request("/assets/app-abc123.js");
+
+    expect(asset?.body).toBe("body of /assets/app-abc123.js");
+  });
+
+  it("answers a hashed asset without waiting for the cache write", async () => {
+    worker.caches.putMode.value = "hang";
+
+    const asset = await worker.respond("/assets/app-abc123.js");
+
+    expect(asset.body).toBe("body of /assets/app-abc123.js");
+  });
+
+  it("still answers a navigation when the cache write fails", async () => {
+    worker.caches.putMode.value = "reject";
+
+    const page = await worker.request("/m/tickets", { mode: "navigate" });
+
+    expect(page?.body).toBe("body of /m/tickets");
+  });
+
+  it("serves a cached hashed asset when the network is down", async () => {
+    await worker.request("/assets/app-abc123.js");
+    worker.online.value = false;
+
+    const asset = await worker.request("/assets/app-abc123.js");
+
+    expect(asset?.body).toBe("body of /assets/app-abc123.js");
+  });
+
   it("does not cache a non-200 answer", async () => {
     const odd = loadWorker((url) => response(url, "x", { status: 202 }));
 
@@ -188,28 +294,71 @@ describe("service worker caching", () => {
     expect(worker.caches.stores.has("jiangtang-shell-v2")).toBe(false);
   });
 
-  it("serves a built-in placeholder offline once the caches are purged, in the visitor's language", async () => {
-    await worker.request("/m/tickets", { mode: "navigate" });
-    await purgeSignedInCaches(asStorage(worker));
-    worker.online.value = false;
-
-    const de = await worker.request("/m/tickets", { mode: "navigate", lang: "de-DE,de;q=0.9" });
-    const en = await worker.request("/m/tickets", { mode: "navigate", lang: "en-GB" });
-    const deText = await (de as unknown as Response).text();
-    const enText = await (en as unknown as Response).text();
-
-    expect(deText).toContain("Keine Verbindung");
-    expect(enText).toContain("No connection");
-    expect(enText).not.toContain("body of");
-
-    // The worker cannot import the catalogs, so it carries a copy; keep the copy in step.
-    for (const [text, catalog] of [
-      [deText, mobileDe],
-      [enText, mobileEn],
-    ] as const) {
-      expect(text).toContain(`<h1>${catalog["mobile.offline.title"]}</h1>`);
-      expect(text).toContain(`<p>${catalog["mobile.offline.body"]}</p>`);
+  describe("built-in offline placeholder", () => {
+    async function builtIn() {
+      await worker.request("/m/tickets", { mode: "navigate" });
+      await purgeSignedInCaches(asStorage(worker));
+      worker.online.value = false;
+      const res = (await worker.request("/m/tickets", { mode: "navigate" })) as unknown as Response;
+      return { res, html: await res.text() };
     }
+
+    it("is served offline once the caches are purged, without any cached page content", async () => {
+      const { res, html } = await builtIn();
+
+      expect(res.status).toBe(503);
+      expect(html).toContain("No connection");
+      expect(html).not.toContain("body of");
+    });
+
+    it("picks its language in the browser: locale cookie, then the browser languages, then English", async () => {
+      const { html } = await builtIn();
+
+      const cookieDe = runOfflineScript(html, { cookie: "a=1; locale=de", languages: ["en-GB"] });
+      const cookieEn = runOfflineScript(html, { cookie: "locale=en", languages: ["de-DE"] });
+      const browserDe = runOfflineScript(html, { cookie: "", languages: ["fr-FR", "de-AT", "en"] });
+      const fallback = runOfflineScript(html, { cookie: "locale=fr", languages: ["fr-FR"] });
+
+      expect(cookieDe).toMatchObject({
+        lang: "de",
+        title: mobileDe["mobile.offline.title"],
+        body: mobileDe["mobile.offline.body"],
+      });
+      expect(cookieEn).toMatchObject({
+        lang: "en",
+        title: mobileEn["mobile.offline.title"],
+        body: mobileEn["mobile.offline.body"],
+      });
+      expect(browserDe.lang).toBe("de");
+      expect(fallback.lang).toBe("en");
+    });
+
+    it("carries the catalog wording for both languages, in step with the app", async () => {
+      // The worker cannot import the catalogs, so it carries a copy; keep the copy in step.
+      const { html } = await builtIn();
+
+      for (const [lang, catalog] of [
+        ["de", mobileDe],
+        ["en", mobileEn],
+      ] as const) {
+        const page = runOfflineScript(html, { cookie: `locale=${lang}`, languages: [] });
+        expect(page.title).toBe(catalog["mobile.offline.title"]);
+        expect(page.body).toBe(catalog["mobile.offline.body"]);
+      }
+      // Without a script the static markup is already readable.
+      expect(html).toContain(`<h1 id="offline-title">${mobileEn["mobile.offline.title"]}</h1>`);
+      expect(html).toContain(`<p id="offline-body">${mobileEn["mobile.offline.body"]}</p>`);
+    });
+
+    it("reloads when the browser comes back online, as its text promises", async () => {
+      const { html } = await builtIn();
+
+      const page = runOfflineScript(html, { cookie: "", languages: ["en"] });
+      expect(page.reloads()).toBe(0);
+      page.fireOnline();
+
+      expect(page.reloads()).toBe(1);
+    });
   });
 
   it("re-caches the offline page on the next signed-in navigation after a purge", async () => {
