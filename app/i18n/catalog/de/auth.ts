@@ -4,6 +4,8 @@ export const authDe = {
   "auth.login.subtitle": "Anmeldung für dein AV-Workspace.",
   "auth.login.deactivated": "Dieses Konto ist deaktiviert.",
   "auth.login.invalidCredentials": "Ungültige Anmeldedaten.",
+  "auth.login.throttled":
+    "Zu viele fehlgeschlagene Anmeldeversuche. Versuche es in {minutes} Min. erneut.",
   "auth.login.email": "E-Mail",
   "auth.login.password": "Passwort",
   "auth.login.submit": "Anmelden",

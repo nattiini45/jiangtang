@@ -1,4 +1,5 @@
-import { Form, redirect, useNavigation } from "react-router";
+import { isAPIError } from "better-auth/api";
+import { data, Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
@@ -22,16 +23,22 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const invalidCredentials = t(resolveLocale(request), "auth.login.invalidCredentials");
+  const locale = resolveLocale(request);
+  const invalidCredentials = t(locale, "auth.login.invalidCredentials");
   const form = await request.formData();
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
   // Re-sanitize on the way out: never trust the round-tripped form value.
   const next = sanitizeNext(String(form.get("next") ?? "/"));
+  const forwardedFor = request.headers.get("x-forwarded-for");
 
   try {
     const response = await auth.api.signInEmail({
       body: { email, password },
+      // The failed-sign-in throttle (a Better Auth hook) keys on the client IP,
+      // which only the proxy's X-Forwarded-For header carries. Nothing else of
+      // the request is needed, so nothing else is passed on.
+      headers: forwardedFor ? { "x-forwarded-for": forwardedFor } : undefined,
       asResponse: true,
     });
     const setCookie = response.headers.get("set-cookie");
@@ -44,7 +51,15 @@ export async function action({ request }: Route.ActionArgs) {
     const headers = new Headers();
     headers.append("set-cookie", setCookie);
     return redirect(next, { headers });
-  } catch {
+  } catch (error) {
+    if (isAPIError(error) && error.statusCode === 429) {
+      const retryAfter = Number(new Headers(error.headers).get("retry-after"));
+      const minutes = Math.max(1, Math.ceil((Number.isFinite(retryAfter) ? retryAfter : 0) / 60));
+      return data(
+        { error: t(locale, "auth.login.throttled", { minutes }) },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfter) || 60) } },
+      );
+    }
     return { error: invalidCredentials };
   }
 }
