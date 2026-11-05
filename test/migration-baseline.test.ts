@@ -49,6 +49,16 @@ const CANONICAL_DIRS = [
   "20261023000600_time_tracking_constraints",
 ] as const;
 
+/**
+ * Migrations added after the baseline, in chain order. Each one is listed by
+ * name so an addition shows up in this file's diff; the counts below still cover
+ * every file of the chain.
+ */
+const LATER_DIRS = ["20261105000000_calendar_outbox_retry"] as const;
+
+/** The whole chain: the baseline, then every later migration. */
+const CHAIN_DIRS = [...CANONICAL_DIRS, ...LATER_DIRS] as const;
+
 /** The lane vocabulary of the mapping table, in the order the INSERT lists it. */
 const CANONICAL_LANES = ["BACKLOG", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"] as const;
 
@@ -273,15 +283,15 @@ function inspect(prismaDir: string): BaselineReport {
 function problems(report: BaselineReport): string[] {
   const found: string[] = [];
 
-  const expectedEntries = [...CANONICAL_DIRS, "migration_lock.toml"].sort();
+  const expectedEntries = [...CHAIN_DIRS, "migration_lock.toml"].sort();
   if (JSON.stringify(report.entries) !== JSON.stringify(expectedEntries)) {
     found.push(
       `migration directory entries are ${JSON.stringify(report.entries)}, expected exactly ${JSON.stringify(expectedEntries)}`,
     );
   }
-  if (JSON.stringify(report.migrationDirs) !== JSON.stringify([...CANONICAL_DIRS])) {
+  if (JSON.stringify(report.migrationDirs) !== JSON.stringify([...CHAIN_DIRS])) {
     found.push(
-      `migration directories are ${JSON.stringify(report.migrationDirs)}, expected the canonical seven in order`,
+      `migration directories are ${JSON.stringify(report.migrationDirs)}, expected the canonical seven and the listed later migrations in order`,
     );
   }
   if (report.sqlDirPresent) {
@@ -360,9 +370,9 @@ function inspectMutatedCopy(mutate: (prismaDir: string) => void): BaselineReport
 const LIVE = inspect(PRISMA_DIR);
 
 describe("migration baseline (seven files, filesystem only — no database)", () => {
-  it("holds exactly the seven canonical migration directories plus migration_lock.toml", () => {
-    expect(LIVE.entries).toEqual([...CANONICAL_DIRS, "migration_lock.toml"].sort());
-    expect(LIVE.migrationDirs).toEqual([...CANONICAL_DIRS]);
+  it("holds exactly the seven canonical migration directories, the listed later ones and migration_lock.toml", () => {
+    expect(LIVE.entries).toEqual([...CHAIN_DIRS, "migration_lock.toml"].sort());
+    expect(LIVE.migrationDirs).toEqual([...CHAIN_DIRS]);
   });
 
   it("gives every migration directory a non-empty migration.sql", () => {

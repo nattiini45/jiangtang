@@ -224,7 +224,7 @@ function CalendarSyncPanel({
             {t("events.sync.attempts", { attempts: sync.attempts })}
           </span>
         ) : null}
-        {sync.status === "FAILED" && sync.lastError ? (
+        {sync.status !== "SENT" && sync.lastError ? (
           <span className="text-destructive w-full truncate text-xs" title={sync.lastError}>
             {sync.lastError.slice(0, 200)}
           </span>

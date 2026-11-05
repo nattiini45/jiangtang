@@ -1,14 +1,15 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { db } from "~/lib/db.server";
-import { drainOnce } from "~/lib/calendar/outbox.server";
+import { RETRY_WINDOW_MS, calendarSyncHealth, drainOnce } from "~/lib/calendar/outbox.server";
 import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publisher.server";
 import { createEvent, cancelEvent, updateEvent } from "~/domains/events/events.mutations.server";
 import type { EventCreateInput } from "~/domains/events/events.schema";
 
 /**
  * Outbox drain worker. Two layers:
- *  - pure/injectable drain over hand-seeded rows: ordering per uid, poison
- *    parking at MAX_ATTEMPTS, blocking of later sequences by a failed lower one;
+ *  - pure/injectable drain over hand-seeded rows: ordering per uid, backoff from
+ *    the last attempt, parking once the retry window has run out, and newer
+ *    updates superseding a lower sequence that failed;
  *  - a dev-DB integration pass that enqueues REAL outbox rows via the events
  *    domain mutations, then drains through a FakePublisher and asserts the ops
  *    arrive in (uid, sequence) order and the rows flip to SENT.
@@ -56,7 +57,14 @@ function jsonPayload(
 async function seed(
   uid: string,
   sequence: number,
-  over?: { op?: "UPSERT" | "REMOVE"; status?: "PENDING" | "FAILED"; attempts?: number },
+  over?: {
+    op?: "UPSERT" | "REMOVE";
+    status?: "PENDING" | "FAILED";
+    attempts?: number;
+    createdAt?: Date;
+    nextAttemptAt?: Date;
+    lastError?: string;
+  },
 ): Promise<string> {
   const row = await db.calendarOutbox.create({
     data: {
@@ -65,6 +73,9 @@ async function seed(
       sequence,
       status: over?.status ?? "PENDING",
       attempts: over?.attempts ?? 0,
+      ...(over?.createdAt ? { createdAt: over.createdAt } : {}),
+      ...(over?.nextAttemptAt ? { nextAttemptAt: over.nextAttemptAt } : {}),
+      ...(over?.lastError ? { lastError: over.lastError } : {}),
       payload: jsonPayload(uid, sequence) as object,
     },
   });
@@ -119,38 +130,160 @@ describe("drainOnce (seeded rows)", () => {
     expect(rows[1].status).toBe("PENDING"); // seq 1 untouched
   });
 
-  it("blocks a higher sequence while a lower one is already FAILED (poison)", async () => {
+  it("lets a newer update supersede a lower sequence that failed, on the next pass", async () => {
+    const uid = `${RUN}_supersede`;
+    const id0 = await seed(uid, 0);
+    const id1 = await seed(uid, 1);
+    const t0 = new Date();
+    await drainOnce(new FakePublisher((u, s) => u === uid && s === 0), {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: t0,
+    });
+
+    // seq 0 still has not landed, but seq 1 carries the event's full current
+    // state, so it goes out without waiting for seq 0's backoff.
+    const fake = new FakePublisher();
+    await drainOnce(fake, { batchSize: 100, eventUidPrefix: RUN, now: t0 });
+    expect(fake.calls.filter((c) => c.uid === uid)).toEqual([{ op: "UPSERT", uid, sequence: 1 }]);
+    const row0 = await db.calendarOutbox.findUniqueOrThrow({ where: { id: id0 } });
+    const row1 = await db.calendarOutbox.findUniqueOrThrow({ where: { id: id1 } });
+    expect(row0.status).toBe("SUPERSEDED");
+    expect(row1.status).toBe("SENT");
+
+    // The superseded op is never sent afterwards, so it cannot overwrite seq 1.
+    const later = new FakePublisher();
+    await drainOnce(later, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(Date.now() + 864e5),
+    });
+    expect(later.calls.filter((c) => c.uid === uid)).toHaveLength(0);
+  });
+
+  it("lets a newer update supersede a parked FAILED row", async () => {
     const uid = `${RUN}_poison_block`;
-    await seed(uid, 0, { status: "FAILED", attempts: 5 });
+    const id0 = await seed(uid, 0, { status: "FAILED", attempts: 40, lastError: "boom" });
     const id1 = await seed(uid, 1);
     const fake = new FakePublisher();
 
     await drainOnce(fake, { batchSize: 100, eventUidPrefix: RUN });
-    expect(fake.calls.filter((c) => c.uid === uid)).toHaveLength(0);
-    const row1 = await db.calendarOutbox.findUniqueOrThrow({ where: { id: id1 } });
-    expect(row1.status).toBe("PENDING");
+    expect(fake.calls.filter((c) => c.uid === uid)).toEqual([{ op: "UPSERT", uid, sequence: 1 }]);
+    expect((await db.calendarOutbox.findUniqueOrThrow({ where: { id: id0 } })).status).toBe(
+      "SUPERSEDED",
+    );
+    expect((await db.calendarOutbox.findUniqueOrThrow({ where: { id: id1 } })).status).toBe("SENT");
   });
 
-  it("parks an always-failing row as FAILED at attempts=5, then skips it", async () => {
-    const uid = `${RUN}_poison`;
-    // Start at attempts=4 so a single failing drain reaches 5 → FAILED. A future
-    // `now` clears the backoff gate for the already-retried row.
-    const id = await seed(uid, 0, { attempts: 4 });
-    const alwaysFail = new FakePublisher(() => true);
-    const future = new Date(Date.now() + 2 * 60 * 60_000); // > backoff cap (~1h)
-
-    await drainOnce(alwaysFail, { batchSize: 100, eventUidPrefix: RUN, now: future });
+  it("waits out the backoff from the last attempt, not from creation", async () => {
+    const uid = `${RUN}_backoff`;
+    // Created long ago: a delay measured from createdAt would always be due.
+    const id = await seed(uid, 0, { createdAt: new Date(Date.now() - 6 * 60 * 60_000) });
+    const t0 = new Date();
+    await drainOnce(new FakePublisher(() => true), {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: t0,
+    });
     let row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
-    expect(row.attempts).toBe(5);
+    expect(row.attempts).toBe(1);
+    expect(row.nextAttemptAt?.getTime()).toBe(t0.getTime() + 30_000);
+
+    const early = new FakePublisher();
+    await drainOnce(early, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(t0.getTime() + 20_000),
+    });
+    expect(early.calls.filter((c) => c.uid === uid)).toHaveLength(0);
+
+    const due = new FakePublisher();
+    await drainOnce(due, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(t0.getTime() + 30_000),
+    });
+    expect(due.calls.filter((c) => c.uid === uid)).toHaveLength(1);
+    row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
+    expect(row.status).toBe("SENT");
+  });
+
+  it("keeps retrying well past five attempts while inside the retry window", async () => {
+    const uid = `${RUN}_long`;
+    const t0 = new Date();
+    const id = await seed(uid, 0, {
+      attempts: 12,
+      createdAt: new Date(t0.getTime() - 12 * 60 * 60_000),
+      nextAttemptAt: t0,
+    });
+    await drainOnce(new FakePublisher(() => true), {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: t0,
+    });
+    const row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
+    expect(row.status).toBe("PENDING");
+    expect(row.attempts).toBe(13);
+    // Doubling from 30 s is capped at one hour between attempts.
+    expect(row.nextAttemptAt?.getTime()).toBe(t0.getTime() + 60 * 60_000);
+  });
+
+  it("parks a row as FAILED once the retry window has run out, then skips it", async () => {
+    const uid = `${RUN}_poison`;
+    const t0 = new Date();
+    const id = await seed(uid, 0, {
+      attempts: 70,
+      createdAt: new Date(t0.getTime() - RETRY_WINDOW_MS - 1),
+      nextAttemptAt: t0,
+    });
+    const alwaysFail = new FakePublisher(() => true);
+
+    await drainOnce(alwaysFail, { batchSize: 100, eventUidPrefix: RUN, now: t0 });
+    let row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
+    expect(row.attempts).toBe(71);
     expect(row.status).toBe("FAILED");
     expect(row.lastError).toContain("boom");
 
     // A subsequent drain never re-dispatches a FAILED row.
     const fake2 = new FakePublisher();
-    await drainOnce(fake2, { batchSize: 100, eventUidPrefix: RUN });
+    await drainOnce(fake2, {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: new Date(t0.getTime() + 864e5),
+    });
     expect(fake2.calls.filter((c) => c.uid === uid)).toHaveLength(0);
     row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
     expect(row.status).toBe("FAILED");
+  });
+
+  it("gives a row that waited out the window unsent a fair number of tries before parking it", async () => {
+    // Queued while the app or CalDAV was down for days: it has never been tried.
+    const uid = `${RUN}_late`;
+    const t0 = new Date();
+    const id = await seed(uid, 0, { createdAt: new Date(t0.getTime() - RETRY_WINDOW_MS - 1) });
+    await drainOnce(new FakePublisher(() => true), {
+      batchSize: 100,
+      eventUidPrefix: RUN,
+      now: t0,
+    });
+    const row = await db.calendarOutbox.findUniqueOrThrow({ where: { id } });
+    expect(row.status).toBe("PENDING");
+    expect(row.attempts).toBe(1);
+  });
+
+  it("is not starved by a batch's worth of rows that are waiting out their backoff", async () => {
+    const t0 = new Date();
+    for (let i = 0; i < 3; i++) {
+      await seed(`${RUN}_starve_a${i}`, 0, {
+        attempts: 3,
+        nextAttemptAt: new Date(t0.getTime() + 60 * 60_000),
+      });
+    }
+    const uid = `${RUN}_starve_z`;
+    await seed(uid, 0);
+    const fake = new FakePublisher();
+    await drainOnce(fake, { batchSize: 3, eventUidPrefix: `${RUN}_starve`, now: t0 });
+    expect(fake.calls.map((c) => c.uid)).toEqual([uid]);
   });
 
   it("re-PUTs the same row after a transient failure: PENDING → SENT (idempotent target)", async () => {
@@ -218,5 +351,32 @@ describe("drainOnce (integration with events domain)", () => {
 
     const after = await db.calendarOutbox.findMany({ where: { eventUid: created.uid } });
     expect(after.every((r) => r.status === "SENT")).toBe(true);
+  });
+});
+
+describe("calendarSyncHealth", () => {
+  it("counts parked and long-retrying pushes and reports the oldest one", async () => {
+    const prefix = `${RUN}_health`;
+    const old = new Date(Date.now() - 5 * 60 * 60_000);
+    await seed(`${prefix}_failed`, 0, {
+      status: "FAILED",
+      attempts: 80,
+      createdAt: old,
+      lastError: "403 Forbidden",
+    });
+    await seed(`${prefix}_retrying`, 0, {
+      attempts: 6,
+      createdAt: new Date(Date.now() - 60 * 60_000),
+      lastError: "ECONNREFUSED",
+    });
+    await seed(`${prefix}_fresh`, 0, { attempts: 1, lastError: "blip" });
+    await seed(`${prefix}_new`, 0);
+
+    const health = await calendarSyncHealth({ eventUidPrefix: prefix });
+    expect(health.failed).toBe(1);
+    expect(health.retrying).toBe(1);
+    expect(health.pending).toBe(3);
+    expect(health.oldestStuckAt?.getTime()).toBe(old.getTime());
+    expect(health.stuck.map((s) => s.lastError)).toEqual(["403 Forbidden", "ECONNREFUSED"]);
   });
 });

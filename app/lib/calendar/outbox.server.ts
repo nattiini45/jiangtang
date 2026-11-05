@@ -8,26 +8,50 @@ import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publishe
  * takes the publisher (real CalDav in prod, a fake in tests), so it needs no live
  * CalDAV server to test.
  *
- * Ordering guarantee (the reason calendars stay consistent): a uid's sequences are
- * dispatched strictly in order. We NEVER send sequence N+1 for a uid while a lower
- * sequence of that uid is still PENDING or already FAILED — a lower op that hasn't
- * landed (or is poison-parked) must not be overtaken by a later state, or the
- * calendar object would carry a stale-but-higher SEQUENCE and never self-correct.
+ * Ordering guarantee (the reason calendars stay consistent): a lower sequence of a
+ * uid is never sent after a higher one, or the calendar object would carry a
+ * stale-but-higher SEQUENCE and never self-correct. Within a pass a uid's rows go
+ * out in sequence order, and a failure blocks the rest of that uid for the pass.
+ *
+ * Every row carries the event's full state at its sequence, so a failed op is not
+ * needed once a later one exists: at the start of each pass such a row is marked
+ * SUPERSEDED and never sent, which lets the later op through instead of holding it
+ * behind the failed one. A failed row with nothing after it is retried with
+ * backoff until RETRY_WINDOW_MS after it was enqueued (and at least
+ * MIN_ATTEMPTS_BEFORE_PARK times), then parked as FAILED
+ * (where the event's next change still supersedes it). `calendarSyncHealth`
+ * reports both cases on the admin status page.
  */
 
 const BATCH_SIZE = 25;
-const MAX_ATTEMPTS = 5;
 const MAX_ERROR_LEN = 500;
 
-// Exponential backoff: BASE * 2^(attempts-1), capped. A freshly-enqueued row
-// (attempts === 0) is always eligible; a retried row waits progressively longer.
+// Exponential backoff after a failure: BASE * 2^(attempts-1), capped, measured
+// from the failed attempt and stored as nextAttemptAt.
 const BACKOFF_BASE_MS = 30_000; // 30s
-const BACKOFF_CAP_MS = 60 * 60_000; // ~1h
+const BACKOFF_CAP_MS = 60 * 60_000; // 1h
+
+/** How long a failing push keeps being retried before it is parked as FAILED. */
+export const RETRY_WINDOW_MS = 72 * 60 * 60_000;
+
+/**
+ * A row is never parked before this many attempts (about four hours of backoff),
+ * so one that sat unsent past the window while the app or CalDAV was down still
+ * gets a fair run of retries.
+ */
+const MIN_ATTEMPTS_BEFORE_PARK = 10;
+
+/**
+ * A row still failing after this many attempts (about eight minutes of backoff)
+ * counts as stuck on the status page, long before the retry window parks it.
+ */
+const STUCK_AFTER_ATTEMPTS = 5;
 
 export interface DrainResult {
   sent: number;
   failed: number;
   skipped: number;
+  superseded: number;
 }
 
 export interface DrainOptions {
@@ -37,17 +61,34 @@ export interface DrainOptions {
   now?: Date;
   /**
    * Restrict the drain to rows whose eventUid starts with this prefix. Only used
-   * by tests running against the SHARED dev DB, to avoid touching other tracks'
+   * by tests running against a shared database, to avoid touching other tests'
    * PENDING rows; production always drains every PENDING row.
    */
   eventUidPrefix?: string;
 }
 
-/** Backoff gate: is a PENDING row with prior attempts due for another try? */
-function isBackoffDue(attempts: number, lastAttemptAt: Date, now: Date): boolean {
-  if (attempts <= 0) return true;
-  const delay = Math.min(BACKOFF_BASE_MS * 2 ** (attempts - 1), BACKOFF_CAP_MS);
-  return now.getTime() >= lastAttemptAt.getTime() + delay;
+function backoffMs(attempts: number): number {
+  return Math.min(BACKOFF_BASE_MS * 2 ** Math.min(attempts - 1, 20), BACKOFF_CAP_MS);
+}
+
+/**
+ * Marks every failed op that a later op of the same uid has made obsolete. Only
+ * rows that already failed at least once are touched: an untried lower row is
+ * simply sent first, in order.
+ */
+async function supersedeObsolete(now: Date, prefix: string | null): Promise<number> {
+  return db.$executeRaw`
+    UPDATE "CalendarOutbox" AS o
+       SET status = 'SUPERSEDED', "processedAt" = ${now}, "nextAttemptAt" = NULL
+     WHERE o.status IN ('PENDING', 'FAILED')
+       AND o.attempts > 0
+       AND (${prefix}::text IS NULL OR starts_with(o."eventUid", ${prefix}::text))
+       AND EXISTS (
+         SELECT 1 FROM "CalendarOutbox" AS h
+          WHERE h."eventUid" = o."eventUid"
+            AND h.sequence > o.sequence
+            AND h.status IN ('PENDING', 'SENT')
+       )`;
 }
 
 /** Reconstruct the typed payload (ISO strings → Date) from the stored JSON. */
@@ -74,17 +115,17 @@ function payloadFromJson(raw: unknown): CalendarPayload {
 }
 
 /**
- * Drain up to `batchSize` PENDING outbox rows through `publisher`.
+ * Drain up to `batchSize` due PENDING outbox rows through `publisher`.
  *
- * - Rows are taken ordered by (eventUid asc, sequence asc) so a uid's ops are seen
- *   in sequence order.
- * - A uid is BLOCKED for the rest of this pass once one of its rows is skipped
- *   (backoff not due) or fails — later sequences of that uid are then skipped, so
- *   an earlier op is never overtaken.
- * - A pre-existing FAILED (poison) row also blocks all higher sequences of its uid.
- * - Success → SENT + processedAt. Failure → attempts+1, lastError; at
- *   attempts >= MAX_ATTEMPTS the row is parked as FAILED (stays skipped, keeps
- *   blocking later sequences of its uid).
+ * - Failed ops made obsolete by a later op of their uid are superseded first.
+ * - Only due rows are taken (never tried, or past nextAttemptAt), ordered by
+ *   (eventUid asc, sequence asc), so rows waiting out a backoff never fill the
+ *   batch and starve the rest.
+ * - A failure blocks the uid's later sequences for the rest of the pass; the next
+ *   pass supersedes the failed row if a later one exists.
+ * - Success → SENT + processedAt. Failure → attempts+1, lastError, nextAttemptAt;
+ *   once the row is older than RETRY_WINDOW_MS and has had MIN_ATTEMPTS_BEFORE_PARK
+ *   tries it is parked as FAILED instead.
  */
 export async function drainOnce(
   publisher: CalendarPublisher,
@@ -92,54 +133,28 @@ export async function drainOnce(
 ): Promise<DrainResult> {
   const now = opts?.now ?? new Date();
   const take = opts?.batchSize ?? BATCH_SIZE;
-  const uidFilter = opts?.eventUidPrefix ? { startsWith: opts.eventUidPrefix } : undefined;
+  const prefix = opts?.eventUidPrefix ?? null;
+
+  const result: DrainResult = { sent: 0, failed: 0, skipped: 0, superseded: 0 };
+  result.superseded = await supersedeObsolete(now, prefix);
 
   const pending = await db.calendarOutbox.findMany({
-    where: { status: "PENDING", ...(uidFilter ? { eventUid: uidFilter } : {}) },
+    where: {
+      status: "PENDING",
+      OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: now } }],
+      ...(prefix ? { eventUid: { startsWith: prefix } } : {}),
+    },
     orderBy: [{ eventUid: "asc" }, { sequence: "asc" }],
     take,
   });
-
-  const result: DrainResult = { sent: 0, failed: 0, skipped: 0 };
   if (pending.length === 0) return result;
 
-  // A uid whose lowest FAILED sequence is <= a candidate's sequence blocks it —
-  // the poison row must land (or be cleared) before later ops are allowed through.
-  const uids = [...new Set(pending.map((r) => r.eventUid))];
-  const failedRows = uids.length
-    ? await db.calendarOutbox.findMany({
-        where: { status: "FAILED", eventUid: { in: uids } },
-        select: { eventUid: true, sequence: true },
-      })
-    : [];
-  const minFailedSeq = new Map<string, number>();
-  for (const f of failedRows) {
-    const cur = minFailedSeq.get(f.eventUid);
-    if (cur === undefined || f.sequence < cur) minFailedSeq.set(f.eventUid, f.sequence);
-  }
-
-  // Per-uid "blocked from here on" flag, set once an earlier row is skipped/failed.
+  // Per-uid "blocked from here on" flag, set once an earlier row fails this pass.
   const blocked = new Set<string>();
 
   for (const row of pending) {
-    // A poison row at or below this sequence blocks the uid (and everything after).
-    const failedSeq = minFailedSeq.get(row.eventUid);
-    if (failedSeq !== undefined && failedSeq <= row.sequence) {
-      result.skipped++;
-      blocked.add(row.eventUid);
-      continue;
-    }
     if (blocked.has(row.eventUid)) {
       result.skipped++;
-      continue;
-    }
-    // Backoff: a retried row not yet due is skipped AND blocks later sequences of
-    // its uid this pass (it's an earlier op that hasn't landed). The model has no
-    // updatedAt, so createdAt approximates the last-attempt instant — good enough
-    // for backoff spacing (a row's createdAt is fixed but attempts grow the delay).
-    if (!isBackoffDue(row.attempts, row.createdAt, now)) {
-      result.skipped++;
-      blocked.add(row.eventUid);
       continue;
     }
 
@@ -152,26 +167,106 @@ export async function drainOnce(
       }
       await db.calendarOutbox.update({
         where: { id: row.id },
-        data: { status: "SENT", processedAt: now, lastError: null },
+        data: { status: "SENT", processedAt: now, lastError: null, nextAttemptAt: null },
       });
       result.sent++;
     } catch (e) {
       const attempts = row.attempts + 1;
-      const parked = attempts >= MAX_ATTEMPTS;
+      const parked =
+        attempts >= MIN_ATTEMPTS_BEFORE_PARK &&
+        now.getTime() - row.createdAt.getTime() >= RETRY_WINDOW_MS;
       const message = (e instanceof Error ? e.message : String(e)).slice(0, MAX_ERROR_LEN);
       await db.calendarOutbox.update({
         where: { id: row.id },
-        data: {
-          attempts,
-          lastError: message,
-          ...(parked ? { status: "FAILED" as const } : {}),
-        },
+        data: parked
+          ? { attempts, lastError: message, status: "FAILED", nextAttemptAt: null }
+          : {
+              attempts,
+              lastError: message,
+              nextAttemptAt: new Date(now.getTime() + backoffMs(attempts)),
+            },
       });
+      if (parked) {
+        console.error(
+          `[calendar] giving up on ${row.op} ${row.eventUid} seq ${row.sequence} after ${attempts} attempts: ${message}`,
+        );
+      }
       result.failed++;
-      // This op didn't land → block later sequences of the same uid this pass.
       blocked.add(row.eventUid);
     }
   }
 
   return result;
+}
+
+export interface CalendarSyncStuckRow {
+  eventUid: string;
+  sequence: number;
+  status: "PENDING" | "FAILED";
+  attempts: number;
+  lastError: string | null;
+  createdAt: Date;
+  /** Null when the event has since been deleted. */
+  event: { id: string; title: string } | null;
+}
+
+export interface CalendarSyncHealth {
+  /** All PENDING rows, due or waiting out a backoff. */
+  pending: number;
+  /** PENDING rows that have failed at least STUCK_AFTER_ATTEMPTS times. */
+  retrying: number;
+  /** Rows parked after the retry window ran out. */
+  failed: number;
+  oldestStuckAt: Date | null;
+  /** The oldest stuck rows (failed or retrying), oldest first. */
+  stuck: CalendarSyncStuckRow[];
+}
+
+/** Calendar push status for the admin page: what is waiting, retrying or parked. */
+export async function calendarSyncHealth(opts?: {
+  eventUidPrefix?: string;
+  limit?: number;
+}): Promise<CalendarSyncHealth> {
+  const uid = opts?.eventUidPrefix ? { eventUid: { startsWith: opts.eventUidPrefix } } : {};
+  const retryingWhere = {
+    ...uid,
+    status: "PENDING" as const,
+    attempts: { gte: STUCK_AFTER_ATTEMPTS },
+  };
+  const [pending, retrying, failed, stuck] = await Promise.all([
+    db.calendarOutbox.count({ where: { ...uid, status: "PENDING" } }),
+    db.calendarOutbox.count({ where: retryingWhere }),
+    db.calendarOutbox.count({ where: { ...uid, status: "FAILED" } }),
+    db.calendarOutbox.findMany({
+      where: { OR: [{ ...uid, status: "FAILED" }, retryingWhere] },
+      orderBy: { createdAt: "asc" },
+      take: opts?.limit ?? 10,
+      select: {
+        eventUid: true,
+        sequence: true,
+        status: true,
+        attempts: true,
+        lastError: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+  const events = stuck.length
+    ? await db.event.findMany({
+        where: { uid: { in: [...new Set(stuck.map((r) => r.eventUid))] } },
+        select: { id: true, uid: true, title: true },
+      })
+    : [];
+  const eventByUid = new Map(events.map((e) => [e.uid, { id: e.id, title: e.title }]));
+  return {
+    pending,
+    retrying,
+    failed,
+    oldestStuckAt: stuck[0]?.createdAt ?? null,
+    stuck: stuck.map((r) => ({
+      ...r,
+      status: r.status === "FAILED" ? "FAILED" : "PENDING",
+      event: eventByUid.get(r.eventUid) ?? null,
+    })),
+  };
 }
