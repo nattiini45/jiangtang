@@ -48,7 +48,8 @@ export const adminEn = {
   "admin.erase.identity": "Name, email and initials of {user} ({email}) will be pseudonymized.",
   "admin.erase.history":
     "The audit history is reduced to initials (the attribution of the activity is kept).",
-  "admin.erase.tickets": "Ticket assignments are detached; the account is deactivated.",
+  "admin.erase.tickets":
+    "Ticket assignments are detached, the password, sessions and pending invitations are deleted, and the account is deactivated.",
   "admin.erase.confirmLabel": "To confirm, enter the email address: {email}",
   "admin.erase.confirm": "Confirm pseudonymization",
 

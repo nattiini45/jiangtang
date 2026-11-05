@@ -77,23 +77,24 @@ administrator. The operation runs in one transaction in `app/domains/auth/gdpr.s
 2. Ticket reporter links are set to `null` and the user's rows in the ticket assignee relation are
    deleted.
 3. Attachment creator links are set to `null`; the attachment records and stored objects stay.
-4. The `User` row is scrubbed and deactivated: name becomes `[pseudonymisiert]`, email becomes
+4. The account's `Account` rows (the password hash and any provider tokens), its `Session` rows (IP
+   address and user agent) and any invitation still pending for its email are deleted.
+5. The `User` row is scrubbed and deactivated: name becomes `[pseudonymisiert]`, email becomes
    `erased-<id>@erased.local`, initials become `null`, and `isActive` becomes `false`. The rewritten
    email keeps the unique-email constraint satisfied without exposing the original address.
-5. An audit row `UserPseudonymized` records which administrator erased which user id, in the same
+6. An audit row `UserPseudonymized` records which administrator erased which user id, in the same
    transaction.
 
-Deactivated accounts are refused by `requireUser` on the next request
-(`app/lib/auth.server.ts`). After the erasure transaction commits, the account's Better Auth
-sessions are deleted as well, so no session cookie for the erased account stays valid.
+Because the sessions and the credential go in the same transaction, no session cookie for the
+erased account stays valid and the account cannot sign in again; `requireUser`
+(`app/lib/auth.server.ts`) also refuses deactivated accounts.
 
 ### Limits of erasure
 
 After the operation, the following data can still exist:
 
 - The `User` row itself: id, role, weekly capacity, image URL, email-verified flag and the rewritten
-  email. `Account` rows (including the password hash) remain until the operator deletes them. The
-  erasure deletes the account's `Session` rows, which held the IP address and user agent.
+  email. Its `Account`, `Session` and pending invitation rows are deleted.
 - Other user references that are not part of the erasure path: project lead and creator,
   task creator and assignees, note author, location/inventory/vendor creator, time-entry user and
   creator, and event service-window covering user. These point at the deactivated user id.
@@ -101,7 +102,7 @@ After the operation, the following data can still exist:
   timestamps and its `data` object remain. The erasure does not rewrite arbitrary JSON detail in
   other audit rows — for example, a `UserInvited` row records the invitee's email and name.
 - Operational content: ticket text, notes, tasks, event organiser/contact text, vendor contact
-  details, attachments and filenames, the pending invitation rows, and calendar outbox payloads.
+  details, attachments and filenames, and calendar outbox payloads.
 - Derived search chunks and embeddings. There is no automatic reindex when a user is erased, so a
   chunk can keep an old name or contact string until its source record changes and the indexer
   rewrites it.

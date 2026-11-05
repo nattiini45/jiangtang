@@ -48,7 +48,8 @@ export const adminDe = {
   "admin.erase.identity": "Name, E-Mail und Initialen von {user} ({email}) werden pseudonymisiert.",
   "admin.erase.history":
     "Die Audit-Historie wird auf Initialen reduziert (die Zuordnung der Tätigkeit bleibt erhalten).",
-  "admin.erase.tickets": "Ticket-Zuordnungen werden getrennt; das Konto wird deaktiviert.",
+  "admin.erase.tickets":
+    "Ticket-Zuordnungen werden getrennt, Passwort, Sitzungen und offene Einladungen gelöscht; das Konto wird deaktiviert.",
   "admin.erase.confirmLabel": "Zur Bestätigung E-Mail-Adresse eingeben: {email}",
   "admin.erase.confirm": "Pseudonymisieren bestätigen",
 

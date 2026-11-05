@@ -1,5 +1,4 @@
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
-import { auth } from "~/lib/auth.server";
 import { NotFoundError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { assertCanChangeAdminStatus } from "~/domains/auth/users.queries.server";
@@ -21,8 +20,8 @@ const RETENTION_SYSTEM_ACTOR: AuditActor = { name: "System (Retention Job)", ini
  * historical attribution survives — pseudonymization, not deletion.
  *
  * `pseudonymizeUser` is the admin-facing operation: pseudonymize the audit
- * history, detach the user's ticket links, scrub the User row, deactivate, then
- * revoke the user's sessions.
+ * history, detach the user's ticket links, delete the credentials, sessions and
+ * pending invitations, then scrub and deactivate the User row.
  */
 
 const PSEUDO_MARKER = "[pseudonymisiert]";
@@ -48,7 +47,7 @@ export async function pseudonymizeUser(
     // 1. Pseudonymize the audit history via the privileged function (the only path
     //    past the immutability trigger). Snapshot -> initials-only. Runs on `tx`:
     //    the function sets the transaction-local jiangtang.audit_bypass GUC,
-    //    which stays set for the rest of THIS transaction, so steps 2-4 below plus
+    //    which stays set for the rest of THIS transaction, so steps 2-5 below plus
     //    this call all commit or roll back together.
     const [row] = (await tx.$queryRaw`SELECT pseudonymize_actor(${userId}) AS affected`) as Array<{
       affected: number;
@@ -66,7 +65,15 @@ export async function pseudonymizeUser(
     // (ON DELETE SET NULL) pins the same rule at the database level.
     await tx.attachment.updateMany({ where: { createdById: userId }, data: { createdById: null } });
 
-    // 3. Scrub + deactivate the User row. Email must remain unique but de-identified.
+    // 3. Delete what lets the account sign in or be claimed again: the Better Auth
+    //    credentials (password hash, provider tokens), the sessions (IP address and
+    //    user agent) and any invitation still pending for the original email. They
+    //    go in this transaction so a failed erasure leaves the account as it was.
+    await tx.account.deleteMany({ where: { userId } });
+    await tx.session.deleteMany({ where: { userId } });
+    await tx.verification.deleteMany({ where: { identifier: user.email } });
+
+    // 4. Scrub + deactivate the User row. Email must remain unique but de-identified.
     //    Use a valid RFC-5321 local-part (no bracketed marker in the address
     //    itself; the display name keeps the marker).
     await tx.user.update({
@@ -79,7 +86,7 @@ export async function pseudonymizeUser(
       },
     });
 
-    // 4. Audit the pseudonymization itself, in the SAME tx as steps 1-3 —
+    // 5. Audit the pseudonymization itself, in the SAME tx as steps 1-4 —
     //    the audit row records WHO erased whom, and commits/rolls back atomically
     //    with the rest of the erasure.
     await audit({
@@ -89,16 +96,15 @@ export async function pseudonymizeUser(
       // per-user history lookup (same class of bug this PR fixes for rooms).
       entityType: ENTITY_TYPE.user,
       entityId: userId,
-      data: { auditRowsAffected, scrubbed: { name: true, email: true, initials: true } },
+      data: {
+        auditRowsAffected,
+        scrubbed: { name: true, email: true, initials: true },
+        deleted: { accounts: true, sessions: true, invitations: true },
+      },
     });
 
     return { userId, auditRowsAffected };
   });
-
-  // Sessions are owned by Better Auth and hold the erased person's IP address and
-  // user agent, so they are revoked once the erasure has committed, as in updateUser.
-  const { internalAdapter } = await auth.$context;
-  await internalAdapter.deleteUserSessions(userId);
   return result;
 }
 
