@@ -93,7 +93,6 @@ export function AppShell({
           </nav>
           <NavLink
             to="/account"
-            aria-label={t("account.menu")}
             className={({ isActive }) =>
               cn(
                 "hover:bg-tint flex shrink-0 items-center gap-2.5 border-t px-4 py-3 transition-colors duration-80",
@@ -116,6 +115,8 @@ export function AppShell({
               <span className="truncate text-xs font-semibold">{user.name}</span>
               <span className="text-muted-foreground truncate text-xs">{user.email}</span>
             </span>
+            {/* After the visible text, so the accessible name still starts with it (WCAG 2.5.3). */}
+            <span className="sr-only">{t("account.menu")}</span>
           </NavLink>
         </aside>
 
