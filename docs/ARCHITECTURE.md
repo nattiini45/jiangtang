@@ -127,6 +127,10 @@ the hand-written SQL sits inside these migrations, next to the Prisma-generated 
 | `20261023000500_workitem_view`                 | The `workitem_lane` mapping table (reference data) and the `UNION ALL` view over tasks and tickets.                                      |
 | `20261023000600_time_tracking_constraints`     | `CHECK (endsAt IS NULL OR endsAt > startsAt)` and a partial unique index allowing one running timer per user.                            |
 
+Later migrations follow the baseline in timestamp order (`20261105000000_note_version` adds the
+`Note.version` concurrency token). `test/migration-baseline.test.ts` checks the seven baseline files
+and requires every later directory to sort after them with a `<UTC timestamp>_<name>` name.
+
 Rules for the chain:
 
 - Migrations are append-only. Never edit, rename, squash or reorder one that has been applied.
@@ -227,7 +231,10 @@ behind the same interface.
 Event mutations enqueue a `CalendarOutbox` row in the same transaction (one row per event UID and
 iCal `SEQUENCE`, unique in the database), so calendar downtime never blocks a write. A drain worker
 (`app/lib/calendar/calendar.boot.server.ts`, `app/lib/calendar/outbox.server.ts`) publishes pending rows in
-sequence order through a `CalendarPublisher`, with exponential backoff and a retry cap. The real
+sequence order through a `CalendarPublisher`. A failed push is retried with exponential backoff
+(capped at an hour) for 72 hours before it is parked as `FAILED`; a later change of the same event
+supersedes a failed op, since every row carries the event's full state, so one bad push never holds
+back the next. `/admin/index` lists retrying and parked pushes. The real
 publisher is a zero-dependency CalDAV client (`app/lib/calendar/caldav.server.ts`) configured with
 `CALDAV_URL`, `CALDAV_USERNAME` and `CALDAV_PASSWORD`; without them a no-op publisher is used and
 the worker stays idle. The token-gated iCal feed (`calendar.$token.ics`, `ICAL_FEED_TOKEN`) renders

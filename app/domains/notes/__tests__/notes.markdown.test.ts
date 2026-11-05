@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  draftToMarkdown,
   noteToMarkdown,
   parseMarkdownNote,
   type MarkdownNote,
@@ -106,5 +107,33 @@ describe("parseMarkdownNote", () => {
     const parsed = parseMarkdownNote("x.md", "---\ntitle: nie geschlossen\nkein ende");
     expect(parsed.title).toBe("x");
     expect(parsed.body).toContain("title: nie geschlossen");
+  });
+});
+
+describe("draftToMarkdown", () => {
+  it("round-trips an unsaved draft through the importer, without an id", () => {
+    const draft = {
+      title: "Entwurf: Bühne",
+      body: "---\nkein Front-Matter\n\n```\ncode\n```\n",
+      tags: ["licht", "ton"],
+      pinned: true,
+      projectSlug: "sommerfest",
+      locationId: "loc12345",
+    };
+    const parsed = parseMarkdownNote("entwurf.md", draftToMarkdown(draft));
+    expect(parsed).toEqual({
+      id: undefined,
+      title: draft.title,
+      body: draft.body,
+      tags: draft.tags,
+      pinned: true,
+      projectSlug: "sommerfest",
+      locationId: "loc12345",
+    });
+  });
+
+  it("omits project and location when unset", () => {
+    const md = draftToMarkdown({ title: "x", body: "y", tags: [], pinned: false });
+    expect(md).not.toMatch(/project:|location:|id:/);
   });
 });

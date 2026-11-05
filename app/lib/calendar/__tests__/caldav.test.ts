@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { CalDavPublisher, getCalDavConfig } from "~/lib/calendar/caldav.server";
+import {
+  CALDAV_REQUEST_TIMEOUT_MS,
+  CalDavPublisher,
+  getCalDavConfig,
+} from "~/lib/calendar/caldav.server";
 import { getPublisher } from "~/lib/calendar/publisher-factory.server";
 import { NoopPublisher, type CalendarPayload } from "~/lib/calendar/publisher.server";
 
@@ -85,6 +89,27 @@ describe("CalDavPublisher.upsert", () => {
         payload(),
       ),
     ).rejects.toThrow(/500/);
+  });
+});
+
+describe("CalDavPublisher request timeout", () => {
+  it("aborts a PUT the server never answers, so a drain pass stays bounded", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn(
+        (_url: string | URL | Request, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(new Error("aborted")));
+          }),
+      );
+      const pub = new CalDavPublisher(CONFIG, fetchImpl);
+      const pending = pub.upsert(payload());
+      const assertion = expect(pending).rejects.toThrow();
+      await vi.advanceTimersByTimeAsync(CALDAV_REQUEST_TIMEOUT_MS);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

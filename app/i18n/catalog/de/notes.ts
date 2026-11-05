@@ -50,6 +50,8 @@ export const notesDe = {
   "notes.import.pickFolderAria": "Ordner mit Markdown-Dateien wählen",
   "notes.import.limits": "Maximal {maxFiles} Dateien, je höchstens {maxMb} MB.",
   "notes.import.done": "{created} erstellt, {updated} aktualisiert.",
+  "notes.import.rejected":
+    "Es wurde nichts importiert. Korrigiere diese Dateien und versuche es erneut:",
   "notes.import.backToList": "Zu den Notizen",
 
   "notes.new.title": "Neue Notiz",
@@ -63,6 +65,12 @@ export const notesDe = {
   "notes.new.submit": "Notiz anlegen",
 
   "notes.editor.notSaved": "Nicht gespeichert — {error}",
+  "notes.editor.conflict.hint":
+    "Deine Änderungen sind noch da, aber nicht gespeichert. Lade sie herunter und lade dann die aktuelle Fassung.",
+  "notes.editor.conflict.download": "Meinen Text herunterladen",
+  "notes.editor.conflict.reload": "Aktuelle Fassung laden",
+  "notes.editor.conflict.confirmReload":
+    "Beim Laden der aktuellen Fassung gehen deine ungespeicherten Änderungen verloren. Fortfahren?",
   "notes.editor.titleAria": "Titel",
   "notes.editor.projectAria": "Projekt",
   "notes.editor.locationAria": "Standort",

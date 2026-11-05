@@ -541,6 +541,9 @@ enum OutboxStatus {
   PENDING
   SENT
   FAILED
+  // A later sequence of the same event carries its full current state, so this
+  // op will never be sent.
+  SUPERSEDED
 }
 
 model CalendarOutbox {
@@ -554,6 +557,9 @@ model CalendarOutbox {
   lastError   String?
   createdAt   DateTime     @default(now()) @db.Timestamptz(3)
   processedAt DateTime? @db.Timestamptz(3)
+  // Earliest instant the drain may retry this row, or a later op supersede it;
+  // null until the first failure.
+  nextAttemptAt DateTime? @db.Timestamptz(3)
 
   // Idempotency is DB-enforced: one row per (event, iCal SEQUENCE), so a
   // careless retry can't enqueue a duplicate op. The unique index also serves
@@ -863,6 +869,11 @@ model Note {
   location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   tags String[]
+
+  // Optimistic-concurrency token for the editor: bumped by editor saves and
+  // imports only, so the pin and archive buttons on the same page do not
+  // invalidate the version an open editor is holding.
+  version Int @default(1)
 
   archivedAt DateTime? @db.Timestamptz(3)
 

@@ -86,4 +86,10 @@ export const adminDe = {
   "admin.index.col.embedded": "eingebettet",
   "admin.index.failedJobs": "Fehlgeschlagene Jobs",
   "admin.index.attempt": "Versuch {count}",
+  "admin.index.calendar": "Kalender-Sync",
+  "admin.index.calendar.off": "CalDAV ist nicht konfiguriert.",
+  "admin.index.calendar.counts":
+    "{pending} ausstehend · {retrying} in Wiederholung · {failed} fehlgeschlagen",
+  "admin.index.calendar.stuckSince": "hängt seit {since}",
+  "admin.index.calendar.deletedEvent": "Gelöschter Termin",
 };

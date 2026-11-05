@@ -96,9 +96,13 @@ services:
       # Opt-in monthly PITR restore drill ("a backup isn't a backup until a
       # restore is tested"). Default OFF — set to 1 to run inside this sidecar.
       RESTORE_DRILL_ENABLED: ${RESTORE_DRILL_ENABLED:-}
+      # backup.sh and check-wal-archive.sh record failures here; the alerting
+      # sidecar reads the same volume and posts them to ALERT_WEBHOOK.
+      BACKUP_STATUS_DIR: /status
     volumes:
       - pgdata:/var/lib/postgresql:ro
       - ./ops/postgres:/ops:ro
+      - backup-status:/status
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,11 +110,18 @@ services:
     command:
       - |
         bash /ops/backup.sh || true
-        # daily base backup thereafter; opt-in restore drill runs at most once a
-        # month (first pass on the 1st, guarded by a marker file so a same-day
-        # restart doesn't re-run it). Kept deliberately dumb + readable.
+        bash /ops/check-wal-archive.sh || true
+        # WAL archiving is checked hourly; the base backup runs every 24th hour.
+        # The opt-in restore drill runs at most once a month (first pass on the
+        # 1st, guarded by a marker file so a same-day restart doesn't re-run it).
+        # Kept deliberately dumb + readable.
+        hours=0
         while true; do
-          sleep 24h
+          sleep 1h
+          bash /ops/check-wal-archive.sh || true
+          hours="$$((hours + 1))"
+          [ "$${hours}" -ge 24 ] || continue
+          hours=0
           bash /ops/backup.sh || true
           if [ -n "$${RESTORE_DRILL_ENABLED}" ]; then
             day="$$(date -u +%d)"
@@ -167,7 +178,9 @@ services:
     restart: "no"
 
   # Downtime alerting sidecar. Polls the app's /healthz every 60s and
-  # pages ALERT_WEBHOOK (Mattermost/Slack-compatible) on failure. alpine/curl gives
+  # pages ALERT_WEBHOOK (Mattermost/Slack-compatible) on failure. The same loop
+  # posts backup and WAL-archive failures that the backup sidecar records in the
+  # shared backup-status volume (ops/alerting/backup-alert.sh). alpine/curl gives
   # curl + sh in a tiny image (the backup image is wal-g, no curl). When
   # ALERT_WEBHOOK is empty it idles cleanly (sleep infinity) — the script hard-
   # requires the webhook, so we must not invoke it unconfigured.
@@ -181,8 +194,14 @@ services:
     environment:
       HEALTH_URL: ${HEALTH_URL:-http://app:3000/healthz}
       ALERT_WEBHOOK: ${ALERT_WEBHOOK:-}
+      BACKUP_STATUS_DIR: /backup-status
+      # Alert when the last successful base backup is older than this (36 h), and
+      # repeat a lasting backup or WAL-archive failure this often (6 h).
+      BACKUP_MAX_AGE_SECONDS: ${BACKUP_MAX_AGE_SECONDS:-129600}
+      REALERT_SECONDS: ${REALERT_SECONDS:-21600}
     volumes:
       - ./ops/alerting:/ops:ro
+      - backup-status:/backup-status:ro
     depends_on:
       - app
     entrypoint: ["/bin/sh", "-c"]
@@ -194,7 +213,11 @@ services:
         fi
         command -v bash >/dev/null 2>&1 || apk add --no-cache bash
         # || true so a single failed poll (or a paged alert) never kills the loop.
-        while true; do bash /ops/healthcheck-alert.sh || true; sleep 60; done
+        while true; do
+          bash /ops/healthcheck-alert.sh || true
+          bash /ops/backup-alert.sh || true
+          sleep 60
+        done
     restart: unless-stopped
 
   # One-shot: applies pending migrations (incl. the hand-folded EXCLUDE + audit
@@ -325,5 +348,6 @@ services:
 volumes:
   pgdata:
   uploads:
+  backup-status:
   caddy_data:
   caddy_config:

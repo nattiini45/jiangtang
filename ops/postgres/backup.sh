@@ -5,6 +5,37 @@
 # base backup so PITR recovery has a restore point, then prunes old backups.
 set -euo pipefail
 
+# Outcome for the alerting sidecar, which reads BACKUP_STATUS_DIR from a shared
+# volume and posts to ALERT_WEBHOOK (ops/alerting/backup-alert.sh). An EXIT trap
+# covers every way out, including a `set -e` abort. backup.ok keeps the time of
+# the last pushed base backup, so a backup that stops running at all is noticed
+# too; a failed prune afterwards is reported as such and does not hold it back.
+# The first line of a failure is the alert's identity (backup-alert.sh), so the
+# time goes on the next line. Files are replaced with a rename so the reader
+# never sees half a message.
+BACKUP_PHASE="base backup"
+
+status_write() {
+  printf '%s\n' "$2" > "${BACKUP_STATUS_DIR}/.$1.tmp" && mv -f "${BACKUP_STATUS_DIR}/.$1.tmp" "${BACKUP_STATUS_DIR}/$1"
+}
+
+status_enabled() {
+  [ -n "${BACKUP_STATUS_DIR:-}" ] && [ -d "${BACKUP_STATUS_DIR}" ]
+}
+
+record_backup_status() {
+  local code=$?
+  status_enabled || return 0
+  if [ "${code}" -eq 0 ]; then
+    rm -f "${BACKUP_STATUS_DIR}/backup.failed"
+  else
+    status_write backup.failed "Jiangtang ${BACKUP_PHASE} FAILED (exit ${code}).
+At $(date -u +%FT%TZ). Details: docker compose logs backup"
+  fi
+  return 0
+}
+trap record_backup_status EXIT
+
 # shellcheck source=wal-g/env.sh
 source "$(dirname "$0")/wal-g/env.sh"
 
@@ -53,6 +84,8 @@ fi
 echo "[backup] starting base backup at $(date -u +%FT%TZ) (PGDATA=${PGDATA})"
 wal-g backup-push "${PGDATA}"
 echo "[backup] base backup complete"
+if status_enabled; then status_write backup.ok "$(date -u +%FT%TZ)"; fi
+BACKUP_PHASE="retention pruning"
 
 echo "[backup] retention: keeping the newest ${WALG_RETENTION_COUNT} FULL backups (a count of full backups, NOT a guaranteed number of days of retention)"
 wal-g delete retain FULL "${WALG_RETENTION_COUNT}" --confirm

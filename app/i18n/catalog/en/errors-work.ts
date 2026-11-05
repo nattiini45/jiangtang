@@ -31,6 +31,7 @@ export const errorsWorkEn = {
   "work.err.project.notFound": "Project not found.",
   "work.err.project.unknown": "Unknown project.",
   "work.err.note.notFound": "Note not found.",
+  "work.err.note.conflict": "Someone else saved this note while you were editing.",
   "work.err.note.authorRequired": "Note requires a signed-in author.",
   "work.err.noteImport.authorRequired": "Note import requires a signed-in author.",
   "work.err.note.alreadyArchived": "The note is already archived.",

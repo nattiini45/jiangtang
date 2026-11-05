@@ -1,4 +1,4 @@
-import { useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
 import type { Route } from "./+types/route";
 import { requireRole } from "~/lib/auth.server";
 import { getAi } from "~/lib/ai/registry.server";
@@ -10,6 +10,9 @@ import {
   clearEmbeddingModels,
 } from "~/lib/search/indexer.server";
 import { logger } from "~/lib/observability/logger.server";
+import { getCalDavConfig } from "~/lib/calendar/caldav.server";
+import { calendarSyncHealth } from "~/lib/calendar/outbox.server";
+import { formatDateTime } from "~/i18n/format";
 import { sourceTypeLabel } from "~/lib/search/labels";
 import { t, type MessageKey } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -34,7 +37,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireRole(request, "ADMIN");
   const stats = await getIndexStats();
   const jobs = await listFailedIndexJobs(10);
-  return { statuses: getAi().statuses, stats, jobs };
+  const calendar = getCalDavConfig() ? await calendarSyncHealth() : null;
+  return { statuses: getAi().statuses, stats, jobs, calendar };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -85,7 +89,7 @@ const CAPABILITY_LABEL: Record<string, MessageKey> = {
 export default function AdminIndex({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
-  const { statuses, stats, jobs } = loaderData;
+  const { statuses, stats, jobs, calendar } = loaderData;
   const fetcher = useFetcher<typeof action>();
 
   return (
@@ -160,6 +164,59 @@ export default function AdminIndex({ loaderData }: Route.ComponentProps) {
             ))}
           </tbody>
         </table>
+      </section>
+
+      <section className="bg-card shadow-surface-2 rounded-lg">
+        <h2 className="border-border border-b px-4 py-3 text-base font-semibold">
+          {t("admin.index.calendar")}
+        </h2>
+        {calendar === null ? (
+          <p className="text-muted-foreground px-4 py-3 text-sm">{t("admin.index.calendar.off")}</p>
+        ) : (
+          <>
+            <p className="nums px-4 py-3 text-sm">
+              {t("admin.index.calendar.counts", {
+                pending: calendar.pending,
+                retrying: calendar.retrying,
+                failed: calendar.failed,
+              })}
+              {calendar.oldestStuckAt ? (
+                <span className="text-destructive">
+                  {" · "}
+                  {t("admin.index.calendar.stuckSince", {
+                    since: formatDateTime(locale, calendar.oldestStuckAt),
+                  })}
+                </span>
+              ) : null}
+            </p>
+            {calendar.stuck.length > 0 ? (
+              <ul className="divide-border border-border divide-y border-t text-sm">
+                {calendar.stuck.map((row) => (
+                  <li key={`${row.eventUid}:${row.sequence}`} className="px-4 py-2">
+                    {row.event ? (
+                      <Link to={`/events/${row.event.id}`} className="hover:underline">
+                        {row.event.title}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">
+                        {t("admin.index.calendar.deletedEvent")}
+                      </span>
+                    )}{" "}
+                    <span className="text-muted-foreground nums text-xs">
+                      · {t(row.status === "FAILED" ? "events.sync.FAILED" : "events.sync.PENDING")}{" "}
+                      · {t("admin.index.attempt", { count: row.attempts })}
+                    </span>
+                    {row.lastError ? (
+                      <p className="text-muted-foreground truncate text-xs" title={row.lastError}>
+                        {row.lastError}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        )}
       </section>
 
       {jobs.length > 0 ? (
