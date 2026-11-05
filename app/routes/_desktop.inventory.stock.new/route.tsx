@@ -57,6 +57,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   // `?location=` preselects a location — the flow a warehouse actually has ("put this
   // away in the store"), and the same affordance `locations/new?parent=` established.
   // A stale id is simply not among the options, so it cannot be silently submitted.

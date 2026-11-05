@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { listCampuses, listRooms } from "~/domains/rooms/rooms.queries.server";
 import { RoomStatus } from "~/generated/prisma/enums";
 import { statusToken } from "~/lib/status";
@@ -17,6 +18,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   const url = new URL(request.url);
   const campusId = url.searchParams.get("campus") || undefined;
   const statusParam = url.searchParams.get("status") || "";

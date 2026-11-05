@@ -184,7 +184,11 @@ Better Auth (`app/lib/auth.server.ts`) provides email and password sign-in with 
 Access is invitation-only: the public `/sign-up/email` path is disabled, and admins create one-time
 invitation links in `/admin/users` (`accept-invite.$token`). The two roles are `ADMIN` (also
 manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission matrix (`can`, `roleRequiredFor`); `requireUser` and
-`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. `sanitizeNext` restricts
+`requireRole` in `app/lib/auth.server.ts` guard loaders and actions. Every route's loader and action
+calls one of them itself rather than relying on its layout, because a single-fetch `.data` request
+with `?_routes=` runs only the named loaders; `test/routes/route-auth-guard.test.ts` calls every
+handler anonymously and fails unless it redirects to `/login` or is on an explicit public list.
+`sanitizeNext` restricts
 post-login redirects to local paths. The first admin of a production installation comes from
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
 while no active admin exists, so a fresh installation and a full lockout can both be recovered from

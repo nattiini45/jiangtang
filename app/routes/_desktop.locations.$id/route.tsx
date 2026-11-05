@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/route";
+import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getLocation } from "~/domains/locations/locations.queries.server";
@@ -58,7 +59,8 @@ export function meta({ data, matches }: Route.MetaArgs) {
   ];
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const location = await getLocation(params.id);
   if (!location) throw toErrorResponse(new NotFoundError(tr("err.location.notFound")));
   const [tree, stock, notes] = await Promise.all([

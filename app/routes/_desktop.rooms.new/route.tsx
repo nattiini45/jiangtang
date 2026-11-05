@@ -18,7 +18,8 @@ export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "rooms.meta.new") }];
 }
 
-export async function loader(_: Route.LoaderArgs) {
+export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
   return { campuses: await listCampuses() };
 }
 

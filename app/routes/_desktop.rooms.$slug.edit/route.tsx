@@ -28,6 +28,7 @@ export function meta({ data, matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const locale = resolveLocale(request);
   const [room, campuses] = await Promise.all([getRoomBySlug(params.slug), listCampuses()]);
   if (!room) throw toErrorResponse(new NotFoundError(t(locale, "err.room.notFound")));

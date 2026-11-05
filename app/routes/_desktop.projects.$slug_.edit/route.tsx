@@ -51,6 +51,7 @@ function dateInputValue(d: Date | null | undefined): string | null {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
+  await requireUser(request);
   const locale = resolveLocale(request);
   const project = await getProjectBySlug(params.slug);
   if (!project) throw toErrorResponse(new NotFoundError(t(locale, "err.project.notFound")));
