@@ -54,7 +54,7 @@ const CANONICAL_DIRS = [
  * name so an addition shows up in this file's diff; the counts below still cover
  * every file of the chain.
  */
-const LATER_DIRS = ["20261105000000_calendar_outbox_retry"] as const;
+const LATER_DIRS = ["20261105000100_calendar_outbox_retry"] as const;
 
 /** The whole chain: the baseline, then every later migration. */
 const CHAIN_DIRS = [...CANONICAL_DIRS, ...LATER_DIRS] as const;
