@@ -92,7 +92,10 @@ are optional segments in `flatRoutes`, so the two surfaces are:
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`
   and `prefs.locale`.
 
-Both layouts require a signed-in user by default. A new public surface must opt out explicitly.
+Both layouts redirect anonymous visitors to `/login`, but they are not the guard: every loader and
+action calls `requireUser` or `requireRole` itself (see [Authentication and roles](#authentication-and-roles)).
+A new public route goes on the `PUBLIC` list in `test/routes/route-auth-guard.test.ts`, with its
+reason.
 
 ### Server entry and boot modules
 
