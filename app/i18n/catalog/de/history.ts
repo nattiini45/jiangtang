@@ -58,6 +58,7 @@ export const historyDe = {
   "history.action.TaskTicketUnlinked": "Ticketverknüpfung gelöst",
   "history.action.UserInvited": "Eingeladen",
   "history.action.InviteAccepted": "Einladung angenommen",
+  "history.action.PasswordChanged": "Passwort geändert",
   "history.action.UserUpdated": "Bearbeitet",
   "history.action.UserPseudonymized": "Pseudonymisiert",
   "history.action.NoteCreated": "Erstellt",

@@ -91,9 +91,20 @@ export function AppShell({
               return <NavSection key={group.id} label={t(group.labelKey)} items={items} />;
             })}
           </nav>
-          <div
-            className="flex shrink-0 items-center gap-2.5 border-t px-4 py-3"
-            title={user.role ? roleLabel(locale, user.role) : undefined}
+          <NavLink
+            to="/account"
+            aria-label={t("account.menu")}
+            className={({ isActive }) =>
+              cn(
+                "hover:bg-tint flex shrink-0 items-center gap-2.5 border-t px-4 py-3 transition-colors duration-80",
+                isActive && "bg-tint",
+              )
+            }
+            title={
+              user.role
+                ? `${t("account.menu")} · ${roleLabel(locale, user.role)}`
+                : t("account.menu")
+            }
           >
             <span
               aria-hidden
@@ -105,7 +116,7 @@ export function AppShell({
               <span className="truncate text-xs font-semibold">{user.name}</span>
               <span className="text-muted-foreground truncate text-xs">{user.email}</span>
             </span>
-          </div>
+          </NavLink>
         </aside>
 
         <div className="flex min-h-screen min-w-0 flex-col">

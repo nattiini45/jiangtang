@@ -60,6 +60,7 @@ export const historyEn = {
   "history.action.TaskTicketUnlinked": "Ticket unlinked",
   "history.action.UserInvited": "Invited",
   "history.action.InviteAccepted": "Invitation accepted",
+  "history.action.PasswordChanged": "Password changed",
   "history.action.UserUpdated": "Updated",
   "history.action.UserPseudonymized": "Pseudonymized",
   "history.action.NoteCreated": "Created",
