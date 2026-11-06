@@ -316,6 +316,106 @@ describe("session revocation on erasure", () => {
   });
 });
 
+describe("credential and invitation erasure", () => {
+  it("deletes the erased user's accounts, sessions and pending invitations in the erasure", async () => {
+    const stamp = Date.now();
+    const email = `erase_cred_${stamp}@jiangtang.local`;
+    const target = await db.user.create({
+      data: { name: "Erase Credential", email, initials: "EC", role: "MEMBER" },
+    });
+    createdUserIds.push(target.id);
+    const bystander = await db.user.create({
+      data: {
+        name: "Credential Bystander",
+        email: `erase_cred_by_${stamp}@jiangtang.local`,
+        initials: "CB",
+        role: "MEMBER",
+      },
+    });
+    createdUserIds.push(bystander.id);
+    for (const u of [target, bystander]) {
+      await db.account.create({
+        data: {
+          accountId: u.id,
+          providerId: "credential",
+          userId: u.id,
+          password: "synthetic-hash",
+        },
+      });
+    }
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await db.session.create({
+      data: { token: `erase_cred_${stamp}_target`, userId: target.id, expiresAt },
+    });
+    const invite = await db.verification.create({
+      data: { identifier: email, value: JSON.stringify({ token: `t${stamp}`, email }), expiresAt },
+    });
+    // Invitations created before emails were lower-cased kept the typed case.
+    const legacyInvite = await db.verification.create({
+      data: {
+        identifier: email.toUpperCase(),
+        value: JSON.stringify({ token: `l${stamp}` }),
+        expiresAt,
+      },
+    });
+    const resetLink = await db.verification.create({
+      data: { identifier: `password-reset:synthetic-${stamp}`, value: target.id, expiresAt },
+    });
+    const otherInvite = await db.verification.create({
+      data: {
+        identifier: `erase_cred_other_${stamp}@jiangtang.local`,
+        value: JSON.stringify({ token: `o${stamp}` }),
+        expiresAt,
+      },
+    });
+
+    try {
+      await pseudonymizeUser(
+        { id: "test-admin", name: "Admin", email: "a@a", initials: "AD" },
+        target.id,
+      );
+
+      expect(await db.account.count({ where: { userId: target.id } })).toBe(0);
+      expect(await db.session.count({ where: { userId: target.id } })).toBe(0);
+      expect(await db.verification.findUnique({ where: { id: invite.id } })).toBeNull();
+      expect(await db.verification.findUnique({ where: { id: resetLink.id } })).toBeNull();
+      expect(await db.verification.findUnique({ where: { id: legacyInvite.id } })).toBeNull();
+      // Other people's credentials and invitations are untouched.
+      expect(await db.account.count({ where: { userId: bystander.id } })).toBe(1);
+      expect(await db.verification.findUnique({ where: { id: otherInvite.id } })).not.toBeNull();
+    } finally {
+      await db.account.deleteMany({ where: { userId: bystander.id } });
+      await db.verification.deleteMany({
+        where: { id: { in: [invite.id, legacyInvite.id, resetLink.id, otherInvite.id] } },
+      });
+    }
+  });
+
+  it("keeps the credential when the erasure is refused", async () => {
+    const stamp = Date.now();
+    const u = await db.user.create({
+      data: {
+        name: "Self Eraser",
+        email: `erase_self_${stamp}@jiangtang.local`,
+        initials: "SE",
+        role: "ADMIN",
+      },
+    });
+    createdUserIds.push(u.id);
+    await db.account.create({
+      data: { accountId: u.id, providerId: "credential", userId: u.id, password: "synthetic-hash" },
+    });
+    try {
+      await expect(
+        pseudonymizeUser({ id: u.id, name: "Self", email: u.email, initials: "SE" }, u.id),
+      ).rejects.toThrow();
+      expect(await db.account.count({ where: { userId: u.id } })).toBe(1);
+    } finally {
+      await db.account.deleteMany({ where: { userId: u.id } });
+    }
+  });
+});
+
 describe("retention prune (privileged DELETE — sanctioned path still works)", () => {
   it("prune_activity_log deletes nothing for a pre-history cutoff", async () => {
     // A far-past cutoff matches no rows — safe, deletes nothing real.

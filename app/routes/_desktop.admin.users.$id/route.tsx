@@ -1,4 +1,4 @@
-import { redirect } from "react-router";
+import { Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireRole } from "~/lib/auth.server";
 import { toErrorResponse } from "~/lib/errors.server";
@@ -83,6 +83,14 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
       </ZodForm>
 
       <div className="bg-card shadow-surface-2 mt-6 rounded-lg p-4">
+        <p className="text-sm font-semibold">{t("admin.user.reset.title")}</p>
+        <p className="text-muted-foreground mt-1 text-xs">{t("admin.user.reset.hint")}</p>
+        <Button asChild variant="secondary" size="compact" className="mt-2">
+          <Link to={`/admin/users/${user.id}/reset-password`}>{t("admin.user.reset.link")}</Link>
+        </Button>
+      </div>
+
+      <div className="bg-card shadow-surface-2 mt-4 rounded-lg p-4">
         <p className="text-sm font-semibold">{t("admin.user.gdpr.title")}</p>
         <p className="text-muted-foreground mt-1 text-xs">{t("admin.user.gdpr.hint")}</p>
         <Button asChild variant="destructive" size="compact" className="mt-2">

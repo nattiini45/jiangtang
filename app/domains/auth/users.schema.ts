@@ -1,4 +1,5 @@
 import { msgKey } from "~/i18n";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "~/lib/auth.server";
 import { z } from "~/lib/validation.server";
 
 /**
@@ -22,7 +23,10 @@ export const inviteSchema = z.object({
 export const acceptInviteSchema = z
   .object({
     token: z.string().min(1),
-    password: z.string().min(8, msgKey("places.err.auth.passwordMin")),
+    password: z
+      .string()
+      .min(MIN_PASSWORD_LENGTH, msgKey("places.err.auth.passwordMin"))
+      .max(MAX_PASSWORD_LENGTH, msgKey("places.err.auth.passwordMax")),
     confirm: z.string().min(1),
   })
   .refine((d) => d.password === d.confirm, {

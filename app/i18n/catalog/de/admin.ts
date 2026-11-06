@@ -36,6 +36,18 @@ export const adminDe = {
   "admin.user.status": "Konto-Status",
   "admin.user.statusActive": "aktiv",
   "admin.user.statusInactive": "inaktiv (Login gesperrt)",
+  "admin.user.reset.title": "Passwort",
+  "admin.user.reset.hint":
+    "Erstellt einen einmaligen Link, mit dem die Person ein neues Passwort setzt. Er gilt einen Tag.",
+  "admin.user.reset.link": "Link zum Zurücksetzen erstellen",
+  "admin.reset.meta": "Passwort zurücksetzen · Jiangtang",
+  "admin.reset.title": "Passwort zurücksetzen",
+  "admin.reset.subtitle": "Für {user} ({email}).",
+  "admin.reset.hint":
+    "Der Link gilt einen Tag und nur einmal. Gib ihn der Person direkt weiter. Ein neuer Link ersetzt den vorigen; beim Setzen des Passworts werden alle Sitzungen abgemeldet.",
+  "admin.reset.submit": "Link erstellen",
+  "admin.reset.again": "Neuen Link erstellen",
+  "admin.reset.created": "Link zum Zurücksetzen erstellt",
   "admin.user.gdpr.title": "DSGVO",
   "admin.user.gdpr.hint":
     "Pseudonymisierung trennt die Identität von der Tätigkeit — die Historie bleibt initialen-basiert erhalten.",
@@ -48,7 +60,8 @@ export const adminDe = {
   "admin.erase.identity": "Name, E-Mail und Initialen von {user} ({email}) werden pseudonymisiert.",
   "admin.erase.history":
     "Die Audit-Historie wird auf Initialen reduziert (die Zuordnung der Tätigkeit bleibt erhalten).",
-  "admin.erase.tickets": "Ticket-Zuordnungen werden getrennt; das Konto wird deaktiviert.",
+  "admin.erase.tickets":
+    "Ticket-Zuordnungen werden getrennt, Passwort, Sitzungen und offene Einladungen gelöscht; das Konto wird deaktiviert.",
   "admin.erase.confirmLabel": "Zur Bestätigung E-Mail-Adresse eingeben: {email}",
   "admin.erase.confirm": "Pseudonymisieren bestätigen",
 

@@ -97,12 +97,23 @@ export const errorsPlacesEn = {
   "places.err.auth.initialsMax": "Initials must be at most 6 characters long.",
   "places.err.auth.initialsLetters": "Initials may only contain letters.",
   "places.err.auth.passwordMin": "Password must be at least 8 characters long.",
+  "places.err.auth.passwordMax": "Password can be at most 128 characters long.",
   "places.err.auth.passwordMismatch": "Passwords do not match.",
   "places.err.auth.confirmEmail": "Please confirm the email address.",
   "places.err.auth.capacityNegative": "Capacity must not be negative.",
   "places.err.auth.capacityMax": "Capacity can be at most 168 h per week.",
   "places.err.user.notFound": "User not found.",
   "places.err.invite.notFound": "This invitation was not found or has expired.",
+  "places.err.reset.notFound": "This reset link is invalid, has expired or has already been used.",
+  "places.err.reset.noAccount": "There is no active account with this email address.",
+  "places.err.reset.inactive":
+    "This account is deactivated. Activate it before creating a reset link.",
+  "places.err.invite.emailTaken": "An account with this email address already exists.",
+  "places.err.invite.initialsTaken": "The initials {initials} are already taken.",
+  "places.err.invite.acceptEmailTaken":
+    "An account with this email address already exists. Sign in, or ask an administrator for help.",
+  "places.err.invite.acceptInitialsTaken":
+    "The initials {initials} in this invitation now belong to someone else. Ask an administrator for a new invitation.",
   "places.err.user.lastAdmin": "The last active administrator cannot be deactivated or demoted.",
 
   // attachments

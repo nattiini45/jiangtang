@@ -2,7 +2,7 @@ import * as React from "react";
 import { redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireRole } from "~/lib/auth.server";
-import { toErrorResponse } from "~/lib/errors.server";
+import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { createInvite } from "~/domains/auth/users.queries.server";
 import { inviteSchema } from "~/domains/auth/users.schema";
@@ -38,6 +38,7 @@ export async function action({ request }: Route.ActionArgs) {
     });
     return redirect(`/admin/users?invited=${encodeURIComponent(token)}`);
   } catch (e) {
+    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
     throw toErrorResponse(e);
   }
 }

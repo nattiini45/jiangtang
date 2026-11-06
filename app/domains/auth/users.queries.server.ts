@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
+import { hashPassword } from "better-auth/crypto";
 import { auth } from "~/lib/auth.server";
 import { db, type Tx } from "~/lib/db.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { hasSqlState, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
+import { deleteResetLinks } from "~/domains/auth/password-reset.server";
 import type { InviteInput, EditUserInput } from "~/domains/auth/users.schema";
 import { UserRole } from "~/generated/prisma/enums";
 
@@ -11,11 +13,11 @@ import { UserRole } from "~/generated/prisma/enums";
  * User/account management. All mutations go through `txWithAudit`
  * (audit in the same tx). Invite flow: an admin records a one-time invite token
  * in the `Verification` table; the invitee consumes it at `/accept-invite/:token`
- * to set their password via Better Auth's `signUpEmail`, which creates the User +
- * Account + session. Role/initials are applied after sign-up (Better Auth owns
- * the password hash; our additionalFields are `input:false`).
+ * to set their password, which creates the User and its Better Auth credential
+ * Account in one transaction.
  *
- * Email/initials uniqueness is DB-enforced (User.email / User.initials @unique).
+ * Email/initials uniqueness is DB-enforced (User.email / User.initials @unique)
+ * and checked up front so a clash is refused with a message instead of a 500.
  */
 
 const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -62,11 +64,31 @@ export async function findUser(id: string): Promise<UserListRow> {
 /** Create an invite: a pending token in Verification. Returns the token. */
 export async function createInvite(input: InviteInput, actor: AuditActor): Promise<string> {
   const token = randomBytes(24).toString("hex");
+  // Better Auth stores and signs in with lower-cased emails, so the invite does too.
+  input = {
+    ...input,
+    email: input.email.trim().toLowerCase(),
+    initials: input.initials.toUpperCase(),
+  };
   await txWithAudit(actor, async (tx, audit) => {
+    const clash = await findInviteClash(tx, input.email, input.initials);
+    if (clash === "email") {
+      throw new ValidationError({ email: [tr("places.err.invite.emailTaken")] });
+    }
+    if (clash === "initials") {
+      throw new ValidationError({
+        initials: [tr("places.err.invite.initialsTaken", { initials: input.initials })],
+      });
+    }
+
     // Supersede any still-pending invite(s) for this email first, so
     // re-inviting someone can't leave multiple valid tokens/roles coexisting —
     // only the newest invite should ever be resolvable.
-    await tx.verification.deleteMany({ where: { identifier: input.email } });
+    // Case-insensitive: invites created before emails were lower-cased kept the
+    // email as typed.
+    await tx.verification.deleteMany({
+      where: { identifier: { equals: input.email, mode: "insensitive" } },
+    });
 
     // Token keyed by the invitee's email so /accept-invite can look it up. The
     // role/initials/name are stashed as JSON in `value` (alongside the token)
@@ -75,7 +97,7 @@ export async function createInvite(input: InviteInput, actor: AuditActor): Promi
       token,
       email: input.email,
       name: input.name,
-      initials: input.initials.toUpperCase(),
+      initials: input.initials,
       role: input.role,
     });
     await tx.verification.create({
@@ -142,66 +164,104 @@ export async function resolveInvite(token: string): Promise<InviteRecord> {
 }
 
 /**
- * Consume an invite: create the user via Better Auth with the chosen password,
- * then apply role/initials (input:false fields), then delete the invite row.
- * Throws on duplicate email (DB @unique) — surfaced by the route as 409/422.
+ * Which unique User field an invitee would collide with, if any. Emails are
+ * compared case-insensitively because Better Auth lower-cases them at sign-in.
+ */
+async function findInviteClash(
+  tx: Tx,
+  email: string,
+  initials: string,
+): Promise<"email" | "initials" | null> {
+  const byEmail = await tx.user.findFirst({
+    where: { email: { equals: email, mode: "insensitive" } },
+    select: { id: true },
+  });
+  if (byEmail) return "email";
+  const byInitials = await tx.user.findFirst({ where: { initials }, select: { id: true } });
+  return byInitials ? "initials" : null;
+}
+
+function acceptClashError(clash: "email" | "initials", invite: InviteRecord): ValidationError {
+  return new ValidationError({}, [
+    clash === "email"
+      ? tr("places.err.invite.acceptEmailTaken")
+      : tr("places.err.invite.acceptInitialsTaken", { initials: invite.initials }),
+  ]);
+}
+
+/**
+ * Consume an invite: create the user with the admin-chosen role and initials,
+ * its Better Auth credential, consume the invite and write the audit row, all in
+ * one transaction. Better Auth's `signUpEmail` is not used because it commits the
+ * user on its own, so a later failure (an initials clash) would leave an orphan
+ * account that can sign in. The password is hashed with Better Auth's own
+ * function and stored the way its email/password sign-in reads it.
+ *
+ * A clash with an existing email or initials throws a ValidationError with a
+ * form-level message and creates nothing; the invite stays valid.
  */
 export async function acceptInvite(
   invite: InviteRecord,
   password: string,
 ): Promise<{ id: string; email: string }> {
-  // Better Auth's signUpEmail creates the User + Account + Session outside our
-  // control — it can't run inside our tx, so acceptance is NOT fully atomic.
-  // Known limitation (inherent to Better Auth): if signUpEmail succeeds but the
-  // txWithAudit below fails/rolls back, the User row persists with the DEFAULT
-  // role (MEMBER, never the admin-chosen role — no privilege escalation) and a
-  // usable password, while the invite token remains valid and no audit row is
-  // written. That leaves an under-privileged orphan + a still-consumable invite,
-  // never an over-privileged user. What IS atomic is everything downstream of
-  // sign-up: the admin-chosen role/initials, consuming the invite token, and the
-  // audit row all commit or roll back together in one txWithAudit.
-  const { response } = await auth.api.signUpEmail({
-    body: { email: invite.email, password, name: invite.name },
-    returnHeaders: true,
-  });
+  const email = invite.email.trim().toLowerCase();
+  const passwordHash = await hashPassword(password);
+  // No session exists at acceptance time (the public /accept-invite route), so
+  // the new user is the audit actor. Its id is only known once the row exists;
+  // `audit` reads the actor when it is called, after the id is filled in below.
+  const selfActor: AuditActor = { name: invite.name, email, initials: invite.initials };
 
-  // No session actor exists yet at invite-acceptance time (this runs from the
-  // public /accept-invite route, pre-login). Use the newly created user itself
-  // as the audit actor — it's the only identity available and it IS the entity
-  // the row is about ("this user accepted their invite").
-  const selfActor: AuditActor = {
-    id: response.user.id,
-    name: invite.name,
-    email: invite.email,
-    initials: invite.initials,
-  };
+  try {
+    return await txWithAudit(selfActor, async (tx, audit) => {
+      const clash = await findInviteClash(tx, email, invite.initials);
+      if (clash) throw acceptClashError(clash, invite);
 
-  await txWithAudit(selfActor, async (tx, audit) => {
-    // Apply the role/initials the admin chose (Better Auth can't set input:false
-    // fields at sign-up, by design — no privilege escalation).
-    await tx.user.update({
-      where: { id: response.user.id },
-      data: {
-        role: invite.role,
-        initials: invite.initials,
-        emailVerified: true,
-      },
+      const user = await tx.user.create({
+        data: {
+          email,
+          name: invite.name,
+          role: invite.role,
+          initials: invite.initials,
+          emailVerified: true,
+        },
+      });
+      await tx.account.create({
+        data: {
+          userId: user.id,
+          accountId: user.id,
+          providerId: "credential",
+          password: passwordHash,
+        },
+      });
+      selfActor.id = user.id;
+
+      // Single-use: delete any invite rows for this email/token.
+      await tx.verification.deleteMany({
+        where: {
+          OR: [
+            { identifier: { equals: email, mode: "insensitive" } },
+            { value: { contains: `"token":"${invite.token}"` } },
+          ],
+        },
+      });
+
+      await audit({
+        action: "InviteAccepted",
+        entityType: "user",
+        entityId: user.id,
+        data: { role: invite.role, initials: invite.initials },
+      });
+      return { id: user.id, email: user.email };
     });
-
-    // Single-use: delete any invite rows for this email/token.
-    await tx.verification.deleteMany({
-      where: { OR: [{ identifier: invite.email }, { value: { contains: invite.token } }] },
-    });
-
-    await audit({
-      action: "InviteAccepted",
-      entityType: "user",
-      entityId: response.user.id,
-      data: { role: invite.role, initials: invite.initials },
-    });
-  });
-
-  return { id: response.user.id, email: response.user.email };
+  } catch (e) {
+    // A concurrent invite acceptance or rename can still win between the check
+    // and the insert; the unique index then decides, with the same message.
+    if (hasSqlState(e, "P2002") || hasSqlState(e, "23505")) {
+      const clash = await findInviteClash(db, email, invite.initials);
+      throw acceptClashError(clash ?? "email", invite);
+    }
+    throw e;
+  }
 }
 
 /**
@@ -276,6 +336,9 @@ export async function updateUser(
         weeklyCapacityMinutes: capacityMinutes,
       },
     });
+    // A link issued before the deactivation must not work again after a
+    // reactivation.
+    if (input.isActive === false) await deleteResetLinks(tx, id);
     await audit({
       action: "UserUpdated",
       entityType: "user",
