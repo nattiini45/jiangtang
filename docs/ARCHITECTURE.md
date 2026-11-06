@@ -88,7 +88,7 @@ are optional segments in `flatRoutes`, so the two surfaces are:
   shell, a web manifest and a service worker (`app/lib/pwa/`), and an offline queue that replays
   captured tickets, tasks and notes exactly once (ticket photos are never queued: offline, the
   `/m` entry form keeps them until the person retries or saves the ticket without them).
-- **Public or machine routes**: `login`, `logout`, `accept-invite.$token`, `healthz`,
+- **Public or machine routes**: `login`, `logout`, `accept-invite.$token`, `reset-password.$token`, `healthz`,
   `calendar.$token.ics` (token-gated iCal feed), `export.workspace[.]json`, `notes.$id.export`,
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`
   and `prefs.locale`.
@@ -196,8 +196,9 @@ manages accounts) and `MEMBER`; `app/lib/rbac.server.ts` holds the permission ma
 and action calls one of them itself rather than relying on its layout, because a single-fetch `.data`
 request with `?_routes=` runs only the named loaders. `test/routes/route-auth-guard.test.ts` calls
 every handler anonymously and fails unless it redirects to `/login` without touching the database
-client first; the public routes (sign-in, sign-out, invitation acceptance, the token-gated iCal
-feed, the health check, the language switch and the 404 catch-all) are on its explicit list.
+client first; the public routes (sign-in, sign-out, invitation acceptance, the token-gated password
+reset page, the token-gated iCal feed, the health check, the language switch and the 404 catch-all)
+are on its explicit list.
 Failed sign-ins are throttled per email (10) and per client address (30; an IPv6 client counts per
 /64) within 15 minutes by `app/lib/login-throttle.server.ts`; it runs as a Better Auth hook, so the
 login form and `/api/auth/sign-in/email` share it. The client address is the right-most
@@ -205,8 +206,12 @@ login form and `/api/auth/sign-in/email` share it. The client address is the rig
 email is over its limit even the right password is refused, so anyone who knows an address can keep
 that account locked by repeating failed attempts. The state is in memory for the single app
 process: restarting the app container clears every lock.
-`sanitizeNext` restricts
-post-login redirects to local paths. The first admin of a production installation comes from
+`sanitizeNext` restricts post-login redirects to local paths. Signed-in users change their own
+password on `/account` (linked from the user block in the sidebar) through Better Auth's
+`changePassword`, which needs the current password and signs out their other sessions. A forgotten
+password is reset through a one-time link (`app/domains/auth/password-reset.server.ts`) that an
+admin issues from the user's page or the operator prints with `pnpm admin:reset-password <email>`.
+The first admin of a production installation comes from
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
 while no active admin exists, so a fresh installation and a full lockout can both be recovered from
 the environment (recovering an existing account needs `ADMIN_PASSWORD` to match its current
@@ -227,7 +232,10 @@ behind the same interface.
 Event mutations enqueue a `CalendarOutbox` row in the same transaction (one row per event UID and
 iCal `SEQUENCE`, unique in the database), so calendar downtime never blocks a write. A drain worker
 (`app/lib/calendar/calendar.boot.server.ts`, `app/lib/calendar/outbox.server.ts`) publishes pending rows in
-sequence order through a `CalendarPublisher`, with exponential backoff and a retry cap. The real
+sequence order through a `CalendarPublisher`. A failed push is retried with exponential backoff
+(capped at an hour) for 72 hours before it is parked as `FAILED`; a later change of the same event
+supersedes a failed op, since every row carries the event's full state, so one bad push never holds
+back the next. `/admin/index` lists retrying and parked pushes. The real
 publisher is a zero-dependency CalDAV client (`app/lib/calendar/caldav.server.ts`) configured with
 `CALDAV_URL`, `CALDAV_USERNAME` and `CALDAV_PASSWORD`; without them a no-op publisher is used and
 the worker stays idle. The token-gated iCal feed (`calendar.$token.ics`, `ICAL_FEED_TOKEN`) renders

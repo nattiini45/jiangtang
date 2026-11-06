@@ -27,6 +27,11 @@ COPY --from=build /app/build ./build
 COPY --from=build /app/app ./app
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/server.ts /app/prisma.config.ts /app/package.json /app/pnpm-lock.yaml ./
+# `node --import tsx scripts/admin-reset-password.ts <email>`: the operator
+# recovery command (pnpm is not used at runtime). tsx needs
+# tsconfig.json to resolve the `~/` imports of the app modules it loads.
+COPY --from=build /app/tsconfig.json ./
+COPY --from=build /app/scripts/admin-reset-password.ts ./scripts/
 RUN mkdir -p /data/uploads && chown -R app:app /data
 USER app
 EXPOSE 3000

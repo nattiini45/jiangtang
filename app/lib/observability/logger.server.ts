@@ -46,11 +46,11 @@ export const logger = pino({
 });
 
 /**
- * Replaces the token segment of token-bearing routes (the iCal feed and the invite
- * link) so a request log line never carries the token. Other paths and the query
+ * Replaces the token segment of token-bearing routes (the iCal feed, the invite
+ * link and the password reset link) so a request log line never carries the token. Other paths and the query
  * string are returned unchanged.
  */
-const TOKEN_SEGMENT = /(\/(?:calendar|accept-invite)\/)[^/?#]+/gi;
+const TOKEN_SEGMENT = /(\/(?:calendar|accept-invite|reset-password)\/)[^/?#]+/gi;
 
 export function redactTokenSegments(url: string): string {
   return url.replace(TOKEN_SEGMENT, "$1:token");

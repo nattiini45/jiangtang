@@ -47,6 +47,7 @@ export const eventsDe = {
   "events.sync.SENT": "Synchronisiert",
   "events.sync.FAILED": "Fehlgeschlagen",
   "events.sync.PENDING": "Ausstehend",
+  "events.sync.SUPERSEDED": "Überholt",
   "events.sync.attempts": "Versuche: {attempts}",
 
   "events.new.title": "Neue Veranstaltung",
