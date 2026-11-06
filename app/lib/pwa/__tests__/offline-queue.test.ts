@@ -161,6 +161,35 @@ describe("offline queue", () => {
     expect(calls).toEqual(["/m/notes/new.data"]);
   });
 
+  it("sends and stores under a clientId the caller gives, so a retry reuses it", async () => {
+    const store = new MemoryQueueStore();
+    const sent: string[] = [];
+    const fetchImpl = (async (_url: string, init?: RequestInit) => {
+      sent.push(new URLSearchParams(init?.body as URLSearchParams).get("clientId") ?? "");
+      throw new TypeError("fetch failed");
+    }) as typeof fetch;
+    const clientId = newClientId();
+    const res = await captureOrQueue("/m?index", { title: "t" }, store, fetchImpl, "u1", clientId);
+    expect(res.clientId).toBe(clientId);
+    expect(sent).toEqual([clientId]);
+    expect((await store.list())[0].clientId).toBe(clientId);
+  });
+
+  it("puts .data before the query of an index route's surface URL", async () => {
+    const store = new MemoryQueueStore();
+    const calls: string[] = [];
+    await captureOrQueue(
+      "/m?index",
+      { title: "ticket" },
+      store,
+      fakeFetch([new TypeError("fetch failed")], calls),
+    );
+    // React Router's data URL for the /m index action is /m.data?index.
+    expect(calls).toEqual(["/m.data?index"]);
+    const [entry] = await store.list();
+    expect(entry.url).toBe("/m?index");
+  });
+
   it("decodes a single-fetch 2xx payload and carries the returned id", async () => {
     const store = new MemoryQueueStore();
     const res = await captureOrQueue(

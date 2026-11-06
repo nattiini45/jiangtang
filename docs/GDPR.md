@@ -143,7 +143,7 @@ Database backups are separate from in-application retention; see
 The mobile surface (`/m`) is an installable app, and two browser stores on the person's device hold
 personal data:
 
-- **The offline capture queue** (IndexedDB database `jiangtang-offline`). A task or note captured
+- **The offline capture queue** (IndexedDB database `jiangtang-offline`). A ticket, task or note captured
   while the network is down or the session has expired is kept here with everything typed into the
   form, until it is sent or the person discards it. Each entry records the account that queued it;
   only that account sees, counts and sends it, and the server refuses a capture sent under another

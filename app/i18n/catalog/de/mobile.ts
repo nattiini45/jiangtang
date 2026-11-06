@@ -49,6 +49,11 @@ export const mobileDe = {
   "mobile.entry.uploading": "Lade Fotos hoch…",
   "mobile.entry.continueWithout": "Ohne Fotos fortfahren",
   "mobile.entry.redirecting": "Weiterleiten…",
+  "mobile.entry.unsentPhotos":
+    "Nicht gesendet: keine Verbindung. Fotos lassen sich nicht offline speichern – versuch es erneut oder speichere den Eintrag offline ohne Fotos.",
+  "mobile.entry.unsentSignIn":
+    "Nicht gesendet: deine Sitzung ist abgelaufen. Fotos können auf diesem Gerät nicht warten: speichere den Eintrag ohne Fotos, er wird nach der Anmeldung gesendet, oder melde dich in einem anderen Tab an und versuch es erneut.",
+  "mobile.entry.saveWithoutPhotos": "Offline ohne Fotos speichern",
 
   "mobile.board.mineOnly": "Nur meine",
   "mobile.board.empty": "Keine Karten in dieser Spalte.",

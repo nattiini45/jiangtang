@@ -23,7 +23,7 @@ language, see [Language](#language)). Timestamps are stored in UTC and displayed
 - **Activity** — an append-only, cursor-paginated feed with per-entity history.
 - **Timesheet and capacity** — a weekly grid with a running timer and interval-union totals, plus
   demand-versus-capacity per assignee.
-- **Mobile** — a `/m` capture view for tasks and notes with an offline queue that replays exactly
+- **Mobile** — a `/m` capture view for tickets, tasks and notes with an offline queue that replays exactly
   once, a read-only mobile board and mobile search.
 - **Accounts** — invitation-only. The public HTTP sign-up endpoint is disabled; admins create
   one-time invitation links at `/admin/users`.
