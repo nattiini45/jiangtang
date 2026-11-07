@@ -164,7 +164,8 @@ curl -fsS https://<APP_DOMAIN>/healthz  # {"status":"ok","db":"up"}
 container, not returned to the caller.
 
 The container's own healthcheck polls `/login`; Compose marks `app` healthy only once the server
-answers. The alerting sidecar polls `/healthz` every 60 seconds when `ALERT_WEBHOOK` is set.
+answers. The alerting sidecar polls `/healthz` every 60 seconds when `ALERT_WEBHOOK` is set, and
+posts failed base backups and failing WAL archiving too (see [BACKUP.md](BACKUP.md#failure-alerts)).
 
 ## 6. First login
 
@@ -187,6 +188,29 @@ answers. The alerting sidecar polls `/healthz` every 60 seconds when `ALERT_WEBH
    `ADMIN_PASSWORD` that starts with `change-me` stops production boot, even after the first admin
    exists. Delete the line from `.env`, or replace the value, rather than keeping the `.env.example`
    placeholder. A set `ADMIN_PASSWORD` shorter than 8 characters is refused the same way.
+
+### Forgotten passwords
+
+Signed-in users change their own password on `/account`. When someone has forgotten theirs, issue a
+one-time reset link; the person opens it, chooses a new password and is signed out of every session.
+A link is valid for one day and for one use, a newer link for the same account replaces the older
+one, and only a hash of it is stored. Deactivated accounts get no link: activate them first.
+
+- **An admin can sign in:** open the user in `/admin/users`, choose „Link zum Zurücksetzen
+  erstellen" (Create reset link) and pass the link on out-of-band, as with an invitation.
+- **No admin can sign in** (for example the only admin forgot their password): run the operator
+  command in the app container. It prints a link built from `BETTER_AUTH_URL`:
+
+  ```sh
+  docker compose exec app node --import tsx scripts/admin-reset-password.ts admin@example.org
+  ```
+
+  In a checkout with `.env` filled in, `pnpm admin:reset-password admin@example.org` does the same.
+  An unknown or deactivated email exits with status 1 and changes nothing.
+
+Both paths write an audit row (`PasswordResetIssued`, then `PasswordReset` when the link is used);
+the operator command is recorded as „Operator (admin:reset-password)". The `ADMIN_EMAIL` bootstrap
+above is only for an installation with no active admin at all.
 
 ## 7. Optional demo data
 

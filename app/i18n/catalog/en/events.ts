@@ -48,6 +48,7 @@ export const eventsEn = {
   "events.sync.SENT": "Synced",
   "events.sync.FAILED": "Failed",
   "events.sync.PENDING": "Pending",
+  "events.sync.SUPERSEDED": "Superseded",
   "events.sync.attempts": "Attempts: {attempts}",
 
   "events.new.title": "New event",

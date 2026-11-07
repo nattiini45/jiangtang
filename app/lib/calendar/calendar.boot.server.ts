@@ -37,9 +37,11 @@ export async function register(_app: Express, ctx: BootContext): Promise<void> {
     if (running) return;
     running = true;
     try {
-      const { sent, failed, skipped } = await drainOnce(publisher);
-      if (sent || failed || skipped) {
-        console.log(`[calendar] outbox drained: sent=${sent} failed=${failed} skipped=${skipped}`);
+      const { sent, failed, skipped, superseded } = await drainOnce(publisher);
+      if (sent || failed || skipped || superseded) {
+        console.log(
+          `[calendar] outbox drained: sent=${sent} failed=${failed} skipped=${skipped} superseded=${superseded}`,
+        );
       }
     } catch (e) {
       console.error("[calendar] outbox drain failed:", (e as Error).message);

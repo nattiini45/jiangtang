@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { db } from "~/lib/db.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { NotFoundError, NoteConflictError, ValidationError } from "~/lib/errors.server";
 import {
   archiveNote,
   createNote,
@@ -101,7 +101,12 @@ describe("notes domain", () => {
   it("updateNote with identical values writes NOTHING — no audit row (the autosave case)", async () => {
     await ensureAuthor();
     const note = await make({ title: `${RUN} no-op`, body: "x" });
-    const again = await updateNote(author, note.id, input({ title: `${RUN} no-op`, body: "x" }));
+    const again = await updateNote(
+      author,
+      note.id,
+      input({ title: `${RUN} no-op`, body: "x" }),
+      note.version,
+    );
     expect(again.body).toBe("x");
     const rows = await auditFor(note.id);
     expect(rows.map((r) => r.action)).toEqual(["NoteCreated"]);
@@ -114,6 +119,7 @@ describe("notes domain", () => {
       author,
       note.id,
       input({ title: `${RUN} diff`, body: "geheim neu", pinned: true }),
+      note.version,
     );
     const rows = await auditFor(note.id);
     expect(rows).toHaveLength(2);
@@ -122,6 +128,70 @@ describe("notes domain", () => {
     expect(data.fields.sort()).toEqual(["body", "pinned"]);
     expect(JSON.stringify(data)).not.toContain("geheim neu");
     expect(JSON.stringify(data)).not.toContain("geheim alt");
+  });
+
+  it("updateNote bumps the version on a real write, not on a no-op", async () => {
+    await ensureAuthor();
+    const note = await make({ title: `${RUN} ver`, body: "eins" });
+    expect(note.version).toBe(1);
+    const same = await updateNote(author, note.id, input({ title: `${RUN} ver`, body: "eins" }), 1);
+    expect(same.version).toBe(1);
+    const next = await updateNote(author, note.id, input({ title: `${RUN} ver`, body: "zwei" }), 1);
+    expect(next.version).toBe(2);
+  });
+
+  it("a stale version is refused with NoteConflictError — the newer text survives, no audit row", async () => {
+    await ensureAuthor();
+    const note = await make({ title: `${RUN} stale`, body: "Ausgangstext" });
+    // Tab A and tab B both loaded version 1; A saves first.
+    await updateNote(author, note.id, input({ title: `${RUN} stale`, body: "Text von A" }), 1);
+    const attempt = updateNote(
+      author,
+      note.id,
+      input({ title: `${RUN} stale`, body: "Text von B" }),
+      1,
+    );
+    await expect(attempt).rejects.toBeInstanceOf(NoteConflictError);
+    await expect(attempt).rejects.toMatchObject({
+      current: { id: note.id, body: "Text von A", version: 2 },
+    });
+    const stored = await getNote(note.id);
+    expect(stored?.body).toBe("Text von A");
+    expect(stored?.version).toBe(2);
+    const rows = await auditFor(note.id);
+    expect(rows.map((r) => r.action)).toEqual(["NoteCreated", "NoteUpdated"]);
+  });
+
+  it("two concurrent saves from the same version: exactly one wins", async () => {
+    await ensureAuthor();
+    const note = await make({ title: `${RUN} race`, body: "start" });
+    const results = await Promise.allSettled([
+      updateNote(author, note.id, input({ title: `${RUN} race`, body: "links" }), 1),
+      updateNote(author, note.id, input({ title: `${RUN} race`, body: "rechts" }), 1),
+    ]);
+    const won = results.filter((r) => r.status === "fulfilled");
+    const lost = results.filter((r) => r.status === "rejected");
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(1);
+    expect((lost[0] as PromiseRejectedResult).reason).toBeInstanceOf(NoteConflictError);
+    const stored = await getNote(note.id);
+    expect(stored?.version).toBe(2);
+    expect(stored?.body).toBe((won[0] as PromiseFulfilledResult<{ body: string }>).value.body);
+  });
+
+  it("pin and archive do not bump the version — an open editor keeps saving", async () => {
+    await ensureAuthor();
+    const note = await make({ title: `${RUN} pinver`, body: "a" });
+    await setNotePinned(author, note.id, true);
+    await archiveNote(author, note.id);
+    await unarchiveNote(author, note.id);
+    const saved = await updateNote(
+      author,
+      note.id,
+      input({ title: `${RUN} pinver`, body: "b", pinned: true }),
+      note.version,
+    );
+    expect(saved.body).toBe("b");
   });
 
   it("pin/unpin writes the matching verbs; re-pin is a no-op", async () => {

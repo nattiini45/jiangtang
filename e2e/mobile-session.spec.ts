@@ -126,6 +126,7 @@ test("the More sheet lists every mobile section as a flat single-level list", as
     "Zeiterfassung",
     "Board",
     "Suche",
+    "Benachrichtigungen",
     "Neue Aufgabe",
     "Neue Notiz",
   ]) {

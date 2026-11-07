@@ -75,6 +75,8 @@ const PUBLIC: Record<string, string> = {
   "routes/login": "the sign-in form and its action",
   "routes/logout": "ends the session; harmless without one",
   "routes/accept-invite.$token": "invitees have no account yet; the invite token gates it",
+  "routes/reset-password.$token":
+    "the person cannot sign in yet; the one-time reset token gates it",
   "routes/calendar.$token.ics":
     "calendar clients subscribe without cookies; the feed token gates it",
   "routes/healthz": "liveness probe for the load balancer; returns no application data",

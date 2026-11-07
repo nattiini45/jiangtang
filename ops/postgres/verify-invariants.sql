@@ -15,7 +15,8 @@
 -- depends on `service_completed_successfully` — stops. No statement below is
 -- DDL or DML, and none sets a configuration value that outlives the block.
 --
--- Keep this list in sync with the seven-file baseline in prisma/migrations/:
+-- Keep this list in sync with the seven-file baseline in prisma/migrations/
+-- (later migrations follow it and are only required to come after it):
 -- it covers the invariants that are NOT restorable by re-running a Prisma
 -- migration on an existing database (folded hand-written SQL: EXCLUDE
 -- constraints, triggers, extensions, indexes Prisma does not model, reference
@@ -113,15 +114,16 @@ BEGIN
     missing := array_append(missing, 'partial unique index time_entry_one_running_per_user on "TimeEntry" (single running timer)');
   END IF;
 
-  -- ── 8. The applied ledger is exactly the seven-file baseline ──
+  -- ── 8. The applied ledger starts with the seven-file baseline ──
   -- A deploy that half-applied, or a database still carrying a name from the
   -- historical chain, is not the schema these invariants are written for.
   SELECT to_regclass('public._prisma_migrations') IS NOT NULL INTO have;
   IF NOT have THEN
     missing := array_append(missing, 'table "_prisma_migrations" (the migration ledger — run prisma migrate deploy first)');
   ELSE
-    SELECT count(*) = 7
-       AND array_agg(migration_name ORDER BY migration_name)::text[] = ARRAY[
+    -- Later migrations sort after the baseline, so the baseline is the prefix.
+    SELECT count(*) >= 7
+       AND (array_agg(migration_name ORDER BY migration_name)::text[])[1:7] = ARRAY[
              '20261023000000_extensions',
              '20261023000100_core_schema',
              '20261023000200_booking_constraints',
@@ -134,7 +136,7 @@ BEGIN
       FROM _prisma_migrations
       WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL;
     IF NOT have THEN
-      missing := array_append(missing, '_prisma_migrations does not hold exactly the seven canonical finished migrations (unapplied, rolled back, or historical name present)');
+      missing := array_append(missing, '_prisma_migrations does not start with the seven canonical finished migrations (unapplied, rolled back, or historical name present)');
     END IF;
   END IF;
 
@@ -280,6 +282,6 @@ BEGIN
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 18 enums / 53 foreign keys / 2 CHECKs, >=77 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 18 enums / 53 foreign keys / 2 CHECKs, >=77 public indexes';
 END
 $verify$;

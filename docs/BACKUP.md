@@ -283,6 +283,23 @@ Both volumes now come from the same stopped snapshot. Never combine this databas
 archive with a later WAL-G PITR database (Capability 1) and call the result
 coherent: that would mix two different moments.
 
+## Failure alerts
+
+With `ALERT_WEBHOOK` set, the `alerting` sidecar posts backup problems to the same webhook as
+downtime. The `backup` sidecar records them in the shared `backup-status` volume and the alerting
+sidecar reads it once a minute (`ops/alerting/backup-alert.sh`):
+
+| Alert | Raised when | Recorded by |
+| --- | --- | --- |
+| Base backup failed | `backup.sh` exits non-zero, including a refused configuration | `ops/postgres/backup.sh` (`backup.failed`) |
+| No recent base backup | the last successful base backup is older than 36 hours (`BACKUP_MAX_AGE_SECONDS`), for example because the sidecar stopped | `backup.sh` stamps `backup.ok` on success |
+| WAL archiving failing | `pg_stat_archiver` shows a failed push newer than the last successful one, or cannot be read; checked hourly | `ops/postgres/check-wal-archive.sh` (`wal-archive.failed`) |
+
+Each alert is posted once when it appears or its first line changes, repeated every 6 hours while it
+persists (`REALERT_SECONDS`), and followed by a recovery message once it clears. Nothing is
+reported before the first backup has run, and an install without `WALG_S3_PREFIX` records no WAL
+failures. The details stay in `docker compose logs backup` and `docker compose logs postgres`.
+
 ## Monthly automated smoke check (opt-in)
 
 With `RESTORE_DRILL_ENABLED=1`, the backup sidecar runs `ops/postgres/restore-drill.sh` on the

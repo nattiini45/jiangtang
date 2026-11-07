@@ -69,7 +69,8 @@ export async function importNotesInTx(
     };
     const before = await tx.note.findUnique({ where: { id: n.id }, select: { id: true } });
     if (before) {
-      await tx.note.update({ where: { id: n.id }, data });
+      // The version bump makes an editor still open on the old text conflict.
+      await tx.note.update({ where: { id: n.id }, data: { ...data, version: { increment: 1 } } });
     } else {
       await tx.note.create({ data: { ...data, id: n.id, authorId: actor.id! } });
     }

@@ -17,6 +17,9 @@ import {
  */
 export const MIN_PASSWORD_LENGTH = 8;
 
+/** Longest password Better Auth accepts, at sign-in as well as when it is set. */
+export const MAX_PASSWORD_LENGTH = 128;
+
 /**
  * Who is signing in, for the failed-sign-in throttle. Both entry points reach
  * it: the HTTP router passes the request headers, and the login form forwards
@@ -51,7 +54,7 @@ export const auth = betterAuth({
   database: prismaAdapter(db, { provider: "postgresql" }),
   // Invitation-only access: the HTTP router rejects public email sign-up
   // (disabledPaths is an onRequest hook; programmatic auth.api.signUpEmail used
-  // by bootstrap, dev-seed and invite acceptance is unaffected).
+  // by bootstrap and dev-seed is unaffected).
   disabledPaths: ["/sign-up/email"],
   // Hooks run for the HTTP router and for `auth.api.*` calls alike. Better
   // Auth's own rate limiter lives in the router only, so it never sees the
@@ -80,6 +83,7 @@ export const auth = betterAuth({
     enabled: true,
     autoSignIn: true,
     minPasswordLength: MIN_PASSWORD_LENGTH,
+    maxPasswordLength: MAX_PASSWORD_LENGTH,
   },
   user: {
     additionalFields: {

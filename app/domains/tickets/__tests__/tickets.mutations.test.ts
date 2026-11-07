@@ -267,3 +267,40 @@ describe("ticket mutations", () => {
     expect(updated.reporterId).toBe(r2.id);
   });
 });
+
+describe("createTicket — offline capture clientId", () => {
+  const cid = (tag: string) =>
+    `c${RUN.replace(/[^a-z0-9]/g, "")}${tag}`.padEnd(25, "0").slice(0, 25);
+  const auditFor = (id: string) =>
+    db.activityLog.findMany({ where: { entityType: "ticket", entityId: id } });
+
+  it("clientId makes createTicket idempotent — same row, ONE audit entry", async () => {
+    const clientId = cid("idem");
+    const first = await createTicket(actor, input({ title: `${RUN} idem` }), clientId);
+    createdTicketIds.push(first.id);
+    expect(first.id).toBe(clientId);
+    const second = await createTicket(actor, input({ title: `${RUN} idem again` }), clientId);
+    expect(second.id).toBe(clientId);
+    expect(second.title).toBe(first.title); // the replay keeps the FIRST row
+    expect(await auditFor(clientId)).toHaveLength(1);
+  });
+
+  it("concurrent clientId creates resolve to one row and one audit entry", async () => {
+    const clientId = cid("race");
+    const [a, b] = await Promise.all([
+      createTicket(actor, input({ title: `${RUN} race a` }), clientId),
+      createTicket(actor, input({ title: `${RUN} race b` }), clientId),
+    ]);
+    createdTicketIds.push(clientId);
+    expect(a.id).toBe(clientId);
+    expect(b.id).toBe(clientId);
+    expect(await db.ticket.count({ where: { id: clientId } })).toBe(1);
+    expect(await auditFor(clientId)).toHaveLength(1);
+  });
+
+  it("a malformed clientId is refused, not silently stored", async () => {
+    await expect(
+      createTicket(actor, input({ title: `${RUN} bad id` }), "not-a-cuid"),
+    ).rejects.toThrow(ValidationError);
+  });
+});

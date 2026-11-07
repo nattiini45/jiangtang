@@ -2,6 +2,7 @@ import { tr } from "~/i18n/request-locale.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { db, type Tx } from "~/lib/db.server";
+import { isUniqueViolation } from "~/lib/db-errors.server";
 import { Prisma } from "~/generated/prisma/client";
 import type { Task, TaskStatus } from "~/generated/prisma/client";
 import {
@@ -207,21 +208,6 @@ export async function createTask(
     }
     throw error;
   }
-}
-
-/** P2002 or the driver-adapter's structured unique violation, at any depth. */
-function isUniqueViolation(error: unknown): boolean {
-  let cur: unknown = error;
-  for (let depth = 0; cur && depth < 6; depth++) {
-    const e = cur as {
-      code?: unknown;
-      meta?: { driverAdapterError?: { cause?: { kind?: unknown } } };
-    };
-    if (e.code === "P2002") return true;
-    if (e.meta?.driverAdapterError?.cause?.kind === "UniqueConstraintViolation") return true;
-    cur = (cur as { cause?: unknown }).cause;
-  }
-  return false;
 }
 
 /** The cuid shape the offline queue mints — anything else is a refusal. */

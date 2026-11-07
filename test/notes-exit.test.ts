@@ -46,14 +46,19 @@ describe("notes exit — note create→edit→pin→tag→export→delete→reim
     });
     noteIds.push(note.id);
 
-    await updateNote(actor, note.id, {
-      title: `${RUN} notiz`,
-      body: "# Überschrift\n\nMit **Markdown** und Ümläuten\n\n```\ncode\n```",
-      pinned: false,
-      tags: ["protokoll", "übung"],
-      projectId: undefined,
-      locationId: undefined,
-    });
+    await updateNote(
+      actor,
+      note.id,
+      {
+        title: `${RUN} notiz`,
+        body: "# Überschrift\n\nMit **Markdown** und Ümläuten\n\n```\ncode\n```",
+        pinned: false,
+        tags: ["protokoll", "übung"],
+        projectId: undefined,
+        locationId: undefined,
+      },
+      note.version,
+    );
     await setNotePinned(actor, note.id, true);
 
     const before = await getNote(note.id);

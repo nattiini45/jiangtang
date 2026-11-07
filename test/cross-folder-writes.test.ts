@@ -156,7 +156,10 @@ const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/activity": [],
   "app/domains/analytics": [],
   "app/domains/attachments": ["Attachment"],
-  "app/domains/auth": ["User", "Verification"],
+  // Account and Session are Better Auth's tables; the auth folder writes them
+  // itself where a credential or sessions must change in an audited transaction
+  // (invite acceptance, password reset, erasure).
+  "app/domains/auth": ["User", "Verification", "Account", "Session"],
   "app/domains/board": [],
   "app/domains/catalog": ["EquipmentModel"],
   "app/domains/dashboard": [],
@@ -196,10 +199,11 @@ const FOLDERS: Record<string, readonly string[]> = {
  * The models no folder owns. **An explicit `null`, never an absent key.**
  * A guard that reads an absent key as "nobody owns it" lets the next
  * cross-folder write arrive silently — and the remaining entries are models
- * the tree has not written yet (`Project`, `Task`, `TaskAssignees`
- * and `TaskDependency` have moved out of this list into their owning folders).
+ * the tree has not written yet (`Project`, `Task`, `TaskAssignees`,
+ * `TaskDependency`, `Account` and `Session` have moved out of this list into
+ * their owning folders).
  */
-const UNOWNED_MODELS = ["Account", "Session", "Vendor"] as const;
+const UNOWNED_MODELS = ["Vendor"] as const;
 
 /** b: routes are scanned for direct `db.` access, read or write. */
 const ROUTE_SCOPE = "app/routes";

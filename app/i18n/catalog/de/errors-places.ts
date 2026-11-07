@@ -108,12 +108,24 @@ export const errorsPlacesDe = {
   "places.err.auth.initialsMax": "Initialen dürfen höchstens 6 Zeichen lang sein.",
   "places.err.auth.initialsLetters": "Initialen dürfen nur Buchstaben enthalten.",
   "places.err.auth.passwordMin": "Passwort muss mindestens 8 Zeichen lang sein.",
+  "places.err.auth.passwordMax": "Passwort darf höchstens 128 Zeichen lang sein.",
   "places.err.auth.passwordMismatch": "Passwörter stimmen nicht überein.",
   "places.err.auth.confirmEmail": "Bitte bestätige die E-Mail-Adresse.",
   "places.err.auth.capacityNegative": "Kapazität darf nicht negativ sein.",
   "places.err.auth.capacityMax": "Kapazität kann höchstens 168 h/Woche sein.",
   "places.err.user.notFound": "Benutzer nicht gefunden.",
   "places.err.invite.notFound": "Einladung nicht gefunden oder abgelaufen.",
+  "places.err.reset.notFound":
+    "Dieser Link zum Zurücksetzen ist ungültig, abgelaufen oder wurde schon benutzt.",
+  "places.err.reset.noAccount": "Kein aktives Konto mit dieser E-Mail-Adresse.",
+  "places.err.reset.inactive":
+    "Das Konto ist deaktiviert. Aktiviere es, bevor du einen Link zum Zurücksetzen erstellst.",
+  "places.err.invite.emailTaken": "Für diese E-Mail-Adresse gibt es bereits ein Konto.",
+  "places.err.invite.initialsTaken": "Die Initialen {initials} sind bereits vergeben.",
+  "places.err.invite.acceptEmailTaken":
+    "Für diese E-Mail-Adresse gibt es bereits ein Konto. Melde dich an oder wende dich an die Administration.",
+  "places.err.invite.acceptInitialsTaken":
+    "Die Initialen {initials} aus dieser Einladung sind inzwischen vergeben. Bitte die Administration um eine neue Einladung.",
   "places.err.user.lastAdmin":
     "Der letzte aktive Administrator kann nicht deaktiviert/herabgestuft werden.",
 

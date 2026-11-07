@@ -1,6 +1,6 @@
 import { redirect } from "react-router";
 import type { Route } from "./+types/route";
-import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
+import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { resolveInvite, acceptInvite } from "~/domains/auth/users.queries.server";
 import { acceptInviteSchema } from "~/domains/auth/users.schema";
@@ -46,6 +46,10 @@ export async function action({ request }: Route.ActionArgs) {
     await acceptInvite(invite, result.data.password);
     return redirect("/login");
   } catch (e) {
+    // An email or initials clash: nothing was created, so say why on the form.
+    if (e instanceof ValidationError) {
+      return { fieldErrors: e.fieldErrors, formErrors: e.formErrors };
+    }
     throw toErrorResponse(e);
   }
 }
@@ -58,12 +62,18 @@ export default function AcceptInvite({ loaderData, actionData }: Route.Component
   const t = useT();
   const fieldErrors =
     actionData && "fieldErrors" in actionData ? actionData.fieldErrors : undefined;
+  const formErrors = actionData && "formErrors" in actionData ? actionData.formErrors : undefined;
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <LanguageSwitcher className="absolute right-4 top-4" />
       <div className="bg-card text-card-foreground shadow-surface-3 w-full max-w-sm rounded-xl p-6">
         <h1 className="text-xl font-bold">{t("auth.invite.heading")}</h1>
         <p className="text-muted-foreground mt-1 text-sm">{t("auth.invite.intro")}</p>
+        {formErrors?.length ? (
+          <p role="alert" className="text-destructive mt-4 text-sm">
+            {formErrors.join(" ")}
+          </p>
+        ) : null}
         <ZodForm className="mt-4" fieldErrors={fieldErrors}>
           <input type="hidden" name="token" value={loaderData.token} />
           <FormField name="password" label={t("auth.invite.password")}>

@@ -1,6 +1,7 @@
 import {
   cpSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -14,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * The eight-file migration baseline is a baseline only if it is internally
+ * The seven-file migration baseline is a baseline only if it is internally
  * complete: one ordered chain, no fragment directory beside it, and the counts
  * the consolidation was accepted for. This suite asserts exactly that, and it is
  * FILESYSTEM-ONLY on purpose — it opens no pool, imports no `pg`, and reads no
@@ -26,8 +27,13 @@ import { describe, expect, it } from "vitest";
  * The measurement is comment-stripped, the same call `test/workitem-view.test.ts`
  * and `guards.sh` make: the migration headers quote the statements they explain,
  * so a raw substring count would measure prose. Every count below is derived from
- * the executable SQL of the eight files, never from a summary written somewhere
+ * the executable SQL of the seven files, never from a summary written somewhere
  * else.
+ *
+ * Migrations added after the baseline are allowed: they must sort after the
+ * seven and carry a `<14-digit UTC timestamp>_<name>` directory with a
+ * non-empty migration.sql. The counts and the lane checks measure the seven
+ * baseline files only, so a later migration never has to edit this suite.
  *
  * The negative controls at the bottom mutate a COPY in the system temp
  * directory and assert the same checker rejects it. Without them, "the checker
@@ -38,7 +44,7 @@ import { describe, expect, it } from "vitest";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PRISMA_DIR = join(REPO_ROOT, "prisma");
 
-/** The eight canonical directories, in chain order. */
+/** The seven canonical directories, in chain order. */
 const CANONICAL_DIRS = [
   "20261023000000_extensions",
   "20261023000100_core_schema",
@@ -47,8 +53,10 @@ const CANONICAL_DIRS = [
   "20261023000400_search_indexes",
   "20261023000500_workitem_view",
   "20261023000600_time_tracking_constraints",
-  "20261107161719_notification_inbox",
 ] as const;
+
+/** Shape of a migration directory added after the baseline. */
+const LATER_DIR = /^\d{14}_[a-z0-9_]+$/;
 
 /** The lane vocabulary of the mapping table, in the order the INSERT lists it. */
 const CANONICAL_LANES = ["BACKLOG", "IN_PROGRESS", "IN_REVIEW", "DONE", "CANCELLED"] as const;
@@ -64,12 +72,12 @@ type Counts = {
   createTrigger: number;
 };
 
-/** Counted from the eight migration files; each count is re-derived below. */
+/** Counted from the seven migration files; each count is re-derived below. */
 const EXPECTED_COUNTS: Counts = {
-  createType: 19,
-  createTable: 31,
-  foreignKey: 54,
-  createIndex: 79,
+  createType: 18,
+  createTable: 30,
+  foreignKey: 53,
+  createIndex: 77,
   uniqueIndex: 20,
   check: 2,
   excludeUsing: 2,
@@ -219,6 +227,7 @@ function inspect(prismaDir: string): BaselineReport {
   const missingSql: string[] = [];
   const emptySql: string[] = [];
   const stripped: string[] = [];
+  const baseline = new Set<string>(CANONICAL_DIRS);
 
   for (const dir of migrationDirs) {
     const file = join(migrationsDir, dir, "migration.sql");
@@ -228,7 +237,7 @@ function inspect(prismaDir: string): BaselineReport {
     }
     const text = readFileSync(file, "utf8");
     if (text.trim() === "") emptySql.push(dir);
-    stripped.push(stripComments(text, "sql"));
+    if (baseline.has(dir)) stripped.push(stripComments(text, "sql"));
   }
 
   const sql = stripped.join("\n");
@@ -274,16 +283,22 @@ function inspect(prismaDir: string): BaselineReport {
 function problems(report: BaselineReport): string[] {
   const found: string[] = [];
 
-  const expectedEntries = [...CANONICAL_DIRS, "migration_lock.toml"].sort();
-  if (JSON.stringify(report.entries) !== JSON.stringify(expectedEntries)) {
+  const files = report.entries.filter((entry) => !report.migrationDirs.includes(entry));
+  if (JSON.stringify(files) !== JSON.stringify(["migration_lock.toml"])) {
     found.push(
-      `migration directory entries are ${JSON.stringify(report.entries)}, expected exactly ${JSON.stringify(expectedEntries)}`,
+      `files beside the migration directories are ${JSON.stringify(files)}, expected exactly ["migration_lock.toml"]`,
     );
   }
-  if (JSON.stringify(report.migrationDirs) !== JSON.stringify([...CANONICAL_DIRS])) {
+  const head = report.migrationDirs.slice(0, CANONICAL_DIRS.length);
+  if (JSON.stringify(head) !== JSON.stringify([...CANONICAL_DIRS])) {
     found.push(
-      `migration directories are ${JSON.stringify(report.migrationDirs)}, expected the canonical eight in order`,
+      `migration directories are ${JSON.stringify(report.migrationDirs)}, expected the canonical seven first and in order`,
     );
+  }
+  for (const dir of report.migrationDirs.slice(CANONICAL_DIRS.length)) {
+    if (!LATER_DIR.test(dir)) {
+      found.push(`migration directory ${dir} is not named <14-digit UTC timestamp>_<name>`);
+    }
   }
   if (report.sqlDirPresent) {
     found.push(
@@ -360,10 +375,15 @@ function inspectMutatedCopy(mutate: (prismaDir: string) => void): BaselineReport
 
 const LIVE = inspect(PRISMA_DIR);
 
-describe("migration baseline (eight files, filesystem only — no database)", () => {
-  it("holds exactly the eight canonical migration directories plus migration_lock.toml", () => {
-    expect(LIVE.entries).toEqual([...CANONICAL_DIRS, "migration_lock.toml"].sort());
-    expect(LIVE.migrationDirs).toEqual([...CANONICAL_DIRS]);
+describe("migration baseline (seven files first, filesystem only — no database)", () => {
+  it("starts with the seven canonical migration directories, beside only migration_lock.toml", () => {
+    expect(LIVE.migrationDirs.slice(0, CANONICAL_DIRS.length)).toEqual([...CANONICAL_DIRS]);
+    expect(LIVE.entries.filter((entry) => !LIVE.migrationDirs.includes(entry))).toEqual([
+      "migration_lock.toml",
+    ]);
+    for (const dir of LIVE.migrationDirs.slice(CANONICAL_DIRS.length)) {
+      expect(dir).toMatch(LATER_DIR);
+    }
   });
 
   it("gives every migration directory a non-empty migration.sql", () => {
@@ -441,7 +461,42 @@ describe("migration baseline — negative controls (the same checker rejects a m
       throw new Error("negative control could not be applied: no CREATE INDEX line found");
     });
     expect(problems(report)).toEqual(
-      expect.arrayContaining([expect.stringContaining("baseline-wide createIndex is 78")]),
+      expect.arrayContaining([expect.stringContaining("baseline-wide createIndex is 76")]),
+    );
+  });
+
+  it("rejects a migration slipped in between the baseline files", () => {
+    const report = inspectMutatedCopy((prismaDir) => {
+      const dir = join(prismaDir, "migrations", "20261023000250_wedged_in");
+      mkdirSync(dir);
+      writeFileSync(join(dir, "migration.sql"), "SELECT 1;\n");
+    });
+    expect(problems(report)).toEqual(
+      expect.arrayContaining([expect.stringContaining("expected the canonical seven first")]),
+    );
+  });
+
+  it("rejects a later migration without the timestamped name", () => {
+    const report = inspectMutatedCopy((prismaDir) => {
+      const dir = join(prismaDir, "migrations", "zz_unstamped");
+      mkdirSync(dir);
+      writeFileSync(join(dir, "migration.sql"), "SELECT 1;\n");
+    });
+    expect(problems(report)).toEqual(
+      expect.arrayContaining([expect.stringContaining("zz_unstamped is not named")]),
+    );
+  });
+
+  it("rejects a later migration with an empty migration.sql", () => {
+    const report = inspectMutatedCopy((prismaDir) => {
+      const dir = join(prismaDir, "migrations", "29991231000000_empty");
+      mkdirSync(dir);
+      writeFileSync(join(dir, "migration.sql"), "\n");
+    });
+    expect(problems(report)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("29991231000000_empty/migration.sql is empty"),
+      ]),
     );
   });
 

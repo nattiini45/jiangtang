@@ -1,9 +1,13 @@
 import * as React from "react";
-import { Form, useNavigate, useNavigation } from "react-router";
+import { useNavigate } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { safeParseForm } from "~/lib/validation.server";
+import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
+import { resolveLocale } from "~/i18n/locale.server";
+import { CAPTURE_HEADER } from "~/lib/pwa/offline-queue";
+import { assertCaptureOwner } from "~/lib/pwa/capture-owner.server";
+import { CaptureQueueStatus, useCaptureSubmit } from "~/components/mobile/capture-form";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { listTicketTargets } from "~/domains/tickets/tickets.queries.server";
 import { ticketCreateSchema } from "~/domains/tickets/tickets.schema";
@@ -26,7 +30,18 @@ import { useLocale, useT } from "~/i18n/use-t";
  * createTicket action as the desktop quick-entry (no domain code fork), with a
  * mobile-first single-column form + camera capture. Captured photos are uploaded
  * after the ticket exists, via the existing attachments.upload route.
+ *
+ * The submit goes through the offline capture queue, like `/m/tasks/new`: the
+ * `clientId` it mints becomes the ticket's id, so a replay cannot double the row.
+ * The queue stores form fields only, so a ticket with photos is never queued
+ * silently: offline, the form keeps the photos and the person chooses to retry
+ * or to save the entry offline without them. `/m` is an index route, so the
+ * queue posts to `/m?index` (data URL `/m.data?index`).
+ *
+ * The action answers the capture header with `{ id }` JSON; a plain form post
+ * gets `{ createdTicketId }` as before.
  */
+const CAPTURE_URL = "/m?index";
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: translate(metaLocale(matches), "mobile.meta.entry") }];
 }
@@ -39,14 +54,39 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
-  const result = await safeParseForm(request, ticketCreateSchema);
-  if (!result.success) return { fieldErrors: result.fieldErrors };
+  assertCaptureOwner(request, actor);
+  const locale = resolveLocale(request);
+  const wantsJson = request.headers.get(CAPTURE_HEADER) === "1";
+  const { clientId, ...rest } = formDataToObject(await request.formData());
+  const parsed = safeParse(ticketCreateSchema, rest, locale);
+  // A queued entry carries its capture time, so a replay hours later is still
+  // logged when it happened. The phone's clock may run ahead: never later than now.
+  if (parsed.success && parsed.data.occurredAt && parsed.data.occurredAt > new Date()) {
+    parsed.data.occurredAt = new Date();
+  }
   try {
-    const ticket = await createTicket(actor, result.data);
+    if (!parsed.success) {
+      throw new ValidationError(parsed.fieldErrors, parsed.formErrors);
+    }
+    const ticket = await createTicket(
+      actor,
+      parsed.data,
+      typeof clientId === "string" && clientId !== "" ? clientId : undefined,
+    );
     await emitChange({ entityType: "ticket", id: ticket.id, op: "created" });
+    if (wantsJson) return Response.json({ id: ticket.id });
     return { createdTicketId: ticket.id };
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError) {
+      if (wantsJson) {
+        const msg = [...e.formErrors, ...Object.values(e.fieldErrors).flat()].join(" · ");
+        return Response.json(
+          { error: msg || translate(locale, "err.invalidInput") },
+          { status: 400 },
+        );
+      }
+      return { fieldErrors: e.fieldErrors };
+    }
     throw toErrorResponse(e);
   }
 }
@@ -55,15 +95,24 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   const { rooms, equipment } = loaderData;
   const t = useT();
   const locale = useLocale();
-  const nav = useNavigation();
   const navigate = useNavigate();
-  const busy = nav.state !== "idle";
+  const { state, error, submit } = useCaptureSubmit(CAPTURE_URL);
+  const busy = state === "sending";
+  const [sentId, setSentId] = React.useState<string | null>(null);
+  const [done, setDone] = React.useState(false);
   const [pendingPhotos, setPendingPhotos] = React.useState<File[]>([]);
+  const formRef = React.useRef<HTMLFormElement>(null);
+  // The capture time of the current entry: the time of its first attempt, kept
+  // across retries. Held here, not in the DOM, since React re-applies the hidden
+  // input's default value on every render.
+  const capturedAt = React.useRef<string | null>(null);
+  // Remounts the photo widget, whose own counter would still count dropped photos.
+  const [photoKey, setPhotoKey] = React.useState(0);
   const [uploadError, setUploadError] = React.useState<string | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const startedRef = React.useRef(false);
   const createdId =
-    actionData && "createdTicketId" in actionData ? actionData.createdTicketId : null;
+    sentId ?? (actionData && "createdTicketId" in actionData ? actionData.createdTicketId : null);
   const fieldErrors =
     actionData && "fieldErrors" in actionData ? actionData.fieldErrors : undefined;
 
@@ -152,9 +201,48 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
     );
   }
 
+  // `queue: false` while photos are attached: the queue holds fields only, and
+  // queueing would leave the photos behind without the person deciding so.
+  const send = async (form: HTMLFormElement, queue: boolean) => {
+    // The capture time travels with the entry (see the action).
+    capturedAt.current ??= new Date().toISOString();
+    const stamp = form.elements.namedItem("occurredAt");
+    if (stamp instanceof HTMLInputElement) stamp.value = capturedAt.current;
+    const result = await submit(form, { queue });
+    // Sent or stored: the next submit is a new entry with its own time.
+    if (result?.state === "sent" || (result?.state === "queued" && queue)) {
+      capturedAt.current = null;
+    }
+    if (result?.state === "sent") {
+      if (result.id) setSentId(result.id);
+      else void navigate("/m/rooms");
+    } else if (result?.state === "queued" && queue) {
+      // Stored and listed below; a filled form invites a second tap, which
+      // would queue the same capture again under a new id.
+      form.reset();
+      setDone(false);
+      setPendingPhotos([]);
+      setPhotoKey((k) => k + 1);
+    }
+  };
+
+  const unsent = state === "unsent" || state === "unsentSignin";
+
   return (
-    <Form method="post" className="flex flex-col gap-4 px-4 py-4">
+    <form
+      ref={formRef}
+      method="post"
+      // Before hydration this is a native post: `?index` targets this index
+      // route's action rather than the /m layout.
+      action={CAPTURE_URL}
+      className="flex flex-col gap-4 px-4 py-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send(e.currentTarget, pendingPhotos.length === 0);
+      }}
+    >
       <h1 className="text-lg font-semibold">{t("mobile.entry.title")}</h1>
+      <input type="hidden" name="occurredAt" />
 
       <Label className="flex flex-col gap-1.5">
         <span>{t("mobile.entry.room")}</span>
@@ -213,6 +301,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
       <div className="flex flex-col gap-1.5">
         <span className="text-xs font-semibold">{t("mobile.entry.photo")}</span>
         <MobilePhotoCapture
+          key={photoKey}
           onCapture={(f) => setPendingPhotos((p) => [...p, f])}
           existingCount={0}
         />
@@ -226,15 +315,16 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
           <Label className="flex min-h-11 items-center gap-3 text-sm font-normal">
             <Checkbox
               className="size-5"
-              onChange={(e) => {
-                const hidden = document.querySelector<HTMLInputElement>('input[name="status"]');
-                if (hidden)
-                  hidden.value = e.target.checked ? TicketStatus.RESOLVED : TicketStatus.OPEN;
-              }}
+              checked={done}
+              onChange={(e) => setDone(e.target.checked)}
             />
             {t("mobile.entry.doneLog")}
           </Label>
-          <input type="hidden" name="status" value={TicketStatus.OPEN} />
+          <input
+            type="hidden"
+            name="status"
+            value={done ? TicketStatus.RESOLVED : TicketStatus.OPEN}
+          />
           <Label className="flex flex-col gap-1.5">
             <span>{t("mobile.entry.resolution")}</span>
             <Textarea name="resolution" rows={2} />
@@ -242,10 +332,51 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
         </div>
       </details>
 
+      {state === "queued" || state === "signin" ? (
+        <p role="status" className="bg-status-warning/15 rounded-md px-3 py-2 text-sm">
+          {t(state === "signin" ? "mobile.capture.queuedSignIn" : "mobile.capture.queued")}
+        </p>
+      ) : null}
+      {unsent ? (
+        <div role="alert" className="bg-status-warning/15 flex flex-col gap-2 rounded-md px-3 py-2">
+          <p className="text-sm">
+            {t(
+              state === "unsentSignin" ? "mobile.entry.unsentSignIn" : "mobile.entry.unsentPhotos",
+            )}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            className="min-h-11"
+            onClick={() => {
+              // The person chose to drop the photos: if the connection is back
+              // and the entry goes out now, they must not be uploaded after all.
+              setPendingPhotos([]);
+              setPhotoKey((k) => k + 1);
+              if (formRef.current) void send(formRef.current, true);
+            }}
+          >
+            {t("mobile.entry.saveWithoutPhotos")}
+          </Button>
+        </div>
+      ) : null}
+      {state === "refused" && error ? (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      ) : null}
+
       <Button type="submit" disabled={busy} className="h-12 w-full">
-        {busy ? t("mobile.entry.submitting") : t("mobile.entry.submit")}
+        {busy
+          ? t("mobile.entry.submitting")
+          : unsent
+            ? t("mobile.entry.retry")
+            : t("mobile.entry.submit")}
       </Button>
-    </Form>
+
+      <CaptureQueueStatus url={CAPTURE_URL} />
+    </form>
   );
 }
 

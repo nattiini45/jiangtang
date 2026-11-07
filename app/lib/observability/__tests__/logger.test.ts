@@ -150,6 +150,12 @@ describe("request-log URL redaction", () => {
     expect(redacted).not.toContain(INVITE_TOKEN);
   });
 
+  it("replaces the password reset token segment, including the route data request", () => {
+    const token = "synthetic-reset-token-0123abcd";
+    expect(redactTokenSegments(`/reset-password/${token}`)).toBe("/reset-password/:token");
+    expect(redactTokenSegments(`/reset-password/${token}.data`)).toBe("/reset-password/:token");
+  });
+
   it("redacts the token when the route prefix is upper or mixed case", () => {
     // React Router matches route paths case-insensitively, so these reach the same handlers.
     const upper = redactTokenSegments(`/CALENDAR/${FEED_TOKEN}/ics`);

@@ -56,7 +56,7 @@ import { createLatestReader } from "~/lib/pwa/latest-reader";
 export interface QueuedCapture {
   /** Dedupe key AND the entity's future id — cuid-shaped (`c` + hex). */
   clientId: string;
-  /** POST target, e.g. `/m/tasks/new`. */
+  /** POST target, e.g. `/m/tasks/new` (or `/m?index` for an index route). */
   url: string;
   fields: Record<string, string>;
   createdAt: number;
@@ -230,9 +230,11 @@ export interface CaptureResult {
 
 /**
  * Submit a capture form now, or queue it when the network is down. `fields`
- * are the form's serialised fields; `clientId` is added by this function —
- * callers do not set it. `userId` is the signed-in user a queued entry is
- * bound to.
+ * are the form's serialised fields; `clientId` is added by this function, not
+ * by the fields. `userId` is the signed-in user a queued entry is bound to.
+ * Pass `clientId` to send a retry of the same entry under the id of its
+ * earlier attempt: an attempt whose answer was lost may have created the row,
+ * and the id is what makes the retry return that row instead of a second one.
  */
 export async function captureOrQueue(
   url: string,
@@ -240,8 +242,8 @@ export async function captureOrQueue(
   store: OfflineQueueStore = defaultStore(),
   fetchImpl: typeof fetch = fetch,
   userId?: string,
+  clientId: string = newClientId(),
 ): Promise<CaptureResult> {
-  const clientId = newClientId();
   const entry: QueuedCapture = {
     clientId,
     url,
@@ -337,12 +339,23 @@ function isLoginTarget(target: string): boolean {
  */
 const SINGLE_FETCH_REDIRECT_STATUS = 202;
 
+/**
+ * The `.data` URL React Router answers an action on: the suffix goes on the
+ * path, before any query, so the index route `/m?index` posts to `/m.data?index`.
+ */
+function dataUrlOf(url: string): string {
+  const at = url.indexOf("?");
+  const path = at === -1 ? url : url.slice(0, at);
+  const query = at === -1 ? "" : url.slice(at);
+  return path.endsWith(".data") ? url : `${path}.data${query}`;
+}
+
 async function postEntry(entry: QueuedCapture, fetchImpl: typeof fetch): Promise<PostOutcome> {
   try {
     const body = new URLSearchParams({ ...entry.fields, clientId: entry.clientId });
     // A POST to the route path renders the document; `.data` is the data
     // request that carries the action's result back to `fetch`.
-    const dataUrl = entry.url.endsWith(".data") ? entry.url : `${entry.url}.data`;
+    const dataUrl = dataUrlOf(entry.url);
     const res = await fetchImpl(dataUrl, {
       method: "POST",
       headers: {

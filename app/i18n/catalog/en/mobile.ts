@@ -83,6 +83,11 @@ export const mobileEn = {
   "mobile.entry.uploading": "Uploading photos…",
   "mobile.entry.continueWithout": "Continue without photos",
   "mobile.entry.redirecting": "Redirecting…",
+  "mobile.entry.unsentPhotos":
+    "Not sent: there is no connection. Photos cannot be saved offline, so try again, or save the entry offline without its photos.",
+  "mobile.entry.unsentSignIn":
+    "Not sent: your session has expired. Photos cannot wait on this device: save the entry without them and it is sent after you sign in, or sign in in another tab and try again.",
+  "mobile.entry.saveWithoutPhotos": "Save offline without photos",
 
   "mobile.board.mineOnly": "Mine only",
   "mobile.board.empty": "No cards in this column.",
