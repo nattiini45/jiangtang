@@ -47,8 +47,10 @@ vi.mock("~/lib/auth.server", async (importOriginal) => {
 // Imported AFTER the mock so the route modules see the mocked requireUser.
 const detailRoute = await import("~/routes/_desktop.locations.$id/route");
 // The stock list loader, imported here and nowhere else modified: the panel links into the
-// stock namespace, and a link whose target shows something else is a lying URL.
-const stockIndexRoute = await import("~/routes/_desktop.inventory.stock._index/route");
+// stock namespace, and a link whose target shows something else is a lying URL. Since
+// `/inventory/stock` became a redirect, the loader lives on the tabbed inventory page
+// (`/inventory?tab=stock`).
+const stockIndexRoute = await import("~/routes/_desktop.inventory._index/route");
 
 /** ── Fixtures ─────────────────────────────────────────────────────────────── */
 
@@ -170,13 +172,18 @@ type DetailData = {
 const loadDetail = async (id: string): Promise<DetailData> =>
   (await detailRoute.loader({ params: { id } } as never)) as DetailData;
 
-const loadStockList = async (query = "") =>
-  (await stockIndexRoute.loader({
-    request: new Request(`http://localhost/inventory/stock${query}`),
+const loadStockList = async (query = "") => {
+  const extra = query.startsWith("?") ? `&${query.slice(1)}` : query;
+  const data = (await stockIndexRoute.loader({
+    request: new Request(`http://localhost/inventory?tab=stock${extra}`),
   } as never)) as {
-    items: Array<{ id: string; location: { id: string } | null }>;
-    filters: { locationId: string };
+    stock: {
+      items: Array<{ id: string; location: { id: string } | null }>;
+      filters: { locationId: string };
+    };
   };
+  return data.stock;
+};
 
 const idSet = (rows: Array<{ id: string }>) => new Set(rows.map((r) => r.id));
 

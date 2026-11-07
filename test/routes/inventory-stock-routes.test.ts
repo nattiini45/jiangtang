@@ -42,7 +42,9 @@ vi.mock("~/lib/auth.server", async (importOriginal) => {
 });
 
 // Imported AFTER the mock so the route modules see the mocked requireUser.
-const indexRoute = await import("~/routes/_desktop.inventory.stock._index/route");
+// The stock list loader lives on the tabbed inventory page since the
+// `/inventory/stock` URL became a redirect to `/inventory?tab=stock`.
+const indexRoute = await import("~/routes/_desktop.inventory._index/route");
 const newRoute = await import("~/routes/_desktop.inventory.stock.new/route");
 const detailRoute = await import("~/routes/_desktop.inventory.stock.$id/route");
 const mobileRoute = await import("~/routes/m.inventory.stock._index/route");
@@ -148,14 +150,19 @@ type ListRow = {
   equipment: { id: string; name: string | null } | null;
 };
 
-const loadIndex = async (query = "") =>
-  (await indexRoute.loader({
-    request: new Request(`http://localhost/inventory/stock${query}`),
+const loadIndex = async (query = "") => {
+  const extra = query.startsWith("?") ? `&${query.slice(1)}` : query;
+  const data = (await indexRoute.loader({
+    request: new Request(`http://localhost/inventory?tab=stock${extra}`),
   } as never)) as {
-    items: ListRow[];
-    locations: Array<{ id: string; name: string; kind: string; depth: number }>;
-    filters: { locationId: string; vendorId: string; search: string; includeUnassigned: boolean };
+    stock: {
+      items: ListRow[];
+      locations: Array<{ id: string; name: string; kind: string; depth: number }>;
+      filters: { locationId: string; vendorId: string; search: string; includeUnassigned: boolean };
+    };
   };
+  return data.stock;
+};
 
 const mine = (r: { items: ListRow[] }) => r.items.filter((i) => i.name.startsWith(RUN));
 const find = async (id: string) => db.inventoryItem.findUnique({ where: { id } });
@@ -1355,14 +1362,20 @@ describe("a save through the full editor, field by field", () => {
 
 describe("structural — the routes obey the boundaries a green suite cannot see", () => {
   const ROUTE_FILES = [
-    "../../app/routes/_desktop.inventory.stock._index/route.tsx",
+    // The stock list loader lives on the tabbed inventory page since
+    // `/inventory/stock` became a redirect to `/inventory?tab=stock`.
+    "../../app/routes/_desktop.inventory._index/route.tsx",
     "../../app/routes/_desktop.inventory.stock.new/route.tsx",
     "../../app/routes/_desktop.inventory.stock.$id/route.tsx",
     "../../app/routes/m.inventory.stock._index/route.tsx",
   ];
 
+  // The old `/inventory/stock` URL is now a redirect stub: it has no domain call to
+  // make, but it still must not reach for the db or the Prisma client directly.
+  const REDIRECT_FILES = ["../../app/routes/_desktop.inventory.stock._index/route.tsx"];
+
   it("no stock route reaches for the Prisma client or db.server itself", () => {
-    const sources = ROUTE_FILES.map((rel) =>
+    const sources = [...ROUTE_FILES, ...REDIRECT_FILES].map((rel) =>
       readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8"),
     );
     for (const src of sources) {
@@ -1374,7 +1387,12 @@ describe("structural — the routes obey the boundaries a green suite cannot see
       expect(specifiers).not.toContain("~/lib/db.server");
       expect(specifiers).not.toContain("~/generated/prisma/client");
       expect(specifiers.some((s) => s.startsWith("@prisma/client"))).toBe(false);
-      expect(specifiers.filter((s) => s.startsWith("~/domains/"))).not.toHaveLength(0);
+    }
+    // Routes that still query go through the domain modules, never around them.
+    for (const rel of ROUTE_FILES) {
+      const src = readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
+      const specifiers = [...src.matchAll(/(?:from|import)\s+["']([^"']+)["']/g)].map((m) => m[1]);
+      expect(specifiers.filter((s) => s.startsWith("~/domains/")), rel).not.toHaveLength(0);
     }
   });
 
