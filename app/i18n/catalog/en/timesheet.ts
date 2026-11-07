@@ -2,6 +2,7 @@ import type { timesheetDe } from "../de/timesheet";
 
 export const timesheetEn = {
   "timesheet.meta": "Time tracking · Jiangtang",
+  "timesheet.tabs.aria": "Time tracking sections",
   "timesheet.userPickerAria": "Choose user for time tracking",
   "timesheet.userPickerSubmit": "Select user",
   "timesheet.runningSince": "Timer running since {time}",

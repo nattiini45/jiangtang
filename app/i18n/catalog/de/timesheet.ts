@@ -1,6 +1,7 @@
 /** Time tracking, capacity heatmap and analytics dashboards. */
 export const timesheetDe = {
   "timesheet.meta": "Zeiterfassung · Jiangtang",
+  "timesheet.tabs.aria": "Abschnitte der Zeiterfassung",
   "timesheet.userPickerAria": "Nutzer für Zeiterfassung wählen",
   "timesheet.userPickerSubmit": "Nutzer wählen",
   "timesheet.runningSince": "Timer läuft seit {time}",
