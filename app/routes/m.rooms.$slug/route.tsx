@@ -5,6 +5,8 @@ import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
 import { listAttachments } from "~/domains/attachments/attachments.queries.server";
+import { QrCode } from "~/components/qr/qr-code";
+import { qrSvg } from "~/lib/qr.server";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { Button } from "~/components/ui/button";
 import { categoryLabel } from "~/components/inventory/labels";
@@ -28,7 +30,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const data = await getRoomDashboard(params.slug!);
   if (!data) throw toErrorResponse(new NotFoundError(tr("err.room.notFound")));
   const attachments = await listAttachments({ roomId: data.room.id });
-  return { data, attachments };
+  // Same QR as the desktop room page: scan → quick entry pre-filled with this room.
+  const origin = new URL(request.url).origin;
+  const qrHref = `${origin}/quick-entry?roomId=${data.room.id}`;
+  const qr = await qrSvg(qrHref);
+  return { data, attachments, qr, qrHref };
 }
 
 export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
@@ -111,6 +117,8 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
           </div>
         </section>
       ) : null}
+
+      <QrCode svg={loaderData.qr} href={loaderData.qrHref} titleKey="qr.room.title" />
 
       <Link
         to={`/rooms/${room.slug}`}

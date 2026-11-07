@@ -19,6 +19,7 @@ export const roomsEn = {
   "rooms.list.filterSubmit": "Filter",
   "rooms.list.empty": "No rooms found.",
   "rooms.list.manageCampuses": "Manage campuses",
+  "qr.room.title": "Scan to log an entry for this room",
 
   "rooms.col.roomNumber": "Room no.",
   "rooms.col.name": "Name",

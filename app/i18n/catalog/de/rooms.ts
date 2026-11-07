@@ -18,6 +18,7 @@ export const roomsDe = {
   "rooms.list.filterSubmit": "Filtern",
   "rooms.list.empty": "Keine Räume gefunden.",
   "rooms.list.manageCampuses": "Campus verwalten",
+  "qr.room.title": "Scannen, um einen Eintrag für diesen Raum zu erfassen",
 
   "rooms.col.roomNumber": "Raum-Nr.",
   "rooms.col.name": "Bezeichnung",

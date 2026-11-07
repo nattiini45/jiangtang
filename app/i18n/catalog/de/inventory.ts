@@ -33,6 +33,7 @@ export const inventoryDe = {
   "inventory.tab.stock": "Lager",
   "inventory.tab.frequencies": "Frequenzen",
   "inventory.tabs.aria": "Inventar-Abschnitte",
+  "qr.equipment.title": "Scannen, um dieses Gerät zu öffnen",
   "inventory.list.filterCategory": "Nach Kategorie filtern",
   "inventory.list.allCategories": "Alle Kategorien",
   "inventory.list.filterStatus": "Nach Status filtern",
