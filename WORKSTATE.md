@@ -34,8 +34,8 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 | # | Phase | Milestone | Status | Owner | Scope block |
 | --- | --- | --- | --- | --- | --- |
 | M0 | setup | Work-state mechanism + baseline checks green | done | orchestrator | WORKSTATE.md only |
-| M1 | Phase 1 | Quick wins: Caddy `/assets` compression, manifest (description/screenshots/shortcuts), import admin-only, login brand line | in_review | orchestrator (impl) / reviewer-m1 (review) | see Handoff M1 |
-| M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | pending | | see Handoff M2 |
+| M1 | Phase 1 | Quick wins: Caddy `/assets` compression, manifest (description/screenshots/shortcuts), import admin-only, login brand line | done | orchestrator (impl) / reviewer-m1 (review) | see Handoff M1 |
+| M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | in_progress | orchestrator (impl) | see Handoff M2 |
 | M3 | Phase 3 | Mobile parity: /m events-today, projects, notes list, timesheet timer, stock detail; flat full More sheet; SW precache + shortcuts | pending | | see Handoff M3 |
 | M4 | Phase 4a | In-app notification center (model + inbox UI + realtime + triggers: assignment, due soon, booking conflict, warranty) | pending | | see Handoff M4 |
 | M5 | Phase 4b | QR codes on room/equipment pages (scan → deep link / quick ticket) | pending | | see Handoff M5 |
@@ -68,6 +68,7 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
   (`docker compose -f docker-compose.rehearsal.yml config` if available, else careful review).
 
 ### Handoff M2 — desktop IA consolidation (UI-level; data models unchanged)
+- Log: started after M1 review round 2 APPROVED (f23a48d). Interpretation note: the "≤12 entries in 3 groups" count conflicts with the handoff's own enumeration (which lists 4 groups and keeps Timesheet + Activity); implemented the concrete mapping — only the four folded entries (Campuses, Stock, Frequencies, Capacity) leave the nav, everything else stays. Old URLs (/campuses, /capacity, /frequencies, /inventory/stock, /inventory/models) become redirects to the tab/manage views; route modules kept as redirect stubs so route-resolution pins hold.
 - In scope: `app/components/layout/nav.ts`, `app/components/layout/app-shell.tsx`,
   `app/components/command/verbs.ts` (only if needed — verbs derive from nav), the rooms /
   campuses / inventory / stock / frequencies / capacity / timesheet route folders **only to
@@ -136,10 +137,11 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 | Milestone | Round | Reviewer | Verdict | Findings | Resolution |
 | --- | --- | --- | --- | --- | --- |
 | — | — | — | — | — | — |
+| M1 | 1 | reviewer-m1 (fallback model; glm-5.3 config rejected) | CHANGES_REQUESTED | Blocker: Caddyfile:25 `encode zstd gzip @assets` fails `caddy validate` ("module not registered: http.encoders.@assets") — matcher must come first (`encode @assets zstd gzip`, verified valid). Major: `app/lib/pwa/__tests__/manifest.test.ts:35,57` still pins old manifest (`lang` undefined, description "AV-Workspace"), so `pnpm test` is red (2 failed of 1800). Minor: Caddyfile header comment still says "NO `encode` block". Rest of scope verified: ADMIN-only imports (guard test green, 95 tests), nav adminOnly honored in app-shell/verbs, login tagline in both catalogs, manifest JSON + screenshots (390x844/1280x720) OK, e2e 150/150. | Fix loop: reorder the encode directive to `encode @assets zstd gzip` in Caddyfile (and reword the stale header comment); update manifest.test.ts expectations to the new lang/description; re-run `pnpm test` and `caddy validate`. No other changes needed. |
+| M1 | 2 | reviewer-m1 (instructions-only fallback; glm-5.3 config rejected again: subagent_type_not_found) | APPROVED | Reviewed 371771d + fix loop (committed as f23a48d). Re-executed evidence: `caddy validate` (caddy:2 container) → "Valid configuration" on the fixed Caddyfile, old directive confirmed failing; guards OK; tsc exit 0; eslint clean; prettier clean; full Vitest 151 files / 1794 passed / 0 failed (round-1's 2 failures resolved); manifest JSON + screenshots (390x844 ×2, 1280x720) + shortcuts in scope verified; ADMIN-only import routes incl. siblings + nav adminOnly + guard test 95/95; login tagline keys in both catalogs. Not executed in this pass: `pnpm test:e2e` (round 1 reported 150/150). | None outstanding — all three round-1 findings resolved in f23a48d. M1 marked done. |
 
 ## Open questions / blockers
 
-- Reviewer model: spawning with `config_name: "glm-5.3"`; if the config name is rejected,
-  fall back to an instructions-only child and record the actual model in the review log.
+- Reviewer model: `config_name: "glm-5.3"` is rejected in this environment (subagent_type_not_found, twice), so reviewer rounds run as instructions-only children; recorded per round in the review log.
 - Real PWA screenshots (vs generated branded placeholders in M1) need a browser capture pass —
   scheduled after M3, when the mobile UI is final.
