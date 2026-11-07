@@ -49,7 +49,10 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
   for; no model is bundled or downloaded.
 - **Production target: Linux amd64.** The Compose stack builds a local PostgreSQL image that
   carries an amd64 WAL-G binary. ARM hosts are not supported.
-- **One workspace per deployment.** There is no multi-tenant mode.
+- **One workspace per deployment in this release.** Multi-tenancy is designed but not
+  implemented yet — see [docs/MULTI-TENANCY-DESIGN.md](docs/MULTI-TENANCY-DESIGN.md) for the
+  scoping strategy and rollout. The same applies to unifying the `Campus`/`Building`/`Room`
+  trio into the `Location` tree: [docs/PLACES-UNIFICATION-DESIGN.md](docs/PLACES-UNIFICATION-DESIGN.md).
 - **Self-hosted by default.** Nothing is published for you — no telemetry service, no container
   image. The app ships a public landing page at `/welcome`, and
   [docs/HOSTED-DEMO-SPEC.md](docs/HOSTED-DEMO-SPEC.md) is the runbook an operator follows to run
