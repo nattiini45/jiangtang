@@ -1,6 +1,6 @@
 import { isAPIError } from "better-auth/api";
 import { useEffect } from "react";
-import { data, Form, redirect, useNavigation } from "react-router";
+import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
@@ -121,6 +121,12 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
             {busy ? t("auth.login.submitting") : t("auth.login.submit")}
           </Button>
         </Form>
+        <Link
+          to="/welcome"
+          className="text-muted-foreground mt-4 block text-center text-xs underline decoration-(--input) underline-offset-4"
+        >
+          {t("auth.login.about")}
+        </Link>
       </div>
     </main>
   );

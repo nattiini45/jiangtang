@@ -10,6 +10,8 @@ language, see [Language](#language)). Timestamps are stored in UTC and displayed
 
 ## Features
 
+See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
+
 - **Tasks** — list and detail views, a kanban board with pointer and keyboard moves, CSV import,
   labels, per-assignee estimates, a dependency graph that refuses cycles, and ticket ⇄ task links.
 - **Projects** — overview, board, Gantt and burndown views over the same task data.
@@ -48,8 +50,10 @@ language, see [Language](#language)). Timestamps are stored in UTC and displayed
 - **Production target: Linux amd64.** The Compose stack builds a local PostgreSQL image that
   carries an amd64 WAL-G binary. ARM hosts are not supported.
 - **One workspace per deployment.** There is no multi-tenant mode.
-- **No hosted service.** Nothing is published for you: no public demo, no telemetry service, no
-  container image.
+- **Self-hosted by default.** Nothing is published for you — no telemetry service, no container
+  image. The app ships a public landing page at `/welcome`, and
+  [docs/HOSTED-DEMO-SPEC.md](docs/HOSTED-DEMO-SPEC.md) is the runbook an operator follows to run
+  a hosted read-only demo; this project does not operate one.
 
 ## Prerequisites
 

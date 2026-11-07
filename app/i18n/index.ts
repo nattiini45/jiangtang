@@ -16,6 +16,7 @@ import { errorsWorkDe } from "./catalog/de/errors-work";
 import { frequencyDe } from "./catalog/de/frequency";
 import { historyDe } from "./catalog/de/history";
 import { inventoryDe } from "./catalog/de/inventory";
+import { landingDe } from "./catalog/de/landing";
 import { labelsDe } from "./catalog/de/labels";
 import { locationsDe } from "./catalog/de/locations";
 import { mobileDe } from "./catalog/de/mobile";
@@ -44,6 +45,7 @@ import { errorsWorkEn } from "./catalog/en/errors-work";
 import { frequencyEn } from "./catalog/en/frequency";
 import { historyEn } from "./catalog/en/history";
 import { inventoryEn } from "./catalog/en/inventory";
+import { landingEn } from "./catalog/en/landing";
 import { labelsEn } from "./catalog/en/labels";
 import { locationsEn } from "./catalog/en/locations";
 import { mobileEn } from "./catalog/en/mobile";
@@ -80,6 +82,7 @@ const de = {
   ...frequencyDe,
   ...historyDe,
   ...inventoryDe,
+  ...landingDe,
   ...labelsDe,
   ...locationsDe,
   ...mobileDe,
@@ -110,6 +113,7 @@ const en = {
   ...frequencyEn,
   ...historyEn,
   ...inventoryEn,
+  ...landingEn,
   ...labelsEn,
   ...locationsEn,
   ...mobileEn,

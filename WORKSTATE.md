@@ -38,8 +38,8 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 | M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | done | orchestrator (impl) / reviewer-m2 (review) | see Handoff M2 |
 | M3 | Phase 3 | Mobile parity: /m events-today, projects, notes list, timesheet timer, stock detail; flat full More sheet; SW precache + shortcuts | done | orchestrator (impl) / reviewer-m3 (review) | see Handoff M3 |
 | M4 | Phase 4a | In-app notification center (model + inbox UI + realtime + triggers: assignment, due soon, booking conflict, warranty) | done | orchestrator (impl) / reviewer-m4 (review) | see Handoff M4 |
-| M5 | Phase 4b | QR codes on room/equipment pages (scan → deep link / quick ticket) | in_review | orchestrator (impl) / reviewer-m5 (review) | see Handoff M5 |
-| M6 | Phase 5 | Public marketing landing route (anonymous `/`), docs copy, PUBLIC allowlist entry; hosted-demo ops spec | in_progress | orchestrator (impl) | see Handoff M6 |
+| M5 | Phase 4b | QR codes on room/equipment pages (scan → deep link / quick ticket) | done | orchestrator (impl) / reviewer-m5 (review) | see Handoff M5 |
+| M6 | Phase 5 | Public marketing landing route (anonymous `/`), docs copy, PUBLIC allowlist entry; hosted-demo ops spec | in_review | orchestrator (impl) / reviewer-m6 (review) | see Handoff M6 |
 | M7 | Phase 6 | Multi-tenant + places-model unification: prepared design specs only (no execution this session) | pending | | see Handoff M7 |
 
 ## Handoff blocks (one per milestone; filled when the milestone starts)
