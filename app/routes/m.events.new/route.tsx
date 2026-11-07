@@ -4,7 +4,7 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { resolveLocale } from "~/i18n/locale.server";
-import { toErrorResponse, ValidationError } from "~/lib/errors.server";
+import { BookingConflictError, toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
 import { eventCreateSchema, roomBookingSchema } from "~/domains/events/events.schema";
@@ -70,7 +70,15 @@ export async function action({ request }: Route.ActionArgs) {
       return { conflict: true, fieldErrors: undefined };
     }
     const event = await createEvent(actor, eventParsed.data);
-    await addRoomBooking(actor, event.id, bookingParsed.data);
+    try {
+      await addRoomBooking(actor, event.id, bookingParsed.data);
+    } catch (e) {
+      // The pre-check passed but the EXCLUDE constraint still fired (race window):
+      // report it as a conflict instead of a 409 error boundary. The event row
+      // stays (no double-booking — the DB held), the user retries with another slot.
+      if (e instanceof BookingConflictError) return { conflict: true, fieldErrors: undefined };
+      throw e;
+    }
     await emitChange({ entityType: "event", id: event.id, op: "created" });
     return redirect("/m/events");
   } catch (e) {

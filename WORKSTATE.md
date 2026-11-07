@@ -36,7 +36,7 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 | M0 | setup | Work-state mechanism + baseline checks green | done | orchestrator | WORKSTATE.md only |
 | M1 | Phase 1 | Quick wins: Caddy `/assets` compression, manifest (description/screenshots/shortcuts), import admin-only, login brand line | done | orchestrator (impl) / reviewer-m1 (review) | see Handoff M1 |
 | M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | done | orchestrator (impl) / reviewer-m2 (review) | see Handoff M2 |
-| M3 | Phase 3 | Mobile parity: /m events-today, projects, notes list, timesheet timer, stock detail; flat full More sheet; SW precache + shortcuts | pending | | see Handoff M3 |
+| M3 | Phase 3 | Mobile parity: /m events-today, projects, notes list, timesheet timer, stock detail; flat full More sheet; SW precache + shortcuts | in_review | orchestrator (impl) / reviewer-m3 (review) | see Handoff M3 |
 | M4 | Phase 4a | In-app notification center (model + inbox UI + realtime + triggers: assignment, due soon, booking conflict, warranty) | pending | | see Handoff M4 |
 | M5 | Phase 4b | QR codes on room/equipment pages (scan → deep link / quick ticket) | pending | | see Handoff M5 |
 | M6 | Phase 5 | Public marketing landing route (anonymous `/`), docs copy, PUBLIC allowlist entry; hosted-demo ops spec | pending | | see Handoff M6 |
@@ -100,6 +100,8 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
   detail; attachments viewing. More sheet becomes a flat single-level list of all sections.
   Manifest shortcuts wired. SW precaches the new shell pages.
 - Acceptance: gates §4 + `pnpm test:e2e`; SW cache-version bump keeps sign-out purge working.
+- Log: implemented in 22ef7cf. New /m routes: events._index (today/week via new read-only `from`/`to` on listEvents), events.new (event+room booking, client polls /api/events/check-conflict, action re-checks via findRoomConflicts, EXCLUDE stays authoritative), projects._index, notes._index, timesheet._index (week + start/stop timer reusing desktop mutations), inventory.stock.$id (detail + attachments via linked equipment). m.rooms.$slug gained a read-only attachments section. More sheet is now a flat single-level list of all sections. sw.js: SHELL_CACHE v3→v4, SHELL_URLS precaches all /m shell pages (sw.test.ts pins updated); manifest gained an Events shortcut (/m/events). i18n: mobile.* keys added in en+de. e2e: a11y + i18n-sweep cover the new routes, mobile-session has a flat-More-sheet test, pwa-signout-cache asserts /m/events is install-precached. route-resolution TABLE gained /m/inventory/stock/item-01.
+- Verification: typecheck 0, lint 0, prettier clean, guards OK, `pnpm test` 151 files / 1801 passed / 0 failed, `pnpm test:e2e` 165/165. Live dev-server smoke: all new /m routes 200 with expected h1s. Reviewer note: intended model glm5.3-flash (high thinking) is not spawnable in THIS session (registry predates the new agent files; probed → subagent_type_not_found), so the review runs as instructions-only fallback again and is recorded as such.
 
 ### Handoff M4 — notification center
 - In scope: prisma schema + one new migration (`Notification` model), `app/domains/notifications/`,

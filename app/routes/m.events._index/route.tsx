@@ -34,7 +34,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const scope = new URL(request.url).searchParams.get("scope") === "week" ? "week" : "today";
 
   const today = berlinDayIndex(new Date());
-  const { startDay, endDay } = isoWeekRange(dayIndexToIsoWeek(today));
+  const { endDay } = isoWeekRange(dayIndexToIsoWeek(today));
   const from = new Date(berlinDayStartMs(today));
   const to = new Date(berlinDayStartMs(scope === "week" ? endDay + 1 : today + 1));
 
@@ -43,8 +43,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     events,
     scope,
     todayKey: dayIndexToDateKey(today),
-    weekLabel: dayIndexToIsoWeek(startDay),
-    startDay: dayIndexToDateKey(Math.max(startDay, today)),
   };
 }
 
