@@ -146,6 +146,6 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 
 ## Open questions / blockers
 
-- Reviewer model: `config_name: "glm-5.3"` is rejected in this environment (subagent_type_not_found, twice), so reviewer rounds run as instructions-only children; recorded per round in the review log.
+- Reviewer model: `config_name: "glm-5.3"` is rejected in this environment (subagent_type_not_found; no GLM provider exists on this Mistral deployment), so reviewer rounds so far ran as instructions-only children on the session model, recorded per round in the review log. For High-thinking reviewers going forward: `~/.vibe/agents/reviewer-high.toml` (subagent, `active_model = "high-thinking"`) + a `[[models]]` alias `high-thinking` (`mistral-large-4-0`, `thinking = "high"`) were added to `~/.vibe/config.toml` (backup: `config.toml.bak`). Spawn reviewers with `config_name: "reviewer-high"`. Caveat: the agent registry is built at session start, so the type is visible only from the NEXT session (or after `/reload` in the TUI) — probed twice in the current session, still subagent_type_not_found.
 - Real PWA screenshots (vs generated branded placeholders in M1) need a browser capture pass —
   scheduled after M3, when the mobile UI is final.
