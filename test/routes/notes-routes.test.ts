@@ -23,7 +23,11 @@ const TEST_USER: AuthUser = {
 
 vi.mock("~/lib/auth.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/lib/auth.server")>();
-  return { ...actual, requireUser: vi.fn(async () => TEST_USER) };
+  return {
+    ...actual,
+    requireUser: vi.fn(async () => TEST_USER),
+    requireRole: vi.fn(async () => TEST_USER),
+  };
 });
 
 const indexRoute = await import("~/routes/_desktop.notes._index/route");

@@ -2,6 +2,8 @@
 export const authDe = {
   "auth.login.title": "Anmelden · Jiangtang",
   "auth.login.subtitle": "Anmeldung für dein AV-Workspace.",
+  "auth.login.tagline":
+    "Räume, Equipment, Events, Tickets, Aufgaben und Notizen – ein Workspace für dein AV-Team.",
   "auth.login.deactivated": "Dieses Konto ist deaktiviert.",
   "auth.login.invalidCredentials": "Ungültige Anmeldedaten.",
   "auth.login.throttled":

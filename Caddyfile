@@ -18,6 +18,11 @@
 	request_body {
 		max_size 20MB
 	}
+	# Compress only the immutable build assets. App responses — including the
+	# SSE stream — stay uncompressed and unbuffered (flush_interval -1 below),
+	# because encode buffers, which would break text/event-stream.
+	@assets path /assets/*
+	encode zstd gzip @assets
 	reverse_proxy app:3000 {
 		flush_interval -1
 	}

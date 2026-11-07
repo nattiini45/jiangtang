@@ -71,7 +71,14 @@ export const NAV: NavEntry[] = [
   { to: "/frequencies", labelKey: "nav.frequencies", icon: Radio, end: false, group: "places" },
   { to: "/tickets", labelKey: "nav.tickets", icon: Ticket, end: false, group: "service" },
   { to: "/events", labelKey: "nav.events", icon: CalendarDays, end: false, group: "service" },
-  { to: "/import", labelKey: "nav.import", icon: ArrowDownUp, end: false, group: "admin" },
+  {
+    to: "/import",
+    labelKey: "nav.import",
+    icon: ArrowDownUp,
+    end: false,
+    group: "admin",
+    adminOnly: true,
+  },
   {
     to: "/analytics",
     labelKey: "nav.analytics",

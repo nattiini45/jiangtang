@@ -1,6 +1,6 @@
 import { Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
-import { requireUser } from "~/lib/auth.server";
+import { requireRole } from "~/lib/auth.server";
 import { formDataToObject } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -37,7 +37,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const actor = await requireUser(request);
+  const actor = await requireRole(request, "ADMIN");
   const locale = resolveLocale(request);
   const obj = formDataToObject(await request.formData());
   const intent = String(obj._action ?? "preview");

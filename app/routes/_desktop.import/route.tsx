@@ -1,6 +1,6 @@
 import { Form, Link, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
-import { requireUser } from "~/lib/auth.server";
+import { requireRole } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { t, type MessageKey } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -24,12 +24,12 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  await requireRole(request, "ADMIN");
   return {};
 }
 
 export async function action({ request }: Route.ActionArgs) {
-  const actor = await requireUser(request);
+  const actor = await requireRole(request, "ADMIN");
   const locale = resolveLocale(request);
   const form = await request.formData();
   const file = form.get("file");
