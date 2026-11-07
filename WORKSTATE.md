@@ -35,7 +35,7 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 | --- | --- | --- | --- | --- | --- |
 | M0 | setup | Work-state mechanism + baseline checks green | done | orchestrator | WORKSTATE.md only |
 | M1 | Phase 1 | Quick wins: Caddy `/assets` compression, manifest (description/screenshots/shortcuts), import admin-only, login brand line | done | orchestrator (impl) / reviewer-m1 (review) | see Handoff M1 |
-| M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | in_progress | orchestrator (impl) | see Handoff M2 |
+| M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | in_review | orchestrator (impl) / reviewer-m2 (review) | see Handoff M2 |
 | M3 | Phase 3 | Mobile parity: /m events-today, projects, notes list, timesheet timer, stock detail; flat full More sheet; SW precache + shortcuts | pending | | see Handoff M3 |
 | M4 | Phase 4a | In-app notification center (model + inbox UI + realtime + triggers: assignment, due soon, booking conflict, warranty) | pending | | see Handoff M4 |
 | M5 | Phase 4b | QR codes on room/equipment pages (scan → deep link / quick ticket) | pending | | see Handoff M5 |
@@ -69,6 +69,8 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 
 ### Handoff M2 — desktop IA consolidation (UI-level; data models unchanged)
 - Log: started after M1 review round 2 APPROVED (f23a48d). Interpretation note: the "≤12 entries in 3 groups" count conflicts with the handoff's own enumeration (which lists 4 groups and keeps Timesheet + Activity); implemented the concrete mapping — only the four folded entries (Campuses, Stock, Frequencies, Capacity) leave the nav, everything else stays. Old URLs (/campuses, /capacity, /frequencies, /inventory/stock, /inventory/models) become redirects to the tab/manage views; route modules kept as redirect stubs so route-resolution pins hold.
+- Implemented in 4 commits: 0f71686 (nav −4 entries + header "+" quick-entry → /quick-entry), 101b3e9 (campus CRUD → /rooms?manage=campuses, /campuses redirect stub), c286e49 (/inventory?tab=equipment|models|stock|frequencies; models/stock/frequencies index routes → redirect stubs, stock forwards query), cee0bb7 (/timesheet?tab=capacity, /capacity redirect stub). Panels extracted to components (campuses-manager, models-panel, stock-panel, frequency-panel, capacity-panel). Tests updated: inventory-stock-routes + location-stock-routes now call the tab loader; structural boundary test covers the redirect stub.
+- Verification: typecheck 0, lint 0, prettier clean, guards OK, `pnpm test` 151 files / 1794 passed / 0 failed, `pnpm test:e2e` 150/150, plus @screens subset (dashboard/rooms/inventory/timesheet/capacity × light+dark) 10/10 — /capacity redirect still renders the "Kapazität" h1 marker. i18n parity + verbs + route-auth-guard (95) + route-resolution (22) green.
 - In scope: `app/components/layout/nav.ts`, `app/components/layout/app-shell.tsx`,
   `app/components/command/verbs.ts` (only if needed — verbs derive from nav), the rooms /
   campuses / inventory / stock / frequencies / capacity / timesheet route folders **only to
