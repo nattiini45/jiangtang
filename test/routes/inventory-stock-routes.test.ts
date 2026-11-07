@@ -1392,7 +1392,10 @@ describe("structural — the routes obey the boundaries a green suite cannot see
     for (const rel of ROUTE_FILES) {
       const src = readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
       const specifiers = [...src.matchAll(/(?:from|import)\s+["']([^"']+)["']/g)].map((m) => m[1]);
-      expect(specifiers.filter((s) => s.startsWith("~/domains/")), rel).not.toHaveLength(0);
+      expect(
+        specifiers.filter((s) => s.startsWith("~/domains/")),
+        rel,
+      ).not.toHaveLength(0);
     }
   });
 

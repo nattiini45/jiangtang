@@ -137,7 +137,12 @@ const ROUTES = [
   ["search", "/search?q=Lager", "Suche", "_desktop.search/route.tsx:54"],
   ["search-mischpult", "/search?q=Mischpult", "Suche", "_desktop.search/route.tsx:54"],
   ["timesheet", "/timesheet", "Zeiterfassung", "_desktop.timesheet/route.tsx:184"],
-  ["capacity", "/capacity", "Kapazität", "_desktop.capacity/route.tsx:45"],
+  [
+    "capacity",
+    "/capacity",
+    "Kapazität",
+    "app/components/timesheet/capacity-panel.tsx (h1 via nav.capacity; /capacity redirects to /timesheet?tab=capacity)",
+  ],
   ["import", "/import", "Import / Export", "_desktop.import/route.tsx:87"],
   ["admin-index", "/admin/index", "Suchindex", "_desktop.admin.index/route.tsx:88"],
   ["m", "/m", "Eintrag erfassen", "m._index/route.tsx:141"],
