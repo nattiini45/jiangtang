@@ -164,6 +164,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/inventory": ["Equipment", "InventoryItem"],
   "app/domains/locations": ["Location"],
   "app/domains/notes": ["Note"],
+  "app/domains/notifications": ["Notification"],
   "app/domains/projects": ["Project"],
   "app/domains/rooms": ["Campus", "Building", "Room"],
   "app/domains/tasks": ["Task", "TaskAssignees", "TaskDependency"],

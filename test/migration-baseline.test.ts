@@ -47,6 +47,7 @@ const CANONICAL_DIRS = [
   "20261023000400_search_indexes",
   "20261023000500_workitem_view",
   "20261023000600_time_tracking_constraints",
+  "20261107161719_notification_inbox",
 ] as const;
 
 /** The lane vocabulary of the mapping table, in the order the INSERT lists it. */
@@ -65,10 +66,10 @@ type Counts = {
 
 /** Counted from the seven migration files; each count is re-derived below. */
 const EXPECTED_COUNTS: Counts = {
-  createType: 18,
-  createTable: 30,
-  foreignKey: 53,
-  createIndex: 77,
+  createType: 19,
+  createTable: 31,
+  foreignKey: 54,
+  createIndex: 79,
   uniqueIndex: 20,
   check: 2,
   excludeUsing: 2,
@@ -440,7 +441,7 @@ describe("migration baseline — negative controls (the same checker rejects a m
       throw new Error("negative control could not be applied: no CREATE INDEX line found");
     });
     expect(problems(report)).toEqual(
-      expect.arrayContaining([expect.stringContaining("baseline-wide createIndex is 76")]),
+      expect.arrayContaining([expect.stringContaining("baseline-wide createIndex is 78")]),
     );
   });
 

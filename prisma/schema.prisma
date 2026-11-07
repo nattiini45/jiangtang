@@ -282,9 +282,37 @@ model User {
   timeEntries      TimeEntry[]       @relation("TimeEntryUser")
   timeEntriesCreated TimeEntry[]     @relation("TimeEntryCreatedBy")
   attachmentsCreated Attachment[]    @relation("AttachmentCreatedBy")
+  notifications      Notification[]
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+// ── Notifications (in-app inbox) ─────────────────────────────────────────────
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE_SOON
+  BOOKING_CONFLICT
+  WARRANTY_EXPIRING
+}
+
+/// One inbox row per recipient. Written in the same transaction as the triggering
+/// mutation where there is one (task assignment); the sweep jobs write their own
+/// transactions. `readAt` is the only mutable field — set once, never cleared.
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  entityType String?
+  entityId   String?
+  data       Json?
+  readAt     DateTime?        @db.Timestamptz(3)
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@index([userId, readAt, createdAt])
+  @@index([type, entityType, entityId])
 }
 
 // ── Better Auth tables (Session / Account / Verification) ─────────────────────
