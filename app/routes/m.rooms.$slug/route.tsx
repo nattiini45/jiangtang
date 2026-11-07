@@ -4,6 +4,7 @@ import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
+import { listAttachments } from "~/domains/attachments/attachments.queries.server";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { Button } from "~/components/ui/button";
 import { categoryLabel } from "~/components/inventory/labels";
@@ -26,13 +27,15 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   await requireUser(request);
   const data = await getRoomDashboard(params.slug!);
   if (!data) throw toErrorResponse(new NotFoundError(tr("err.room.notFound")));
-  return { data };
+  const attachments = await listAttachments({ roomId: data.room.id });
+  return { data, attachments };
 }
 
 export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
   const { room, equipment, openTickets } = loaderData.data;
+  const { attachments } = loaderData;
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
       <div className="flex flex-col gap-1">
@@ -91,6 +94,23 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
           </ul>
         )}
       </section>
+
+      {attachments.length > 0 ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-base font-semibold">{t("mobile.stockDetail.attachments")}</h2>
+          <div className="flex flex-wrap gap-2">
+            {attachments.map((a) => (
+              <a key={a.id} href={`/attachments/${a.objectKey}`}>
+                <img
+                  src={`/attachments/${a.objectKey}?thumb=1`}
+                  alt={a.filename}
+                  className="size-20 rounded-md object-cover"
+                />
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <Link
         to={`/rooms/${room.slug}`}

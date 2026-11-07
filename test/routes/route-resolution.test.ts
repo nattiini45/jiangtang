@@ -133,6 +133,7 @@ const TABLE: Array<{ url: string; id: string }> = [
   { url: "/inventory/stock/import", id: "routes/_desktop.inventory.stock.import" },
   { url: "/inventory/stock/item-01", id: "routes/_desktop.inventory.stock.$id" },
   { url: "/m/inventory/stock", id: "routes/m.inventory.stock._index" },
+  { url: "/m/inventory/stock/item-01", id: "routes/m.inventory.stock.$id" },
 ];
 
 // ── The table, resolved through the real router. ────────────
@@ -279,6 +280,7 @@ describe("route resolution — negative control (the shadow this guard exists fo
         // matching this one id.
         "routes/_desktop.inventory.stock.import",
         "routes/m.inventory.stock._index",
+        "routes/m.inventory.stock.$id",
       ].sort(),
     );
     expect(allIds(ROUTES).length).toBeGreaterThan(allIds(WITHOUT_STOCK).length);

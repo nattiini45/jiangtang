@@ -12,11 +12,25 @@
 // The shell cache holds signed-in content (SSR HTML, loader data, uploaded images, API answers),
 // keyed by URL and not by person. The sign-in page empties every "jiangtang-shell-*" cache
 // (app/lib/pwa/purge-caches.ts), so keep that prefix when bumping the version. Bump the version
-// when old entries must not survive: activate deletes any other jiangtang-* cache. v3 replaces the
-// precached /m/offline page, which was cached without the inline reload script.
-const SHELL_CACHE = "jiangtang-shell-v3";
+// when old entries must not survive: activate deletes any other jiangtang-* cache. v4 adds the
+// mobile parity shell pages (events/projects/notes/timesheet/…) to the install-time precache.
+const SHELL_CACHE = "jiangtang-shell-v4";
 const ASSET_CACHE = "jiangtang-assets-v1";
-const SHELL_URLS = ["/m/", "/m/offline"];
+const SHELL_URLS = [
+  "/m/",
+  "/m/offline",
+  "/m/rooms",
+  "/m/tasks",
+  "/m/tickets",
+  "/m/events",
+  "/m/projects",
+  "/m/notes",
+  "/m/timesheet",
+  "/m/locations",
+  "/m/inventory/stock",
+  "/m/board",
+  "/m/search",
+];
 const OFFLINE_URL = "/m/offline";
 const LOGIN_PATH = "/login";
 

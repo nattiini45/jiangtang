@@ -65,9 +65,10 @@ test("signing out empties the cached signed-in pages and offline shows only the 
   await page.goto("/m/");
   await page.waitForSelector("html[data-hydrated]");
   await page.evaluate(() => navigator.serviceWorker.ready);
+  // The install-time precache fills the shell cache with the /m shell pages (v4 list).
+  await expect.poll(() => isCached(page, "/m/events"), { timeout: 15_000 }).toBe(true);
   await page.goto("/m/tasks");
-  // The install-time precache already fills the cache with /m/ and /m/offline, so wait for the
-  // page the visit above should have stored.
+  // ... so wait for the page the visit above should have stored.
   await expect.poll(() => isCached(page, "/m/tasks"), { timeout: 15_000 }).toBe(true);
   const { name: userName } = await db.user.findFirstOrThrow({
     where: { email: credentials().email },

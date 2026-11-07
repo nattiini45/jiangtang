@@ -35,11 +35,20 @@ const NAV: { to: string; labelKey: MessageKey; icon: typeof Building2; end?: boo
   { to: "/m/tickets", labelKey: "nav.tickets", icon: Ticket },
 ];
 
+// The More sheet is a flat, single-level list of every mobile section — no
+// nested groups, so every entry is one tap away.
 const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
-  { to: "/m/tasks/new", labelKey: "mobile.menu.newTask" },
-  { to: "/m/notes/new", labelKey: "mobile.menu.newNote" },
+  { to: "/m/rooms", labelKey: "nav.rooms" },
+  { to: "/m/locations", labelKey: "nav.locations" },
+  { to: "/m/inventory/stock", labelKey: "nav.stock" },
+  { to: "/m/events", labelKey: "nav.events" },
+  { to: "/m/projects", labelKey: "nav.projects" },
+  { to: "/m/notes", labelKey: "nav.notes" },
+  { to: "/m/timesheet", labelKey: "nav.timesheet" },
   { to: "/m/board", labelKey: "nav.board" },
   { to: "/m/search", labelKey: "nav.search" },
+  { to: "/m/tasks/new", labelKey: "mobile.menu.newTask" },
+  { to: "/m/notes/new", labelKey: "mobile.menu.newNote" },
 ];
 
 const TAB_CLASS =

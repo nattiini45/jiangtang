@@ -70,6 +70,10 @@ const ROUTES: RouteCase[] = [
   { name: "import", path: () => "/import" },
   { name: "m-tasks", path: () => "/m/tasks", mobile: true },
   { name: "m-tasks-new", path: () => "/m/tasks/new", mobile: true },
+  { name: "m-events", path: () => "/m/events", mobile: true },
+  { name: "m-projects", path: () => "/m/projects", mobile: true },
+  { name: "m-notes", path: () => "/m/notes", mobile: true },
+  { name: "m-timesheet", path: () => "/m/timesheet", mobile: true },
 ];
 
 test.beforeAll(async () => {

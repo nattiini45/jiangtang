@@ -24,11 +24,23 @@ export interface EventListRow {
 export async function listEvents(opts?: {
   status?: EventStatus;
   q?: string;
+  /** Optional `startsAt` window (UTC instants) — the mobile events list reads
+   *  "today"/"this week" through it instead of loading every event. */
+  from?: Date;
+  to?: Date;
 }): Promise<EventListRow[]> {
   const events = await db.event.findMany({
     where: {
       status: opts?.status,
       ...(opts?.q ? { title: { contains: opts.q, mode: "insensitive" } } : {}),
+      ...(opts?.from || opts?.to
+        ? {
+            startsAt: {
+              ...(opts?.from ? { gte: opts.from } : {}),
+              ...(opts?.to ? { lt: opts.to } : {}),
+            },
+          }
+        : {}),
     },
     orderBy: [{ startsAt: "desc" }],
     include: { rooms: { where: { cancelled: false }, select: { id: true } } },
