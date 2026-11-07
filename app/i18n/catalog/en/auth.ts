@@ -3,6 +3,9 @@ import type { authDe } from "../de/auth";
 export const authEn = {
   "auth.login.title": "Sign in · Jiangtang",
   "auth.login.subtitle": "Sign in to your AV workspace.",
+  "auth.login.tagline":
+    "Rooms, equipment, events, tickets, tasks and notes — one workspace for your AV team.",
+  "auth.login.about": "What is Jiangtang?",
   "auth.login.deactivated": "This account has been deactivated.",
   "auth.login.invalidCredentials": "Invalid email or password.",
   "auth.login.throttled": "Too many failed sign-in attempts. Try again in {minutes} min.",

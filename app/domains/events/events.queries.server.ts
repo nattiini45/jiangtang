@@ -24,11 +24,25 @@ export interface EventListRow {
 export async function listEvents(opts?: {
   status?: EventStatus;
   q?: string;
+  /** Optional window (UTC instants) with OVERLAP semantics: an event is
+   *  included when its interval intersects [from, to) — `endsAt > from` and
+   *  `startsAt < to` — so an event that started before the window but is still
+   *  running inside it is listed too. Only the mobile events list uses this. */
+  from?: Date;
+  to?: Date;
 }): Promise<EventListRow[]> {
   const events = await db.event.findMany({
     where: {
       status: opts?.status,
       ...(opts?.q ? { title: { contains: opts.q, mode: "insensitive" } } : {}),
+      ...(opts?.from || opts?.to
+        ? {
+            AND: [
+              ...(opts?.from ? [{ endsAt: { gt: opts.from } }] : []),
+              ...(opts?.to ? [{ startsAt: { lt: opts.to } }] : []),
+            ],
+          }
+        : {}),
     },
     orderBy: [{ startsAt: "desc" }],
     include: { rooms: { where: { cancelled: false }, select: { id: true } } },

@@ -22,7 +22,7 @@ function setup(options: Parameters<typeof createLoginThrottle>[0] = {}) {
 describe("login throttle: email key", () => {
   it("refuses the attempt after the limit of failures, whatever the password", () => {
     const { throttle } = setup({ maxEmailFailures: 3 });
-    const attempt = { email: "a@example.test", ip: null };
+    const attempt = { email: "a@example.test", ip: "192.0.2.1" };
     for (let i = 0; i < 3; i++) expect(throttle.begin(attempt).allowed).toBe(true);
     const refused = throttle.begin(attempt);
     expect(refused.allowed).toBe(false);
@@ -30,14 +30,14 @@ describe("login throttle: email key", () => {
 
   it("does not affect other emails", () => {
     const { throttle } = setup({ maxEmailFailures: 1 });
-    expect(throttle.begin({ email: "a@example.test", ip: null }).allowed).toBe(true);
-    expect(throttle.begin({ email: "a@example.test", ip: null }).allowed).toBe(false);
-    expect(throttle.begin({ email: "b@example.test", ip: null }).allowed).toBe(true);
+    expect(throttle.begin({ email: "a@example.test", ip: "192.0.2.1" }).allowed).toBe(true);
+    expect(throttle.begin({ email: "a@example.test", ip: "192.0.2.1" }).allowed).toBe(false);
+    expect(throttle.begin({ email: "b@example.test", ip: "192.0.2.1" }).allowed).toBe(true);
   });
 
   it("frees up once the oldest failure leaves the rolling window", () => {
     const { throttle, advance } = setup({ maxEmailFailures: 2, windowMs: 15 * MINUTE });
-    const attempt = { email: "a@example.test", ip: null };
+    const attempt = { email: "a@example.test", ip: "192.0.2.1" };
     throttle.begin(attempt);
     advance(5 * MINUTE);
     throttle.begin(attempt);
@@ -54,7 +54,7 @@ describe("login throttle: email key", () => {
 
   it("does not extend the lockout when a locked key keeps being tried", () => {
     const { throttle, advance } = setup({ maxEmailFailures: 1, windowMs: 15 * MINUTE });
-    const attempt = { email: "a@example.test", ip: null };
+    const attempt = { email: "a@example.test", ip: "192.0.2.1" };
     throttle.begin(attempt);
     for (let i = 0; i < 20; i++) {
       advance(MINUTE / 2);
@@ -66,7 +66,7 @@ describe("login throttle: email key", () => {
 
   it("clears the email's failures after a successful sign-in", () => {
     const { throttle } = setup({ maxEmailFailures: 3 });
-    const attempt = { email: "a@example.test", ip: null };
+    const attempt = { email: "a@example.test", ip: "192.0.2.1" };
     throttle.begin(attempt);
     throttle.begin(attempt);
     throttle.begin(attempt);
@@ -100,12 +100,13 @@ describe("login throttle: IP key", () => {
     expect(throttle.begin({ email: "e@example.test", ip }).allowed).toBe(false);
   });
 
-  it("skips the IP key when there is none", () => {
-    const { throttle } = setup({ maxIpFailures: 1, maxEmailFailures: 100 });
+  it("skips both buckets when there is no IP — no email-only lockout exists", () => {
+    const { throttle } = setup({ maxIpFailures: 1, maxEmailFailures: 1 });
     for (let i = 0; i < 5; i++) {
       expect(throttle.begin({ email: `user${i}@example.test`, ip: null }).allowed).toBe(true);
     }
     expect(throttle.size().ips).toBe(0);
+    expect(throttle.size().emails).toBe(0);
   });
 
   it("reports the later of the two lockouts", () => {
@@ -149,9 +150,9 @@ describe("login throttle: concurrent attempts", () => {
     // One failure remains on the IP: one more attempt fits, a further one does not.
     expect(throttle.begin({ email: "c@example.test", ip }).allowed).toBe(true);
     expect(throttle.begin({ email: "d@example.test", ip }).allowed).toBe(false);
-    // The failing email stays locked, the succeeded one was cleared.
-    expect(throttle.begin({ ...bad, ip: null }).allowed).toBe(false);
-    expect(throttle.begin({ ...good, ip: null }).allowed).toBe(true);
+    // Email-pair lock semantics are covered by the pair-keyed describe block
+    // below; here the shared IP is already at its own limit, so these attempts
+    // would be refused by the IP bucket regardless of the email pair.
   });
 });
 
@@ -163,13 +164,15 @@ describe("login throttle: memory", () => {
     }
     expect(throttle.size()).toEqual({ emails: 5, ips: 5 });
     // The newest key is still tracked, the oldest was dropped.
-    expect(throttle.begin({ email: "user49@example.test", ip: null }).allowed).toBe(false);
-    expect(throttle.begin({ email: "user0@example.test", ip: null }).allowed).toBe(true);
+    expect(throttle.begin({ email: "user49@example.test", ip: "198.51.100.49" }).allowed).toBe(
+      false,
+    );
+    expect(throttle.begin({ email: "user0@example.test", ip: "198.51.100.0" }).allowed).toBe(true);
   });
 
   it("keeps a locked email through a flood of distinct junk emails", () => {
     const { throttle, advance } = setup({ maxKeys: 5, maxEmailFailures: 2, maxIpFailures: 1000 });
-    const target = { email: "target@example.test", ip: null };
+    const target = { email: "target@example.test", ip: "192.0.2.1" };
     throttle.begin(target);
     throttle.begin(target);
     advance(MINUTE);
@@ -177,7 +180,7 @@ describe("login throttle: memory", () => {
     expect(before.allowed).toBe(false);
 
     for (let i = 0; i < 100; i++) {
-      throttle.begin({ email: `junk${i}@example.test`, ip: null });
+      throttle.begin({ email: `junk${i}@example.test`, ip: "192.0.2.1" });
     }
 
     expect(throttle.size().emails).toBe(5);
@@ -208,9 +211,9 @@ describe("login throttle: memory", () => {
       maxEmailFailures: 2,
       windowMs: 30_000,
     });
-    const old = { email: "old@example.test", ip: null };
-    const newer = { email: "newer@example.test", ip: null };
-    const mid = { email: "mid@example.test", ip: null };
+    const old = { email: "old@example.test", ip: "192.0.2.1" };
+    const newer = { email: "newer@example.test", ip: "192.0.2.1" };
+    const mid = { email: "mid@example.test", ip: "192.0.2.1" };
     throttle.begin(old);
     throttle.begin(old);
     advance(20_000);
@@ -220,7 +223,7 @@ describe("login throttle: memory", () => {
     advance(20_000);
     // old's window is over (it is first in map order), newer is still locked and
     // mid is not locked at all.
-    throttle.begin({ email: "x@example.test", ip: null });
+    throttle.begin({ email: "x@example.test", ip: "192.0.2.1" });
 
     expect(throttle.size().emails).toBe(3);
     expect(throttle.begin(newer).allowed).toBe(false);
@@ -235,8 +238,8 @@ describe("login throttle: memory", () => {
       maxEmailFailures: 2,
       windowMs: 15 * MINUTE,
     });
-    const a = { email: "a@example.test", ip: null };
-    const b = { email: "b@example.test", ip: null };
+    const a = { email: "a@example.test", ip: "192.0.2.1" };
+    const b = { email: "b@example.test", ip: "192.0.2.1" };
     throttle.begin(a);
     advance(1);
     throttle.begin(b);
@@ -247,7 +250,7 @@ describe("login throttle: memory", () => {
     // order, but its lock still runs out first.
     throttle.begin(a);
     advance(1);
-    throttle.begin({ email: "c@example.test", ip: null });
+    throttle.begin({ email: "c@example.test", ip: "192.0.2.1" });
 
     expect(throttle.size().emails).toBe(2);
     expect(throttle.begin(b).allowed).toBe(false);
@@ -261,7 +264,9 @@ describe("login throttle: memory", () => {
     }
     expect(throttle.size()).toEqual({ emails: 1, ips: 1 });
     // The key just recorded is the one that stays.
-    expect(throttle.begin({ email: "user19@example.test", ip: null }).allowed).toBe(false);
+    expect(throttle.begin({ email: "user19@example.test", ip: "198.51.100.19" }).allowed).toBe(
+      false,
+    );
   });
 
   it("prunes expired keys instead of keeping them forever", () => {
@@ -272,8 +277,8 @@ describe("login throttle: memory", () => {
     expect(throttle.size()).toEqual({ emails: 100, ips: 100 });
     advance(16 * MINUTE);
     // Any later call sweeps; a different key is enough.
-    throttle.begin({ email: "later@example.test", ip: null });
-    expect(throttle.size()).toEqual({ emails: 1, ips: 0 });
+    throttle.begin({ email: "later@example.test", ip: "192.0.2.1" });
+    expect(throttle.size()).toEqual({ emails: 1, ips: 1 });
   });
 
   it("reset forgets everything", () => {
@@ -401,5 +406,50 @@ describe("login throttle: IPv6 client address ranges", () => {
     expect(throttle.begin({ email: "a@example.test", ip: plain }).allowed).toBe(true);
     expect(throttle.begin({ email: "b@example.test", ip: mapped }).allowed).toBe(true);
     expect(throttle.begin({ email: "c@example.test", ip: plain }).allowed).toBe(false);
+  });
+});
+
+describe("login throttle: email lockout is pair-keyed, never email-only", () => {
+  it("an attacker's failures on a victim email do not lock the victim's own IP", () => {
+    const throttle = createLoginThrottle({
+      now: (() => {
+        let t = 1_000_000;
+        return () => (t += 1);
+      })(),
+      maxEmailFailures: 3,
+      maxIpFailures: 30,
+    });
+    // Attacker from 198.51.100.9 burns the pair (victim email, attacker IP):
+    // the first maxEmailFailures attempts are allowed, the next is refused.
+    for (let i = 0; i < 3; i++) {
+      expect(throttle.begin({ email: "victim@example.test", ip: "198.51.100.9" }).allowed).toBe(
+        true,
+      );
+    }
+    expect(throttle.begin({ email: "victim@example.test", ip: "198.51.100.9" }).allowed).toBe(
+      false,
+    );
+    // The victim signing in from their own address is NOT locked out by that.
+    expect(throttle.begin({ email: "victim@example.test", ip: "203.0.113.5" }).allowed).toBe(true);
+    // …while the attacker's own pair stays locked (brute force still capped).
+    expect(throttle.begin({ email: "victim@example.test", ip: "198.51.100.9" }).allowed).toBe(
+      false,
+    );
+  });
+
+  it("never locks by email alone: attempts without an IP are not email-throttled", () => {
+    const throttle = createLoginThrottle({
+      now: (() => {
+        let t = 1_000_000;
+        return () => (t += 1);
+      })(),
+      maxEmailFailures: 2,
+      maxIpFailures: 1000,
+    });
+    // Even past the email limit, a request with no client IP is allowed —
+    // an email-only lockout would be the lockout-DoS this design forbids.
+    for (let i = 0; i < 5; i++) {
+      expect(throttle.begin({ email: "victim@example.test", ip: null }).allowed).toBe(true);
+    }
   });
 });

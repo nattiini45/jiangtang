@@ -1,7 +1,8 @@
 # Architecture
 
 Jiangtang (讲堂, "lecture hall") is a self-hosted workspace for an AV or facilities team. One
-installation serves one team. This document describes how the code is organised and which
+installation serves one team in this release; multi-tenancy is specified in
+[MULTI-TENANCY-DESIGN.md](MULTI-TENANCY-DESIGN.md). This document describes how the code is organised and which
 guarantees the database and the application keep. For installation see [DEPLOY.md](DEPLOY.md), for
 recovery [BACKUP.md](BACKUP.md), for personal data [GDPR.md](GDPR.md) and for day-to-day code rules
 [conventions.md](conventions.md).
@@ -25,7 +26,7 @@ The schema lives in `prisma/schema.prisma`. The main families:
 
 | Family                 | Models                                                                         | Notes                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Places for AV work     | `Campus` → `Building` → `Room`                                                 | A `Room` carries capabilities (projector, microphones, recording), a status and external links.               |
+| Places for AV work     | `Campus` → `Building` → `Room` (to be unified into the `Location` tree — see [PLACES-UNIFICATION-DESIGN.md](PLACES-UNIFICATION-DESIGN.md)) | A `Room` carries capabilities (projector, microphones, recording), a status and external links.               |
 | Location spine         | `Location` (self-referencing tree, `LocationKind`: site, building, room, storage, rack, vehicle, …) | Generic places for stock, tasks and notes. A subtree must be reparented before a parent is deleted. |
 | Equipment              | `EquipmentModel` (catalog), `Equipment` (instances)                            | Fixed or pooled mobility, spare/substitute links, per-type attributes (network, microphone, lamp).            |
 | Stock                  | `InventoryItem`, `Vendor`                                                      | Optional SKU and serial, unique in the database; quantity, warranty, supplier. May link to an `Equipment`.    |

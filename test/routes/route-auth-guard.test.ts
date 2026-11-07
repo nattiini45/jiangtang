@@ -81,6 +81,8 @@ const PUBLIC: Record<string, string> = {
     "calendar clients subscribe without cookies; the feed token gates it",
   "routes/healthz": "liveness probe for the load balancer; returns no application data",
   "routes/prefs.locale": "sets the language cookie, also for signed-out visitors",
+  "routes/welcome":
+    "public landing page; its loader redirects signed-in users to / and reads nothing private",
   "routes/$": "catch-all that answers 404 to everyone and reads nothing",
 };
 

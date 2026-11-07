@@ -38,6 +38,8 @@ import { Button } from "~/components/ui/button";
 import { berlinDateInput } from "~/lib/format-date";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
+import { QrCode } from "~/components/qr/qr-code";
+import { qrSvg } from "~/lib/qr.server";
 import { useLocale, useT } from "~/i18n/use-t";
 
 export function meta({ data, matches }: Route.MetaArgs) {
@@ -78,7 +80,24 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   ]);
   // Decimal → string so the loader payload is JSON-serializable.
   const equipment = { ...e, frequencyMhz: e.frequencyMhz ? e.frequencyMhz.toString() : null };
-  return { equipment, models, rooms, targets, attachments, history, availability, from, to };
+  // The equipment QR encodes this page's absolute URL — scanning it on the
+  // device label opens the unit's detail directly.
+  const origin = new URL(request.url).origin;
+  const qrHref = `${origin}/inventory/${params.id}`;
+  const qr = await qrSvg(qrHref);
+  return {
+    equipment,
+    models,
+    rooms,
+    targets,
+    attachments,
+    history,
+    availability,
+    from,
+    to,
+    qr,
+    qrHref,
+  };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -128,6 +147,8 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
     availability,
     from,
     to,
+    qr,
+    qrHref,
   } = loaderData;
   const t = useT();
   const locale = useLocale();
@@ -222,6 +243,7 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         </header>
         <ActivityFeed entries={history} />
       </section>
+      <QrCode svg={qr} href={qrHref} titleKey="qr.equipment.title" />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 # Reverse proxy → app. APP_DOMAIN is required by docker-compose.yml: a real hostname
-# enables automatic TLS, and ":80" serves plain HTTP (local or rehearsal only). NO `encode` block: gzip/zstd buffering would break
+# enables automatic TLS, and ":80" serves plain HTTP (local or rehearsal only). Compression is restricted to
+# /assets/* below — on app paths gzip/zstd buffering would break
 # SSE (text/event-stream), which is the live-update transport. `flush_interval -1`
 # streams responses immediately (SSE + streamed SSR pass through unbuffered).
 {$APP_DOMAIN} {
@@ -18,6 +19,11 @@
 	request_body {
 		max_size 20MB
 	}
+	# Compress only the immutable build assets. App responses — including the
+	# SSE stream — stay uncompressed and unbuffered (flush_interval -1 below),
+	# because encode buffers, which would break text/event-stream.
+	@assets path /assets/*
+	encode @assets zstd gzip
 	reverse_proxy app:3000 {
 		flush_interval -1
 	}

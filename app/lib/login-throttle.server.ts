@@ -215,7 +215,21 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       sweep(at);
       const email = attempt.email;
       const ip = attempt.ip;
-      const emailStamps = email ? live(emails, email, at) : [];
+      // Email failures are keyed by the email+IP PAIR and only exist when the
+      // client IP is known: never by email alone. An email-only key would let
+      // an unauthenticated caller lock a known victim's email (ten bad guesses
+      // from one address — or with no IP at all — reject even the victim's
+      // correct password until the window slides). Pair-keying keeps
+      // brute-force pressure per source address, and the IP bucket still caps
+      // each address overall. Requests without an IP are not email-throttled
+      // at all; the reverse proxy always sets X-Forwarded-For, so that case is
+      // a direct-connection oddity, not the normal path.
+      const emailKey =
+        email && ip
+          ? `${email}
+${ip}`
+          : null;
+      const emailStamps = emailKey ? live(emails, emailKey, at) : [];
       const ipStamps = ip ? live(ips, ip, at) : [];
 
       let retryAfterMs = 0;
@@ -227,14 +241,16 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       }
       if (retryAfterMs > 0) return { allowed: false, retryAfterMs };
 
-      if (email) record(emails, email, maxEmailFailures, at);
+      if (emailKey) record(emails, emailKey, maxEmailFailures, at);
       if (ip) record(ips, ip, maxIpFailures, at);
       return { allowed: true };
     },
 
-    /** A correct password clears the email's failures and refunds this attempt on the IP. */
+    /** A correct password clears the email+IP pair's failures and refunds this attempt on the IP. */
     succeeded(attempt: LoginAttempt): void {
-      if (attempt.email) emails.delete(attempt.email);
+      if (attempt.email && attempt.ip)
+        emails.delete(`${attempt.email}
+${attempt.ip}`);
       if (attempt.ip) {
         const stamps = live(ips, attempt.ip, now());
         stamps.pop();

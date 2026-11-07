@@ -3,6 +3,7 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { getDensity, getTheme } from "~/lib/theme.server";
 import { getRunningEntry } from "~/domains/time/time.queries.server";
+import { unreadNotificationCount } from "~/domains/notifications/notifications.queries.server";
 import { AppShell } from "~/components/layout/app-shell";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 
@@ -14,6 +15,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
   // The header's running-timer indicator — one indexed lookup per load.
   const running = await getRunningEntry(user.id);
+  // The header bell's unread badge — same deal.
+  const unreadNotifications = await unreadNotificationCount(user.id);
   return {
     user: {
       name: user.name,
@@ -23,6 +26,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     },
     theme: getTheme(request),
     density: getDensity(request),
+    unreadNotifications,
     runningTimer: running
       ? {
           id: running.id,
@@ -40,6 +44,7 @@ export default function DesktopLayout({ loaderData }: Route.ComponentProps) {
       theme={loaderData.theme}
       density={loaderData.density}
       runningTimer={loaderData.runningTimer}
+      unreadNotifications={loaderData.unreadNotifications}
     >
       <Outlet />
     </AppShell>

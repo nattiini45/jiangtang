@@ -1,8 +1,10 @@
 import { tr } from "~/i18n/request-locale.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { insertOrConflict } from "~/lib/booking.server";
+import { findEquipmentConflicts, findRoomConflicts } from "./events.availability.server";
+import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueCalendarOp } from "~/lib/calendar/publisher.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
 import type {
@@ -162,6 +164,60 @@ export async function createEvent(actor: AuditActor, input: EventCreateInput): P
   });
 }
 
+/**
+ * `createEventWithBooking` — event + room booking in ONE transaction. The mobile
+ * booking form creates both, and a GiST conflict on the booking must roll the
+ * event back too — otherwise a rejected booking leaves an orphan event (and its
+ * calendar outbox row) behind. The typed `BookingConflictError` propagates to the
+ * caller, which sends the conflict notification in a SEPARATE transaction after
+ * this one has rolled back.
+ */
+export async function createEventWithBooking(
+  actor: AuditActor,
+  input: EventCreateInput,
+  booking: RoomBookingInput,
+): Promise<Event> {
+  return txWithAudit(actor, async (tx, audit) => {
+    const event = await tx.event.create({
+      data: {
+        title: input.title,
+        description: input.description ?? null,
+        startsAt: berlinLocalToUtc(input.startsAt),
+        endsAt: berlinLocalToUtc(input.endsAt),
+        status: input.status,
+        organizer: input.organizer ?? null,
+        contact: input.contact ?? null,
+      },
+    });
+    await audit({
+      action: "EventCreated",
+      entityType: "event",
+      entityId: event.id,
+      data: { title: event.title },
+    });
+    await enqueueUpsert(tx, event);
+    const bookingRow = await insertOrConflict(
+      () =>
+        tx.eventRoomBooking.create({
+          data: {
+            eventId: event.id,
+            roomId: booking.roomId,
+            startsAt: berlinLocalToUtc(booking.startsAt),
+            endsAt: berlinLocalToUtc(booking.endsAt),
+          },
+        }),
+      tr("work.err.event.roomAlreadyBooked"),
+    );
+    await audit({
+      action: "RoomBooked",
+      entityType: "eventRoomBooking",
+      entityId: bookingRow.id,
+      data: { roomId: booking.roomId },
+    });
+    return event;
+  });
+}
+
 export async function updateEvent(
   actor: AuditActor,
   id: string,
@@ -228,22 +284,54 @@ export async function addRoomBooking(
 ): Promise<EventRoomBooking> {
   const startsAt = berlinLocalToUtc(input.startsAt);
   const endsAt = berlinLocalToUtc(input.endsAt);
-  return txWithAudit(actor, async (tx, audit) => {
-    await assertEventMutable(tx, eventId);
-    const booking = await insertOrConflict(
-      () =>
-        tx.eventRoomBooking.create({ data: { eventId, roomId: input.roomId, startsAt, endsAt } }),
-      tr("work.err.event.roomAlreadyBooked"),
-    );
-    await audit({
-      action: "RoomBooked",
-      entityType: "eventRoomBooking",
-      entityId: booking.id,
-      data: { roomId: input.roomId },
+  try {
+    return await txWithAudit(actor, async (tx, audit) => {
+      await assertEventMutable(tx, eventId);
+      const booking = await insertOrConflict(
+        () =>
+          tx.eventRoomBooking.create({ data: { eventId, roomId: input.roomId, startsAt, endsAt } }),
+        tr("work.err.event.roomAlreadyBooked"),
+      );
+      await audit({
+        action: "RoomBooked",
+        entityType: "eventRoomBooking",
+        entityId: booking.id,
+        data: { roomId: input.roomId },
+      });
+      await reenqueueEvent(tx, eventId); // calendar location is derived from the room set
+      return booking;
     });
-    await reenqueueEvent(tx, eventId); // calendar location is derived from the room set
-    return booking;
-  });
+  } catch (e) {
+    // The EXCLUDE constraint fired: the booking rolled back, but the owner of
+    // the conflicting booking gets an inbox row (separate transaction — the
+    // failed one is gone by now). The DB remains the authority; this is the
+    // notification, not a second check.
+    if (e instanceof BookingConflictError) {
+      // The notification must never mask the original 409: if the follow-up
+      // itself fails, the client still gets the conflict error.
+      try {
+        const conflicts = await findRoomConflicts(input.roomId, startsAt, endsAt);
+        await notifyBookingConflict({
+          actor,
+          entityType: "eventRoomBooking",
+          entityId: eventId,
+          conflictingEventIds: conflicts.map((c) => c.eventId),
+          detail: {
+            roomId: input.roomId,
+            startsAt: startsAt.toISOString(),
+            endsAt: endsAt.toISOString(),
+            conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+          },
+        });
+      } catch (notifyError) {
+        console.error(
+          "[events] booking-conflict notification failed:",
+          (notifyError as Error).message,
+        );
+      }
+    }
+    throw e;
+  }
 }
 
 /** Scoped to eventId (not just the row id) so a POST against a different
@@ -280,42 +368,68 @@ export async function addAllocation(
 ): Promise<EquipmentAllocation> {
   const startsAt = berlinLocalToUtc(input.startsAt);
   const endsAt = berlinLocalToUtc(input.endsAt);
-  return txWithAudit(actor, async (tx, audit) => {
-    await assertEventMutable(tx, eventId);
-    // Only POOLED equipment is mobile enough to allocate to an event — the UI
-    // picker filters to POOLED (and out RETIRED) already, but that's client-side
-    // only, so a crafted POST could otherwise attach FIXED (room-mounted) or
-    // RETIRED (terminal "do not use") equipment.
-    const equipment = await tx.equipment.findUnique({
-      where: { id: input.equipmentId },
-      select: { mobility: true, status: true },
-    });
-    if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
-    if (equipment.mobility !== EquipmentMobility.POOLED) {
-      throw new ValidationError({
-        equipmentId: [tr("work.err.event.onlyPooled")],
+  try {
+    return await txWithAudit(actor, async (tx, audit) => {
+      await assertEventMutable(tx, eventId);
+      // Only POOLED equipment is mobile enough to allocate to an event — the UI
+      // picker filters to POOLED (and out RETIRED) already, but that's client-side
+      // only, so a crafted POST could otherwise attach FIXED (room-mounted) or
+      // RETIRED (terminal "do not use") equipment.
+      const equipment = await tx.equipment.findUnique({
+        where: { id: input.equipmentId },
+        select: { mobility: true, status: true },
       });
-    }
-    if (equipment.status === EquipmentStatus.RETIRED) {
-      throw new ValidationError({
-        equipmentId: [tr("work.err.event.retiredEquipment")],
+      if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
+      if (equipment.mobility !== EquipmentMobility.POOLED) {
+        throw new ValidationError({
+          equipmentId: [tr("work.err.event.onlyPooled")],
+        });
+      }
+      if (equipment.status === EquipmentStatus.RETIRED) {
+        throw new ValidationError({
+          equipmentId: [tr("work.err.event.retiredEquipment")],
+        });
+      }
+      const allocation = await insertOrConflict(
+        () =>
+          tx.equipmentAllocation.create({
+            data: { eventId, equipmentId: input.equipmentId, startsAt, endsAt },
+          }),
+        tr("work.err.event.equipmentAlreadyAllocated"),
+      );
+      await audit({
+        action: "EquipmentAllocated",
+        entityType: "equipmentAllocation",
+        entityId: allocation.id,
+        data: { equipmentId: input.equipmentId },
       });
-    }
-    const allocation = await insertOrConflict(
-      () =>
-        tx.equipmentAllocation.create({
-          data: { eventId, equipmentId: input.equipmentId, startsAt, endsAt },
-        }),
-      tr("work.err.event.equipmentAlreadyAllocated"),
-    );
-    await audit({
-      action: "EquipmentAllocated",
-      entityType: "equipmentAllocation",
-      entityId: allocation.id,
-      data: { equipmentId: input.equipmentId },
+      return allocation;
     });
-    return allocation;
-  });
+  } catch (e) {
+    if (e instanceof BookingConflictError) {
+      try {
+        const conflicts = await findEquipmentConflicts(input.equipmentId, startsAt, endsAt);
+        await notifyBookingConflict({
+          actor,
+          entityType: "equipmentAllocation",
+          entityId: eventId,
+          conflictingEventIds: conflicts.map((c) => c.eventId),
+          detail: {
+            equipmentId: input.equipmentId,
+            startsAt: startsAt.toISOString(),
+            endsAt: endsAt.toISOString(),
+            conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+          },
+        });
+      } catch (notifyError) {
+        console.error(
+          "[events] booking-conflict notification failed:",
+          (notifyError as Error).message,
+        );
+      }
+    }
+    throw e;
+  }
 }
 
 /** Scoped to eventId — see cancelRoomBooking for the IDOR rationale. */

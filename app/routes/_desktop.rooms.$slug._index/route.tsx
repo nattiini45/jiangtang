@@ -4,6 +4,8 @@ import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
 import { RoomDashboard } from "~/components/rooms/room-dashboard";
+import { QrCode } from "~/components/qr/qr-code";
+import { qrSvg } from "~/lib/qr.server";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 
@@ -22,11 +24,21 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   await requireUser(request);
   const data = await getRoomDashboard(params.slug);
   if (!data) throw toErrorResponse(new NotFoundError(tr("err.room.notFound")));
-  return { data };
+  // The room QR encodes the quick-entry URL pre-filled with this room —
+  // scanning it on site opens "log an entry for this room" directly.
+  const origin = new URL(request.url).origin;
+  const qrHref = `${origin}/quick-entry?roomId=${data.room.id}`;
+  const qr = await qrSvg(qrHref);
+  return { data, qr, qrHref };
 }
 
 export default function RoomDashboardRoute({ loaderData }: Route.ComponentProps) {
-  return <RoomDashboard data={loaderData.data} />;
+  return (
+    <div className="flex flex-col gap-6">
+      <RoomDashboard data={loaderData.data} />
+      <QrCode svg={loaderData.qr} href={loaderData.qrHref} titleKey="qr.room.title" />
+    </div>
+  );
 }
 
 export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";

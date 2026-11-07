@@ -215,7 +215,7 @@ function loadWorker(network: (url: string) => FakeResponse) {
 }
 
 const cachedUrls = (w: ReturnType<typeof loadWorker>) =>
-  [...(w.caches.stores.get("jiangtang-shell-v3")?.keys() ?? [])].sort();
+  [...(w.caches.stores.get("jiangtang-shell-v4")?.keys() ?? [])].sort();
 
 const asStorage = (w: ReturnType<typeof loadWorker>) => w.caches as unknown as CacheStorage;
 
@@ -308,7 +308,7 @@ describe("service worker caching", () => {
       // The answer is out while the write is still pending ...
       expect(res.body).toBe(`body of ${path}`);
       expect(worker.caches.stores.get("jiangtang-assets-v1")?.size ?? 0).toBe(0);
-      expect(worker.caches.stores.get("jiangtang-shell-v3")?.size ?? 0).toBe(0);
+      expect(worker.caches.stores.get("jiangtang-shell-v4")?.size ?? 0).toBe(0);
       // ... and that write is what waitUntil holds on to.
       expect(waited).toHaveLength(1);
       expect(await settled(Promise.all(waited))).toBe(false);
@@ -363,7 +363,7 @@ describe("service worker caching", () => {
 
     await worker.request("/api/tickets");
 
-    expect(worker.caches.stores.has("jiangtang-shell-v3")).toBe(false);
+    expect(worker.caches.stores.has("jiangtang-shell-v4")).toBe(false);
   });
 
   describe("built-in offline placeholder", () => {
@@ -460,7 +460,26 @@ describe("service worker caching", () => {
 
   it("precaches the shell at install, but not when signed out", async () => {
     await worker.install();
-    expect(cachedUrls(worker)).toEqual([abs("/m/"), abs("/m/offline")]);
+    expect(cachedUrls(worker)).toEqual(
+      [
+        "/m/",
+        "/m/offline",
+        "/m/rooms",
+        "/m/tasks",
+        "/m/tickets",
+        "/m/events",
+        "/m/projects",
+        "/m/notes",
+        "/m/timesheet",
+        "/m/notifications",
+        "/m/locations",
+        "/m/inventory/stock",
+        "/m/board",
+        "/m/search",
+      ]
+        .map(abs)
+        .sort(),
+    );
 
     const bounced = loadWorker(() => response("/login", "login page", { redirected: true }));
     await bounced.install();
@@ -470,14 +489,14 @@ describe("service worker caching", () => {
   it("removes older versioned caches on activate and keeps the current ones", async () => {
     await worker.caches.open("jiangtang-shell-v1");
     await worker.caches.open("jiangtang-shell-v2");
-    await worker.caches.open("jiangtang-shell-v3");
+    await worker.caches.open("jiangtang-shell-v4");
     await worker.caches.open("jiangtang-assets-v1");
 
     await worker.activate();
 
     expect([...worker.caches.stores.keys()].sort()).toEqual([
       "jiangtang-assets-v1",
-      "jiangtang-shell-v3",
+      "jiangtang-shell-v4",
     ]);
   });
 

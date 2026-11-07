@@ -17,6 +17,19 @@ const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
   theme_color: string;
   background_color: string;
   icons: Array<{ src: string; sizes: string; type: string; purpose: string }>;
+  screenshots: Array<{
+    src: string;
+    sizes: string;
+    type: string;
+    form_factor: string;
+    label: string;
+  }>;
+  shortcuts: Array<{
+    name: string;
+    short_name: string;
+    url: string;
+    icons: Array<{ src: string; sizes: string; type: string }>;
+  }>;
 };
 
 const iconFile = (src: string) => resolve(dirname(manifestPath), src.replace(/^\//, ""));
@@ -31,8 +44,9 @@ describe("PWA manifest", () => {
     expect(manifest.display).toBe("standalone");
     expect(manifest.scope).toBe("/m/");
     expect(manifest.start_url).toBe("/m/");
-    // A static manifest cannot follow the per-user UI language, so it stays language-neutral.
-    expect(manifest.lang).toBeUndefined();
+    // The static manifest declares a fixed document language; the app UI itself
+    // follows the locale cookie / Accept-Language at runtime.
+    expect(manifest.lang).toBe("en");
   });
 
   it("has the required 192 + 512 icons", () => {
@@ -51,10 +65,29 @@ describe("PWA manifest", () => {
     }
   });
 
+  it("declares screenshots and shortcuts whose files exist and match their declared sizes", () => {
+    for (const shot of manifest.screenshots) {
+      const png = readFileSync(iconFile(shot.src));
+      expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+      expect(`${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`).toBe(shot.sizes);
+    }
+    for (const shortcut of manifest.shortcuts) {
+      // Shortcuts must stay inside the /m scope, or the installed app opens outside itself.
+      expect(shortcut.url.startsWith(manifest.scope)).toBe(true);
+      for (const icon of shortcut.icons) {
+        expect(readFileSync(iconFile(icon.src)).subarray(0, 8).toString("hex")).toBe(
+          "89504e470d0a1a0a",
+        );
+      }
+    }
+  });
+
   it("carries a name + theme color", () => {
     expect(manifest.name).toBe("Jiangtang");
     expect(manifest.short_name).toBe("Jiangtang");
-    expect(manifest.description).toBe("AV-Workspace");
+    expect(manifest.description).toBe(
+      "The all-in-one workspace for AV and facilities teams: rooms, equipment, events, tickets, tasks and notes.",
+    );
     expect(manifest.theme_color).toMatch(/^#/);
     expect(manifest.background_color).toMatch(/^#/);
   });

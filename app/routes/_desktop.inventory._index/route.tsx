@@ -3,11 +3,21 @@ import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listEquipment } from "~/domains/inventory/inventory.queries.server";
+import { listModels } from "~/domains/catalog/catalog.queries.server";
+import { listStock } from "~/domains/inventory/inventory.stock.queries.server";
+import { stockListOptionsSchema } from "~/domains/inventory/inventory.stock.schema";
+import { listLocationTree } from "~/domains/locations/locations.tree.server";
+import { listVendors } from "~/domains/vendors/vendors.queries.server";
+import { listFrequencyBoard } from "~/domains/inventory/inventory.frequency.server";
+import { parseInput } from "~/lib/validation.server";
 import { EquipmentCategory, EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
 import { statusToken } from "~/lib/status";
 import { categoryLabel, mobilityLabel } from "~/components/inventory/labels";
 import { DataGrid } from "~/components/data-grid";
 import { equipmentColumns } from "~/components/inventory/equipment-columns";
+import { ModelsPanel } from "~/components/inventory/models-panel";
+import { StockPanel } from "~/components/inventory/stock-panel";
+import { FrequencyPanel } from "~/components/frequency/frequency-panel";
 import { Button } from "~/components/ui/button";
 import { Select } from "~/components/ui/select";
 import { t } from "~/i18n";
@@ -18,9 +28,73 @@ export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.list") }];
 }
 
+type InventoryTab = "equipment" | "models" | "stock" | "frequencies";
+
+const TABS: {
+  id: InventoryTab;
+  labelKey:
+    | "inventory.tab.equipment"
+    | "inventory.tab.models"
+    | "inventory.tab.stock"
+    | "inventory.tab.frequencies";
+}[] = [
+  { id: "equipment", labelKey: "inventory.tab.equipment" },
+  { id: "models", labelKey: "inventory.tab.models" },
+  { id: "stock", labelKey: "inventory.tab.stock" },
+  { id: "frequencies", labelKey: "inventory.tab.frequencies" },
+];
+
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const url = new URL(request.url);
+  const tabParam = url.searchParams.get("tab") || "";
+  const tab: InventoryTab = (
+    TABS.some((x) => x.id === tabParam) ? tabParam : "equipment"
+  ) as InventoryTab;
+
+  if (tab === "models") {
+    return { tab, models: await listModels() };
+  }
+  if (tab === "frequencies") {
+    return { tab, groups: await listFrequencyBoard() };
+  }
+  if (tab === "stock") {
+    // The filter lives in the URL and nowhere else, so a copied link reproduces the view.
+    // Parsed through the domain's own options schema rather than field by field — that is
+    // what keeps this list and `listStock`'s contract from drifting apart. Garbage degrades
+    // rather than throws, and not only because the schema is lenient: every field is an
+    // *optional string*, so `?location=not-a-real-id` parses cleanly and yields an empty
+    // list, while `parseInput` would have thrown a 422 on a shape the schema cannot produce.
+    const options = parseInput(stockListOptionsSchema, {
+      locationId: url.searchParams.get("location") ?? undefined,
+      vendorId: url.searchParams.get("vendor") ?? undefined,
+      search: url.searchParams.get("q") ?? undefined,
+      includeUnassigned: url.searchParams.get("hideUnassigned") === "1" ? false : undefined,
+    });
+    const [items, locations, vendors] = await Promise.all([
+      listStock(options),
+      listLocationTree(),
+      // The picker's source. Loaded unconditionally, exactly as the location tree is -
+      // a picker whose options depend on the current filter would be a control that lies
+      // about what can still be selected.
+      listVendors(),
+    ]);
+    return {
+      tab,
+      stock: {
+        items,
+        locations,
+        vendors,
+        filters: {
+          locationId: options.locationId ?? "",
+          vendorId: options.vendorId ?? "",
+          search: options.search ?? "",
+          includeUnassigned: options.includeUnassigned,
+        },
+      },
+    };
+  }
+
   const categoryParam = url.searchParams.get("category") || "";
   const statusParam = url.searchParams.get("status") || "";
   const mobilityParam = url.searchParams.get("mobility") || "";
@@ -32,19 +106,76 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const equipment = await listEquipment({ category, status, mobility });
   return {
-    equipment,
-    filters: { category: category ?? "", status: status ?? "", mobility: mobility ?? "" },
+    tab,
+    equipment: {
+      equipment,
+      filters: { category: category ?? "", status: status ?? "", mobility: mobility ?? "" },
+    },
   };
 }
 
 export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
+  const { tab } = loaderData;
   const columns = React.useMemo(() => equipmentColumns(t, locale), [t, locale]);
-  const { equipment, filters } = loaderData;
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement>) =>
     e.currentTarget.form?.requestSubmit();
 
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Section tabs — plain links so they are keyboard-reachable and the section
+          lives in the URL (`?tab=`), shareable like every other filter. */}
+      <nav aria-label={t("inventory.tabs.aria")} className="flex border-b">
+        {TABS.map((tabDef) => (
+          <Link
+            key={tabDef.id}
+            to={tabDef.id === "equipment" ? "/inventory" : `/inventory?tab=${tabDef.id}`}
+            aria-current={tab === tabDef.id ? "page" : undefined}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+              tab === tabDef.id
+                ? "border-primary text-foreground font-semibold"
+                : "text-muted-foreground hover:text-foreground border-transparent"
+            }`}
+          >
+            {t(tabDef.labelKey)}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "models" && "models" in loaderData ? (
+        <ModelsPanel models={loaderData.models} />
+      ) : null}
+      {tab === "frequencies" && "groups" in loaderData ? (
+        <FrequencyPanel groups={loaderData.groups} />
+      ) : null}
+      {tab === "stock" && "stock" in loaderData ? <StockPanel {...loaderData.stock} /> : null}
+
+      {tab === "equipment" && "equipment" in loaderData ? (
+        <EquipmentPanel
+          equipment={loaderData.equipment.equipment}
+          filters={loaderData.equipment.filters}
+          columns={columns}
+          autoSubmit={autoSubmit}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function EquipmentPanel({
+  equipment,
+  filters,
+  columns,
+  autoSubmit,
+}: {
+  equipment: Awaited<ReturnType<typeof listEquipment>>;
+  filters: { category: string; status: string; mobility: string };
+  columns: ReturnType<typeof equipmentColumns>;
+  autoSubmit: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+}) {
+  const locale = useLocale();
+  const t = useT();
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -52,14 +183,9 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
           <h1 className="text-xl font-bold">{t("inventory.list.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("inventory.list.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button asChild variant="tertiary">
-            <Link to="/inventory/models">{t("inventory.list.models")}</Link>
-          </Button>
-          <Button asChild>
-            <Link to="/inventory/new">{t("inventory.list.new")}</Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link to="/inventory/new">{t("inventory.list.new")}</Link>
+        </Button>
       </div>
 
       <Form method="get" className="flex flex-wrap items-center gap-2">

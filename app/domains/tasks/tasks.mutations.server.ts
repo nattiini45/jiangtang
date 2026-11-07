@@ -12,6 +12,7 @@ import {
   type Lane,
 } from "./tasks.lanes";
 import { positionBetween } from "./tasks.position";
+import { notifyTaskAssignedInTx } from "~/domains/notifications/notifications.mutations.server";
 import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 import type {
   TaskAssigneeInput,
@@ -165,6 +166,12 @@ export async function createTaskInTx(
     entityId: task.id,
     data: { title: task.title, status: task.status, position: position.toString(), ...extraData },
   });
+  await notifyTaskAssignedInTx(
+    tx,
+    { id: task.id, title: task.title },
+    assignees.map((a) => a.userId),
+    actor?.id,
+  );
   return task;
 }
 
@@ -481,6 +488,7 @@ export async function setTaskAssignees(
       entityId: id,
       data: { title: before.title, added, removed },
     });
+    await notifyTaskAssignedInTx(tx, { id, title: before.title }, added, actor.id);
     return task!;
   });
 }
