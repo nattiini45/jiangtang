@@ -1,8 +1,10 @@
 import { tr } from "~/i18n/request-locale.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { insertOrConflict } from "~/lib/booking.server";
+import { findEquipmentConflicts, findRoomConflicts } from "./events.availability.server";
+import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueCalendarOp } from "~/lib/calendar/publisher.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
 import type {
@@ -228,22 +230,45 @@ export async function addRoomBooking(
 ): Promise<EventRoomBooking> {
   const startsAt = berlinLocalToUtc(input.startsAt);
   const endsAt = berlinLocalToUtc(input.endsAt);
-  return txWithAudit(actor, async (tx, audit) => {
-    await assertEventMutable(tx, eventId);
-    const booking = await insertOrConflict(
-      () =>
-        tx.eventRoomBooking.create({ data: { eventId, roomId: input.roomId, startsAt, endsAt } }),
-      tr("work.err.event.roomAlreadyBooked"),
-    );
-    await audit({
-      action: "RoomBooked",
-      entityType: "eventRoomBooking",
-      entityId: booking.id,
-      data: { roomId: input.roomId },
+  try {
+    return await txWithAudit(actor, async (tx, audit) => {
+      await assertEventMutable(tx, eventId);
+      const booking = await insertOrConflict(
+        () =>
+          tx.eventRoomBooking.create({ data: { eventId, roomId: input.roomId, startsAt, endsAt } }),
+        tr("work.err.event.roomAlreadyBooked"),
+      );
+      await audit({
+        action: "RoomBooked",
+        entityType: "eventRoomBooking",
+        entityId: booking.id,
+        data: { roomId: input.roomId },
+      });
+      await reenqueueEvent(tx, eventId); // calendar location is derived from the room set
+      return booking;
     });
-    await reenqueueEvent(tx, eventId); // calendar location is derived from the room set
-    return booking;
-  });
+  } catch (e) {
+    // The EXCLUDE constraint fired: the booking rolled back, but the owner of
+    // the conflicting booking gets an inbox row (separate transaction — the
+    // failed one is gone by now). The DB remains the authority; this is the
+    // notification, not a second check.
+    if (e instanceof BookingConflictError) {
+      const conflicts = await findRoomConflicts(input.roomId, startsAt, endsAt);
+      await notifyBookingConflict({
+        actor,
+        entityType: "eventRoomBooking",
+        entityId: eventId,
+        conflictingEventIds: conflicts.map((c) => c.eventId),
+        detail: {
+          roomId: input.roomId,
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+        },
+      });
+    }
+    throw e;
+  }
 }
 
 /** Scoped to eventId (not just the row id) so a POST against a different
@@ -280,42 +305,61 @@ export async function addAllocation(
 ): Promise<EquipmentAllocation> {
   const startsAt = berlinLocalToUtc(input.startsAt);
   const endsAt = berlinLocalToUtc(input.endsAt);
-  return txWithAudit(actor, async (tx, audit) => {
-    await assertEventMutable(tx, eventId);
-    // Only POOLED equipment is mobile enough to allocate to an event — the UI
-    // picker filters to POOLED (and out RETIRED) already, but that's client-side
-    // only, so a crafted POST could otherwise attach FIXED (room-mounted) or
-    // RETIRED (terminal "do not use") equipment.
-    const equipment = await tx.equipment.findUnique({
-      where: { id: input.equipmentId },
-      select: { mobility: true, status: true },
+  try {
+    return await txWithAudit(actor, async (tx, audit) => {
+      await assertEventMutable(tx, eventId);
+      // Only POOLED equipment is mobile enough to allocate to an event — the UI
+      // picker filters to POOLED (and out RETIRED) already, but that's client-side
+      // only, so a crafted POST could otherwise attach FIXED (room-mounted) or
+      // RETIRED (terminal "do not use") equipment.
+      const equipment = await tx.equipment.findUnique({
+        where: { id: input.equipmentId },
+        select: { mobility: true, status: true },
+      });
+      if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
+      if (equipment.mobility !== EquipmentMobility.POOLED) {
+        throw new ValidationError({
+          equipmentId: [tr("work.err.event.onlyPooled")],
+        });
+      }
+      if (equipment.status === EquipmentStatus.RETIRED) {
+        throw new ValidationError({
+          equipmentId: [tr("work.err.event.retiredEquipment")],
+        });
+      }
+      const allocation = await insertOrConflict(
+        () =>
+          tx.equipmentAllocation.create({
+            data: { eventId, equipmentId: input.equipmentId, startsAt, endsAt },
+          }),
+        tr("work.err.event.equipmentAlreadyAllocated"),
+      );
+      await audit({
+        action: "EquipmentAllocated",
+        entityType: "equipmentAllocation",
+        entityId: allocation.id,
+        data: { equipmentId: input.equipmentId },
+      });
+      return allocation;
     });
-    if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
-    if (equipment.mobility !== EquipmentMobility.POOLED) {
-      throw new ValidationError({
-        equipmentId: [tr("work.err.event.onlyPooled")],
+  } catch (e) {
+    if (e instanceof BookingConflictError) {
+      const conflicts = await findEquipmentConflicts(input.equipmentId, startsAt, endsAt);
+      await notifyBookingConflict({
+        actor,
+        entityType: "equipmentAllocation",
+        entityId: eventId,
+        conflictingEventIds: conflicts.map((c) => c.eventId),
+        detail: {
+          equipmentId: input.equipmentId,
+          startsAt: startsAt.toISOString(),
+          endsAt: endsAt.toISOString(),
+          conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+        },
       });
     }
-    if (equipment.status === EquipmentStatus.RETIRED) {
-      throw new ValidationError({
-        equipmentId: [tr("work.err.event.retiredEquipment")],
-      });
-    }
-    const allocation = await insertOrConflict(
-      () =>
-        tx.equipmentAllocation.create({
-          data: { eventId, equipmentId: input.equipmentId, startsAt, endsAt },
-        }),
-      tr("work.err.event.equipmentAlreadyAllocated"),
-    );
-    await audit({
-      action: "EquipmentAllocated",
-      entityType: "equipmentAllocation",
-      entityId: allocation.id,
-      data: { equipmentId: input.equipmentId },
-    });
-    return allocation;
-  });
+    throw e;
+  }
 }
 
 /** Scoped to eventId — see cancelRoomBooking for the IDOR rationale. */

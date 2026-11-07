@@ -4,19 +4,16 @@ import {
   getWarrantyWindowDays,
   listExpiringWarranties,
 } from "~/domains/inventory/inventory.stock.warranty.server";
+import { notifyWarrantyExpiring } from "~/domains/notifications/notifications.mutations.server";
 
 /**
  * Warranty sweep boot job (`InventoryItem.warrantyExpiresAt`,
- * "warranty expiry sweep"). Once a day, counts the stock whose warranty expires
- * inside the look-ahead window and logs the count. Shape follows
- * `retention.boot.server.ts`.
- *
- * 🔴 **It writes nothing** — no `status`, no `ActivityLog` row, and no write of
- * any kind. The only database call here is the read
- * behind `listExpiringWarranties`. The count is a log line because a service desk
- * needs to know the number without anyone having to build a screen for it first,
- * and the query is the reusable half; the writing half is deliberately absent until
- * a document asks for it.
+ * "warranty expiry sweep"). Once a day, reads the stock whose warranty expires
+ * inside the look-ahead window and writes one WARRANTY_EXPIRING inbox
+ * notification per item per active admin (deduplicated by item, so repeat
+ * ticks never spam). The count is still logged for the service desk.
+ * No `ActivityLog` rows: notifications are system-generated side effects, not
+ * user mutations. Shape follows `retention.boot.server.ts`.
  *
  * Immediate tick on boot (a freshly-restarted server catches up), then daily.
  */
@@ -24,15 +21,21 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * One sweep: reads, logs, returns how many items are expiring. Exported so a test
- * can drive a tick directly and assert the *absence* of writes — the property the
- * row exists to protect is only observable by running the tick.
+ * One sweep: reads, notifies, logs, returns how many items are expiring.
+ * Exported so a test can drive a tick directly.
  */
 export async function runWarrantySweep(): Promise<number> {
   const withinDays = getWarrantyWindowDays();
   const expiring = await listExpiringWarranties({ withinDays });
   if (expiring.length > 0) {
     console.log(`[warranty] ${expiring.length} item(s) expire within ${withinDays}d`);
+    await notifyWarrantyExpiring(
+      expiring.map((i) => ({
+        id: i.id,
+        name: i.name,
+        warrantyExpiresAt: i.warrantyExpiresAt!,
+      })),
+    );
   }
   return expiring.length;
 }
