@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * The seven-file migration baseline is a baseline only if it is internally
+ * The eight-file migration baseline is a baseline only if it is internally
  * complete: one ordered chain, no fragment directory beside it, and the counts
  * the consolidation was accepted for. This suite asserts exactly that, and it is
  * FILESYSTEM-ONLY on purpose — it opens no pool, imports no `pg`, and reads no
@@ -26,7 +26,7 @@ import { describe, expect, it } from "vitest";
  * The measurement is comment-stripped, the same call `test/workitem-view.test.ts`
  * and `guards.sh` make: the migration headers quote the statements they explain,
  * so a raw substring count would measure prose. Every count below is derived from
- * the executable SQL of the seven files, never from a summary written somewhere
+ * the executable SQL of the eight files, never from a summary written somewhere
  * else.
  *
  * The negative controls at the bottom mutate a COPY in the system temp
@@ -38,7 +38,7 @@ import { describe, expect, it } from "vitest";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PRISMA_DIR = join(REPO_ROOT, "prisma");
 
-/** The seven canonical directories, in chain order. */
+/** The eight canonical directories, in chain order. */
 const CANONICAL_DIRS = [
   "20261023000000_extensions",
   "20261023000100_core_schema",
@@ -64,7 +64,7 @@ type Counts = {
   createTrigger: number;
 };
 
-/** Counted from the seven migration files; each count is re-derived below. */
+/** Counted from the eight migration files; each count is re-derived below. */
 const EXPECTED_COUNTS: Counts = {
   createType: 19,
   createTable: 31,
@@ -282,7 +282,7 @@ function problems(report: BaselineReport): string[] {
   }
   if (JSON.stringify(report.migrationDirs) !== JSON.stringify([...CANONICAL_DIRS])) {
     found.push(
-      `migration directories are ${JSON.stringify(report.migrationDirs)}, expected the canonical seven in order`,
+      `migration directories are ${JSON.stringify(report.migrationDirs)}, expected the canonical eight in order`,
     );
   }
   if (report.sqlDirPresent) {
@@ -360,8 +360,8 @@ function inspectMutatedCopy(mutate: (prismaDir: string) => void): BaselineReport
 
 const LIVE = inspect(PRISMA_DIR);
 
-describe("migration baseline (seven files, filesystem only — no database)", () => {
-  it("holds exactly the seven canonical migration directories plus migration_lock.toml", () => {
+describe("migration baseline (eight files, filesystem only — no database)", () => {
+  it("holds exactly the eight canonical migration directories plus migration_lock.toml", () => {
     expect(LIVE.entries).toEqual([...CANONICAL_DIRS, "migration_lock.toml"].sort());
     expect(LIVE.migrationDirs).toEqual([...CANONICAL_DIRS]);
   });

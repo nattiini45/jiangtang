@@ -253,19 +253,28 @@ export async function addRoomBooking(
     // failed one is gone by now). The DB remains the authority; this is the
     // notification, not a second check.
     if (e instanceof BookingConflictError) {
-      const conflicts = await findRoomConflicts(input.roomId, startsAt, endsAt);
-      await notifyBookingConflict({
-        actor,
-        entityType: "eventRoomBooking",
-        entityId: eventId,
-        conflictingEventIds: conflicts.map((c) => c.eventId),
-        detail: {
-          roomId: input.roomId,
-          startsAt: startsAt.toISOString(),
-          endsAt: endsAt.toISOString(),
-          conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
-        },
-      });
+      // The notification must never mask the original 409: if the follow-up
+      // itself fails, the client still gets the conflict error.
+      try {
+        const conflicts = await findRoomConflicts(input.roomId, startsAt, endsAt);
+        await notifyBookingConflict({
+          actor,
+          entityType: "eventRoomBooking",
+          entityId: eventId,
+          conflictingEventIds: conflicts.map((c) => c.eventId),
+          detail: {
+            roomId: input.roomId,
+            startsAt: startsAt.toISOString(),
+            endsAt: endsAt.toISOString(),
+            conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+          },
+        });
+      } catch (notifyError) {
+        console.error(
+          "[events] booking-conflict notification failed:",
+          (notifyError as Error).message,
+        );
+      }
     }
     throw e;
   }
@@ -344,19 +353,26 @@ export async function addAllocation(
     });
   } catch (e) {
     if (e instanceof BookingConflictError) {
-      const conflicts = await findEquipmentConflicts(input.equipmentId, startsAt, endsAt);
-      await notifyBookingConflict({
-        actor,
-        entityType: "equipmentAllocation",
-        entityId: eventId,
-        conflictingEventIds: conflicts.map((c) => c.eventId),
-        detail: {
-          equipmentId: input.equipmentId,
-          startsAt: startsAt.toISOString(),
-          endsAt: endsAt.toISOString(),
-          conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
-        },
-      });
+      try {
+        const conflicts = await findEquipmentConflicts(input.equipmentId, startsAt, endsAt);
+        await notifyBookingConflict({
+          actor,
+          entityType: "equipmentAllocation",
+          entityId: eventId,
+          conflictingEventIds: conflicts.map((c) => c.eventId),
+          detail: {
+            equipmentId: input.equipmentId,
+            startsAt: startsAt.toISOString(),
+            endsAt: endsAt.toISOString(),
+            conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+          },
+        });
+      } catch (notifyError) {
+        console.error(
+          "[events] booking-conflict notification failed:",
+          (notifyError as Error).message,
+        );
+      }
     }
     throw e;
   }

@@ -73,17 +73,19 @@ export async function notifyTaskAssignedInTx(
 }
 
 export async function markNotificationRead(actor: AuditActor, id: string) {
-  return txWithAudit(actor, async (tx) => {
+  const updated = await txWithAudit(actor, async (tx) => {
     const row = await tx.notification.findUnique({ where: { id } });
     if (!row || row.userId !== actor.id) {
       throw new NotFoundError(tr("err.notFoundBody"));
     }
-    const updated = await tx.notification.update({
+    return tx.notification.update({
       where: { id },
       data: { readAt: new Date() },
     });
-    return updated;
   });
+  // Realtime so other open tabs' bell badges refresh too.
+  await emitChange({ entityType: "notification", id: updated.id, op: "updated" });
+  return updated;
 }
 
 export async function markAllNotificationsRead(actor: AuditActor): Promise<number> {
@@ -183,8 +185,10 @@ export async function notifyBookingConflict(input: {
   const inputs: NotificationInput[] = [...recipients].map((userId) => ({
     userId,
     type: NotificationType.BOOKING_CONFLICT,
-    entityType: input.entityType,
-    entityId: input.entityId,
+    // Link to the conflicting event (the recipient's own booking), not the
+    // booking sub-row — `entityHref` has no target for those.
+    entityType: "event",
+    entityId: input.conflictingEventIds[0] ?? input.entityId,
     data: input.detail,
   }));
   return notifyUsers(input.actor, inputs);

@@ -14,27 +14,39 @@ import type { MessageKey } from "~/i18n";
  * Each row links to its entity via `entityHref` when one exists and carries a
  * mark-as-read form; unread rows render with a dot.
  */
+/**
+ * The label params for one notification row. Payload keys map to template
+ * placeholders: `dueAt`/`warrantyExpiresAt` are ISO instants that render as
+ * Berlin dates under the shared `{date}` placeholder.
+ */
+export function notificationLabelParams(
+  type: NotificationType,
+  data: unknown,
+): Record<string, string> {
+  const raw = (data ?? {}) as Record<string, unknown>;
+  const params: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v !== "string") continue;
+    if (/^(dueAt|warrantyExpiresAt)$/.test(k) && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+      params.date = berlinDateInput(v);
+    } else {
+      params[k] = v;
+    }
+  }
+  if (type === "BOOKING_CONFLICT" && !params.detail) {
+    const conflicts = Array.isArray(raw.conflicts) ? raw.conflicts : [];
+    const first = conflicts[0] as { eventTitle?: string } | undefined;
+    params.detail = first?.eventTitle ?? (typeof raw.roomId === "string" ? raw.roomId : "");
+  }
+  return params;
+}
+
 export function NotificationList({ notifications }: { notifications: Notification[] }) {
   const t = useT();
   return (
     <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
       {notifications.map((n) => {
-        const data = (n.data ?? {}) as Record<string, unknown>;
-        const params: Record<string, string> = {};
-        for (const [k, v] of Object.entries(data)) {
-          if (typeof v === "string") {
-            // ISO instants in the payload render as Berlin dates.
-            params[k] =
-              /dueAt|warrantyExpiresAt/.test(k) && /^\d{4}-\d{2}-\d{2}T/.test(v)
-                ? berlinDateInput(v)
-                : v;
-          }
-        }
-        if (n.type === "BOOKING_CONFLICT" && !params.detail) {
-          const conflicts = Array.isArray(data.conflicts) ? data.conflicts : [];
-          const first = conflicts[0] as { eventTitle?: string } | undefined;
-          params.detail = first?.eventTitle ?? (typeof data.roomId === "string" ? data.roomId : "");
-        }
+        const params = notificationLabelParams(n.type, n.data);
         const label = t(`notifications.type.${n.type}` as MessageKey, params);
         const href =
           n.entityType && n.entityId ? entityHref(n.entityType, { id: n.entityId }) : null;
