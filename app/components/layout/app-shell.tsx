@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Form, NavLink } from "react-router";
+import { Form, Link, NavLink } from "react-router";
 import { motion } from "motion/react";
-import { LogOut, Monitor, Moon, Rows3, Rows4, Search, Square, Sun } from "lucide-react";
+import { LogOut, Monitor, Moon, Plus, Rows3, Rows4, Search, Square, Sun } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { spring } from "~/lib/springs";
 import { Button } from "~/components/ui/button";
@@ -121,6 +121,17 @@ export function AppShell({
               <Kbd>⌘K</Kbd>
             </button>
             <div className="flex items-center gap-1">
+              <Button
+                asChild
+                size="icon"
+                className="mr-1"
+                title={t("shell.quickEntry")}
+                aria-label={t("shell.quickEntry")}
+              >
+                <Link to="/quick-entry">
+                  <Plus />
+                </Link>
+              </Button>
               {runningTimer ? <RunningTimerBadge timer={runningTimer} /> : null}
               <LanguageSwitcher className="mr-1" />
               <DensityToggle density={density} />
