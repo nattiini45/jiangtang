@@ -215,18 +215,20 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       sweep(at);
       const email = attempt.email;
       const ip = attempt.ip;
-      // Email failures are keyed by the email+IP PAIR, never by email alone:
-      // an unauthenticated caller must not be able to lock a known victim's
-      // email — with an email-only key, ten bad guesses from one address would
-      // reject even the victim's correct password until the window slides.
-      // Pair-keying keeps brute-force pressure per source address (the IP
-      // bucket still caps the address overall) without a cross-IP lockout.
-      const emailKey = email
-        ? ip
+      // Email failures are keyed by the email+IP PAIR and only exist when the
+      // client IP is known: never by email alone. An email-only key would let
+      // an unauthenticated caller lock a known victim's email (ten bad guesses
+      // from one address — or with no IP at all — reject even the victim's
+      // correct password until the window slides). Pair-keying keeps
+      // brute-force pressure per source address, and the IP bucket still caps
+      // each address overall. Requests without an IP are not email-throttled
+      // at all; the reverse proxy always sets X-Forwarded-For, so that case is
+      // a direct-connection oddity, not the normal path.
+      const emailKey =
+        email && ip
           ? `${email}
 ${ip}`
-          : email
-        : null;
+          : null;
       const emailStamps = emailKey ? live(emails, emailKey, at) : [];
       const ipStamps = ip ? live(ips, ip, at) : [];
 
@@ -246,12 +248,9 @@ ${ip}`
 
     /** A correct password clears the email+IP pair's failures and refunds this attempt on the IP. */
     succeeded(attempt: LoginAttempt): void {
-      const emailKey =
-        attempt.email && attempt.ip
-          ? `${attempt.email}
-${attempt.ip}`
-          : attempt.email;
-      if (emailKey) emails.delete(emailKey);
+      if (attempt.email && attempt.ip)
+        emails.delete(`${attempt.email}
+${attempt.ip}`);
       if (attempt.ip) {
         const stamps = live(ips, attempt.ip, now());
         stamps.pop();
