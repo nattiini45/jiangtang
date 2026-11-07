@@ -19,6 +19,7 @@ import { inventoryDe } from "./catalog/de/inventory";
 import { labelsDe } from "./catalog/de/labels";
 import { locationsDe } from "./catalog/de/locations";
 import { mobileDe } from "./catalog/de/mobile";
+import { notificationsDe } from "./catalog/de/notifications";
 import { roomsDe } from "./catalog/de/rooms";
 import { searchDe } from "./catalog/de/search";
 import { shellDe } from "./catalog/de/shell";
@@ -46,6 +47,7 @@ import { inventoryEn } from "./catalog/en/inventory";
 import { labelsEn } from "./catalog/en/labels";
 import { locationsEn } from "./catalog/en/locations";
 import { mobileEn } from "./catalog/en/mobile";
+import { notificationsEn } from "./catalog/en/notifications";
 import { roomsEn } from "./catalog/en/rooms";
 import { searchEn } from "./catalog/en/search";
 import { shellEn } from "./catalog/en/shell";
@@ -81,6 +83,7 @@ const de = {
   ...labelsDe,
   ...locationsDe,
   ...mobileDe,
+  ...notificationsDe,
   ...roomsDe,
   ...searchDe,
   ...shellDe,
@@ -110,6 +113,7 @@ const en = {
   ...labelsEn,
   ...locationsEn,
   ...mobileEn,
+  ...notificationsEn,
   ...roomsEn,
   ...searchEn,
   ...shellEn,

@@ -26,6 +26,7 @@ const SHELL_URLS = [
   "/m/projects",
   "/m/notes",
   "/m/timesheet",
+  "/m/notifications",
   "/m/locations",
   "/m/inventory/stock",
   "/m/board",

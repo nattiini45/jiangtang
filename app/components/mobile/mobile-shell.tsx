@@ -1,7 +1,15 @@
 import * as React from "react";
 import { Form, Link, NavLink } from "react-router";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, Building2, Ticket, MoreHorizontal, ListTodo, ChevronRight } from "lucide-react";
+import {
+  Bell,
+  Camera,
+  Building2,
+  Ticket,
+  MoreHorizontal,
+  ListTodo,
+  ChevronRight,
+} from "lucide-react";
 import { cn } from "~/lib/utils";
 import { spring } from "~/lib/springs";
 import { useLiveRefetch } from "~/lib/realtime/use-live-refetch";
@@ -47,6 +55,7 @@ const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
   { to: "/m/timesheet", labelKey: "nav.timesheet" },
   { to: "/m/board", labelKey: "nav.board" },
   { to: "/m/search", labelKey: "nav.search" },
+  { to: "/m/notifications", labelKey: "shell.notifications" },
   { to: "/m/tasks/new", labelKey: "mobile.menu.newTask" },
   { to: "/m/notes/new", labelKey: "mobile.menu.newNote" },
 ];
@@ -54,7 +63,15 @@ const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
 const TAB_CLASS =
   "relative flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 text-xs transition-colors duration-80";
 
-export function MobileShell({ user, children }: { user: MobileUser; children: React.ReactNode }) {
+export function MobileShell({
+  user,
+  unreadNotifications = 0,
+  children,
+}: {
+  user: MobileUser;
+  unreadNotifications?: number;
+  children: React.ReactNode;
+}) {
   // Same single SSE connection pattern as the desktop AppShell (real-time) —
   // any committed change in another session triggers a refetch.
   useLiveRefetch();
@@ -89,6 +106,19 @@ export function MobileShell({ user, children }: { user: MobileUser; children: Re
         </span>
         <span className="flex items-center gap-2">
           <QueueBadge pending={pending} authRequired={authRequired} />
+          <Link
+            to="/m/notifications"
+            aria-label={t("shell.notifications")}
+            title={t("shell.notifications")}
+            className="bg-card relative flex size-9 items-center justify-center rounded-md shadow-[inset_0_0_0_1px_var(--input)]"
+          >
+            <Bell className="size-4" strokeWidth={1.5} aria-hidden />
+            {unreadNotifications > 0 ? (
+              <span className="bg-destructive text-destructive-foreground nums absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+                {unreadNotifications > 9 ? "9+" : unreadNotifications}
+              </span>
+            ) : null}
+          </Link>
           <span className="bg-tint type-micro flex size-7 items-center justify-center rounded-full font-semibold">
             {user.initials ?? user.name.slice(0, 2)}
           </span>
