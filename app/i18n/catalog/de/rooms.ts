@@ -17,6 +17,7 @@ export const roomsDe = {
   "rooms.list.allStatuses": "Alle Status",
   "rooms.list.filterSubmit": "Filtern",
   "rooms.list.empty": "Keine Räume gefunden.",
+  "rooms.list.manageCampuses": "Campus verwalten",
 
   "rooms.col.roomNumber": "Raum-Nr.",
   "rooms.col.name": "Bezeichnung",
