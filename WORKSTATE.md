@@ -37,7 +37,7 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 | M1 | Phase 1 | Quick wins: Caddy `/assets` compression, manifest (description/screenshots/shortcuts), import admin-only, login brand line | done | orchestrator (impl) / reviewer-m1 (review) | see Handoff M1 |
 | M2 | Phase 2 | Desktop IA consolidation: nav restructure (Places/Inventory tabs, campuses into Rooms, capacity into Timesheet), header quick-entry button | done | orchestrator (impl) / reviewer-m2 (review) | see Handoff M2 |
 | M3 | Phase 3 | Mobile parity: /m events-today, projects, notes list, timesheet timer, stock detail; flat full More sheet; SW precache + shortcuts | done | orchestrator (impl) / reviewer-m3 (review) | see Handoff M3 |
-| M4 | Phase 4a | In-app notification center (model + inbox UI + realtime + triggers: assignment, due soon, booking conflict, warranty) | in_progress | orchestrator (impl) | see Handoff M4 |
+| M4 | Phase 4a | In-app notification center (model + inbox UI + realtime + triggers: assignment, due soon, booking conflict, warranty) | in_review | orchestrator (impl) / reviewer-m4 (review) | see Handoff M4 |
 | M5 | Phase 4b | QR codes on room/equipment pages (scan → deep link / quick ticket) | pending | | see Handoff M5 |
 | M6 | Phase 5 | Public marketing landing route (anonymous `/`), docs copy, PUBLIC allowlist entry; hosted-demo ops spec | pending | | see Handoff M6 |
 | M7 | Phase 6 | Multi-tenant + places-model unification: prepared design specs only (no execution this session) | pending | | see Handoff M7 |
@@ -112,6 +112,8 @@ done, and what a handoff may touch. The full analysis behind the phases lives in
 - Out of scope: web push in this milestone (spec only), everything else.
 - Acceptance: gates §4 incl. migration-baseline test update if the chain shape is pinned, guards,
   `ops/postgres/verify-invariants.sql` untouched unless a new invariant is added.
+- Log: implemented in debfa00 (schema + Notification model + migration 20261107161719_notification_inbox; baseline pins updated: migration-baseline, catalog.import-model, schema-guard 52/40, cross-folder-writes map), fe0c8a3 (domain + triggers: notifyTaskAssignedInTx inside createTaskInTx/setTaskAssignees, sweepDueSoon hourly boot job notifications.boot.server.ts (unref'd, cleared on shutdown), BookingConflictError → notifyBookingConflict for conflicting-event organizers/admins in addRoomBooking/addAllocation in a SEPARATE tx after rollback, warranty sweep now writes WARRANTY_EXPIRING per admin dedup'd by item; "notification" added to ENTITY_TYPES + ENTITY_TYPE map), b5a5ed7 (inbox routes /notifications + /m/notifications with shared NotificationList, header bell + unread badge in both shells, layout loaders carry unread count, notifications.ts i18n area en+de registered, sw.js precaches /m/notifications, e2e a11y+i18n-sweep entries). verify-invariants.sql untouched (no new unmodelled invariant).
+- Verification: typecheck 0, lint 0, `pnpm format` clean, guards OK, `pnpm test` 152 files / 1809 passed / 0 failed (incl. new notifications.test.ts, updated warranty test), `pnpm test:e2e` 171/171. Note: two e2e re-runs showed Vite HMR ws 400s caused by a stale `pnpm dev` process from an earlier smoke test holding port 24678 — killed it, re-ran green; not a code issue.
 
 ### Handoff M5 — QR codes
 - In scope: room + equipment detail pages (desktop + mobile), a QR component, dependency
