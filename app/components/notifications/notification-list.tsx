@@ -50,50 +50,53 @@ export function NotificationList({ notifications }: { notifications: Notificatio
         const label = t(`notifications.type.${n.type}` as MessageKey, params);
         const href =
           n.entityType && n.entityId ? entityHref(n.entityType, { id: n.entityId }) : null;
-        const row = (
-          <>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                {n.readAt ? null : (
-                  <span
-                    className="bg-primary inline-block size-2 shrink-0 rounded-full"
-                    aria-hidden
-                  />
-                )}
-                <span className="truncate text-sm font-semibold">{label}</span>
-              </span>
-              <p className="text-muted-foreground nums truncate text-xs">
-                {berlinLocalString(n.createdAt).slice(0, 16).replace("T", " ")}
-              </p>
-            </span>
-            <Form method="post" className="shrink-0">
-              <input type="hidden" name="_action" value="mark-read" />
-              <input type="hidden" name="id" value={n.id} />
+        // The entity link and the mark-as-read form are SIBLINGS: nesting the
+        // form inside the link would bubble the button's click into a navigation.
+        const body = (
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
               {n.readAt ? null : (
-                <Button
-                  type="submit"
-                  variant="ghost"
-                  size="compact"
-                  title={t("notifications.markRead")}
-                >
-                  {t("notifications.markRead")}
-                </Button>
+                <span
+                  className="bg-primary inline-block size-2 shrink-0 rounded-full"
+                  aria-hidden
+                />
               )}
-            </Form>
-          </>
+              <span className="truncate text-sm font-semibold">{label}</span>
+            </span>
+            <p className="text-muted-foreground nums truncate text-xs">
+              {berlinLocalString(n.createdAt).slice(0, 16).replace("T", " ")}
+            </p>
+          </span>
+        );
+        const markRead = (
+          <Form method="post" className="shrink-0">
+            <input type="hidden" name="_action" value="mark-read" />
+            <input type="hidden" name="id" value={n.id} />
+            {n.readAt ? null : (
+              <Button
+                type="submit"
+                variant="ghost"
+                size="compact"
+                title={t("notifications.markRead")}
+              >
+                {t("notifications.markRead")}
+              </Button>
+            )}
+          </Form>
         );
         return (
-          <li key={n.id}>
+          <li key={n.id} className="flex min-h-12 items-center gap-3 px-3 py-2">
             {href ? (
               <Link
                 to={href}
-                className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
+                className="active:bg-selected flex min-w-0 flex-1 items-center transition-colors duration-80"
               >
-                {row}
+                {body}
               </Link>
             ) : (
-              <div className="flex min-h-12 items-center gap-3 px-3 py-2">{row}</div>
+              body
             )}
+            {markRead}
           </li>
         );
       })}

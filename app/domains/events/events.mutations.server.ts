@@ -164,6 +164,60 @@ export async function createEvent(actor: AuditActor, input: EventCreateInput): P
   });
 }
 
+/**
+ * `createEventWithBooking` — event + room booking in ONE transaction. The mobile
+ * booking form creates both, and a GiST conflict on the booking must roll the
+ * event back too — otherwise a rejected booking leaves an orphan event (and its
+ * calendar outbox row) behind. The typed `BookingConflictError` propagates to the
+ * caller, which sends the conflict notification in a SEPARATE transaction after
+ * this one has rolled back.
+ */
+export async function createEventWithBooking(
+  actor: AuditActor,
+  input: EventCreateInput,
+  booking: RoomBookingInput,
+): Promise<Event> {
+  return txWithAudit(actor, async (tx, audit) => {
+    const event = await tx.event.create({
+      data: {
+        title: input.title,
+        description: input.description ?? null,
+        startsAt: berlinLocalToUtc(input.startsAt),
+        endsAt: berlinLocalToUtc(input.endsAt),
+        status: input.status,
+        organizer: input.organizer ?? null,
+        contact: input.contact ?? null,
+      },
+    });
+    await audit({
+      action: "EventCreated",
+      entityType: "event",
+      entityId: event.id,
+      data: { title: event.title },
+    });
+    await enqueueUpsert(tx, event);
+    const bookingRow = await insertOrConflict(
+      () =>
+        tx.eventRoomBooking.create({
+          data: {
+            eventId: event.id,
+            roomId: booking.roomId,
+            startsAt: berlinLocalToUtc(booking.startsAt),
+            endsAt: berlinLocalToUtc(booking.endsAt),
+          },
+        }),
+      tr("work.err.event.roomAlreadyBooked"),
+    );
+    await audit({
+      action: "RoomBooked",
+      entityType: "eventRoomBooking",
+      entityId: bookingRow.id,
+      data: { roomId: booking.roomId },
+    });
+    return event;
+  });
+}
+
 export async function updateEvent(
   actor: AuditActor,
   id: string,

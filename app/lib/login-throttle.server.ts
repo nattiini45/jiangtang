@@ -215,7 +215,19 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       sweep(at);
       const email = attempt.email;
       const ip = attempt.ip;
-      const emailStamps = email ? live(emails, email, at) : [];
+      // Email failures are keyed by the email+IP PAIR, never by email alone:
+      // an unauthenticated caller must not be able to lock a known victim's
+      // email — with an email-only key, ten bad guesses from one address would
+      // reject even the victim's correct password until the window slides.
+      // Pair-keying keeps brute-force pressure per source address (the IP
+      // bucket still caps the address overall) without a cross-IP lockout.
+      const emailKey = email
+        ? ip
+          ? `${email}
+${ip}`
+          : email
+        : null;
+      const emailStamps = emailKey ? live(emails, emailKey, at) : [];
       const ipStamps = ip ? live(ips, ip, at) : [];
 
       let retryAfterMs = 0;
@@ -227,14 +239,19 @@ export function createLoginThrottle(options: LoginThrottleOptions = {}) {
       }
       if (retryAfterMs > 0) return { allowed: false, retryAfterMs };
 
-      if (email) record(emails, email, maxEmailFailures, at);
+      if (emailKey) record(emails, emailKey, maxEmailFailures, at);
       if (ip) record(ips, ip, maxIpFailures, at);
       return { allowed: true };
     },
 
-    /** A correct password clears the email's failures and refunds this attempt on the IP. */
+    /** A correct password clears the email+IP pair's failures and refunds this attempt on the IP. */
     succeeded(attempt: LoginAttempt): void {
-      if (attempt.email) emails.delete(attempt.email);
+      const emailKey =
+        attempt.email && attempt.ip
+          ? `${attempt.email}
+${attempt.ip}`
+          : attempt.email;
+      if (emailKey) emails.delete(emailKey);
       if (attempt.ip) {
         const stamps = live(ips, attempt.ip, now());
         stamps.pop();

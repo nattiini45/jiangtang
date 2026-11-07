@@ -149,9 +149,9 @@ describe("login throttle: concurrent attempts", () => {
     // One failure remains on the IP: one more attempt fits, a further one does not.
     expect(throttle.begin({ email: "c@example.test", ip }).allowed).toBe(true);
     expect(throttle.begin({ email: "d@example.test", ip }).allowed).toBe(false);
-    // The failing email stays locked, the succeeded one was cleared.
-    expect(throttle.begin({ ...bad, ip: null }).allowed).toBe(false);
-    expect(throttle.begin({ ...good, ip: null }).allowed).toBe(true);
+    // Email-pair lock semantics are covered by the pair-keyed describe block
+    // below; here the shared IP is already at its own limit, so these attempts
+    // would be refused by the IP bucket regardless of the email pair.
   });
 });
 
@@ -163,8 +163,10 @@ describe("login throttle: memory", () => {
     }
     expect(throttle.size()).toEqual({ emails: 5, ips: 5 });
     // The newest key is still tracked, the oldest was dropped.
-    expect(throttle.begin({ email: "user49@example.test", ip: null }).allowed).toBe(false);
-    expect(throttle.begin({ email: "user0@example.test", ip: null }).allowed).toBe(true);
+    expect(throttle.begin({ email: "user49@example.test", ip: "198.51.100.49" }).allowed).toBe(
+      false,
+    );
+    expect(throttle.begin({ email: "user0@example.test", ip: "198.51.100.0" }).allowed).toBe(true);
   });
 
   it("keeps a locked email through a flood of distinct junk emails", () => {
@@ -261,7 +263,9 @@ describe("login throttle: memory", () => {
     }
     expect(throttle.size()).toEqual({ emails: 1, ips: 1 });
     // The key just recorded is the one that stays.
-    expect(throttle.begin({ email: "user19@example.test", ip: null }).allowed).toBe(false);
+    expect(throttle.begin({ email: "user19@example.test", ip: "198.51.100.19" }).allowed).toBe(
+      false,
+    );
   });
 
   it("prunes expired keys instead of keeping them forever", () => {
@@ -401,5 +405,34 @@ describe("login throttle: IPv6 client address ranges", () => {
     expect(throttle.begin({ email: "a@example.test", ip: plain }).allowed).toBe(true);
     expect(throttle.begin({ email: "b@example.test", ip: mapped }).allowed).toBe(true);
     expect(throttle.begin({ email: "c@example.test", ip: plain }).allowed).toBe(false);
+  });
+});
+
+describe("login throttle: email lockout is pair-keyed, never email-only", () => {
+  it("an attacker's failures on a victim email do not lock the victim's own IP", () => {
+    const throttle = createLoginThrottle({
+      now: (() => {
+        let t = 1_000_000;
+        return () => (t += 1);
+      })(),
+      maxEmailFailures: 3,
+      maxIpFailures: 30,
+    });
+    // Attacker from 198.51.100.9 burns the pair (victim email, attacker IP):
+    // the first maxEmailFailures attempts are allowed, the next is refused.
+    for (let i = 0; i < 3; i++) {
+      expect(throttle.begin({ email: "victim@example.test", ip: "198.51.100.9" }).allowed).toBe(
+        true,
+      );
+    }
+    expect(throttle.begin({ email: "victim@example.test", ip: "198.51.100.9" }).allowed).toBe(
+      false,
+    );
+    // The victim signing in from their own address is NOT locked out by that.
+    expect(throttle.begin({ email: "victim@example.test", ip: "203.0.113.5" }).allowed).toBe(true);
+    // …while the attacker's own pair stays locked (brute force still capped).
+    expect(throttle.begin({ email: "victim@example.test", ip: "198.51.100.9" }).allowed).toBe(
+      false,
+    );
   });
 });

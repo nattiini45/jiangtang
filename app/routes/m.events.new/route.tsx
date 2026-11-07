@@ -8,8 +8,9 @@ import { BookingConflictError, toErrorResponse, ValidationError } from "~/lib/er
 import { emitChange } from "~/lib/realtime/emit.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
 import { eventCreateSchema, roomBookingSchema } from "~/domains/events/events.schema";
-import { createEvent, addRoomBooking } from "~/domains/events/events.mutations.server";
+import { createEventWithBooking } from "~/domains/events/events.mutations.server";
 import { findRoomConflicts } from "~/domains/events/events.availability.server";
+import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { listRooms } from "~/domains/rooms/rooms.queries.server";
 import { ZodForm, FormField } from "~/components/forms";
 import { Button } from "~/components/ui/button";
@@ -69,18 +70,43 @@ export async function action({ request }: Route.ActionArgs) {
     if (conflicts.length > 0) {
       return { conflict: true, fieldErrors: undefined };
     }
-    const event = await createEvent(actor, eventParsed.data);
     try {
-      await addRoomBooking(actor, event.id, bookingParsed.data);
+      // Event + booking in ONE transaction: a GiST conflict rolls both back,
+      // so a rejected booking never leaves an orphan event behind.
+      const event = await createEventWithBooking(actor, eventParsed.data, bookingParsed.data);
+      await emitChange({ entityType: "event", id: event.id, op: "created" });
+      return redirect("/m/events");
     } catch (e) {
       // The pre-check passed but the EXCLUDE constraint still fired (race window):
-      // report it as a conflict instead of a 409 error boundary. The event row
-      // stays (no double-booking — the DB held), the user retries with another slot.
-      if (e instanceof BookingConflictError) return { conflict: true, fieldErrors: undefined };
+      // report it as a conflict instead of a 409 error boundary. The transaction
+      // rolled back, so there is no event to clean up; the user retries another slot.
+      if (e instanceof BookingConflictError) {
+        const startsUtc = berlinLocalToUtc(startsAt);
+        const endsUtc = berlinLocalToUtc(endsAt);
+        try {
+          const conflicts = await findRoomConflicts(bookingParsed.data.roomId, startsUtc, endsUtc);
+          await notifyBookingConflict({
+            actor,
+            entityType: "eventRoomBooking",
+            entityId: null,
+            conflictingEventIds: conflicts.map((c) => c.eventId),
+            detail: {
+              roomId: bookingParsed.data.roomId,
+              startsAt: startsUtc.toISOString(),
+              endsAt: endsUtc.toISOString(),
+              conflicts: conflicts.map((c) => ({ eventId: c.eventId, eventTitle: c.eventTitle })),
+            },
+          });
+        } catch (notifyError) {
+          console.error(
+            "[m.events.new] conflict notification failed:",
+            (notifyError as Error).message,
+          );
+        }
+        return { conflict: true, fieldErrors: undefined };
+      }
       throw e;
     }
-    await emitChange({ entityType: "event", id: event.id, op: "created" });
-    return redirect("/m/events");
   } catch (e) {
     if (e instanceof ValidationError) {
       return { conflict: false, fieldErrors: e.fieldErrors };
