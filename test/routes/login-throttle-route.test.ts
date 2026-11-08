@@ -59,6 +59,9 @@ async function submitForm(
     headers: {
       "content-type": "application/x-www-form-urlencoded",
       "accept-language": "en",
+      // The proxy always forwards the client IP; without it there is no
+      // email+IP pair and (by design) no email-based lockout.
+      "x-forwarded-for": "203.0.113.10",
       ...headers,
     },
     body,
@@ -95,7 +98,14 @@ function isInvalidCredentials(result: FormResult): boolean {
 function post(email: string, password: string, headers: Record<string, string> = {}): Request {
   return new Request(`${AUTH_ORIGIN}/api/auth/sign-in/email`, {
     method: "POST",
-    headers: { "content-type": "application/json", origin: AUTH_ORIGIN, ...headers },
+    // Same forwarded client IP as the form's default, so the email+IP pair
+    // (and its lockout) is shared between the HTTP endpoint and the form.
+    headers: {
+      "content-type": "application/json",
+      origin: AUTH_ORIGIN,
+      "x-forwarded-for": "203.0.113.10",
+      ...headers,
+    },
     body: JSON.stringify({ email, password }),
   });
 }

@@ -109,3 +109,30 @@ test("an expired session keeps the capture, asks for sign-in, and sends it once 
   await expect(page.getByRole("status").filter({ hasText: /\d+/ })).toHaveCount(0);
   await expect.poll(async () => (await storedCaptures(page)).length).toBe(0);
 });
+
+test("the More sheet lists every mobile section as a flat single-level list", async ({ page }) => {
+  await page.goto("/m");
+  await page.waitForSelector("html[data-hydrated]");
+  await page.getByRole("button", { name: "Mehr" }).click();
+  const menu = page.getByRole("navigation", { name: "Weitere Bereiche" });
+  // Flat: every section is a direct link row in the sheet, no nested group.
+  for (const label of [
+    "Räume",
+    "Standorte",
+    "Lager",
+    "Veranstaltungen",
+    "Projekte",
+    "Notizen",
+    "Zeiterfassung",
+    "Board",
+    "Suche",
+    "Benachrichtigungen",
+    "Neue Aufgabe",
+    "Neue Notiz",
+  ]) {
+    await expect(menu.getByRole("link", { name: label, exact: true })).toBeVisible();
+  }
+  await menu.getByRole("link", { name: "Veranstaltungen", exact: true }).click();
+  await expect(page).toHaveURL(/\/m\/events/);
+  await expect(page.getByRole("heading", { name: "Veranstaltungen", level: 1 })).toBeVisible();
+});

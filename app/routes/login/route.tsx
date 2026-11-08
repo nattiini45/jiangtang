@@ -1,6 +1,6 @@
 import { isAPIError } from "better-auth/api";
 import { useEffect } from "react";
-import { data, Form, redirect, useNavigation } from "react-router";
+import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
@@ -90,8 +90,17 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
     <main className="flex min-h-screen items-center justify-center p-6">
       <LanguageSwitcher className="absolute right-4 top-4" />
       <div className="bg-card text-card-foreground shadow-surface-3 w-full max-w-sm rounded-xl p-6">
-        <h1 className="text-xl font-bold">Jiangtang</h1>
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="bg-foreground text-background flex size-8 items-center justify-center rounded-md text-base font-bold"
+          >
+            J
+          </span>
+          <h1 className="text-xl font-bold">Jiangtang</h1>
+        </div>
         <p className="text-muted-foreground mt-1 text-sm">{t("auth.login.subtitle")}</p>
+        <p className="text-muted-foreground mt-1 text-sm">{t("auth.login.tagline")}</p>
 
         {loaderData.deactivated ? (
           <p className="bg-status-warning/15 text-foreground mt-4 rounded-md p-2 text-sm">
@@ -124,6 +133,12 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
             {busy ? t("auth.login.submitting") : t("auth.login.submit")}
           </Button>
         </Form>
+        <Link
+          to="/welcome"
+          className="text-muted-foreground mt-4 block text-center text-xs underline decoration-(--input) underline-offset-4"
+        >
+          {t("auth.login.about")}
+        </Link>
       </div>
     </main>
   );

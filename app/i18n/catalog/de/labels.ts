@@ -23,6 +23,7 @@ export const labelsDe = {
   "history.entity.note": "Notiz",
   "history.entity.vendor": "Dienstleister",
   "history.entity.timeEntry": "Zeiteintrag",
+  "history.entity.notification": "Benachrichtigung",
 
   "locations.kind.SITE": "Standort",
   "locations.kind.BUILDING": "Gebäude",

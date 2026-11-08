@@ -34,7 +34,7 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const actor = await requireUser(request);
   const url = new URL(request.url);
   const p = (name: string) => url.searchParams.get(name)?.trim() || undefined;
 
@@ -52,13 +52,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     notes,
     tags,
     projects,
+    isAdmin: actor.role === "ADMIN",
     filters: { q: p("q") ?? "", tag: p("tag") ?? "", project: projectParam ?? "", archived },
   };
 }
 
 export default function NotesIndex({ loaderData }: Route.ComponentProps) {
   const t = useT();
-  const { notes, tags, projects, filters } = loaderData;
+  const { notes, tags, projects, filters, isAdmin } = loaderData;
   const pinned = notes.filter((n) => n.pinned);
   const rest = notes.filter((n) => !n.pinned);
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) =>
@@ -72,9 +73,11 @@ export default function NotesIndex({ loaderData }: Route.ComponentProps) {
           <p className="text-muted-foreground text-sm">{t("notes.list.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" asChild>
-            <Link to="/notes/import">{t("notes.list.import")}</Link>
-          </Button>
+          {isAdmin ? (
+            <Button variant="secondary" asChild>
+              <Link to="/notes/import">{t("notes.list.import")}</Link>
+            </Button>
+          ) : null}
           <Button asChild>
             <Link to="/notes/new">{t("notes.list.new")}</Link>
           </Button>

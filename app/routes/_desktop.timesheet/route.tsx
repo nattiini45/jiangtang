@@ -29,7 +29,8 @@ import {
 } from "~/domains/time/time.schema";
 import { formatHM } from "~/domains/time/time-utils";
 import { listUsers } from "~/domains/auth/users.queries.server";
-import { listOpenTaskOptions } from "~/domains/tasks/tasks.queries.server";
+import { getCapacityOverview, listOpenTaskOptions } from "~/domains/tasks/tasks.queries.server";
+import { CapacityPanel } from "~/components/timesheet/capacity-panel";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
@@ -76,10 +77,15 @@ export async function loader({ request }: Route.LoaderArgs) {
   const targetUserId =
     isAdmin && userParam && users.some((u) => u.id === userParam) ? userParam : actor.id;
 
-  const [sheet, running, taskOptions] = await Promise.all([
+  // The capacity heatmap moved here from `/capacity` — it is the `?tab=capacity`
+  // tab of this page now, so its data loads only on that tab.
+  const tab = url.searchParams.get("tab") === "capacity" ? "capacity" : "timesheet";
+
+  const [sheet, running, taskOptions, capacity] = await Promise.all([
     getWeekTimesheet(targetUserId, isoWeek),
     getRunningEntry(targetUserId),
     listOpenTaskOptions(""),
+    tab === "capacity" ? getCapacityOverview() : null,
   ]);
 
   const { startDay } = isoWeekRange(isoWeek);
@@ -96,6 +102,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     users,
     targetUserId,
     taskOptions,
+    tab,
+    capacity,
     todayCol: (() => {
       const today = berlinDayIndex(new Date());
       return today >= startDay && today <= startDay + 6 ? today - startDay : -1;
@@ -188,11 +196,100 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function Timesheet({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
-  const { sheet, isoWeek, prevWeek, nextWeek, isAdmin, users, targetUserId, running } = loaderData;
+  const {
+    sheet,
+    isoWeek,
+    prevWeek,
+    nextWeek,
+    isAdmin,
+    users,
+    targetUserId,
+    running,
+    tab,
+    capacity,
+  } = loaderData;
   const userParam = isAdmin && targetUserId ? `&user=${targetUserId}` : "";
+
+  const tabLinkClass = (active: boolean) =>
+    `-mb-px border-b-2 px-3 py-2 text-sm ${
+      active
+        ? "border-primary text-foreground font-semibold"
+        : "text-muted-foreground hover:text-foreground border-transparent"
+    }`;
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Section tabs — plain links so they are keyboard-reachable and the section
+          lives in the URL (`?tab=`), shareable like every other filter. */}
+      <nav aria-label={t("timesheet.tabs.aria")} className="flex border-b">
+        <Link
+          to="/timesheet"
+          aria-current={tab === "timesheet" ? "page" : undefined}
+          className={tabLinkClass(tab === "timesheet")}
+        >
+          {t("nav.timesheet")}
+        </Link>
+        <Link
+          to="/timesheet?tab=capacity"
+          aria-current={tab === "capacity" ? "page" : undefined}
+          className={tabLinkClass(tab === "capacity")}
+        >
+          {t("nav.capacity")}
+        </Link>
+      </nav>
+
+      {tab === "capacity" && capacity ? (
+        <CapacityPanel overview={capacity} />
+      ) : (
+        <TimesheetWeek
+          sheet={sheet}
+          isoWeek={isoWeek}
+          prevWeek={prevWeek}
+          nextWeek={nextWeek}
+          isAdmin={isAdmin}
+          users={users}
+          targetUserId={targetUserId}
+          running={running}
+          taskOptions={loaderData.taskOptions}
+          todayCol={loaderData.todayCol}
+          userParam={userParam}
+          actionData={actionData}
+        />
+      )}
+    </div>
+  );
+}
+
+function TimesheetWeek({
+  sheet,
+  isoWeek,
+  prevWeek,
+  nextWeek,
+  isAdmin,
+  users,
+  targetUserId,
+  running,
+  taskOptions,
+  todayCol,
+  userParam,
+  actionData,
+}: {
+  sheet: Route.ComponentProps["loaderData"]["sheet"];
+  isoWeek: string;
+  prevWeek: string;
+  nextWeek: string;
+  isAdmin: boolean;
+  users: Route.ComponentProps["loaderData"]["users"];
+  targetUserId: string;
+  running: Route.ComponentProps["loaderData"]["running"];
+  taskOptions: Route.ComponentProps["loaderData"]["taskOptions"];
+  todayCol: number;
+  userParam: string;
+  actionData: Route.ComponentProps["actionData"];
+}) {
+  const t = useT();
+  return (
+    <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-bold">{t("nav.timesheet")}</h1>
         <div className="flex items-center gap-3 text-sm">
@@ -257,7 +354,7 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
               {WEEKDAY_KEYS.map((key, i) => (
                 <th
                   key={key}
-                  className={`p-2 text-right ${loaderData.todayCol === i ? "text-foreground" : ""}`}
+                  className={`p-2 text-right ${todayCol === i ? "text-foreground" : ""}`}
                 >
                   {t(key)}
                   <span className="nums ml-1 font-normal">{sheet.dayKeys[i]?.slice(8)}</span>
@@ -411,7 +508,7 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
           />
           <Select name="taskId" className="max-w-[18rem]" aria-label={t("timesheet.col.task")}>
             <option value="">{t("timesheet.noTask")}</option>
-            {loaderData.taskOptions.map((task) => (
+            {taskOptions.map((task) => (
               <option key={task.id} value={task.id}>
                 {task.title}
               </option>
@@ -428,7 +525,7 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
           </Button>
         </Form>
       </section>
-    </div>
+    </>
   );
 }
 

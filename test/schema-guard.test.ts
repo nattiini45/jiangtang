@@ -341,8 +341,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(51); // +4 since then: TimeEntry's taskId/userId/createdById and Attachment.createdBy
-    expect(withAction).toBe(39);
+    expect(owning).toBe(52); // +5 since then: TimeEntry's taskId/userId/createdById, Attachment.createdBy, Notification.user
+    expect(withAction).toBe(40);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

@@ -3,6 +3,7 @@ import { Outlet, useRouteLoaderData } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { maybeRegisterServiceWorker } from "~/lib/pwa/register-sw";
+import { unreadNotificationCount } from "~/domains/notifications/notifications.queries.server";
 import { MobileShell } from "~/components/mobile/mobile-shell";
 
 // Mobile PWA surface, served under /m with its own design. requireUser redirects
@@ -11,7 +12,11 @@ import { MobileShell } from "~/components/mobile/mobile-shell";
 // child loader without this one.
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
-  return { user: { id: user.id, name: user.name, initials: user.initials, role: user.role } };
+  const unreadNotifications = await unreadNotificationCount(user.id);
+  return {
+    user: { id: user.id, name: user.name, initials: user.initials, role: user.role },
+    unreadNotifications,
+  };
 }
 
 export default function MobileLayout() {
@@ -22,7 +27,10 @@ export default function MobileLayout() {
 
   const data = useRouteLoaderData<typeof loader>("routes/m");
   return (
-    <MobileShell user={data?.user ?? { name: "" }}>
+    <MobileShell
+      user={data?.user ?? { name: "" }}
+      unreadNotifications={data?.unreadNotifications ?? 0}
+    >
       <Outlet />
     </MobileShell>
   );

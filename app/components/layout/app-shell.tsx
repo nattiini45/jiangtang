@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Form, NavLink } from "react-router";
+import { Form, Link, NavLink } from "react-router";
 import { motion } from "motion/react";
-import { LogOut, Monitor, Moon, Rows3, Rows4, Search, Square, Sun } from "lucide-react";
+import { Bell, LogOut, Monitor, Moon, Plus, Rows3, Rows4, Search, Square, Sun } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { spring } from "~/lib/springs";
 import { Button } from "~/components/ui/button";
@@ -43,12 +43,14 @@ export function AppShell({
   theme,
   density,
   runningTimer = null,
+  unreadNotifications = 0,
   children,
 }: {
   user: ShellUser;
   theme: Theme;
   density: Density;
   runningTimer?: RunningTimer | null;
+  unreadNotifications?: number;
   children: React.ReactNode;
 }) {
   // One SSE connection for the whole desktop surface; any committed change in
@@ -133,6 +135,38 @@ export function AppShell({
               <Kbd>⌘K</Kbd>
             </button>
             <div className="flex items-center gap-1">
+              <Button
+                asChild
+                size="icon"
+                className="mr-1"
+                title={t("shell.quickEntry")}
+                aria-label={t("shell.quickEntry")}
+              >
+                <Link to="/quick-entry">
+                  <Plus />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                className="relative mr-1"
+                title={
+                  unreadNotifications > 0
+                    ? `${t("shell.notifications")} — ${t("notifications.unread", { count: unreadNotifications })}`
+                    : t("shell.notifications")
+                }
+                aria-label={t("shell.notifications")}
+              >
+                <Link to="/notifications">
+                  <Bell />
+                  {unreadNotifications > 0 ? (
+                    <span className="bg-destructive text-destructive-foreground nums absolute -top-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+                      {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                    </span>
+                  ) : null}
+                </Link>
+              </Button>
               {runningTimer ? <RunningTimerBadge timer={runningTimer} /> : null}
               <LanguageSwitcher className="mr-1" />
               <DensityToggle density={density} />

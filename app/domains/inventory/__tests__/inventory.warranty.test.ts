@@ -25,8 +25,8 @@ import { register, runWarrantySweep } from "~/lib/warranty.boot.server";
  *
  *   (1) `listExpiringWarranties` window, order, default, env override, and the
  *       `null` exclusion                                  → tests 3, 4, 5, 6, 7, 8, 12, 13
- *   (2) the boot module ticks at boot then daily and WRITES NOTHING
- *                                                      → tests 14, 15, 16
+ *   (2) the boot module ticks at boot then daily and writes only inbox
+ *       Notification rows (no item change, no ActivityLog entry) → tests 14-16
  *   (3) the rot-check control: remove the date filter and the arm for (1) must go red
  *                                                        → test 11 (a control nobody
  *       has ever fired is a comment, not a control)
@@ -267,23 +267,50 @@ describe("the sweep answer", () => {
   });
 });
 
-describe("the sweep writes nothing", () => {
-  it("a tick returns a count and changes no row and writes no audit entry", async () => {
-    const item = await makeItem("expiring", atBerlinNoon(3));
-    const before = await db.inventoryItem.findUnique({ where: { id: item.id } });
-    const logsBefore = await db.activityLog.count();
-    const mineBefore = await db.activityLog.count({ where: { entityId: { in: itemIds } } });
+describe("the sweep writes only inbox notifications", () => {
+  it("a tick returns a count, changes no item row, writes no audit entry, and notifies each admin once", async () => {
+    // The sweep reads the REAL clock, so the fixture must expire relative to it
+    // (atBerlinNoon is pinned to NOW and would already be in the past).
+    const item = await makeItem("expiring", new Date(Date.now() + 3 * DAY_MS));
+    const admin = await db.user.create({
+      data: {
+        email: `${RUN}-admin@jiangtang.test`,
+        name: `${RUN} Admin`,
+        role: "ADMIN",
+        isActive: true,
+      },
+    });
+    try {
+      const before = await db.inventoryItem.findUnique({ where: { id: item.id } });
+      const logsBefore = await db.activityLog.count();
+      const mineBefore = await db.activityLog.count({ where: { entityId: { in: itemIds } } });
 
-    const count = await runWarrantySweep();
+      const count = await runWarrantySweep();
 
-    expect(count).toBeGreaterThanOrEqual(1);
-    const after = await db.inventoryItem.findUnique({ where: { id: item.id } });
-    expect(after?.status).toBe(before?.status);
-    expect(after?.warrantyExpiresAt?.toISOString()).toBe(before?.warrantyExpiresAt?.toISOString());
-    // The global count is the strong half: no other tick runs during this test,
-    // so any change means *this* sweep wrote.
-    expect(await db.activityLog.count()).toBe(logsBefore);
-    expect(await db.activityLog.count({ where: { entityId: { in: itemIds } } })).toBe(mineBefore);
+      expect(count).toBeGreaterThanOrEqual(1);
+      const after = await db.inventoryItem.findUnique({ where: { id: item.id } });
+      expect(after?.status).toBe(before?.status);
+      expect(after?.warrantyExpiresAt?.toISOString()).toBe(
+        before?.warrantyExpiresAt?.toISOString(),
+      );
+      // The global count is the strong half: no other tick runs during this test,
+      // so any change means *this* sweep wrote.
+      expect(await db.activityLog.count()).toBe(logsBefore);
+      expect(await db.activityLog.count({ where: { entityId: { in: itemIds } } })).toBe(mineBefore);
+
+      // …but it does write one WARRANTY_EXPIRING inbox row for this item to the
+      // admin, and a second tick does not duplicate it (dedup by item).
+      const forItem = () =>
+        db.notification.count({
+          where: { userId: admin.id, type: "WARRANTY_EXPIRING", entityId: item.id },
+        });
+      expect(await forItem()).toBe(1);
+      await runWarrantySweep();
+      expect(await forItem()).toBe(1);
+    } finally {
+      await db.notification.deleteMany({ where: { userId: admin.id } });
+      await db.user.delete({ where: { id: admin.id } });
+    }
   });
 
   it("a tick with nothing expiring still writes nothing", async () => {

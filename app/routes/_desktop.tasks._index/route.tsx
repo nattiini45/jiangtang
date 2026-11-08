@@ -105,6 +105,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     tasks,
     projects,
     users: users.filter((u) => u.isActive),
+    isAdmin: actor.role === "ADMIN",
     filters: {
       project: projectParam ?? "",
       status: statusParam,
@@ -120,7 +121,7 @@ export default function TasksIndex({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
   const columns = React.useMemo(() => taskColumns(t), [t]);
-  const { tasks, projects, users, filters } = loaderData;
+  const { tasks, projects, users, filters, isAdmin } = loaderData;
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement>) =>
     e.currentTarget.form?.requestSubmit();
 
@@ -132,9 +133,11 @@ export default function TasksIndex({ loaderData }: Route.ComponentProps) {
           <p className="text-muted-foreground mt-1">{t("tasks.list.subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" asChild>
-            <Link to="/tasks/import">{t("tasks.list.import")}</Link>
-          </Button>
+          {isAdmin ? (
+            <Button variant="secondary" asChild>
+              <Link to="/tasks/import">{t("tasks.list.import")}</Link>
+            </Button>
+          ) : null}
           <Button asChild>
             <Link to="/tasks/new">{t("tasks.list.new")}</Link>
           </Button>

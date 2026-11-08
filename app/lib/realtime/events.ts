@@ -56,6 +56,7 @@ export const ENTITY_TYPES = [
   "note",
   "vendor",
   "timeEntry",
+  "notification",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
