@@ -253,6 +253,16 @@ behind the same interface.
 
 ## Calendar output
 
+The signed-in `/events` surface defaults to a Monday-first week calendar, with month, day,
+room-availability timeline and the original list as alternate views. Date, view, filters and the
+optional task due-date overlay live in the URL. `/m/events` is a selected-day agenda. Calendar
+loaders use half-open Berlin date ranges in `events.calendar.queries.server.ts`; room occupancy
+uses booking windows independently of parent event times and never hides active bookings under
+event status or equipment filters. Empty hourly slots prefill the existing creation forms. Exact
+UTC hints preserve both occurrences of the repeated autumn hour only while they match the
+submitted Berlin fields; mutations and conflict pre-checks resolve them identically. These hints
+do not bypass the database booking constraints.
+
 Event mutations enqueue a `CalendarOutbox` row in the same transaction (one row per event UID and
 iCal `SEQUENCE`, unique in the database), so calendar downtime never blocks a write. A drain worker
 (`app/lib/calendar/calendar.boot.server.ts`, `app/lib/calendar/outbox.server.ts`) publishes pending rows in

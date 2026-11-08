@@ -1,7 +1,7 @@
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { toErrorResponse } from "~/lib/errors.server";
-import { berlinLocalToUtc } from "~/lib/time.server";
+import { resolveEventTime } from "~/domains/events/events.time.server";
 import {
   findRoomConflicts,
   findEquipmentConflicts,
@@ -31,8 +31,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     if (!id || !startsRaw || !endsRaw) {
       return Response.json({ conflicts: [] });
     }
-    const startsAt = berlinLocalToUtc(startsRaw);
-    const endsAt = berlinLocalToUtc(endsRaw);
+    const startsAt = resolveEventTime(
+      startsRaw,
+      url.searchParams.get("startsAtInstant") ?? undefined,
+    );
+    const endsAt = resolveEventTime(endsRaw, url.searchParams.get("endsAtInstant") ?? undefined);
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || startsAt >= endsAt) {
       return Response.json({ conflicts: [] });
     }

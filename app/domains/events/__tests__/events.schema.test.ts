@@ -51,12 +51,11 @@ describe("event edit time validation", () => {
     ).toBe(false);
   });
 
-  it("does not add exact hints or cross-fold ordering to creation or booking schemas", () => {
-    expect(eventCreateSchema.safeParse(input).success).toBe(false);
+  it("keeps independent bookings wall-clock-only while creation supports exact instants", () => {
+    expect(eventCreateSchema.parse(input)).toMatchObject(input);
     expect(roomBookingSchema.safeParse({ ...input, roomId: "synthetic-room" }).success).toBe(false);
     const ordered = { ...input, startsAt: input.endsAt, endsAt: input.startsAt };
-    expect(eventCreateSchema.parse(ordered)).not.toHaveProperty("startsAtInstant");
-    expect(eventCreateSchema.parse(ordered)).not.toHaveProperty("endsAtInstant");
+    expect(eventCreateSchema.parse(ordered)).toMatchObject(ordered);
     expect(roomBookingSchema.parse({ ...ordered, roomId: "synthetic-room" })).not.toHaveProperty(
       "startsAtInstant",
     );

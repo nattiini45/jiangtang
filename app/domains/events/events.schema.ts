@@ -22,48 +22,52 @@ const dtLocal = z
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/, msgKey("work.err.event.dateTimeRequired"));
 
-const endsAfterStarts = (r: { startsAt: string; endsAt: string }) =>
-  new Date(r.startsAt).getTime() < new Date(r.endsAt).getTime();
+const endsAfterStarts = (r: {
+  startsAt: string;
+  endsAt: string;
+  startsAtInstant?: string;
+  endsAtInstant?: string;
+}) =>
+  matchingEventInstant(r.startsAt, r.startsAtInstant) ||
+  matchingEventInstant(r.endsAt, r.endsAtInstant)
+    ? eventTimeMs(r.startsAt, r.startsAtInstant) < eventTimeMs(r.endsAt, r.endsAtInstant)
+    : new Date(r.startsAt).getTime() < new Date(r.endsAt).getTime();
 const endsAfterStartsIssue = {
   message: msgKey("work.err.endsAfterStart"),
   path: ["endsAt"],
 };
 
 // ── Event ──────────────────────────────────────────────────────────────────
-export const eventCreateSchema = z
-  .object({
-    title: z.string().trim().min(1, msgKey("work.err.titleRequired")),
-    description: optionalText,
-    startsAt: dtLocal,
-    endsAt: dtLocal,
-    status: z.enum(EventStatus).default(EventStatus.PLANNED),
-    organizer: optionalText,
-    contact: optionalText,
-  })
-  .refine(endsAfterStarts, endsAfterStartsIssue);
+const eventFields = z.object({
+  title: z.string().trim().min(1, msgKey("work.err.titleRequired")),
+  description: optionalText,
+  startsAt: dtLocal,
+  endsAt: dtLocal,
+  status: z.enum(EventStatus).default(EventStatus.PLANNED),
+  organizer: optionalText,
+  contact: optionalText,
+});
 
-export const eventEditSchema = z
-  .object({
-    ...eventCreateSchema.shape,
-    startsAtInstant: eventInstantSchema.optional(),
-    endsAtInstant: eventInstantSchema.optional(),
-  })
-  .refine(
-    (r) =>
-      matchingEventInstant(r.startsAt, r.startsAtInstant) ||
-      matchingEventInstant(r.endsAt, r.endsAtInstant)
-        ? eventTimeMs(r.startsAt, r.startsAtInstant) < eventTimeMs(r.endsAt, r.endsAtInstant)
-        : endsAfterStarts(r),
-    endsAfterStartsIssue,
-  );
+const exactInstants = {
+  startsAtInstant: eventInstantSchema.optional(),
+  endsAtInstant: eventInstantSchema.optional(),
+};
+
+export const eventCreateSchema = eventFields
+  .extend(exactInstants)
+  .refine(endsAfterStarts, endsAfterStartsIssue);
+export const eventEditSchema = eventCreateSchema;
 
 // ── Bookable atoms ───────────────────────────────────────────────────────────
-export const roomBookingSchema = z
-  .object({
-    roomId: z.string().min(1, msgKey("work.err.event.roomRequired")),
-    startsAt: dtLocal,
-    endsAt: dtLocal,
-  })
+const roomBookingFields = z.object({
+  roomId: z.string().min(1, msgKey("work.err.event.roomRequired")),
+  startsAt: dtLocal,
+  endsAt: dtLocal,
+});
+
+export const roomBookingSchema = roomBookingFields.refine(endsAfterStarts, endsAfterStartsIssue);
+export const roomBookingCreateSchema = roomBookingFields
+  .extend(exactInstants)
   .refine(endsAfterStarts, endsAfterStartsIssue);
 
 export const allocationSchema = z
@@ -88,5 +92,6 @@ export const serviceWindowSchema = z
 export type EventCreateInput = z.infer<typeof eventCreateSchema>;
 export type EventEditInput = z.infer<typeof eventEditSchema>;
 export type RoomBookingInput = z.infer<typeof roomBookingSchema>;
+export type RoomBookingCreateInput = z.infer<typeof roomBookingCreateSchema>;
 export type AllocationInput = z.infer<typeof allocationSchema>;
 export type ServiceWindowInput = z.infer<typeof serviceWindowSchema>;

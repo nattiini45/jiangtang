@@ -103,6 +103,22 @@ const ROUTES = [
   ["dashboard", "/", "Übersicht", "_desktop._index/route.tsx:150"],
   ["tickets", "/tickets", "Tickets", "_desktop.tickets._index/route.tsx:41"],
   ["events", "/events", "Veranstaltungen", "_desktop.events._index/route.tsx:52"],
+  [
+    "events-month",
+    "/events?view=month&tasks=1",
+    "Veranstaltungen",
+    "_desktop.events._index/route.tsx",
+  ],
+  [
+    "events-week",
+    "/events?view=week&tasks=1",
+    "Veranstaltungen",
+    "_desktop.events._index/route.tsx",
+  ],
+  ["events-day", "/events?view=day&tasks=1", "Veranstaltungen", "_desktop.events._index/route.tsx"],
+  ["events-week-en", "/events?view=week&tasks=1", "Events", "_desktop.events._index/route.tsx"],
+  ["events-rooms", "/events?view=rooms", "Veranstaltungen", "_desktop.events._index/route.tsx"],
+  ["events-list", "/events?view=list", "Veranstaltungen", "_desktop.events._index/route.tsx"],
   ["rooms", "/rooms", "Räume", "_desktop.rooms._index/route.tsx:41"],
   ["inventory", "/inventory", "Inventar", "_desktop.inventory._index/route.tsx:50"],
   ["tasks", "/tasks", "Aufgaben", "_desktop.tasks._index/route.tsx:120"],
@@ -150,6 +166,8 @@ const ROUTES = [
   ["m-search", "/m/search?q=Lager", "Suche", "m.search/route.tsx:31"],
   ["m-tasks-new", "/m/tasks/new", "Aufgabe anlegen", "m.tasks.new/route.tsx:75"],
   ["m-rooms", "/m/rooms", "Räume", "m.rooms._index/route.tsx:31"],
+  ["m-events", "/m/events", "Veranstaltungen", "m.events._index/route.tsx"],
+  ["m-events-en", "/m/events", "Events", "m.events._index/route.tsx"],
   ["m-tasks", "/m/tasks", "Aufgaben", "m.tasks._index/route.tsx:42"],
   ["m-tickets", "/m/tickets", "Tickets", "m.tickets._index/route.tsx:47"],
 ] as const;
@@ -161,6 +179,10 @@ for (const theme of ["light", "dark"] as const) {
         .context()
         .addCookies([{ name: "theme", value: theme, url: themeCookieOrigin(baseURL) }]);
       if (name.startsWith("m")) await page.setViewportSize({ width: 390, height: 844 });
+      if (name.endsWith("-en"))
+        await page
+          .context()
+          .addCookies([{ name: "locale", value: "en", url: themeCookieOrigin(baseURL) }]);
       // Assert the route-specific <h1> BEFORE the capture (surviving a
       // first-visit Vite re-optimisation — see gotoAndAssertMarker). The login
       // shell's <h1> is "Jiangtang" (login/route.tsx:45), so a lost session, a
