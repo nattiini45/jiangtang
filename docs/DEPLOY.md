@@ -109,6 +109,48 @@ Everything else in the template is optional. Blank means off:
 The stack ships no AI provider, no hosted service and no telemetry endpoint. Every external
 provider above is something you configure, point somewhere and pay for.
 
+### Calendar push to Sciebo or Nextcloud
+
+Jiangtang publishes events one way into a single CalDAV calendar: creating or editing an event
+writes `<CALDAV_URL>/<uid>.ics`, and cancelling it deletes that resource. Nothing is read back, so an
+edit made in the calendar is overwritten by the next change in Jiangtang. Use a calendar that only
+Jiangtang writes to, for example a dedicated "AV events" calendar shared read-only with the team.
+Times are written in `Europe/Berlin` with an embedded `VTIMEZONE`, whatever `TZ` the server runs
+in.
+
+Sciebo runs Nextcloud, so the steps are the same for both:
+
+1. Sign in to the web interface with the account that should write the events, open
+   **Calendar** and create the calendar (for example "AV-Termine").
+2. Create an app password under **Settings → Security → Devices & sessions**: enter a name such as
+   "Jiangtang" and choose **Create new app password**. Copy the password; it is shown once. An app
+   password is required when two-factor authentication is on, and it can be revoked on its own.
+3. Copy the calendar URL: in **Calendar**, open the calendar's **⋯** menu and choose **Copy
+   internal link**. It has this form, with the login name (shown on the same page as the app
+   password) and the calendar's URL name, not its display name:
+
+   ```text
+   https://<instance>.sciebo.de/remote.php/dav/calendars/<login>/<calendar>/
+   ```
+
+   A calendar that another account shared with the writing account has the URL name
+   `<calendar>_shared_by_<owner>` under the writing account's login, and it must be shared with
+   **can edit**.
+4. Set the three variables in `.env` and restart the app container:
+
+   ```bash
+   CALDAV_URL=https://<instance>.sciebo.de/remote.php/dav/calendars/<login>/<calendar>/
+   CALDAV_USERNAME=<login>
+   CALDAV_PASSWORD=<app password>
+   ```
+
+5. As an admin, open `/admin/index` and choose **Test connection** under **Calendar sync**. It
+   reports a wrong login or app password, a URL that is not a calendar, and a calendar the account
+   may only read. The same section shows the last successful push, the last error and the number of
+   pending, retrying and failed (parked) pushes.
+6. Create a test event in Jiangtang, check that it appears in the calendar within about a minute,
+   move it to another time, then cancel it and check that it is gone.
+
 ## 3. Build and start
 
 ```bash
