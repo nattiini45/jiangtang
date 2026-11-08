@@ -32,6 +32,7 @@ export interface UserListRow {
   /** Minutes per week; null = unset (renders „keine Kapazität"). */
   weeklyCapacityMinutes: number | null;
   emailVerified: boolean;
+  twoFactorEnabled: boolean;
   createdAt: Date;
 }
 
@@ -44,6 +45,7 @@ const USER_LIST_SELECT = {
   isActive: true,
   weeklyCapacityMinutes: true,
   emailVerified: true,
+  twoFactorEnabled: true,
   createdAt: true,
 } as const;
 

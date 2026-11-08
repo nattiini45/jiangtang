@@ -24,6 +24,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   return {
     deactivated: user?.isActive === false || url.searchParams.has("deactivated"),
     passwordReset: url.searchParams.has("reset"),
+    twoFactorExpired: url.searchParams.has("twoFactorExpired"),
     next,
   };
 }
@@ -47,15 +48,19 @@ export async function action({ request }: Route.ActionArgs) {
       headers: forwardedFor ? { "x-forwarded-for": forwardedFor } : undefined,
       asResponse: true,
     });
-    const setCookie = response.headers.get("set-cookie");
     // Better Auth answers invalid credentials with a 401 Response instead of
-    // throwing, so the catch below never sees them. No session cookie means
-    // there is nothing to redirect with either.
-    if (!response.ok || !setCookie) {
-      return { error: invalidCredentials };
-    }
+    // throwing, so the catch below never sees them.
+    if (!response.ok) return { error: invalidCredentials };
     const headers = new Headers();
-    headers.append("set-cookie", setCookie);
+    for (const cookie of response.headers.getSetCookie()) headers.append("set-cookie", cookie);
+    // An enrolled account gets a short-lived challenge cookie instead of a
+    // session; the second step exchanges it for one.
+    const body = (await response.json()) as { twoFactorRedirect?: boolean };
+    if (body.twoFactorRedirect) {
+      return redirect(`/login/two-factor?next=${encodeURIComponent(next)}`, { headers });
+    }
+    // No session cookie means there is nothing to redirect with.
+    if (!headers.has("set-cookie")) return { error: invalidCredentials };
     return redirect(next, { headers });
   } catch (error) {
     if (isAPIError(error) && error.statusCode === 429) {
@@ -113,6 +118,14 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
             className="bg-status-info/15 text-foreground mt-4 rounded-md p-2 text-sm"
           >
             {t("auth.login.passwordReset")}
+          </p>
+        ) : null}
+        {loaderData.twoFactorExpired ? (
+          <p
+            role="status"
+            className="bg-status-warning/15 text-foreground mt-4 rounded-md p-2 text-sm"
+          >
+            {t("auth.login.twoFactorExpired")}
           </p>
         ) : null}
         {actionData && "error" in actionData && actionData.error ? (

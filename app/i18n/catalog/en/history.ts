@@ -96,4 +96,8 @@ export const historyEn = {
   "history.action.DemoInventoryItemSeeded": "Created by demo seed",
   "history.action.DemoTimeEntrySeeded": "Created by demo seed",
   "history.action.DemoTicketAssigneeSeeded": "Assigned by demo seed",
+  "history.action.TwoFactorEnabled": "Two-factor turned on",
+  "history.action.TwoFactorDisabled": "Two-factor turned off",
+  "history.action.TwoFactorBackupCodesRegenerated": "Backup codes renewed",
+  "history.action.TwoFactorReset": "Two-factor reset",
 } satisfies Record<keyof typeof historyDe, string>;

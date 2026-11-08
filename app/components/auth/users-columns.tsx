@@ -51,4 +51,15 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
         <span className="text-muted-foreground text-xs">{t("admin.users.inactive")}</span>
       ),
   },
+  {
+    id: "twoFactorEnabled",
+    header: t("admin.users.col.twoFactor"),
+    size: 90,
+    cell: ({ row }) =>
+      row.original.twoFactorEnabled ? (
+        <span className="text-status-operational text-xs">{t("admin.users.twoFactorOn")}</span>
+      ) : (
+        <span className="text-muted-foreground text-xs">{t("admin.users.twoFactorOff")}</span>
+      ),
+  },
 ];

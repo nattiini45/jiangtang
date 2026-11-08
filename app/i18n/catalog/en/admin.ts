@@ -91,4 +91,16 @@ export const adminEn = {
   "admin.index.calendar.counts": "{pending} pending · {retrying} retrying · {failed} failed",
   "admin.index.calendar.stuckSince": "stuck since {since}",
   "admin.index.calendar.deletedEvent": "Deleted event",
+  "admin.users.col.twoFactor": "2FA",
+  "admin.users.twoFactorOn": "on",
+  "admin.users.twoFactorOff": "off",
+  "admin.users.twoFactorRequired": "Two-factor authentication is required for admins.",
+  "admin.user.twoFactor.title": "Two-factor authentication",
+  "admin.user.twoFactor.on": "On.",
+  "admin.user.twoFactor.off": "Not set up.",
+  "admin.user.twoFactor.hint":
+    "Resetting deletes the authenticator and the backup codes. The person then signs in with their password alone and can set it up again.",
+  "admin.user.twoFactor.reset": "Reset two-factor",
+  "admin.user.twoFactor.done": "Two-factor authentication was reset.",
+  "admin.user.twoFactor.err.notEnabled": "This account has no two-factor authentication set up.",
 } satisfies Record<keyof typeof adminDe, string>;
