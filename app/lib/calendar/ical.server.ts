@@ -1,3 +1,4 @@
+import { TZDate } from "@date-fns/tz";
 import ical, { ICalEventStatus } from "ical-generator";
 import { db } from "~/lib/db.server";
 import { t } from "~/i18n";
@@ -15,6 +16,11 @@ import { workspaceLocale } from "~/i18n/locale.server";
  * DST boundaries and readable by clients without a tz database
  * ("validates/updates/cancels in Outlook + a non-MS
  * client").
+ *
+ * ical-generator writes TZID-qualified times from a plain Date's local getters,
+ * so a plain Date would follow the process TZ. Every instant is handed over as a
+ * Berlin TZDate instead, which keeps the output identical whatever TZ the server
+ * runs in.
  */
 
 export interface ICalFeedEvent {
@@ -82,6 +88,8 @@ export async function loadFeedEvents(opts?: { from?: Date; to?: Date }): Promise
  * non-MS client").
  */
 function buildCalendar(events: ICalFeedEvent[], name?: string): string {
+  const berlin = (d: Date) => new TZDate(d, BERLIN);
+  const stamp = berlin(new Date());
   const calendar = ical({
     ...(name ? { name } : {}),
     timezone: {
@@ -95,8 +103,9 @@ function buildCalendar(events: ICalFeedEvent[], name?: string): string {
     events: events.map((e) => ({
       id: e.uid,
       sequence: e.sequence,
-      start: e.startsAt,
-      end: e.endsAt,
+      stamp,
+      start: berlin(e.startsAt),
+      end: berlin(e.endsAt),
       summary: e.title,
       description: e.description ?? undefined,
       location: e.location ?? undefined,
@@ -120,6 +129,8 @@ export function renderIcalFeed(events: ICalFeedEvent[]): string {
 export function renderIcalObject(event: ICalFeedEvent): string {
   return buildCalendar([event]);
 }
+
+const BERLIN = "Europe/Berlin";
 
 // A correct, self-contained Europe/Berlin VTIMEZONE (EU 1996+ DST rules).
 // Returned by the generator above so the feed carries STANDARD + DAYLIGHT blocks.

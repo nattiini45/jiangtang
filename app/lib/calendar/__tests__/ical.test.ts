@@ -166,6 +166,59 @@ describe("renderIcalFeed (pure)", () => {
   });
 });
 
+describe("renderIcalFeed does not depend on the process time zone", () => {
+  const savedTz = process.env.TZ;
+  afterEach(() => {
+    if (savedTz === undefined) delete process.env.TZ;
+    else process.env.TZ = savedTz;
+  });
+
+  const event = (startsAt: string, endsAt: string) => ({
+    uid: "tz",
+    title: "TZ",
+    description: null,
+    startsAt: new Date(startsAt),
+    endsAt: new Date(endsAt),
+    location: null,
+    sequence: 0,
+    cancelled: false,
+  });
+  const timeLines = (body: string) =>
+    body.split("\r\n").filter((l) => /^DT(START|END);TZID=/.test(l));
+
+  it.each(["UTC", "America/New_York", "Asia/Tokyo", "Europe/Berlin"])(
+    "renders Berlin wall-clock times with TZ=%s",
+    (tz) => {
+      process.env.TZ = tz;
+      // Proves the switch took effect: the process offset in July differs per zone.
+      const julyOffset = new Date("2026-07-15T10:00:00Z").getTimezoneOffset();
+      expect(julyOffset).toBe(
+        { UTC: 0, "America/New_York": 240, "Asia/Tokyo": -540, "Europe/Berlin": -120 }[tz],
+      );
+
+      expect(
+        timeLines(renderIcalFeed([event("2026-07-15T10:00:00Z", "2026-07-15T12:00:00Z")])),
+      ).toEqual([
+        "DTSTART;TZID=Europe/Berlin:20260715T120000",
+        "DTEND;TZID=Europe/Berlin:20260715T140000",
+      ]);
+      expect(
+        timeLines(renderIcalFeed([event("2026-12-01T09:00:00Z", "2026-12-01T11:00:00Z")])),
+      ).toEqual([
+        "DTSTART;TZID=Europe/Berlin:20261201T100000",
+        "DTEND;TZID=Europe/Berlin:20261201T120000",
+      ]);
+      // Across the autumn change: 23:30Z = 01:30 CEST, 02:30Z = 03:30 CET.
+      expect(
+        timeLines(renderIcalFeed([event("2026-10-24T23:30:00Z", "2026-10-25T02:30:00Z")])),
+      ).toEqual([
+        "DTSTART;TZID=Europe/Berlin:20261025T013000",
+        "DTEND;TZID=Europe/Berlin:20261025T033000",
+      ]);
+    },
+  );
+});
+
 describe("loadFeedEvents (DB-backed)", () => {
   it("loads events with the latest outbox SEQUENCE per uid", async () => {
     const events = await loadFeedEvents({
