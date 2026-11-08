@@ -1,10 +1,11 @@
 import { Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireRole } from "~/lib/auth.server";
-import { toErrorResponse } from "~/lib/errors.server";
+import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { findUser, updateUser } from "~/domains/auth/users.queries.server";
 import { editUserSchema } from "~/domains/auth/users.schema";
+import { resetTwoFactor } from "~/domains/auth/two-factor.server";
 import { ZodForm, FormField } from "~/components/forms";
 import { Select } from "~/components/ui/select";
 import { Input } from "~/components/ui/input";
@@ -21,17 +22,23 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   const actor = await requireRole(request, "ADMIN");
+  const auditActor = {
+    id: actor.id,
+    name: actor.name,
+    email: actor.email,
+    initials: actor.initials,
+  };
   try {
+    if ((await request.clone().formData()).get("intent") === "resetTwoFactor") {
+      await resetTwoFactor(params.id!, auditActor);
+      return { twoFactorReset: true as const };
+    }
     const result = await safeParseForm(request, editUserSchema);
     if (!result.success) return { fieldErrors: result.fieldErrors };
-    await updateUser(params.id!, result.data, {
-      id: actor.id,
-      name: actor.name,
-      email: actor.email,
-      initials: actor.initials,
-    });
+    await updateUser(params.id!, result.data, auditActor);
     return redirect("/admin/users");
   } catch (e) {
+    if (e instanceof ValidationError && e.formErrors.length) return { formErrors: e.formErrors };
     throw toErrorResponse(e);
   }
 }
@@ -45,6 +52,8 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
   const user = loaderData.user;
   const fieldErrors =
     actionData && "fieldErrors" in actionData ? actionData.fieldErrors : undefined;
+  const formErrors = actionData && "formErrors" in actionData ? actionData.formErrors : undefined;
+  const twoFactorReset = actionData && "twoFactorReset" in actionData;
   return (
     <div className="max-w-lg">
       <h1 className="text-xl font-bold">{user.name}</h1>
@@ -83,6 +92,36 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
       </ZodForm>
 
       <div className="bg-card shadow-surface-2 mt-6 rounded-lg p-4">
+        <p className="text-sm font-semibold">{t("admin.user.twoFactor.title")}</p>
+        <p className="mt-1 text-sm" data-testid="admin-two-factor-status">
+          {user.twoFactorEnabled ? t("admin.user.twoFactor.on") : t("admin.user.twoFactor.off")}
+        </p>
+        {twoFactorReset ? (
+          <p role="status" className="text-status-info mt-1 text-xs">
+            {t("admin.user.twoFactor.done")}
+          </p>
+        ) : null}
+        {formErrors?.length ? (
+          <p role="alert" className="text-destructive mt-1 text-xs">
+            {formErrors.join(" ")}
+          </p>
+        ) : null}
+        {user.twoFactorEnabled ? (
+          <>
+            <p className="text-muted-foreground mt-1 text-xs">{t("admin.user.twoFactor.hint")}</p>
+            <ZodForm className="mt-2">
+              <input type="hidden" name="intent" value="resetTwoFactor" />
+              <div>
+                <Button type="submit" variant="destructive" size="compact">
+                  {t("admin.user.twoFactor.reset")}
+                </Button>
+              </div>
+            </ZodForm>
+          </>
+        ) : null}
+      </div>
+
+      <div className="bg-card shadow-surface-2 mt-4 rounded-lg p-4">
         <p className="text-sm font-semibold">{t("admin.user.reset.title")}</p>
         <p className="text-muted-foreground mt-1 text-xs">{t("admin.user.reset.hint")}</p>
         <Button asChild variant="secondary" size="compact" className="mt-2">

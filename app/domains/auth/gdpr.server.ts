@@ -68,11 +68,12 @@ export async function pseudonymizeUser(
 
     // 3. Delete what lets the account sign in or be claimed again: the Better Auth
     //    credentials (password hash, provider tokens), the sessions (IP address and
-    //    user agent), password reset links and any invitation still pending for the
+    //    user agent), the two-factor secret, password reset links and any invitation still pending for the
     //    original email. They
     //    go in this transaction so a failed erasure leaves the account as it was.
     await tx.account.deleteMany({ where: { userId } });
     await tx.session.deleteMany({ where: { userId } });
+    await tx.twoFactor.deleteMany({ where: { userId } });
     // Case-insensitive: invitations created before emails were lower-cased kept
     // the email as typed.
     await tx.verification.deleteMany({
@@ -90,6 +91,7 @@ export async function pseudonymizeUser(
         email: `erased-${userId}@erased.local`,
         initials: null,
         isActive: false,
+        twoFactorEnabled: false,
       },
     });
 

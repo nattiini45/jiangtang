@@ -156,10 +156,11 @@ const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/activity": [],
   "app/domains/analytics": [],
   "app/domains/attachments": ["Attachment"],
-  // Account and Session are Better Auth's tables; the auth folder writes them
-  // itself where a credential or sessions must change in an audited transaction
-  // (invite acceptance, password reset, erasure).
-  "app/domains/auth": ["User", "Verification", "Account", "Session"],
+  // Account, Session and TwoFactor are Better Auth's tables; the auth folder
+  // writes them itself where a credential, sessions or a second factor must
+  // change in an audited transaction (invite acceptance, password reset, the
+  // admin two-factor reset, erasure).
+  "app/domains/auth": ["User", "Verification", "Account", "Session", "TwoFactor"],
   "app/domains/board": [],
   "app/domains/catalog": ["EquipmentModel"],
   "app/domains/dashboard": [],

@@ -259,6 +259,9 @@ model User {
   emailVerified Boolean @default(false)
   image         String?
 
+  // Better Auth twoFactor plugin: true once a TOTP authenticator is confirmed.
+  twoFactorEnabled Boolean @default(false)
+
   // the capacity view's denominator. Nullable on purpose — an
   // unset capacity renders as „keine Kapazität", never as a fake 0 h.
   weeklyCapacityMinutes Int?
@@ -268,6 +271,7 @@ model User {
   serviceWindows  ServiceWindow[]
   sessions        Session[]
   accounts        Account[]
+  twoFactor       TwoFactor?
 
   // Workspace-domain back-references. Named because several
   // models point at User from more than one field.
@@ -351,6 +355,20 @@ model Account {
   updatedAt             DateTime  @updatedAt @db.Timestamptz(3)
 
   @@index([userId])
+}
+
+// Better Auth twoFactor plugin. The secret and the backup codes are encrypted
+// with BETTER_AUTH_SECRET; `verified` stays false until the first code is
+// confirmed, so a started but unfinished enrolment never gates sign-in.
+model TwoFactor {
+  id                      String    @id @default(cuid())
+  secret                  String
+  backupCodes             String
+  userId                  String    @unique
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verified                Boolean   @default(true)
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime? @db.Timestamptz(3)
 }
 
 model Verification {

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router";
 import type { Route } from "./+types/route";
-import { requireRole } from "~/lib/auth.server";
+import { adminTwoFactorRequired, requireRole } from "~/lib/auth.server";
 import { can } from "~/lib/rbac.server";
 import { listUsers } from "~/domains/auth/users.queries.server";
 import { DataGrid } from "~/components/data-grid";
@@ -25,7 +25,12 @@ export async function loader({ request }: Route.LoaderArgs) {
   const invitedToken = url.searchParams.get("invited");
   const base = `${url.protocol}//${url.host}`;
   const inviteLink = invitedToken ? `${base}/accept-invite/${invitedToken}` : null;
-  return { users, canManage: can(user, "user.manage"), inviteLink };
+  return {
+    users,
+    canManage: can(user, "user.manage"),
+    inviteLink,
+    adminTwoFactorRequired: adminTwoFactorRequired(),
+  };
 }
 
 export function meta({ matches }: Route.MetaArgs) {
@@ -41,6 +46,9 @@ export default function AdminUsersIndex({ loaderData }: Route.ComponentProps) {
         <div>
           <h1 className="text-xl font-bold">{t("admin.users.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("admin.users.subtitle")}</p>
+          {loaderData.adminTwoFactorRequired ? (
+            <p className="text-muted-foreground text-xs">{t("admin.users.twoFactorRequired")}</p>
+          ) : null}
         </div>
         <Button asChild>
           <Link to="/admin/users/new">{t("admin.users.invite")}</Link>

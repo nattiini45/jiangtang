@@ -187,6 +187,9 @@ Custody rules that the template cannot enforce for you:
   key cannot decrypt existing objects.
 - `STORAGE_KEY_SALT` is optional and only affects a passphrase-style key. Set it on a fresh install
   or not at all; changing it later makes existing uploads undecryptable.
+- `BETTER_AUTH_SECRET` also encrypts the two-factor secrets and backup codes. Changing it signs
+  everyone out and leaves enrolled accounts unable to pass the code step until an admin resets their
+  two-factor authentication on the user page.
 - Never commit `.env`, and never copy it into a backup archive that you share.
 
 Everything else in the template is optional. Blank means off:
@@ -200,6 +203,7 @@ Everything else in the template is optional. Blank means off:
 | `ALERT_WEBHOOK`                           | The alerting sidecar idles instead of polling.                                      |
 | `GLITCHTIP_DSN`                           | No error reporting.                                                                 |
 | `RESTORE_DRILL_ENABLED`                   | The monthly restore smoke check does not run.                                       |
+| `REQUIRE_ADMIN_TWO_FACTOR`                | Two-factor authentication stays optional for admins as well as members.             |
 | `LANDING_PAGE_ENABLED`                    | No public `/welcome` page: visitors only see `/login`. Set `1` to publish it.        |
 
 The stack ships no AI provider, no hosted service and no telemetry endpoint. Every external

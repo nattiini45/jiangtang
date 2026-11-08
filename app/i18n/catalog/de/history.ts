@@ -94,4 +94,8 @@ export const historyDe = {
   "history.action.DemoInventoryItemSeeded": "Per Demo-Seed angelegt",
   "history.action.DemoTimeEntrySeeded": "Per Demo-Seed angelegt",
   "history.action.DemoTicketAssigneeSeeded": "Per Demo-Seed zugewiesen",
+  "history.action.TwoFactorEnabled": "Zwei-Faktor aktiviert",
+  "history.action.TwoFactorDisabled": "Zwei-Faktor deaktiviert",
+  "history.action.TwoFactorBackupCodesRegenerated": "Backup-Codes erneuert",
+  "history.action.TwoFactorReset": "Zwei-Faktor zurückgesetzt",
 };
