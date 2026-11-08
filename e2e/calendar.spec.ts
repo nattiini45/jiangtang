@@ -45,6 +45,7 @@ test("calendar slots support keyboard navigation and exact Berlin transition day
     ["2026-10-25", 25],
   ] as const) {
     await page.goto(`/events?view=day&date=${date}`);
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
     const slots = page.locator("a[data-slot-row]");
     await expect(slots).toHaveCount(hours);
     await slots.nth(9).focus();
@@ -71,6 +72,7 @@ test("the shared week gutter aligns transition hours without phantom slots", asy
     ["2026-10-25", 25, 25, "4"],
   ] as const) {
     await page.goto(`/events?view=week&date=${date}`);
+    await expect(page.locator("html[data-hydrated]")).toBeAttached();
     const gutter = page.locator("[data-time-gutter]");
     await expect(gutter).toHaveCount(1);
     await expect(gutter.locator(":scope > div")).toHaveCount(rows);
@@ -112,6 +114,7 @@ test("day drilling preserves tasks and resource filters", async ({ page }) => {
 
 test("room keyboard navigation skips occupied hours without changing rooms", async ({ page }) => {
   await page.goto("/events?view=rooms&status=CONFIRMED&equipment=missing");
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
   await expect(page.getByRole("link", { name: /Demo-Hybridveranstaltung/ })).toBeVisible();
   const before = page.getByRole("link", { name: /Demo-Raum A.01.*09:00/ });
   await before.focus();
@@ -123,6 +126,7 @@ test("room keyboard navigation skips occupied hours without changing rooms", asy
 
 test("day headers stay visible while scrolling the time grid", async ({ page }) => {
   await page.goto("/events?view=week");
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
   const scroller = page.locator('[data-slot-orientation="vertical"]');
   const heading = scroller.getByRole("heading", { level: 2 }).first();
   await expect(heading).toBeVisible();
