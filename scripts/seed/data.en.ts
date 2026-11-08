@@ -8,6 +8,22 @@
 
 export type Text<T> = Record<string, T>;
 
+export const EN_ROOMS: Text<{ name: string }> = {
+  seed_room_a01: { name: "Demo Room A.01" },
+};
+
+export const EN_EQUIPMENT_MODELS: Text<{ name: string }> = {
+  seed_model_projector: { name: "Demo Projector" },
+};
+
+export const EN_EQUIPMENT: Text<{ name: string }> = {
+  seed_equipment_projector_a01: { name: "Projector A.01" },
+};
+
+export const EN_EVENTS: Text<{ title: string }> = {
+  seed_event_hybrid: { title: "Demo Hybrid Event" },
+};
+
 export const EN_LOCATIONS: Text<{ name: string; code: string; description: string }> = {
   seed_loc_site_campus: {
     name: "Demo Site",

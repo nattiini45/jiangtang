@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { db, type Tx } from "~/lib/db.server";
 import { writeActivity, type AuditFn } from "~/lib/audit.server";
+import { BookingConflictError } from "~/lib/booking.server";
 import { LocationKind, StockStatus } from "~/generated/prisma/enums";
 import {
   ADMIN_SEED_ASSIGNMENTS,
@@ -19,6 +20,7 @@ import {
   TIME_ENTRIES,
   VENDORS,
   assertCountsMatchSpec,
+  atBerlinHour,
 } from "../scripts/seed/data";
 import {
   EXPECTED_COUNTS,
@@ -255,11 +257,113 @@ const ORPHAN_PROBES: ReadonlyArray<{ label: string; sql: string }> = [
 ];
 
 describe("demo seed integrity", () => {
+  it.each(["de", "en"] as const)(
+    "seeds a bookable room, equipment and a current event in %s without rewriting edits",
+    async (locale) => {
+      await inRolledBackTx(async (tx) => {
+        await tx.eventRoomBooking.deleteMany({ where: { id: "seed_booking_a01" } });
+        await tx.event.deleteMany({ where: { id: "seed_event_hybrid" } });
+        await tx.equipment.deleteMany({ where: { id: "seed_equipment_projector_a01" } });
+        await tx.equipmentModel.deleteMany({ where: { id: "seed_model_projector" } });
+        await tx.room.deleteMany({ where: { id: "seed_room_a01" } });
+
+        const audit = auditOn(tx);
+        const beforeAudit = await countSeedAuditRows(tx);
+        const first = await seedWorkspace(tx, audit, { locale });
+        for (const key of [
+          "room",
+          "equipmentModel",
+          "equipment",
+          "event",
+          "eventRoomBooking",
+        ] as const) {
+          expect(first.created[key], key).toBe(1);
+          expect(first.skipped[key], key).toBe(0);
+        }
+        expect((await countSeedAuditRows(tx)) - beforeAudit).toBe(first.auditRows);
+
+        const equipment = await tx.equipment.findUniqueOrThrow({
+          where: { id: "seed_equipment_projector_a01" },
+          include: { room: true, model: true },
+        });
+        expect(equipment.room).toMatchObject({
+          id: "seed_room_a01",
+          slug: "demo-a01",
+          name: locale === "de" ? "Demo-Raum A.01" : "Demo Room A.01",
+        });
+        expect(equipment.model).toMatchObject({
+          id: "seed_model_projector",
+          name: locale === "de" ? "Demo-Projektor" : "Demo Projector",
+        });
+        expect(equipment.name).toBe(locale === "de" ? "Projektor A.01" : "Projector A.01");
+
+        const booking = await tx.eventRoomBooking.findUniqueOrThrow({
+          where: { id: "seed_booking_a01" },
+          include: { event: true },
+        });
+        const { event, ...bookingRow } = booking;
+        expect(booking.roomId).toBe(equipment.roomId);
+        expect(booking.cancelled).toBe(false);
+        expect(event).toMatchObject({
+          id: "seed_event_hybrid",
+          title: locale === "de" ? "Demo-Hybridveranstaltung" : "Demo Hybrid Event",
+          startsAt: atBerlinHour(0, 10),
+          endsAt: atBerlinHour(0, 12),
+        });
+        expect(booking.startsAt).toEqual(event.startsAt);
+        expect(booking.endsAt).toEqual(event.endsAt);
+
+        const editedRoom = await tx.room.update({
+          where: { id: "seed_room_a01" },
+          data: { name: "Edited room" },
+        });
+        const editedEquipment = await tx.equipment.update({
+          where: { id: equipment.id },
+          data: { name: "Edited equipment" },
+        });
+        const editedEvent = await tx.event.update({
+          where: { id: booking.eventId },
+          data: { title: "Edited event" },
+        });
+        const second = await seedWorkspace(tx, audit, { locale: locale === "de" ? "en" : "de" });
+        expect(totalCreated(second)).toBe(0);
+        expect(second.auditRows).toBe(0);
+        expect(await tx.room.findUnique({ where: { id: editedRoom.id } })).toEqual(editedRoom);
+        expect(await tx.equipment.findUnique({ where: { id: equipment.id } })).toEqual(
+          editedEquipment,
+        );
+        expect(await tx.event.findUnique({ where: { id: booking.eventId } })).toEqual(editedEvent);
+        expect(await tx.eventRoomBooking.findUnique({ where: { id: booking.id } })).toEqual(
+          bookingRow,
+        );
+      });
+    },
+  );
+
+  it("rejects a conflicting demo room booking through the database constraint", async () => {
+    await inRolledBackTx(async (tx) => {
+      await seedWorkspace(tx, auditOn(tx));
+      const booking = await tx.eventRoomBooking.findUniqueOrThrow({
+        where: { id: "seed_booking_a01" },
+      });
+      await tx.eventRoomBooking.update({
+        where: { id: booking.id },
+        data: { id: "seed_overlap_probe" },
+      });
+      await expect(seedWorkspace(tx, auditOn(tx))).rejects.toBeInstanceOf(BookingConflictError);
+    });
+  });
+
   it("the seed data still matches its published counts", () => {
     // Asserts nothing about the database — it is the tripwire that keeps the
     // arrays and the published numbers from drifting apart behind a green suite.
     expect(() => assertCountsMatchSpec()).not.toThrow();
     expect(EXPECTED_COUNTS).toEqual({
+      room: 1,
+      equipmentModel: 1,
+      equipment: 1,
+      event: 1,
+      eventRoomBooking: 1,
       location: 8,
       project: 6,
       task: 41,
@@ -276,6 +380,11 @@ describe("demo seed integrity", () => {
   it("writes exactly the published counts, and nothing else appears", async () => {
     const observed = await inRolledBackTx(async (tx) => {
       const before = {
+        room: await tx.room.count(),
+        equipmentModel: await tx.equipmentModel.count(),
+        equipment: await tx.equipment.count(),
+        event: await tx.event.count(),
+        eventRoomBooking: await tx.eventRoomBooking.count(),
         location: await tx.location.count(),
         project: await tx.project.count(),
         task: await tx.task.count(),
@@ -289,6 +398,11 @@ describe("demo seed integrity", () => {
       };
       const summary = await seedWorkspace(tx, auditOn(tx));
       const after = {
+        room: await tx.room.count(),
+        equipmentModel: await tx.equipmentModel.count(),
+        equipment: await tx.equipment.count(),
+        event: await tx.event.count(),
+        eventRoomBooking: await tx.eventRoomBooking.count(),
         location: await tx.location.count(),
         project: await tx.project.count(),
         task: await tx.task.count(),
@@ -324,6 +438,11 @@ describe("demo seed integrity", () => {
     if (Object.values(observed.before).every((n) => n === 0)) {
       expect(observed.summary.created).toEqual({ ...EXPECTED_COUNTS });
       expect(observed.summary.skipped).toEqual({
+        room: 0,
+        equipmentModel: 0,
+        equipment: 0,
+        event: 0,
+        eventRoomBooking: 0,
         location: 0,
         project: 0,
         task: 0,
@@ -648,6 +767,13 @@ describe("demo seed integrity", () => {
 
   it("re-running changes no count", async () => {
     const readCounts = async (tx: Tx) => ({
+      room: await tx.room.count(),
+      equipmentModel: await tx.equipmentModel.count(),
+      equipment: await tx.equipment.count(),
+      event: await tx.event.count(),
+      eventRoomBooking: await tx.eventRoomBooking.count(),
+      taskDependency: await tx.taskDependency.count(),
+      taskAssignees: await tx.taskAssignees.count(),
       location: await tx.location.count(),
       project: await tx.project.count(),
       task: await tx.task.count(),
@@ -719,7 +845,7 @@ describe("demo seed integrity", () => {
     // `Note.authorId` (NOT NULL) makes mandatory. If the seed ever starts
     // writing something the counts do not mention, this stops matching.
     const published = Object.values(EXPECTED_COUNTS).reduce((a, b) => a + b, 0);
-    expect(published).toBe(143);
+    expect(published).toBe(148);
     expect(EXPECTED_SEEDED_ROW_COUNT).toBe(published + EXPECTED_DEMO_USER_COUNT);
 
     // Every id unique and prefixed, so demo rows are identifiable at a glance

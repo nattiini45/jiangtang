@@ -34,12 +34,14 @@ import type { Tx } from "~/lib/db.server";
 import type { AuditFn } from "~/lib/audit.server";
 import type { EntityType } from "~/lib/realtime/events";
 import type { Prisma } from "~/generated/prisma/client";
+import { insertOrConflict } from "~/lib/booking.server";
 import {
   ADMIN_SEED_ASSIGNMENTS,
   ADMIN_SEED_TICKET_IDS,
   ALL_SEED_IDS,
   DEMO_TEAM,
   DEMO_USER,
+  EVENT_ROOM_BOOKINGS,
   TASK_ASSIGNEES,
   TASK_DEPENDENCIES,
   assertCountsMatchSpec,
@@ -70,11 +72,6 @@ export const SEED_ACTOR = {
 export const UNTOUCHED_TABLES = [
   "Campus",
   "Building",
-  "Room",
-  "EquipmentModel",
-  "Equipment",
-  "Event",
-  "EventRoomBooking",
   "EquipmentAllocation",
   "ServiceWindow",
   "Attachment",
@@ -112,6 +109,11 @@ export type SeedSummary = {
 
 function zeroed(): Record<CountKey, number> {
   return {
+    room: 0,
+    equipmentModel: 0,
+    equipment: 0,
+    event: 0,
+    eventRoomBooking: 0,
     location: 0,
     project: 0,
     task: 0,
@@ -171,8 +173,20 @@ export async function seedWorkspace(
 ): Promise<SeedSummary> {
   assertCountsMatchSpec();
   // Wording follows the installation language; ids and structure are shared.
-  const { LOCATIONS, VENDORS, PROJECTS, TASKS, TICKETS, NOTES, INVENTORY, TIME_ENTRIES } =
-    seedDataFor(opts.locale ?? workspaceLocale());
+  const {
+    ROOMS,
+    EQUIPMENT_MODELS,
+    EQUIPMENT,
+    EVENTS,
+    LOCATIONS,
+    VENDORS,
+    PROJECTS,
+    TASKS,
+    TICKETS,
+    NOTES,
+    INVENTORY,
+    TIME_ENTRIES,
+  } = seedDataFor(opts.locale ?? workspaceLocale());
 
   const created = zeroed();
   const skipped = zeroed();
@@ -212,6 +226,70 @@ export async function seedWorkspace(
       note("User", "user"),
     );
     if (wrote) demoUsersCreated += 1;
+  }
+
+  for (const row of ROOMS) {
+    const wrote = await writeOnce(
+      () => tx.room.findUnique({ where: { id: row.id }, select: { id: true } }),
+      () => tx.room.create({ data: row, select: { id: true } }),
+      note("Room", "room"),
+    );
+    await record("room", wrote);
+  }
+
+  for (const row of EQUIPMENT_MODELS) {
+    const wrote = await writeOnce(
+      () => tx.equipmentModel.findUnique({ where: { id: row.id }, select: { id: true } }),
+      () => tx.equipmentModel.create({ data: row, select: { id: true } }),
+      note("EquipmentModel", "equipmentModel"),
+    );
+    await record("equipmentModel", wrote);
+  }
+
+  for (const row of EQUIPMENT) {
+    const wrote = await writeOnce(
+      () => tx.equipment.findUnique({ where: { id: row.id }, select: { id: true } }),
+      () => tx.equipment.create({ data: row, select: { id: true } }),
+      note("Equipment", "equipment"),
+    );
+    await record("equipment", wrote);
+  }
+
+  for (const { offsetDays, startHour, endHour, ...row } of EVENTS) {
+    const wrote = await writeOnce(
+      () => tx.event.findUnique({ where: { id: row.id }, select: { id: true } }),
+      () =>
+        tx.event.create({
+          data: {
+            ...row,
+            startsAt: atBerlinHour(offsetDays, startHour),
+            endsAt: atBerlinHour(offsetDays, endHour),
+          },
+          select: { id: true },
+        }),
+      note("Event", "event"),
+    );
+    await record("event", wrote);
+  }
+
+  for (const row of EVENT_ROOM_BOOKINGS) {
+    const wrote = await writeOnce(
+      () => tx.eventRoomBooking.findUnique({ where: { id: row.id }, select: { id: true } }),
+      async () => {
+        const event = await tx.event.findUniqueOrThrow({
+          where: { id: row.eventId },
+          select: { startsAt: true, endsAt: true },
+        });
+        return insertOrConflict(() =>
+          tx.eventRoomBooking.create({
+            data: { ...row, startsAt: event.startsAt, endsAt: event.endsAt },
+            select: { id: true },
+          }),
+        );
+      },
+      note("EventRoomBooking", "eventRoomBooking"),
+    );
+    await record("eventRoomBooking", wrote);
   }
 
   // 2. Locations — one per LocationKind, and a real parent/child tree.
@@ -410,9 +488,7 @@ export async function seedWorkspace(
     await record("note", wrote);
   }
 
-  // 8. Stock. `equipmentId` stays null: the seed creates no Equipment, and a
-  //    link to a row that does not exist is an orphan, which the seed-integrity
-  //    checks reject.
+  // 8. Stock.
   for (const row of INVENTORY) {
     const wrote = await writeOnce(
       () => tx.inventoryItem.findUnique({ where: { id: row.id }, select: { id: true } }),
@@ -534,6 +610,6 @@ export function totalSkipped(summary: SeedSummary): number {
 
 /** Every row the seed owns, demo users included. `ALL_SEED_IDS` holds the
  *  single-id models only — the two join tables are composite-keyed, so their
- *  rows count here without a fake id. 144 on a clean database. */
+ *  rows count here without a fake id. */
 export const EXPECTED_SEEDED_ROW_COUNT =
   ALL_SEED_IDS.length + TASK_ASSIGNEES.length + TASK_DEPENDENCIES.length;
