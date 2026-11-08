@@ -487,4 +487,24 @@ describe("calendarSyncHealth", () => {
     expect(health.oldestStuckAt?.getTime()).toBe(old.getTime());
     expect(health.stuck.map((s) => s.lastError)).toEqual(["403 Forbidden", "ECONNREFUSED"]);
   });
+
+  it("reports the last successful push and the last outstanding error with their times", async () => {
+    const prefix = `${RUN}_last`;
+    const empty = await calendarSyncHealth({ eventUidPrefix: prefix });
+    expect(empty.lastSuccessAt).toBeNull();
+    expect(empty.lastError).toBeNull();
+
+    await seed(`${prefix}_ok`, 0);
+    await seed(`${prefix}_bad`, 0);
+    const now = new Date("2026-09-01T12:00:00Z");
+    await drainOnce(new FakePublisher((uid) => uid.endsWith("_bad")), {
+      eventUidPrefix: prefix,
+      now,
+    });
+
+    const health = await calendarSyncHealth({ eventUidPrefix: prefix });
+    expect(health.lastSuccessAt?.getTime()).toBe(now.getTime());
+    expect(health.lastError?.message).toBe("boom");
+    expectBackoffFrom(health.lastError?.at ?? null, now.getTime());
+  });
 });

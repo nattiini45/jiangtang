@@ -588,6 +588,8 @@ model CalendarOutbox {
   // Earliest instant the drain may retry this row, or a later op supersede it;
   // null until the first failure.
   nextAttemptAt DateTime? @db.Timestamptz(3)
+  // When the latest failed attempt ended; null until the first failure.
+  lastAttemptAt DateTime? @db.Timestamptz(3)
 
   // Idempotency is DB-enforced: one row per (event, iCal SEQUENCE), so a
   // careless retry can't enqueue a duplicate op. The unique index also serves
