@@ -399,6 +399,16 @@ export function EventDetailView({
             className="mt-4"
           >
             <input type="hidden" name="_action" value="updateEvent" />
+            <input
+              type="hidden"
+              name="startsAtInstant"
+              value={new Date(event.startsAt).toISOString()}
+            />
+            <input
+              type="hidden"
+              name="endsAtInstant"
+              value={new Date(event.endsAt).toISOString()}
+            />
             <EventFormFields defaults={editDefaults} />
             <Button type="submit">{t("events.detail.saveChanges")}</Button>
           </ZodForm>

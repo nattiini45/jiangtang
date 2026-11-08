@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { EventStatus, ServiceWindowKind } from "~/generated/prisma/enums";
+import { eventInstantSchema, eventTimeMs, matchingEventInstant } from "./events.time";
 
 /**
  * Zod schemas for the events domain. Datetime fields are kept as Berlin
@@ -41,7 +42,20 @@ export const eventCreateSchema = z
   })
   .refine(endsAfterStarts, endsAfterStartsIssue);
 
-export const eventEditSchema = eventCreateSchema;
+export const eventEditSchema = z
+  .object({
+    ...eventCreateSchema.shape,
+    startsAtInstant: eventInstantSchema.optional(),
+    endsAtInstant: eventInstantSchema.optional(),
+  })
+  .refine(
+    (r) =>
+      matchingEventInstant(r.startsAt, r.startsAtInstant) ||
+      matchingEventInstant(r.endsAt, r.endsAtInstant)
+        ? eventTimeMs(r.startsAt, r.startsAtInstant) < eventTimeMs(r.endsAt, r.endsAtInstant)
+        : endsAfterStarts(r),
+    endsAfterStartsIssue,
+  );
 
 // ── Bookable atoms ───────────────────────────────────────────────────────────
 export const roomBookingSchema = z
