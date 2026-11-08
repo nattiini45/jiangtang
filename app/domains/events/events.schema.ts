@@ -56,7 +56,7 @@ const exactInstants = {
 export const eventCreateSchema = eventFields
   .extend(exactInstants)
   .refine(endsAfterStarts, endsAfterStartsIssue);
-export const eventEditSchema = eventFields.refine(endsAfterStarts, endsAfterStartsIssue);
+export const eventEditSchema = eventCreateSchema;
 
 // ── Bookable atoms ───────────────────────────────────────────────────────────
 const roomBookingFields = z.object({

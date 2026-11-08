@@ -120,7 +120,7 @@ describe("event creation prefills", () => {
       true,
     );
     expect(eventEditSchema.safeParse({ title: "Synthetic", ...result.defaults }).success).toBe(
-      false,
+      true,
     );
     expect(roomBookingSchema.safeParse(result.defaults).success).toBe(false);
   });

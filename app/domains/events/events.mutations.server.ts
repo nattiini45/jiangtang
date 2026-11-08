@@ -231,8 +231,8 @@ export async function updateEvent(
       data: {
         title: input.title,
         description: input.description ?? null,
-        startsAt: berlinLocalToUtc(input.startsAt),
-        endsAt: berlinLocalToUtc(input.endsAt),
+        startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
+        endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
         status: input.status,
         organizer: input.organizer ?? null,
         contact: input.contact ?? null,
