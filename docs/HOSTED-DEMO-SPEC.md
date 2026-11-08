@@ -2,8 +2,8 @@
 
 Status: **specification only.** This project does not operate a hosted demo; this document is the
 runbook an operator follows to run one. (The plan's locked decision §12.1 makes a public landing
-and a hosted demo in scope; the landing page ships at `/welcome`, the demo infrastructure is the
-operator's.)
+and a hosted demo in scope; the landing page ships at `/welcome`, opt-in with
+`LANDING_PAGE_ENABLED=1`, and the demo infrastructure is the operator's.)
 
 ## Goal
 

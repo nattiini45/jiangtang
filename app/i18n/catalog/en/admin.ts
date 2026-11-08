@@ -103,4 +103,17 @@ export const adminEn = {
   "admin.user.twoFactor.reset": "Reset two-factor",
   "admin.user.twoFactor.done": "Two-factor authentication was reset.",
   "admin.user.twoFactor.err.notEnabled": "This account has no two-factor authentication set up.",
+  "admin.index.calendar.lastSuccess": "Last successful push: {at}",
+  "admin.index.calendar.lastSuccessNever": "No push has reached the calendar yet.",
+  "admin.index.calendar.lastError": "Last error: {at}",
+  "admin.index.calendar.test": "Test connection",
+  "admin.index.calendar.test.ok": "Connected. The calendar accepts writes.",
+  "admin.index.calendar.test.okNamed": "Connected to “{name}”. The calendar accepts writes.",
+  "admin.index.calendar.test.unauthorized": "The server rejected the user name or app password.",
+  "admin.index.calendar.test.notFound": "There is no calendar at CALDAV_URL.",
+  "admin.index.calendar.test.notCalendar":
+    "CALDAV_URL points to a collection that is not a calendar.",
+  "admin.index.calendar.test.readOnly": "This account can read the calendar but not write to it.",
+  "admin.index.calendar.test.http": "The server sent an unexpected response.",
+  "admin.index.calendar.test.network": "The server could not be reached.",
 } satisfies Record<keyof typeof adminDe, string>;

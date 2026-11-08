@@ -31,6 +31,101 @@ image is an amd64 build.
 - The backup and recovery procedures are described in [BACKUP.md](BACKUP.md). Their claims are
   limited to what that document states; nothing here makes a deployment recoverable by default.
 
+## First deploy checklist (public VPS)
+
+Work through this once, top to bottom, before the team gets the URL. Each item links to the section
+with the details.
+
+**Host hygiene** (the repository cannot do these for you):
+
+- [ ] Linux **amd64** host with Docker Engine and the Compose plugin. The images are built on the
+      host, so give it enough memory for a Node build, or add swap.
+- [ ] SSH with keys only: a non-root sudo user, `PasswordAuthentication no` and
+      `PermitRootLogin no` in `/etc/ssh/sshd_config`, then `sudo systemctl reload ssh`. Test a new
+      session before you close the old one.
+- [ ] Firewall: allow only 22, 80 and 443 in.
+
+  ```bash
+  sudo ufw default deny incoming && sudo ufw default allow outgoing
+  sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw allow 443/tcp
+  sudo ufw enable
+  ```
+
+  Docker writes its own iptables rules, so a port a container publishes is reachable even when ufw
+  would block it. Only `caddy` publishes ports (80 and 443) in `docker-compose.yml`; never add a
+  `ports:` entry to another service on this host.
+
+- [ ] Automatic security updates: `sudo apt install unattended-upgrades`, then
+      `sudo dpkg-reconfigure -plow unattended-upgrades`.
+- [ ] Docker log rotation, so container logs cannot fill the disk. Put this in
+      `/etc/docker/daemon.json` and run `sudo systemctl restart docker` **before** the first
+      `docker compose up` (the setting applies to containers created after the restart):
+
+  ```json
+  { "log-driver": "local", "log-opts": { "max-size": "20m", "max-file": "5" } }
+  ```
+
+**Configuration:**
+
+- [ ] DNS A (and AAAA) record for the hostname points at the host ([§1](#1-dns-and-https)).
+- [ ] `cp .env.production.example .env && chmod 600 .env`, then set the required values
+      ([§2](#2-environment)): `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD`, `STORAGE_ENCRYPTION_KEY`,
+      `APP_DOMAIN`, `BETTER_AUTH_URL=https://<APP_DOMAIN>`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and
+      `DEFAULT_LOCALE` (`de` or `en`) for the team's language.
+- [ ] S3 backup target: a bucket at a provider other than the VPS host, with an access key limited
+      to that bucket. Set `WALG_S3_PREFIX` (for example `s3://jiangtang-backups/prod`),
+      `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_ENDPOINT` for a non-AWS
+      provider, and `AWS_S3_FORCE_PATH_STYLE` as the provider requires ([§9](#9-backups)). The same
+      target receives the database backups and the daily uploads archive.
+- [ ] An **offline** copy of `STORAGE_ENCRYPTION_KEY` (and `STORAGE_KEY_SALT` if set), together
+      with `BETTER_AUTH_SECRET`, `POSTGRES_PASSWORD` and the S3 credentials, in a password manager
+      or on paper. Not only on the VPS, and never in the backup bucket: without the key, every
+      restored upload is unreadable.
+- [ ] Optional but cheap: `ALERT_WEBHOOK` for downtime and backup alerts.
+
+**First start:**
+
+- [ ] `docker compose up -d --build`, then `docker compose ps`: `migrate` exited 0, `app` healthy
+      ([§3](#3-build-and-start)–[§5](#5-readiness)).
+- [ ] `curl -fsS https://<APP_DOMAIN>/healthz` answers `{"status":"ok","db":"up"}` over a valid
+      certificate.
+- [ ] `docker compose logs backup` shows `base backup complete` and `archive complete` for the
+      uploads, and `docker compose exec -T backup wal-g backup-list` lists a base backup.
+- [ ] Sign in as the bootstrap admin ([§6](#6-first-login)), then **remove** `ADMIN_EMAIL`,
+      `ADMIN_PASSWORD` and `ADMIN_INITIALS` from `.env` and run `docker compose up -d app` (not
+      `restart`, which keeps the old environment).
+- [ ] Upload one photo and check it survives a restart ([§8](#8-verify-uploads)).
+- [ ] Before real data goes in, run one restore into a new project: the database
+      ([BACKUP.md](BACKUP.md#restore-into-a-new-project-never-overwrite-the-source)) and the uploads
+      ([BACKUP.md](BACKUP.md#restore-an-uploads-archive-into-a-new-project)), then open the photo in
+      the recovered app.
+
+### Updating
+
+Updates are a `git pull` and a rebuild; migrations run in the `migrate` job before the new app
+starts. Migrations only go forward, so the way back from a bad update is a restore of the backup
+you take in step 2.
+
+1. Read what changes: `git fetch && git log --oneline HEAD..origin/main`, and look for new folders
+   under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)).
+2. Take a fresh backup of both parts:
+
+   ```bash
+   docker compose exec -T backup bash /ops/backup.sh
+   docker compose exec -T backup bash /ops/uploads-backup.sh
+   ```
+
+3. Update and rebuild:
+
+   ```bash
+   git pull --ff-only
+   docker compose up -d --build
+   ```
+
+4. Check: `docker compose ps` (`migrate` exited 0, `app` healthy), `docker compose logs migrate`,
+   and `curl -fsS https://<APP_DOMAIN>/healthz`.
+5. Reclaim disk from old images: `docker image prune -f`.
+
 ## 1. DNS and HTTPS
 
 - Create an **A** (and, if you use it, **AAAA**) record for the hostname you will serve, pointing at
@@ -109,9 +204,52 @@ Everything else in the template is optional. Blank means off:
 | `GLITCHTIP_DSN`                           | No error reporting.                                                                 |
 | `RESTORE_DRILL_ENABLED`                   | The monthly restore smoke check does not run.                                       |
 | `REQUIRE_ADMIN_TWO_FACTOR`                | Two-factor authentication stays optional for admins as well as members.             |
+| `LANDING_PAGE_ENABLED`                    | No public `/welcome` page: visitors only see `/login`. Set `1` to publish it.        |
 
 The stack ships no AI provider, no hosted service and no telemetry endpoint. Every external
 provider above is something you configure, point somewhere and pay for.
+
+### Calendar push to Sciebo or Nextcloud
+
+Jiangtang publishes events one way into a single CalDAV calendar: creating or editing an event
+writes `<CALDAV_URL>/<uid>.ics`, and cancelling it deletes that resource. Nothing is read back, so an
+edit made in the calendar is overwritten by the next change in Jiangtang. Use a calendar that only
+Jiangtang writes to, for example a dedicated "AV events" calendar shared read-only with the team.
+Times are written in `Europe/Berlin` with an embedded `VTIMEZONE`, whatever `TZ` the server runs
+in.
+
+Sciebo runs Nextcloud, so the steps are the same for both:
+
+1. Sign in to the web interface with the account that should write the events, open
+   **Calendar** and create the calendar (for example "AV-Termine").
+2. Create an app password under **Settings → Security → Devices & sessions**: enter a name such as
+   "Jiangtang" and choose **Create new app password**. Copy the password; it is shown once. An app
+   password is required when two-factor authentication is on, and it can be revoked on its own.
+3. Copy the calendar URL: in **Calendar**, open the calendar's **⋯** menu and choose **Copy
+   internal link**. It has this form, with the login name (shown on the same page as the app
+   password) and the calendar's URL name, not its display name:
+
+   ```text
+   https://<instance>.sciebo.de/remote.php/dav/calendars/<login>/<calendar>/
+   ```
+
+   A calendar that another account shared with the writing account has the URL name
+   `<calendar>_shared_by_<owner>` under the writing account's login, and it must be shared with
+   **can edit**.
+4. Set the three variables in `.env` and restart the app container:
+
+   ```bash
+   CALDAV_URL=https://<instance>.sciebo.de/remote.php/dav/calendars/<login>/<calendar>/
+   CALDAV_USERNAME=<login>
+   CALDAV_PASSWORD=<app password>
+   ```
+
+5. As an admin, open `/admin/index` and choose **Test connection** under **Calendar sync**. It
+   reports a wrong login or app password, a URL that is not a calendar, and a calendar the account
+   may only read. The same section shows the last successful push, the last error and the number of
+   pending, retrying and failed (parked) pushes.
+6. Create a test event in Jiangtang, check that it appears in the calendar within about a minute,
+   move it to another time, then cancel it and check that it is gone.
 
 ## 3. Build and start
 
@@ -260,15 +398,20 @@ of **full base backups**, not a number of days: at a daily cadence it spans roug
 window is not guaranteed, because a failed or delayed run changes it. Any value that is not a
 positive integer makes the backup script refuse to back up or delete.
 
+Right after each base backup the same sidecar archives the encrypted `uploads` volume to
+`uploads/` under the same prefix (`UPLOADS_RETENTION_COUNT`, default `14` archives). The stack keeps
+running while it does.
+
 What this does **not** give you:
 
-- WAL-G covers PostgreSQL only. Encrypted uploads are outside every WAL-G backup.
+- WAL-G covers PostgreSQL only. Uploads are covered by the daily archive, so attachments added
+  since the newest archive are in no backup, and the archive cannot be rewound to a point in time.
 - Configuring a backup target does not by itself make the deployment recoverable. Recovery also
   needs the storage key, the S3 credentials and a procedure you have actually run.
 - A point-in-time restore needs a concrete full base backup whose recorded finish is at or before
   your target. A newer base cannot be rewound, and missing WAL blocks replay.
 
-[BACKUP.md](BACKUP.md) is the authority for both capabilities, the exact commands and their limits.
+[BACKUP.md](BACKUP.md) is the authority for every capability, the exact commands and their limits.
 Do not improvise a recovery from this section alone.
 
 ## 10. Restore safely
