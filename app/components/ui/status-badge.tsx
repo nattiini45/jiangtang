@@ -19,7 +19,7 @@ type Props =
   | { kind: "project"; value: ProjectStatus }
   | { kind: "task"; value: TaskStatus };
 
-/** A status pill driven by the frozen statusToken map: tinted fill, colored dot. */
+/** A status pill driven by the statusToken map: tinted fill, colored dot. */
 export function StatusBadge(props: Props & { className?: string }) {
   const locale = useLocale();
   // The discriminated union guarantees kind/value line up.

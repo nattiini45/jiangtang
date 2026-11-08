@@ -19,8 +19,8 @@ export const Switch = React.forwardRef<
       )}
     >
       <input type="checkbox" ref={ref} className="peer sr-only" {...props} />
-      <span className="absolute inset-0 rounded-full bg-[color-mix(in_oklab,var(--foreground)_16%,transparent)] transition-colors duration-160 peer-checked:bg-fluid-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(--focus-ring) peer-disabled:opacity-50" />
-      <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.2)] transition-[translate,width] duration-160 ease-(--ease-press) group-hover:w-[18px] peer-checked:translate-x-[14px] peer-checked:group-hover:translate-x-3 motion-reduce:transition-none" />
+      <span className="bg-switch-track absolute inset-0 rounded-full transition-colors duration-160 peer-checked:bg-fluid-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(--focus-ring) peer-disabled:opacity-50" />
+      <span className="bg-switch-thumb absolute left-0.5 h-4 w-4 rounded-full shadow-(--switch-shadow) transition-[translate,width] duration-160 ease-(--ease-press) group-hover:w-[18px] peer-checked:translate-x-[14px] peer-checked:group-hover:translate-x-3 motion-reduce:transition-none" />
     </label>
   );
 });

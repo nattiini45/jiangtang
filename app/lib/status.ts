@@ -19,12 +19,12 @@ import type { Locale } from "~/i18n/locales";
 
 /**
  * Status → token mapping (pure; client-safe). Maps each domain status enum to a
- * frozen tone, a localized label, and Tailwind classes for a status pill. Tracks
+ * shared tone, a localized label, and Tailwind classes for a status pill. Tracks
  * pass enum values in; never re-implement the color mapping. Labels live in the
  * i18n catalog (`status.*` keys); this module owns only the tones.
  */
 
-export type StatusTone = "operational" | "fault" | "warning" | "info" | "neutral";
+export type StatusTone = "operational" | "fault" | "warning" | "info" | "review" | "neutral";
 
 export interface StatusToken {
   tone: StatusTone;
@@ -42,6 +42,7 @@ const TONE_CLASS: Record<StatusTone, string> = {
   fault: "bg-status-fault/15 text-foreground border-transparent",
   warning: "bg-status-warning/15 text-foreground border-transparent",
   info: "bg-status-info/15 text-foreground border-transparent",
+  review: "bg-status-review/15 text-foreground border-transparent",
   neutral: "bg-tint text-foreground border-transparent",
 };
 
@@ -50,6 +51,7 @@ const DOT_CLASS: Record<StatusTone, string> = {
   fault: "bg-status-fault",
   warning: "bg-status-warning",
   info: "bg-status-info",
+  review: "bg-status-review",
   neutral: "bg-muted-foreground",
 };
 
@@ -106,7 +108,7 @@ const TASK: Record<TaskStatus, StatusTone> = {
   BACKLOG: "neutral",
   TODO: "info",
   IN_PROGRESS: "warning",
-  IN_REVIEW: "info",
+  IN_REVIEW: "review",
   BLOCKED: "fault",
   DONE: "operational",
   CANCELLED: "neutral",
@@ -120,6 +122,18 @@ const TONES = {
   project: PROJECT,
   task: TASK,
 } as const;
+
+const TASK_PRIORITY_CLASS: Record<TaskPriority, string> = {
+  URGENT: "text-priority-urgent",
+  HIGH: "text-priority-high",
+  MEDIUM: "text-priority-medium",
+  LOW: "text-priority-low",
+  LOWEST: "text-priority-low",
+};
+
+export function taskPriorityClassName(value: TaskPriority | null): string {
+  return value == null ? "" : TASK_PRIORITY_CLASS[value];
+}
 
 type StatusKind = keyof typeof TONES;
 type StatusValue = {

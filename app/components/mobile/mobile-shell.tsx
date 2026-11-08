@@ -137,7 +137,7 @@ export function MobileShell({
               key="backdrop"
               type="button"
               aria-label={t("mobile.menu.close")}
-              className="fixed inset-0 z-30 bg-black/30 dark:bg-black/50"
+              className="bg-scrim fixed inset-0 z-30"
               onClick={() => setMenuOpen(false)}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

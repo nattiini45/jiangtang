@@ -55,7 +55,7 @@ export default function AdminUsersIndex({ loaderData }: Route.ComponentProps) {
         </Button>
       </div>
       {loaderData.inviteLink ? (
-        <div className="bg-status-info/15 text-status-info rounded-lg p-4 text-sm">
+        <div className="bg-status-info/15 text-foreground rounded-lg p-4 text-sm">
           <p className="font-semibold">{t("admin.users.invited.title")}</p>
           <p className="text-muted-foreground mt-1">{t("admin.users.invited.hint")}</p>
           <code className="bg-card mt-2 block rounded-md p-2 font-mono text-xs break-all">

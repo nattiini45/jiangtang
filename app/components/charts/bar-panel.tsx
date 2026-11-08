@@ -20,7 +20,7 @@ export interface BarPanelProps {
   angleLabels?: boolean;
 }
 
-const AXIS_TICK = { fontSize: 11, fill: "var(--muted-foreground)" };
+const AXIS_TICK = { fontSize: 11, fill: "var(--chart-secondary)" };
 
 export function BarPanel({
   title,
@@ -45,12 +45,12 @@ export function BarPanel({
             data={data}
             margin={{ top: 8, right: 8, left: 0, bottom: angleLabels ? 40 : 8 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis
               dataKey={labelKey}
               tick={AXIS_TICK}
               tickLine={false}
-              axisLine={{ stroke: "var(--border)" }}
+              axisLine={{ stroke: "var(--chart-grid)" }}
               angle={angleLabels ? -35 : 0}
               textAnchor={angleLabels ? "end" : "middle"}
               height={angleLabels ? 50 : 30}
@@ -59,6 +59,7 @@ export function BarPanel({
             <YAxis tick={AXIS_TICK} tickLine={false} axisLine={false} allowDecimals={false} />
             <Tooltip
               cursor={{ fill: "var(--tint)" }}
+              itemStyle={{ color: "var(--popover-foreground)" }}
               contentStyle={{
                 background: "var(--popover)",
                 color: "var(--popover-foreground)",
@@ -69,7 +70,7 @@ export function BarPanel({
               }}
               formatter={(value) => [`${value}${unit ? ` ${unit}` : ""}`, title]}
             />
-            <Bar dataKey={valueKey} fill="var(--fluid-accent)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey={valueKey} fill="var(--chart-primary)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}

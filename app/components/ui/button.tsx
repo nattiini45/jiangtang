@@ -32,7 +32,7 @@ const buttonVariants = cva(
           "text-foreground shadow-[0_0_0_1px_var(--input)] transition-shadow duration-80 [--btn-bg-hover:var(--hover)] [--btn-bg:transparent] active:shadow-[inset_0_0_0_1px_var(--input)]",
         ghost: "text-foreground [--btn-bg-hover:var(--hover)] [--btn-bg:transparent]",
         destructive:
-          "text-destructive-foreground [--btn-bg-hover:color-mix(in_oklab,var(--destructive)_88%,black)] [--btn-bg:var(--destructive)]",
+          "text-destructive-foreground [--btn-bg-hover:var(--destructive-hover)] [--btn-bg:var(--destructive)]",
         link: "text-foreground font-normal underline decoration-(--input) underline-offset-4 transition-colors duration-80 before:hidden hover:decoration-current",
       },
       size: {

@@ -37,6 +37,8 @@ import { TaskDependencies } from "~/components/tasks/task-dependencies";
 import { TaskAssigneesEditor } from "~/components/tasks/task-assignees-editor";
 import { TaskTicketPanel } from "~/components/tasks/task-ticket-panel";
 import { TASK_STATUSES, taskStatusLabel, taskPriorityLabel } from "~/components/tasks/labels";
+import { taskPriorityClassName } from "~/lib/status";
+import { cn } from "~/lib/utils";
 import { ActivityFeed } from "~/components/history/activity-feed";
 import { StatusCell, DateCell } from "~/components/data-grid";
 import { isTaskOverdue } from "~/domains/tasks/tasks.dates";
@@ -254,7 +256,7 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
           <h1 className="text-xl font-bold">{task.title}</h1>
           <StatusCell kind="task" value={task.status} />
           {task.priority ? (
-            <span className="text-muted-foreground text-xs">
+            <span className={cn("text-xs", taskPriorityClassName(task.priority))}>
               {taskPriorityLabel(locale, task.priority)}
             </span>
           ) : null}

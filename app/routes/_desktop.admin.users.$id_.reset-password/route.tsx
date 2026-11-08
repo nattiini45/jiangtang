@@ -60,7 +60,7 @@ export default function IssuePasswordReset({ loaderData, actionData }: Route.Com
         </p>
       ) : null}
       {link ? (
-        <div className="bg-status-info/15 text-status-info mt-4 rounded-lg p-4 text-sm">
+        <div className="bg-status-info/15 text-foreground mt-4 rounded-lg p-4 text-sm">
           <p className="font-semibold">{t("admin.reset.created")}</p>
           <code className="bg-card mt-2 block rounded-md p-2 font-mono text-xs break-all">
             {link}

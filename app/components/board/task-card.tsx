@@ -5,6 +5,7 @@ import { GripVertical, OctagonAlert } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { DateCell } from "~/components/data-grid";
 import { taskPriorityLabel } from "~/components/tasks/labels";
+import { taskPriorityClassName } from "~/lib/status";
 import { isTaskOverdue } from "~/domains/tasks/tasks.dates";
 import type { TaskPriority, TaskStatus } from "~/generated/prisma/client";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -76,7 +77,7 @@ export function TaskCard({ task }: { task: BoardCard }) {
           {task.title}
         </Link>
         {task.priority ? (
-          <span className="text-muted-foreground ml-auto shrink-0 text-xs">
+          <span className={cn("ml-auto shrink-0 text-xs", taskPriorityClassName(task.priority))}>
             {taskPriorityLabel(locale, task.priority)}
           </span>
         ) : null}
@@ -89,7 +90,8 @@ export function TaskCard({ task }: { task: BoardCard }) {
               className="inline-block size-2 rounded-sm"
               style={{
                 backgroundColor: task.project.color ?? "transparent",
-                border: "1px solid var(--border)",
+                border: "1px solid",
+                borderColor: task.project.color ? "var(--input)" : "transparent",
               }}
             />
             {task.project.name}

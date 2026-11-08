@@ -181,7 +181,7 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
           {project.color ? (
             <span
               aria-hidden
-              className="mr-2 inline-block size-3 rounded-sm align-middle"
+              className="mr-2 inline-block size-3 rounded-sm align-middle shadow-[inset_0_0_0_1px_var(--input)]"
               style={{ backgroundColor: project.color }}
             />
           ) : null}
