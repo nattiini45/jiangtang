@@ -7,6 +7,7 @@ import { findEquipmentConflicts, findRoomConflicts } from "./events.availability
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueCalendarOp } from "~/lib/calendar/publisher.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
+import { resolveEventTime } from "./events.time.server";
 import type {
   EquipmentAllocation,
   Event,
@@ -229,8 +230,8 @@ export async function updateEvent(
       data: {
         title: input.title,
         description: input.description ?? null,
-        startsAt: berlinLocalToUtc(input.startsAt),
-        endsAt: berlinLocalToUtc(input.endsAt),
+        startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
+        endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
         status: input.status,
         organizer: input.organizer ?? null,
         contact: input.contact ?? null,
