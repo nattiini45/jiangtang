@@ -1,6 +1,7 @@
 import { Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { getOptionalUser } from "~/lib/auth.server";
+import { landingPageEnabled } from "~/lib/landing.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
 import { Button } from "~/components/ui/button";
 import { t } from "~/i18n";
@@ -9,17 +10,19 @@ import { useT } from "~/i18n/use-t";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 
 /**
- * `/welcome` — the public landing page for signed-out visitors. Deliberately
- * outside the `_desktop` layout: the layout's `requireUser` would bounce
- * anonymous visitors to `/login` before this page could render, so this route
- * is on the guard test's PUBLIC list and checks the session itself — signed-in
- * users are redirected to the dashboard. It reads nothing private.
+ * `/welcome` — the public landing page for signed-out visitors, off unless
+ * `LANDING_PAGE_ENABLED=1`; while off, everyone is sent to `/login`.
+ * Deliberately outside the `_desktop` layout: the layout's `requireUser` would
+ * bounce anonymous visitors to `/login` before this page could render, so this
+ * route is on the guard test's PUBLIC list and checks the session itself —
+ * signed-in users are redirected to the dashboard. It reads nothing private.
  */
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "landing.meta") }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
+  if (!landingPageEnabled()) throw redirect("/login");
   const user = await getOptionalUser(request);
   if (user) throw redirect("/");
   return {};
