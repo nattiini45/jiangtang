@@ -84,6 +84,9 @@ services:
       # Number of FULL base backups kept (a count, not days). Unset-only default (`-`,
       # not `:-`): an explicitly empty value reaches backup.sh and is rejected, not 7.
       WALG_RETENTION_COUNT: ${WALG_RETENTION_COUNT-7}
+      # Number of uploads archives kept (ops/postgres/uploads-backup.sh), same rule.
+      UPLOADS_RETENTION_COUNT: ${UPLOADS_RETENTION_COUNT-14}
+      UPLOADS_DIR: /uploads
       PGHOST: postgres
       PGUSER: ${POSTGRES_USER:-jiangtang}
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}
@@ -101,6 +104,8 @@ services:
       BACKUP_STATUS_DIR: /status
     volumes:
       - pgdata:/var/lib/postgresql:ro
+      # Encrypted attachments, archived to the same S3 target (uploads-backup.sh).
+      - uploads:/uploads:ro
       - ./ops/postgres:/ops:ro
       - backup-status:/status
     depends_on:
@@ -110,8 +115,10 @@ services:
     command:
       - |
         bash /ops/backup.sh || true
+        bash /ops/uploads-backup.sh || true
         bash /ops/check-wal-archive.sh || true
-        # WAL archiving is checked hourly; the base backup runs every 24th hour.
+        # WAL archiving is checked hourly; the base backup and the uploads
+        # archive run every 24th hour.
         # The opt-in restore drill runs at most once a month (first pass on the
         # 1st, guarded by a marker file so a same-day restart doesn't re-run it).
         # Kept deliberately dumb + readable.
@@ -123,6 +130,7 @@ services:
           [ "$${hours}" -ge 24 ] || continue
           hours=0
           bash /ops/backup.sh || true
+          bash /ops/uploads-backup.sh || true
           if [ -n "$${RESTORE_DRILL_ENABLED}" ]; then
             day="$$(date -u +%d)"
             marker="/tmp/restore-drill-$$(date -u +%Y-%m)"
@@ -270,6 +278,8 @@ services:
       # Workspace UI language for visitors without a language cookie or browser
       # preference, and for server-generated text: "en" or "de".
       DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}
+      # Public marketing page at /welcome. Off unless "1"; while off, visitors only see /login.
+      LANDING_PAGE_ENABLED: ${LANDING_PAGE_ENABLED:-}
       # Structured-logging level (pino).
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # ActivityLog retention window in days (default ~7 years).

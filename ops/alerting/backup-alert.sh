@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Backup and WAL-archive alerts. The backup sidecar writes one status file per
 # failing check into the shared backup-status volume (ops/postgres/backup.sh,
-# ops/postgres/check-wal-archive.sh); this script runs every minute in the
+# ops/postgres/check-wal-archive.sh, ops/postgres/uploads-backup.sh); this script runs every minute in the
 # alerting sidecar, next to healthcheck-alert.sh, and posts to ALERT_WEBHOOK:
 #
 # - a failure when it first appears or the first line of its message changes,
@@ -56,10 +56,11 @@ recovered_message() {
     backup) echo "Jiangtang base backup recovered: the latest run succeeded." ;;
     backup-stale) echo "Jiangtang base backups recovered: a recent backup succeeded." ;;
     wal-archive) echo "Jiangtang WAL archiving recovered." ;;
+    uploads) echo "Jiangtang uploads archive recovered: the latest run succeeded." ;;
   esac
 }
 
-for check in backup backup-stale wal-archive; do
+for check in backup backup-stale wal-archive uploads; do
   state="${STATE_DIR}/${check}"
   message="$(current_message "${check}")"
   if [ -n "${message}" ]; then

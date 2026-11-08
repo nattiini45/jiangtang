@@ -105,4 +105,19 @@ export const adminDe = {
   "admin.user.twoFactor.done": "Zwei-Faktor-Authentifizierung zurückgesetzt.",
   "admin.user.twoFactor.err.notEnabled":
     "Für dieses Konto ist keine Zwei-Faktor-Authentifizierung eingerichtet.",
+  "admin.index.calendar.lastSuccess": "Letzte erfolgreiche Übertragung: {at}",
+  "admin.index.calendar.lastSuccessNever": "Bisher wurde nichts an den Kalender übertragen.",
+  "admin.index.calendar.lastError": "Letzter Fehler: {at}",
+  "admin.index.calendar.test": "Verbindung testen",
+  "admin.index.calendar.test.ok": "Verbunden. Der Kalender ist beschreibbar.",
+  "admin.index.calendar.test.okNamed": "Verbunden mit „{name}“. Der Kalender ist beschreibbar.",
+  "admin.index.calendar.test.unauthorized":
+    "Der Server hat Benutzername oder App-Passwort abgelehnt.",
+  "admin.index.calendar.test.notFound": "Unter CALDAV_URL gibt es keinen Kalender.",
+  "admin.index.calendar.test.notCalendar":
+    "CALDAV_URL zeigt auf eine Sammlung, die kein Kalender ist.",
+  "admin.index.calendar.test.readOnly":
+    "Dieses Konto darf den Kalender lesen, aber nicht beschreiben.",
+  "admin.index.calendar.test.http": "Der Server hat unerwartet geantwortet.",
+  "admin.index.calendar.test.network": "Der Server ist nicht erreichbar.",
 };

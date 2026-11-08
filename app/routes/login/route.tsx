@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
+import { landingPageEnabled } from "~/lib/landing.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
 import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
@@ -26,6 +27,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     passwordReset: url.searchParams.has("reset"),
     twoFactorExpired: url.searchParams.has("twoFactorExpired"),
     next,
+    landingPage: landingPageEnabled(),
   };
 }
 
@@ -146,12 +148,14 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
             {busy ? t("auth.login.submitting") : t("auth.login.submit")}
           </Button>
         </Form>
-        <Link
-          to="/welcome"
-          className="text-muted-foreground mt-4 block text-center text-xs underline decoration-(--input) underline-offset-4"
-        >
-          {t("auth.login.about")}
-        </Link>
+        {loaderData.landingPage ? (
+          <Link
+            to="/welcome"
+            className="text-muted-foreground mt-4 block text-center text-xs underline decoration-(--input) underline-offset-4"
+          >
+            {t("auth.login.about")}
+          </Link>
+        ) : null}
       </div>
     </main>
   );
