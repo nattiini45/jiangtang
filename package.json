@@ -56,7 +56,8 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "eval:live": "tsx scripts/eval-live.ts",
-    "admin:reset-password": "tsx scripts/admin-reset-password.ts"
+    "admin:reset-password": "tsx scripts/admin-reset-password.ts",
+    "admin:reset-2fa": "tsx scripts/admin-reset-2fa.ts"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",

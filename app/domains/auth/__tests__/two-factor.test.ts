@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { afterAll, describe, expect, it } from "vitest";
 import { auth, requireUser } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
@@ -377,5 +379,49 @@ describe("REQUIRE_ADMIN_TWO_FACTOR", () => {
     } finally {
       delete process.env.REQUIRE_ADMIN_TWO_FACTOR;
     }
+  });
+});
+
+describe("pnpm admin:reset-2fa", () => {
+  const run = promisify(execFile);
+  const script = (email: string) =>
+    run(process.execPath, ["--import", "tsx", "scripts/admin-reset-2fa.ts", email], {
+      env: {
+        PATH: process.env.PATH ?? "",
+        DATABASE_URL: process.env.DATABASE_URL ?? "",
+        BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? "",
+        DEFAULT_LOCALE: "en",
+      },
+    });
+
+  it("turns two-factor off for the only admin, audited as the operator", async () => {
+    const admin = await inviteUser("operator-reset", "ADMIN");
+    await enrol(admin.email);
+
+    const { stdout } = await script(admin.email.toUpperCase());
+    expect(stdout).toContain(admin.email);
+
+    expect((await db.user.findUniqueOrThrow({ where: { id: admin.id } })).twoFactorEnabled).toBe(
+      false,
+    );
+    expect(await db.twoFactor.count({ where: { userId: admin.id } })).toBe(0);
+    const audit = await db.activityLog.findFirst({
+      where: { action: "TwoFactorReset", entityType: "user", entityId: admin.id },
+    });
+    expect(audit?.actorId).toBeNull();
+    expect(audit?.actorSnapshot).toMatchObject({ name: "Operator (admin:reset-2fa)" });
+    expect((await signInWithPassword(admin.email)).location).toBe("/");
+  });
+
+  it("fails with a message and a non-zero exit for an unknown or not enrolled email", async () => {
+    await expect(script(`${RUN}_unknown@test.local`)).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringMatching(/no active account/i),
+    });
+    const plain = await inviteUser("operator-none");
+    await expect(script(plain.email)).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringMatching(/no two-factor/i),
+    });
   });
 });
