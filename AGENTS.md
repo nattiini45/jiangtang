@@ -54,6 +54,8 @@ guards, the relevant Vitest files, and `pnpm test` for anything touching the dat
 
 ## Conventions
 
+For design work, read [PRODUCT.md](PRODUCT.md), [DESIGN.md](DESIGN.md) and the matching `.impeccable/surfaces/` brief before editing UI.
+
 - Import app code through `~/*`. Import the Prisma client and model types from
   `~/generated/prisma/client`, never `@prisma/client`. The shared client is `db` from
   `~/lib/db.server`.

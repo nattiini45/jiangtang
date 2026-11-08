@@ -1,0 +1,160 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-08T16:48:35.128Z",
+  "title": "Design System: Jiangtang",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "light-shadow-1",
+        "value": "0 0 0 1px rgb(0 0 0 / 0.06)",
+        "purpose": "Extracted --shadow-1 in light mode from app/app.css"
+      },
+      {
+        "name": "light-shadow-2",
+        "value": "0 0 0 1px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04)",
+        "purpose": "Extracted --shadow-2 in light mode from app/app.css"
+      },
+      {
+        "name": "light-shadow-3",
+        "value": "0 0 0 1px rgb(0 0 0 / 0.06), 0 2px 4px rgb(0 0 0 / 0.04), 0 8px 16px -4px rgb(0 0 0 / 0.08)",
+        "purpose": "Extracted --shadow-3 in light mode from app/app.css"
+      },
+      {
+        "name": "light-shadow-4",
+        "value": "0 0 0 1px rgb(0 0 0 / 0.06), 0 4px 8px rgb(0 0 0 / 0.04), 0 12px 24px -6px rgb(0 0 0 / 0.1)",
+        "purpose": "Extracted --shadow-4 in light mode from app/app.css"
+      },
+      {
+        "name": "light-shadow-5",
+        "value": "0 0 0 1px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.05), 0 20px 40px -8px rgb(0 0 0 / 0.14)",
+        "purpose": "Extracted --shadow-5 in light mode from app/app.css"
+      },
+      {
+        "name": "dark-shadow-1",
+        "value": "0 0 0 1px rgb(255 255 255 / 0.06)",
+        "purpose": "Extracted --shadow-1 in dark mode from app/app.css"
+      },
+      {
+        "name": "dark-shadow-2",
+        "value": "0 0 0 1px rgb(255 255 255 / 0.06), 0 1px 2px rgb(0 0 0 / 0.3)",
+        "purpose": "Extracted --shadow-2 in dark mode from app/app.css"
+      },
+      {
+        "name": "dark-shadow-3",
+        "value": "0 0 0 1px rgb(255 255 255 / 0.07), 0 2px 4px rgb(0 0 0 / 0.3), 0 8px 16px -4px rgb(0 0 0 / 0.4)",
+        "purpose": "Extracted --shadow-3 in dark mode from app/app.css"
+      },
+      {
+        "name": "dark-shadow-4",
+        "value": "0 0 0 1px rgb(255 255 255 / 0.07), 0 4px 8px rgb(0 0 0 / 0.3), 0 12px 24px -6px rgb(0 0 0 / 0.45)",
+        "purpose": "Extracted --shadow-4 in dark mode from app/app.css"
+      },
+      {
+        "name": "dark-shadow-5",
+        "value": "0 0 0 1px rgb(255 255 255 / 0.08), 0 4px 12px rgb(0 0 0 / 0.35), 0 20px 40px -8px rgb(0 0 0 / 0.5)",
+        "purpose": "Extracted --shadow-5 in dark mode from app/app.css"
+      }
+    ],
+    "motion": [
+      {
+        "name": "fast",
+        "value": "spring: duration 0.08, bounce 0; exit: duration 0.06, ease easeIn",
+        "purpose": "Hover, fades, tooltips and focus; app/lib/springs.ts"
+      },
+      {
+        "name": "moderate",
+        "value": "spring: duration 0.16, bounce 0; exit: duration 0.12, ease easeIn",
+        "purpose": "Menus, tabs, drawers and selection; app/lib/springs.ts"
+      },
+      {
+        "name": "slow",
+        "value": "spring: duration 0.24, bounce 0.12; exit: duration 0.16, ease easeIn",
+        "purpose": "Dialogs and sheets; app/lib/springs.ts"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Extracted primary variant from app/components/ui/button.tsx; default density-aware size.",
+      "html": "<button class=\"ds-button ds-primary\" type=\"button\">Button</button>",
+      "css": ".ds-button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--control-h);padding:0 var(--button-px);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:550;white-space:nowrap;color:var(--foreground);background:transparent;cursor:pointer}.ds-button:before{content:\"\";position:absolute;inset:1px;z-index:-1;border-radius:7px;background:var(--ds-fill);box-shadow:0 0 0 1px var(--ds-fill);transition:box-shadow 180ms cubic-bezier(.23,1,.32,1),background-color 80ms cubic-bezier(.23,1,.32,1)}.ds-button:hover:before{background:var(--ds-hover);box-shadow:0 0 0 1px var(--ds-hover)}.ds-button:active:before{box-shadow:0 0 0 0 var(--ds-hover);transition-duration:80ms}.ds-button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-primary{--ds-fill:var(--primary);--ds-hover:color-mix(in oklab,var(--primary) 86%,var(--background));color:var(--primary-foreground)}"
+    },
+    {
+      "name": "secondary button",
+      "kind": "button",
+      "description": "Extracted secondary variant from app/components/ui/button.tsx; default density-aware size.",
+      "html": "<button class=\"ds-button ds-secondary\" type=\"button\">Button</button>",
+      "css": ".ds-button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--control-h);padding:0 var(--button-px);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:550;white-space:nowrap;color:var(--foreground);background:transparent;cursor:pointer}.ds-button:before{content:\"\";position:absolute;inset:1px;z-index:-1;border-radius:7px;background:var(--ds-fill);box-shadow:0 0 0 1px var(--ds-fill);transition:box-shadow 180ms cubic-bezier(.23,1,.32,1),background-color 80ms cubic-bezier(.23,1,.32,1)}.ds-button:hover:before{background:var(--ds-hover);box-shadow:0 0 0 1px var(--ds-hover)}.ds-button:active:before{box-shadow:0 0 0 0 var(--ds-hover);transition-duration:80ms}.ds-button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-secondary{--ds-fill:var(--tint);--ds-hover:var(--tint-hover)}"
+    },
+    {
+      "name": "tertiary button",
+      "kind": "button",
+      "description": "Extracted tertiary variant from app/components/ui/button.tsx; default density-aware size.",
+      "html": "<button class=\"ds-button ds-tertiary\" type=\"button\">Button</button>",
+      "css": ".ds-button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--control-h);padding:0 var(--button-px);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:550;white-space:nowrap;color:var(--foreground);background:transparent;cursor:pointer}.ds-button:before{content:\"\";position:absolute;inset:1px;z-index:-1;border-radius:7px;background:var(--ds-fill);box-shadow:0 0 0 1px var(--ds-fill);transition:box-shadow 180ms cubic-bezier(.23,1,.32,1),background-color 80ms cubic-bezier(.23,1,.32,1)}.ds-button:hover:before{background:var(--ds-hover);box-shadow:0 0 0 1px var(--ds-hover)}.ds-button:active:before{box-shadow:0 0 0 0 var(--ds-hover);transition-duration:80ms}.ds-button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-tertiary{--ds-fill:transparent;--ds-hover:var(--hover);box-shadow:0 0 0 1px var(--input)}.ds-tertiary:active{box-shadow:inset 0 0 0 1px var(--input)}"
+    },
+    {
+      "name": "ghost button",
+      "kind": "button",
+      "description": "Extracted ghost variant from app/components/ui/button.tsx; default density-aware size.",
+      "html": "<button class=\"ds-button ds-ghost\" type=\"button\">Button</button>",
+      "css": ".ds-button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--control-h);padding:0 var(--button-px);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:550;white-space:nowrap;color:var(--foreground);background:transparent;cursor:pointer}.ds-button:before{content:\"\";position:absolute;inset:1px;z-index:-1;border-radius:7px;background:var(--ds-fill);box-shadow:0 0 0 1px var(--ds-fill);transition:box-shadow 180ms cubic-bezier(.23,1,.32,1),background-color 80ms cubic-bezier(.23,1,.32,1)}.ds-button:hover:before{background:var(--ds-hover);box-shadow:0 0 0 1px var(--ds-hover)}.ds-button:active:before{box-shadow:0 0 0 0 var(--ds-hover);transition-duration:80ms}.ds-button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-ghost{--ds-fill:transparent;--ds-hover:var(--hover)}"
+    },
+    {
+      "name": "destructive button",
+      "kind": "button",
+      "description": "Extracted destructive variant from app/components/ui/button.tsx; default density-aware size.",
+      "html": "<button class=\"ds-button ds-destructive\" type=\"button\">Button</button>",
+      "css": ".ds-button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--control-h);padding:0 var(--button-px);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:550;white-space:nowrap;color:var(--foreground);background:transparent;cursor:pointer}.ds-button:before{content:\"\";position:absolute;inset:1px;z-index:-1;border-radius:7px;background:var(--ds-fill);box-shadow:0 0 0 1px var(--ds-fill);transition:box-shadow 180ms cubic-bezier(.23,1,.32,1),background-color 80ms cubic-bezier(.23,1,.32,1)}.ds-button:hover:before{background:var(--ds-hover);box-shadow:0 0 0 1px var(--ds-hover)}.ds-button:active:before{box-shadow:0 0 0 0 var(--ds-hover);transition-duration:80ms}.ds-button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-destructive{--ds-fill:var(--destructive);--ds-hover:color-mix(in oklab,var(--destructive) 88%,black);color:var(--destructive-foreground)}"
+    },
+    {
+      "name": "link button",
+      "kind": "button",
+      "description": "Extracted link variant from app/components/ui/button.tsx; default density-aware size.",
+      "html": "<button class=\"ds-button ds-link\" type=\"button\">Button</button>",
+      "css": ".ds-button{position:relative;isolation:isolate;display:inline-flex;align-items:center;justify-content:center;gap:6px;height:var(--control-h);padding:0 var(--button-px);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);font-weight:550;white-space:nowrap;color:var(--foreground);background:transparent;cursor:pointer}.ds-button:before{content:\"\";position:absolute;inset:1px;z-index:-1;border-radius:7px;background:var(--ds-fill);box-shadow:0 0 0 1px var(--ds-fill);transition:box-shadow 180ms cubic-bezier(.23,1,.32,1),background-color 80ms cubic-bezier(.23,1,.32,1)}.ds-button:hover:before{background:var(--ds-hover);box-shadow:0 0 0 1px var(--ds-hover)}.ds-button:active:before{box-shadow:0 0 0 0 var(--ds-hover);transition-duration:80ms}.ds-button:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}.ds-button:disabled{pointer-events:none;opacity:.5}.ds-link{--ds-fill:transparent;--ds-hover:transparent;font-weight:400;text-decoration:underline;text-decoration-color:var(--input);text-underline-offset:4px}.ds-link:before{display:none}.ds-link:hover{text-decoration-color:currentColor}"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Shared field treatment from app/components/ui/input.tsx.",
+      "html": "<input class=\"ds-input\" aria-label=\"Field\" placeholder=\"Field\">",
+      "css": ".ds-input{height:var(--control-h);width:100%;padding:0 var(--control-px);background:var(--card);color:var(--foreground);border:0;border-radius:8px;font-family:inherit;font-size:var(--fs-body);font-weight:400;box-shadow:inset 0 0 0 1px var(--input);transition:box-shadow 80ms,background-color 80ms}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:hover{box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--input),var(--foreground) 18%)}.ds-input:focus-visible{outline:2px solid var(--focus-ring);outline-offset:0}.ds-input[aria-invalid=true]{box-shadow:inset 0 0 0 1px var(--destructive)}.ds-input:disabled{opacity:.5;cursor:not-allowed}@media(pointer:coarse){.ds-input{font-size:16px}}"
+    },
+    {
+      "name": "Navigation link",
+      "kind": "nav",
+      "description": "Desktop sidebar row treatment from app/components/layout/app-shell.tsx.",
+      "html": "<a class=\"ds-nav\" href=\"#\" aria-current=\"page\">Overview</a>",
+      "css": ".ds-nav{position:relative;display:flex;align-items:center;gap:10px;height:32px;padding:0 8px;border-radius:8px;color:var(--foreground);font-family:inherit;font-size:var(--fs-body);line-height:var(--lh-body);text-decoration:none;transition:background-color 80ms}.ds-nav:hover{background:var(--hover)}.ds-nav[aria-current=page]{background:var(--selected);font-weight:550}.ds-nav:focus-visible{outline:2px solid var(--focus-ring);outline-offset:2px}"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "description": "Non-interactive neutral badge from app/components/ui/badge.tsx.",
+      "html": "<span class=\"ds-badge\">Label</span>",
+      "css": ".ds-badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;background:var(--tint);color:var(--foreground);font-family:inherit;font-size:var(--fs-caption);line-height:var(--lh-caption);white-space:nowrap}[data-density=compact] .ds-badge{height:20px;gap:4px}"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Semantic panel and header from app/components/ui/card.tsx.",
+      "html": "<section class=\"ds-card\"><header class=\"ds-card-header\"><h2 class=\"ds-card-title\">Panel</h2></header></section>",
+      "css": ".ds-card{background:var(--card);color:var(--card-foreground);box-shadow:var(--shadow-2);border-radius:12px}.ds-card-header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:12px 16px}.ds-card-title{display:flex;align-items:center;gap:8px;margin:0;font-family:inherit;font-size:var(--fs-subtitle);line-height:var(--lh-subtitle);font-weight:550}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Fluid Functionalism",
+    "overview": "This records the existing system, not a redesign.",
+    "keyCharacteristics": [
+      "Neutral surfaces with shadow-defined elevation and translucent interaction overlays.",
+      "One variable sans-serif family, role-based sizes and a shared control-height ladder.",
+      "A functional blue accent for focus and selection, separate from semantic status colors."
+    ]
+  }
+}
