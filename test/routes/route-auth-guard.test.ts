@@ -82,7 +82,7 @@ const PUBLIC: Record<string, string> = {
   "routes/healthz": "liveness probe for the load balancer; returns no application data",
   "routes/prefs.locale": "sets the language cookie, also for signed-out visitors",
   "routes/welcome":
-    "public landing page; its loader redirects signed-in users to / and reads nothing private",
+    "opt-in landing page (LANDING_PAGE_ENABLED=1, else it redirects to /login); signed-in users go to /, it reads nothing private",
   "routes/$": "catch-all that answers 404 to everyone and reads nothing",
 };
 

@@ -54,7 +54,7 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
   scoping strategy and rollout. The same applies to unifying the `Campus`/`Building`/`Room`
   trio into the `Location` tree: [docs/PLACES-UNIFICATION-DESIGN.md](docs/PLACES-UNIFICATION-DESIGN.md).
 - **Self-hosted by default.** Nothing is published for you — no telemetry service, no container
-  image. The app ships a public landing page at `/welcome`, and
+  image. The app ships an opt-in public landing page at `/welcome` (`LANDING_PAGE_ENABLED=1`), and
   [docs/HOSTED-DEMO-SPEC.md](docs/HOSTED-DEMO-SPEC.md) is the runbook an operator follows to run
   a hosted read-only demo; this project does not operate one.
 

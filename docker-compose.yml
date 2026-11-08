@@ -270,6 +270,8 @@ services:
       # Workspace UI language for visitors without a language cookie or browser
       # preference, and for server-generated text: "en" or "de".
       DEFAULT_LOCALE: ${DEFAULT_LOCALE:-en}
+      # Public marketing page at /welcome. Off unless "1"; while off, visitors only see /login.
+      LANDING_PAGE_ENABLED: ${LANDING_PAGE_ENABLED:-}
       # Structured-logging level (pino).
       LOG_LEVEL: ${LOG_LEVEL:-info}
       # ActivityLog retention window in days (default ~7 years).

@@ -105,6 +105,7 @@ Everything else in the template is optional. Blank means off:
 | `ALERT_WEBHOOK`                           | The alerting sidecar idles instead of polling.                                      |
 | `GLITCHTIP_DSN`                           | No error reporting.                                                                 |
 | `RESTORE_DRILL_ENABLED`                   | The monthly restore smoke check does not run.                                       |
+| `LANDING_PAGE_ENABLED`                    | No public `/welcome` page: visitors only see `/login`. Set `1` to publish it.        |
 
 The stack ships no AI provider, no hosted service and no telemetry endpoint. Every external
 provider above is something you configure, point somewhere and pay for.
