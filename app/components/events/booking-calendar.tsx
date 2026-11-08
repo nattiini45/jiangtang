@@ -15,6 +15,8 @@ import {
 } from "~/lib/berlin-days";
 import {
   calendarDays,
+  calendarEventSegments,
+  calendarHourGrid,
   calendarSlotHref,
   dayHours,
   eventsOnDay,
@@ -162,18 +164,34 @@ function EventLabel({
     ...event.rooms.map((room) => room.name),
     ...event.equipment.map((item) => item.name),
   ].join(" · ");
-  if (narrow && height < 76)
+  if (narrow)
     return (
-      <span className="flex min-w-0 flex-col">
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="flex items-center gap-1 text-xs">
+          <span className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} aria-hidden />
+          <span className="nums">{formatTime(locale, event.startsAt)}</span>
+        </span>
         <span
+          lang={locale}
+          title={event.title}
           className={cn(
-            "wrap-anywhere text-xs font-semibold",
-            height < 44 ? "line-clamp-1" : height < 60 ? "line-clamp-2" : "line-clamp-3",
+            "line-clamp-2 wrap-break-word hyphens-auto text-xs font-semibold",
             event.status === "CANCELLED" && "line-through",
           )}
         >
           {event.title}
         </span>
+        {height >= 76 && resources ? (
+          <span
+            title={resources}
+            className={cn(
+              "text-muted-foreground text-xs wrap-anywhere",
+              dense ? "line-clamp-1" : "line-clamp-2",
+            )}
+          >
+            {resources}
+          </span>
+        ) : null}
         <span className="sr-only">
           {time(event.startsAt)}–{time(event.endsAt)} {token.label} {resources}
         </span>
@@ -199,7 +217,7 @@ function EventLabel({
         <span className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} aria-hidden />
         <span className="nums truncate">
           {time(event.startsAt)}
-          {compact || narrow ? "" : `–${time(event.endsAt)}`}
+          {compact ? "" : `–${time(event.endsAt)}`}
         </span>
         <span className="sr-only">{token.label}</span>
       </span>
@@ -207,7 +225,7 @@ function EventLabel({
         title={event.title}
         className={cn(
           "min-w-0 text-xs font-semibold",
-          dense && !(narrow && height >= 92) ? "line-clamp-2" : "line-clamp-3",
+          dense ? "line-clamp-2" : "line-clamp-3",
           compact ? "wrap-break-word hyphens-auto" : "wrap-anywhere",
           event.status === "CANCELLED" && "line-through",
         )}
@@ -317,7 +335,7 @@ export function CalendarMonth({
   );
 }
 
-function arrangeEvents(events: CalendarEvent[], day: number) {
+function arrangeEvents(events: CalendarEvent[], day: number, minimumDuration = 2_250_000) {
   const start = berlinDayStartMs(day);
   const end = berlinDayStartMs(day + 1);
   const items = eventsOnDay(events, day).map((event) => ({
@@ -341,7 +359,7 @@ function arrangeEvents(events: CalendarEvent[], day: number) {
     }
     const free = lanes.findIndex((laneEnd) => laneEnd <= item.start);
     item.lane = free === -1 ? lanes.length : free;
-    lanes[item.lane] = Math.max(item.end, item.start + 2_250_000);
+    lanes[item.lane] = Math.max(item.end, item.start + minimumDuration);
     group.push(item);
   }
   finish();
@@ -354,6 +372,8 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
   const ref = React.useRef<HTMLDivElement>(null);
   const today = berlinDayIndex(new Date());
   const days = calendarDays(startDay, endDay);
+  const sharedTime = days.length > 1;
+  const hourGrid = calendarHourGrid(days);
   const hasTasks = tasks.some((task) => {
     const day = berlinDayIndex(new Date(task.dueAt));
     return day >= startDay && day < endDay;
@@ -378,10 +398,16 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
         <div
           className="grid"
           style={{
-            gridTemplateColumns: `repeat(${days.length}, minmax(${days.length === 1 ? "260" : "132"}px, 1fr))`,
+            gridTemplateColumns: `${sharedTime ? "64px " : ""}repeat(${days.length}, minmax(${days.length === 1 ? "260" : "132"}px, 1fr))`,
             gridTemplateRows: "auto 1fr",
           }}
         >
+          {sharedTime ? (
+            <div
+              aria-hidden
+              className="bg-card border-border sticky top-0 left-0 z-30 border-r border-b"
+            />
+          ) : null}
           {days.map((day) => (
             <div
               key={day}
@@ -423,8 +449,33 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
               ) : null}
             </div>
           ))}
+          {sharedTime ? (
+            <div
+              aria-hidden
+              data-time-gutter
+              className="bg-card border-border sticky left-0 z-20 border-r"
+              style={{ height: hourGrid.rows.length * 48 }}
+            >
+              {hourGrid.rows.map(({ instant, repeated }) => (
+                <div
+                  key={instant}
+                  className="nums border-border text-muted-foreground h-12 border-b px-2 pt-1 text-xs"
+                >
+                  {repeated
+                    ? formatDateWith(locale, instant, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        timeZoneName: "short",
+                        hourCycle: "h23",
+                      })
+                    : formatTime(locale, instant)}
+                </div>
+              ))}
+            </div>
+          ) : null}
           {days.map((day, column) => {
             const hours = dayHours(day);
+            const slots = hourGrid.columns[column];
             const timeKeys = hours.map((instant) => berlinLocalString(instant).slice(11, 16));
             const tabRow = Math.max(0, timeKeys.indexOf("09:00"));
             return (
@@ -433,15 +484,25 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
                 aria-label={dayIndexToDateKey(day)}
                 className="border-border min-w-0 border-r last:border-r-0"
               >
-                <div className="relative" style={{ height: hours.length * 48 }}>
-                  {hours.map((instant, row) => (
+                <div className="relative" style={{ height: hourGrid.rows.length * 48 }}>
+                  {hourGrid.rows.map((_, row) =>
+                    slots.some((slot) => slot.row === row) ? null : (
+                      <div
+                        key={row}
+                        aria-hidden
+                        className="bg-tint border-border absolute inset-x-0 h-12 border-b"
+                        style={{ top: row * 48 }}
+                      />
+                    ),
+                  )}
+                  {slots.map(({ instant, row }, index) => (
                     <Link
                       key={instant}
                       to={instantSlotHref(instant)}
-                      tabIndex={row === tabRow ? 0 : -1}
+                      tabIndex={index === tabRow ? 0 : -1}
                       data-slot-row={row}
                       data-slot-column={column}
-                      data-slot-time={Number(timeKeys[row].slice(0, 2)) * 60}
+                      data-slot-time={Number(timeKeys[index].slice(0, 2)) * 60}
                       aria-label={t("events.calendar.createAt", {
                         date: dayIndexToDateKey(day),
                         time: formatDateWith(locale, instant, {
@@ -454,44 +515,56 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
                       className="border-border hover:bg-hover text-muted-foreground absolute inset-x-0 flex h-12 items-start border-b px-2 pt-1 text-xs focus-visible:z-30"
                       style={{ top: row * 48 }}
                     >
-                      <span className="nums">
-                        {timeKeys.indexOf(timeKeys[row]) !== timeKeys.lastIndexOf(timeKeys[row])
-                          ? formatDateWith(locale, instant, {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              timeZoneName: "short",
-                              hourCycle: "h23",
-                            })
-                          : formatTime(locale, instant)}
-                      </span>
+                      {!sharedTime ? (
+                        <span className="nums">
+                          {timeKeys.indexOf(timeKeys[index]) !==
+                          timeKeys.lastIndexOf(timeKeys[index])
+                            ? formatDateWith(locale, instant, {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZoneName: "short",
+                                hourCycle: "h23",
+                              })
+                            : formatTime(locale, instant)}
+                        </span>
+                      ) : null}
                     </Link>
                   ))}
-                  {arrangeEvents(events, day).map(({ event, start, end, lane, lanes }) => (
-                    <Link
-                      key={event.id}
-                      to={`/events/${event.id}`}
-                      title={`${event.title} · ${formatDateWith(locale, event.startsAt, { dateStyle: "short", timeStyle: "long" })}–${formatDateWith(locale, event.endsAt, { dateStyle: "short", timeStyle: "long" })}`}
-                      className="group bg-card shadow-surface-1 text-foreground absolute z-10 isolate flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-md px-2 py-1 focus-visible:z-30"
-                      style={{
-                        top: ((start - berlinDayStartMs(day)) / 3_600_000) * 48,
-                        height: Math.max(30, ((end - start) / 3_600_000) * 48 - 2),
-                        left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                        width: `calc(${100 / lanes}% - 4px)`,
-                      }}
-                    >
-                      <span
-                        aria-hidden
-                        className="bg-tint group-hover:bg-tint-hover pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-                      />
-                      <EventLabel
-                        event={event}
-                        narrow={days.length > 1}
-                        height={Math.max(30, ((end - start) / 3_600_000) * 48 - 2)}
-                        short={((end - start) / 3_600_000) * 48 - 2 < 76}
-                        dense={lanes > 1 || ((end - start) / 3_600_000) * 48 - 2 < 108}
-                      />
-                    </Link>
-                  ))}
+                  {arrangeEvents(events, day, sharedTime ? 4_500_000 : 2_250_000).flatMap(
+                    ({ event, start, end, lane, lanes }) =>
+                      calendarEventSegments(start, end, slots).map((segment) => (
+                        <Link
+                          key={`${event.id}-${segment.startsAt}`}
+                          to={`/events/${event.id}`}
+                          title={`${event.title} · ${formatDateWith(locale, event.startsAt, { dateStyle: "short", timeStyle: "long" })}–${formatDateWith(locale, event.endsAt, { dateStyle: "short", timeStyle: "long" })}`}
+                          className="group bg-card shadow-surface-1 text-foreground absolute z-10 isolate flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-md px-2 py-1 focus-visible:z-30"
+                          style={{
+                            top: segment.top * 48,
+                            height: Math.max(
+                              sharedTime ? 60 : 30,
+                              (segment.bottom - segment.top) * 48 - 2,
+                            ),
+                            left: `calc(${(lane / lanes) * 100}% + 2px)`,
+                            width: `calc(${100 / lanes}% - 4px)`,
+                          }}
+                        >
+                          <span
+                            aria-hidden
+                            className="bg-tint group-hover:bg-tint-hover pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
+                          />
+                          <EventLabel
+                            event={event}
+                            narrow={days.length > 1}
+                            height={Math.max(
+                              sharedTime ? 60 : 30,
+                              (segment.bottom - segment.top) * 48 - 2,
+                            )}
+                            short={((end - start) / 3_600_000) * 48 - 2 < 76}
+                            dense={lanes > 1 || ((end - start) / 3_600_000) * 48 - 2 < 108}
+                          />
+                        </Link>
+                      )),
+                  )}
                 </div>
               </section>
             );

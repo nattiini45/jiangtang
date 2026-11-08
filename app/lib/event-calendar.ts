@@ -90,6 +90,60 @@ export function dayHours(day: number): number[] {
   return Array.from({ length: (to - from) / 3_600_000 }, (_, hour) => from + hour * 3_600_000);
 }
 
+export function calendarHourGrid(days: number[]): {
+  rows: { instant: number; repeated: boolean }[];
+  columns: { instant: number; row: number }[][];
+} {
+  const rows = new Map<number, { instant: number; repeated: boolean }>();
+  const columns = days.map((day) => {
+    const occurrences = new Map<number, number>();
+    return dayHours(day).map((instant) => {
+      const hour = new TZDate(instant, BERLIN_TZ).getHours();
+      const occurrence = occurrences.get(hour) ?? 0;
+      occurrences.set(hour, occurrence + 1);
+      const key = hour * 2 + occurrence;
+      if (!rows.has(key)) rows.set(key, { instant, repeated: false });
+      if (occurrence > 0) {
+        rows.set(key - 1, { instant: instant - 3_600_000, repeated: true });
+        rows.set(key, { instant, repeated: true });
+      }
+      return { instant, key };
+    });
+  });
+  const keys = [...rows.keys()].sort((a, b) => a - b);
+  const rowIndices = new Map(keys.map((key, row) => [key, row]));
+  return {
+    rows: keys.map((key) => rows.get(key)!),
+    columns: columns.map((slots) =>
+      slots.map(({ instant, key }) => ({ instant, row: rowIndices.get(key)! })),
+    ),
+  };
+}
+
+export function calendarEventSegments(
+  startsAt: number,
+  endsAt: number,
+  slots: { instant: number; row: number }[],
+): { top: number; bottom: number; startsAt: number; endsAt: number }[] {
+  if (!(startsAt < endsAt)) return [];
+  const segments: { top: number; bottom: number; startsAt: number; endsAt: number }[] = [];
+  for (const { instant, row } of slots) {
+    const start = Math.max(startsAt, instant);
+    const end = Math.min(endsAt, instant + 3_600_000);
+    if (start >= end) continue;
+    const top = row + (start - instant) / 3_600_000;
+    const bottom = row + (end - instant) / 3_600_000;
+    const previous = segments.at(-1);
+    if (previous && previous.bottom === top && previous.endsAt === start) {
+      previous.bottom = bottom;
+      previous.endsAt = end;
+    } else {
+      segments.push({ top, bottom, startsAt: start, endsAt: end });
+    }
+  }
+  return segments;
+}
+
 export function instantSlotHref(start: number, roomId?: string): string {
   const params = new URLSearchParams({
     startsAt: new Date(start).toISOString(),

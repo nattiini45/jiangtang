@@ -65,6 +65,40 @@ test("mobile agenda stays within 390px and creates on the selected day", async (
   await expect(page.locator('input[name="startTime"]')).toHaveValue("09:00");
 });
 
+test("the shared week gutter aligns transition hours without phantom slots", async ({ page }) => {
+  for (const [date, rows, hours, threeRow] of [
+    ["2026-03-29", 24, 23, "3"],
+    ["2026-10-25", 25, 25, "4"],
+  ] as const) {
+    await page.goto(`/events?view=week&date=${date}`);
+    const gutter = page.locator("[data-time-gutter]");
+    await expect(gutter).toHaveCount(1);
+    await expect(gutter.locator(":scope > div")).toHaveCount(rows);
+    const sunday = page.getByRole("region", { name: date, exact: true });
+    await expect(sunday.locator("a[data-slot-row]")).toHaveCount(hours);
+    await expect(sunday.locator('a[data-slot-time="180"]')).toHaveAttribute(
+      "data-slot-row",
+      threeRow,
+    );
+    await expect(page.locator('a[data-slot-column="0"][data-slot-time="180"]')).toHaveAttribute(
+      "data-slot-row",
+      threeRow,
+    );
+    if (hours === 23) {
+      await expect(sunday.locator('a[data-slot-time="120"]')).toHaveCount(0);
+    } else {
+      await expect(sunday.locator('a[data-slot-time="120"]')).toHaveCount(2);
+      await expect(gutter).toContainText("02:00 MESZ");
+      await expect(gutter).toContainText("02:00 MEZ");
+      await expect(page.locator('a[data-slot-column="0"][data-slot-row="3"]')).toHaveCount(0);
+    }
+    const three = sunday.locator('a[data-slot-time="180"]');
+    await three.focus();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.locator('a[data-slot-column="5"][data-slot-time="180"]')).toBeFocused();
+  }
+});
+
 test("day drilling preserves tasks and resource filters", async ({ page }) => {
   await page.goto("/events?view=month&date=2026-11-08&tasks=1&room=seed_room_a01");
   await page

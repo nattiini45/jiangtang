@@ -126,6 +126,22 @@ for (const theme of ["light", "dark"] as const) {
       await page.evaluate(() => document.fonts.ready);
       if (name === "calendar-populated-month")
         await expect(page.getByRole("link", { name: /\+\d+ weitere/ }).first()).toBeVisible();
+      if (name === "calendar-populated-week") {
+        await expect(page.locator("[data-time-gutter]")).toHaveCount(1);
+        await expect(page.locator("a[data-slot-row]").first()).toHaveText("");
+        const title = page.getByText("Demo: Prüfungsvorbereitung AV", { exact: true });
+        const card = title.locator("xpath=ancestor::a");
+        await expect(card).toContainText("13:00");
+        await expect(card).toHaveAttribute("title", /Demo: Prüfungsvorbereitung AV/);
+        await expect(title).toHaveAttribute("lang", "de");
+        await expect(title).toHaveCSS("hyphens", "auto");
+        await expect(title).toHaveCSS("-webkit-line-clamp", "2");
+        const label = title.locator("..");
+        await expect(label.locator("span").first()).toHaveText("13:00");
+        expect(
+          await title.evaluate((element) => element.getBoundingClientRect().height),
+        ).toBeLessThanOrEqual(32);
+      }
       if (name === "calendar-dst-day") {
         await expect(page.locator("a[data-slot-row]")).toHaveCount(25);
         await expect(
