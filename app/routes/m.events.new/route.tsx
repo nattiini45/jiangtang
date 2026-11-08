@@ -6,9 +6,11 @@ import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { resolveLocale } from "~/i18n/locale.server";
 import { BookingConflictError, toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
-import { berlinLocalToUtc } from "~/lib/time.server";
-import { eventCreateSchema, roomBookingSchema } from "~/domains/events/events.schema";
+import { resolveEventTime } from "~/domains/events/events.time.server";
+import { eventCreateSchema, roomBookingCreateSchema } from "~/domains/events/events.schema";
 import { createEventWithBooking } from "~/domains/events/events.mutations.server";
+import { eventCreationPrefill } from "~/domains/events/events.prefill.server";
+import { eventTimeMs } from "~/domains/events/events.time";
 import { findRoomConflicts } from "~/domains/events/events.availability.server";
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { listRooms } from "~/domains/rooms/rooms.queries.server";
@@ -35,9 +37,19 @@ export function meta({ matches }: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const rooms = await listRooms();
+  const defaults = eventCreationPrefill(new URL(request.url).searchParams, rooms);
+  const sameDay = defaults.startsAt.slice(0, 10) === defaults.endsAt.slice(0, 10);
   return {
     rooms,
     today: dayIndexToDateKey(berlinDayIndex(new Date())),
+    defaults: {
+      roomId: defaults.roomId,
+      date: defaults.date,
+      startTime: sameDay ? defaults.startsAt.slice(11) : "",
+      endTime: sameDay ? defaults.endsAt.slice(11) : "",
+      startsAtInstant: sameDay ? defaults.startsAtInstant : undefined,
+      endsAtInstant: sameDay ? defaults.endsAtInstant : undefined,
+    },
   };
 }
 
@@ -49,11 +61,7 @@ export async function action({ request }: Route.ActionArgs) {
   const endsAt = `${obj.date}T${obj.endTime}`;
 
   const eventParsed = safeParse(eventCreateSchema, { ...obj, startsAt, endsAt }, locale);
-  const bookingParsed = safeParse(
-    roomBookingSchema,
-    { roomId: obj.roomId, startsAt, endsAt },
-    locale,
-  );
+  const bookingParsed = safeParse(roomBookingCreateSchema, { ...obj, startsAt, endsAt }, locale);
   if (!eventParsed.success || !bookingParsed.success) {
     return {
       fieldErrors: {
@@ -64,8 +72,8 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   try {
-    const startsUtc = berlinLocalToUtc(startsAt);
-    const endsUtc = berlinLocalToUtc(endsAt);
+    const startsUtc = resolveEventTime(startsAt, eventParsed.data.startsAtInstant);
+    const endsUtc = resolveEventTime(endsAt, eventParsed.data.endsAtInstant);
     const conflicts = await findRoomConflicts(bookingParsed.data.roomId, startsUtc, endsUtc);
     if (conflicts.length > 0) {
       return { conflict: true, fieldErrors: undefined };
@@ -75,14 +83,14 @@ export async function action({ request }: Route.ActionArgs) {
       // so a rejected booking never leaves an orphan event behind.
       const event = await createEventWithBooking(actor, eventParsed.data, bookingParsed.data);
       await emitChange({ entityType: "event", id: event.id, op: "created" });
-      return redirect("/m/events");
+      return redirect(`/m/events?date=${bookingParsed.data.startsAt.slice(0, 10)}`);
     } catch (e) {
       // The pre-check passed but the EXCLUDE constraint still fired (race window):
       // report it as a conflict instead of a 409 error boundary. The transaction
       // rolled back, so there is no event to clean up; the user retries another slot.
       if (e instanceof BookingConflictError) {
-        const startsUtc = berlinLocalToUtc(startsAt);
-        const endsUtc = berlinLocalToUtc(endsAt);
+        const startsUtc = resolveEventTime(startsAt, eventParsed.data.startsAtInstant);
+        const endsUtc = resolveEventTime(endsAt, eventParsed.data.endsAtInstant);
         try {
           const conflicts = await findRoomConflicts(bookingParsed.data.roomId, startsUtc, endsUtc);
           await notifyBookingConflict({
@@ -118,27 +126,36 @@ export async function action({ request }: Route.ActionArgs) {
 export default function MobileEventNew({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
   const nav = useNavigation();
-  const fetcher = useFetcher<{ conflicts: unknown[] }>();
   const busy = nav.state !== "idle";
-  const { rooms, today } = loaderData;
+  const { rooms, today, defaults } = loaderData;
 
-  const [roomId, setRoomId] = React.useState("");
-  const [date, setDate] = React.useState(today);
-  const [startTime, setStartTime] = React.useState("");
-  const [endTime, setEndTime] = React.useState("");
+  const [roomId, setRoomId] = React.useState(defaults.roomId);
+  const [date, setDate] = React.useState(defaults.date || today);
+  const [startTime, setStartTime] = React.useState(defaults.startTime);
+  const [endTime, setEndTime] = React.useState(defaults.endTime);
 
   // Pre-save conflict badge: poll the shared check-conflict resource as the
   // room/window changes (debounced by React's render batching).
   const startsAt = date && startTime ? `${date}T${startTime}` : "";
   const endsAt = date && endTime ? `${date}T${endTime}` : "";
+  const checkId = React.useId();
+  const params = new URLSearchParams({ kind: "room", id: roomId, startsAt, endsAt });
+  if (defaults.startsAtInstant) params.set("startsAtInstant", defaults.startsAtInstant);
+  if (defaults.endsAtInstant) params.set("endsAtInstant", defaults.endsAtInstant);
+  const checkUrl =
+    roomId &&
+    startsAt &&
+    endsAt &&
+    eventTimeMs(startsAt, defaults.startsAtInstant) < eventTimeMs(endsAt, defaults.endsAtInstant)
+      ? `/api/events/check-conflict?${params.toString()}`
+      : "";
+  const fetcher = useFetcher<{ conflicts: unknown[] }>({ key: `${checkId}:${checkUrl}` });
+  const loadConflicts = fetcher.load;
   React.useEffect(() => {
-    if (!roomId || !startsAt || !endsAt) return;
-    const params = new URLSearchParams({ kind: "room", id: roomId, startsAt, endsAt });
-    void fetcher.load(`/api/events/check-conflict?${params.toString()}`);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId, startsAt, endsAt]);
+    if (checkUrl) void loadConflicts(checkUrl);
+  }, [checkUrl, loadConflicts]);
 
-  const conflicts = fetcher.data?.conflicts ?? [];
+  const conflicts = checkUrl && fetcher.state === "idle" ? (fetcher.data?.conflicts ?? []) : [];
 
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
@@ -150,6 +167,12 @@ export default function MobileEventNew({ loaderData, actionData }: Route.Compone
       </div>
 
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="flex flex-col gap-3">
+        {defaults.startsAtInstant ? (
+          <input type="hidden" name="startsAtInstant" value={defaults.startsAtInstant} />
+        ) : null}
+        {defaults.endsAtInstant ? (
+          <input type="hidden" name="endsAtInstant" value={defaults.endsAtInstant} />
+        ) : null}
         <FormField name="title" label={t("mobile.capture.fieldTitle")}>
           <Input name="title" required placeholder={t("mobile.eventsNew.titlePlaceholder")} />
         </FormField>
@@ -186,6 +209,7 @@ export default function MobileEventNew({ loaderData, actionData }: Route.Compone
               name="startTime"
               required
               className="w-[6.5rem]"
+              value={startTime}
               onChange={(e) => setStartTime(e.currentTarget.value)}
             />
           </FormField>
@@ -196,6 +220,7 @@ export default function MobileEventNew({ loaderData, actionData }: Route.Compone
               name="endTime"
               required
               className="w-[6.5rem]"
+              value={endTime}
               onChange={(e) => setEndTime(e.currentTarget.value)}
             />
           </FormField>

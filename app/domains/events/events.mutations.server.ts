@@ -7,6 +7,7 @@ import { findEquipmentConflicts, findRoomConflicts } from "./events.availability
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueCalendarOp } from "~/lib/calendar/publisher.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
+import { resolveEventTime } from "./events.time.server";
 import type {
   EquipmentAllocation,
   Event,
@@ -19,6 +20,7 @@ import type {
   EventCreateInput,
   EventEditInput,
   RoomBookingInput,
+  RoomBookingCreateInput,
   ServiceWindowInput,
 } from "./events.schema";
 
@@ -146,8 +148,8 @@ export async function createEvent(actor: AuditActor, input: EventCreateInput): P
       data: {
         title: input.title,
         description: input.description ?? null,
-        startsAt: berlinLocalToUtc(input.startsAt),
-        endsAt: berlinLocalToUtc(input.endsAt),
+        startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
+        endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
         status: input.status,
         organizer: input.organizer ?? null,
         contact: input.contact ?? null,
@@ -175,15 +177,15 @@ export async function createEvent(actor: AuditActor, input: EventCreateInput): P
 export async function createEventWithBooking(
   actor: AuditActor,
   input: EventCreateInput,
-  booking: RoomBookingInput,
+  booking: RoomBookingCreateInput,
 ): Promise<Event> {
   return txWithAudit(actor, async (tx, audit) => {
     const event = await tx.event.create({
       data: {
         title: input.title,
         description: input.description ?? null,
-        startsAt: berlinLocalToUtc(input.startsAt),
-        endsAt: berlinLocalToUtc(input.endsAt),
+        startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
+        endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
         status: input.status,
         organizer: input.organizer ?? null,
         contact: input.contact ?? null,
@@ -202,8 +204,8 @@ export async function createEventWithBooking(
           data: {
             eventId: event.id,
             roomId: booking.roomId,
-            startsAt: berlinLocalToUtc(booking.startsAt),
-            endsAt: berlinLocalToUtc(booking.endsAt),
+            startsAt: resolveEventTime(booking.startsAt, booking.startsAtInstant),
+            endsAt: resolveEventTime(booking.endsAt, booking.endsAtInstant),
           },
         }),
       tr("work.err.event.roomAlreadyBooked"),
