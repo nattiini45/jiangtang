@@ -131,11 +131,15 @@ function EventLabel({
   compact = false,
   dense = false,
   short = false,
+  narrow = false,
+  height = Infinity,
 }: {
   event: CalendarEvent;
   compact?: boolean;
   dense?: boolean;
   short?: boolean;
+  narrow?: boolean;
+  height?: number;
 }) {
   const locale = useLocale();
   const token = statusToken(locale, "event", event.status);
@@ -158,6 +162,23 @@ function EventLabel({
     ...event.rooms.map((room) => room.name),
     ...event.equipment.map((item) => item.name),
   ].join(" · ");
+  if (narrow && height < 76)
+    return (
+      <span className="flex min-w-0 flex-col">
+        <span
+          className={cn(
+            "wrap-anywhere text-xs font-semibold",
+            height < 44 ? "line-clamp-1" : height < 60 ? "line-clamp-2" : "line-clamp-3",
+            event.status === "CANCELLED" && "line-through",
+          )}
+        >
+          {event.title}
+        </span>
+        <span className="sr-only">
+          {time(event.startsAt)}–{time(event.endsAt)} {token.label} {resources}
+        </span>
+      </span>
+    );
   if (short)
     return (
       <span className="flex min-w-0 items-center gap-1 text-xs">
@@ -178,7 +199,7 @@ function EventLabel({
         <span className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} aria-hidden />
         <span className="nums truncate">
           {time(event.startsAt)}
-          {compact ? "" : `–${time(event.endsAt)}`}
+          {compact || narrow ? "" : `–${time(event.endsAt)}`}
         </span>
         <span className="sr-only">{token.label}</span>
       </span>
@@ -186,7 +207,7 @@ function EventLabel({
         title={event.title}
         className={cn(
           "min-w-0 text-xs font-semibold",
-          dense ? "line-clamp-2" : "line-clamp-3",
+          dense && !(narrow && height >= 92) ? "line-clamp-2" : "line-clamp-3",
           compact ? "wrap-break-word hyphens-auto" : "wrap-anywhere",
           event.status === "CANCELLED" && "line-through",
         )}
@@ -382,9 +403,24 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
                   })}
                 </Link>
               </h2>
-              <div className="max-h-24 overflow-y-auto">
-                <TaskMarkers tasks={tasks} day={day} />
+              <div
+                className={days.length === 1 ? "flex flex-wrap gap-x-4 [&>a]:max-w-72" : undefined}
+              >
+                <TaskMarkers tasks={tasks} day={day} limit={days.length === 1 ? undefined : 2} />
               </div>
+              {days.length > 1 &&
+              tasks.filter((task) => berlinDayIndex(new Date(task.dueAt)) === day).length > 2 ? (
+                <Link
+                  to={dayHref(day)}
+                  className="hover:bg-hover mt-1 inline-flex rounded-sm px-1 py-1 text-xs"
+                >
+                  {t("events.calendar.more", {
+                    count:
+                      tasks.filter((task) => berlinDayIndex(new Date(task.dueAt)) === day).length -
+                      2,
+                  })}
+                </Link>
+              ) : null}
             </div>
           ))}
           {days.map((day, column) => {
@@ -449,6 +485,8 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
                       />
                       <EventLabel
                         event={event}
+                        narrow={days.length > 1}
+                        height={Math.max(30, ((end - start) / 3_600_000) * 48 - 2)}
                         short={((end - start) / 3_600_000) * 48 - 2 < 76}
                         dense={lanes > 1 || ((end - start) / 3_600_000) * 48 - 2 < 108}
                       />
