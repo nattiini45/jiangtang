@@ -7,20 +7,28 @@
  */
 import type { Locale } from "~/i18n/locales";
 import {
+  EQUIPMENT,
+  EQUIPMENT_MODELS,
+  EVENTS,
   INVENTORY,
   LOCATIONS,
   NOTES,
   PROJECTS,
+  ROOMS,
   TASKS,
   TICKETS,
   TIME_ENTRIES,
   VENDORS,
 } from "./data";
 import {
+  EN_EQUIPMENT,
+  EN_EQUIPMENT_MODELS,
+  EN_EVENTS,
   EN_INVENTORY,
   EN_LOCATIONS,
   EN_NOTES,
   EN_PROJECTS,
+  EN_ROOMS,
   EN_TASKS,
   EN_TICKETS,
   EN_TIME_ENTRIES,
@@ -29,6 +37,10 @@ import {
 } from "./data.en";
 
 export type SeedData = {
+  ROOMS: typeof ROOMS;
+  EQUIPMENT_MODELS: typeof EQUIPMENT_MODELS;
+  EQUIPMENT: typeof EQUIPMENT;
+  EVENTS: typeof EVENTS;
   LOCATIONS: typeof LOCATIONS;
   VENDORS: typeof VENDORS;
   PROJECTS: typeof PROJECTS;
@@ -57,9 +69,26 @@ let english: SeedData | undefined;
 
 export function seedDataFor(locale: Locale): SeedData {
   if (locale === "de") {
-    return { LOCATIONS, VENDORS, PROJECTS, TASKS, TICKETS, NOTES, INVENTORY, TIME_ENTRIES };
+    return {
+      ROOMS,
+      EQUIPMENT_MODELS,
+      EQUIPMENT,
+      EVENTS,
+      LOCATIONS,
+      VENDORS,
+      PROJECTS,
+      TASKS,
+      TICKETS,
+      NOTES,
+      INVENTORY,
+      TIME_ENTRIES,
+    };
   }
   english ??= {
+    ROOMS: overlay(ROOMS, EN_ROOMS, "rooms"),
+    EQUIPMENT_MODELS: overlay(EQUIPMENT_MODELS, EN_EQUIPMENT_MODELS, "equipment models"),
+    EQUIPMENT: overlay(EQUIPMENT, EN_EQUIPMENT, "equipment"),
+    EVENTS: overlay(EVENTS, EN_EVENTS, "events"),
     LOCATIONS: overlay(LOCATIONS, EN_LOCATIONS, "locations"),
     VENDORS: overlay(VENDORS, EN_VENDORS, "vendors"),
     PROJECTS: overlay(PROJECTS, EN_PROJECTS, "projects"),

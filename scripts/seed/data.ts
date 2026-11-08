@@ -30,10 +30,16 @@ import type {
   TicketType,
   UserRole,
 } from "~/generated/prisma/enums";
+import type { Prisma } from "~/generated/prisma/client";
 
 // ── Expected row counts for the seeded corpus ───────────────
 
 export const EXPECTED_COUNTS = {
+  room: 1,
+  equipmentModel: 1,
+  equipment: 1,
+  event: 1,
+  eventRoomBooking: 1,
   location: 8,
   project: 6,
   task: 41,
@@ -58,6 +64,55 @@ export const EXPECTED_DEMO_USER_COUNT = 3;
 
 /** Every seeded row's id starts with this, so the test can tell demo from ambient. */
 export const SEED_ID_PREFIX = "seed_";
+
+export const ROOMS = [
+  {
+    id: "seed_room_a01",
+    slug: "demo-a01",
+    name: "Demo-Raum A.01",
+    roomNumber: "A.01",
+    capacity: 40,
+    hasProjector: true,
+    videoInputs: ["HDMI"],
+    audioOutputs: [],
+  },
+] satisfies Prisma.RoomCreateManyInput[];
+
+export const EQUIPMENT_MODELS = [
+  {
+    id: "seed_model_projector",
+    manufacturer: "Demo",
+    name: "Demo-Projektor",
+    category: "PROJECTOR",
+  },
+] satisfies Prisma.EquipmentModelCreateManyInput[];
+
+export const EQUIPMENT = [
+  {
+    id: "seed_equipment_projector_a01",
+    name: "Projektor A.01",
+    roomId: "seed_room_a01",
+    modelId: "seed_model_projector",
+    category: "PROJECTOR",
+    mobility: "FIXED",
+    status: "OPERATIONAL",
+  },
+] satisfies Prisma.EquipmentCreateManyInput[];
+
+export const EVENTS = [
+  {
+    id: "seed_event_hybrid",
+    uid: "seed_event_hybrid",
+    title: "Demo-Hybridveranstaltung",
+    offsetDays: 0,
+    startHour: 10,
+    endHour: 12,
+  },
+];
+
+export const EVENT_ROOM_BOOKINGS = [
+  { id: "seed_booking_a01", eventId: "seed_event_hybrid", roomId: "seed_room_a01" },
+];
 
 // ── The demo user ───────────────────────────────────────────────────
 
@@ -1887,6 +1942,11 @@ export const INVENTORY: readonly StockSeed[] = [
 export type CountKey = keyof typeof EXPECTED_COUNTS;
 
 const ACTUAL_COUNTS: Record<CountKey, number> = {
+  room: ROOMS.length,
+  equipmentModel: EQUIPMENT_MODELS.length,
+  equipment: EQUIPMENT.length,
+  event: EVENTS.length,
+  eventRoomBooking: EVENT_ROOM_BOOKINGS.length,
   location: LOCATIONS.length,
   project: PROJECTS.length,
   task: TASKS.length,
@@ -1924,6 +1984,11 @@ export function assertCountsMatchSpec(): void {
 
 /** Every id this seed owns, across every model it writes. */
 export const ALL_SEED_IDS: readonly string[] = [
+  ...ROOMS.map((r) => r.id),
+  ...EQUIPMENT_MODELS.map((r) => r.id),
+  ...EQUIPMENT.map((r) => r.id),
+  ...EVENTS.map((r) => r.id),
+  ...EVENT_ROOM_BOOKINGS.map((r) => r.id),
   ...DEMO_TEAM.map((r) => r.id),
   ...LOCATIONS.map((r) => r.id),
   ...VENDORS.map((r) => r.id),

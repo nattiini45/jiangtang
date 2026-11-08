@@ -23,6 +23,10 @@ function texts(rows: readonly object[]): string[] {
 describe("seedDataFor", () => {
   it("English has the same counts as German and as EXPECTED_COUNTS", () => {
     for (const data of [de, en]) {
+      expect(data.ROOMS).toHaveLength(EXPECTED_COUNTS.room);
+      expect(data.EQUIPMENT_MODELS).toHaveLength(EXPECTED_COUNTS.equipmentModel);
+      expect(data.EQUIPMENT).toHaveLength(EXPECTED_COUNTS.equipment);
+      expect(data.EVENTS).toHaveLength(EXPECTED_COUNTS.event);
       expect(data.LOCATIONS).toHaveLength(EXPECTED_COUNTS.location);
       expect(data.PROJECTS).toHaveLength(EXPECTED_COUNTS.project);
       expect(data.TASKS).toHaveLength(EXPECTED_COUNTS.task);
@@ -75,6 +79,7 @@ describe("workspace locale selection", () => {
       {
         get: (_t, model: string) => ({
           findUnique: async () => null,
+          findUniqueOrThrow: async () => ({ startsAt: new Date(), endsAt: new Date() }),
           create: async ({ data }: { data: { name?: string } }) => {
             if (model === "project" && data.name) names.push(data.name);
             return { id: "x" };
