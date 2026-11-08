@@ -27,6 +27,7 @@ const root = (p: string): string => fileURLToPath(new URL(`../${p}`, import.meta
 const BACKUP_SCRIPT = root("ops/postgres/backup.sh");
 const WAL_CHECK_SCRIPT = root("ops/postgres/check-wal-archive.sh");
 const ALERT_SCRIPT = root("ops/alerting/backup-alert.sh");
+const UPLOADS_SCRIPT = root("ops/postgres/uploads-backup.sh");
 const COMPOSE_PATH = root("docker-compose.yml");
 
 /** Host Bash by absolute path; System32\bash.exe is the WSL launcher, so it is skipped. */
@@ -235,6 +236,111 @@ describe("check-wal-archive.sh reads pg_stat_archiver", () => {
   });
 });
 
+describe("uploads-backup.sh archives the uploads volume to the S3 target", () => {
+  const ARCHIVE = /^st put --no-compress --read-stdin uploads\/uploads_\d{8}T\d{6}Z\.tar$/;
+
+  // The wal-g stub logs each call, keeps what "st put" receives on stdin and lists
+  // the archives named in LS_NAMES; WALG_PUT_EXIT makes the upload fail.
+  function uploadsSandbox(): Sandbox & { uploads: string; received: string } {
+    const sb = sandbox();
+    const uploads = join(sb.dir, "uploads");
+    mkdirSync(join(uploads, "ab"), { recursive: true });
+    writeFileSync(join(uploads, "ab", "ab12-synthetic.png"), "ciphertext");
+    const received = join(sb.dir, "received.tar");
+    sb.stub(
+      "wal-g",
+      [
+        'printf \'%s\\n\' "$*" >> "$CALLS_LOG"',
+        'if [ "$1 $2" = "st put" ]; then cat > "$RECEIVED"; exit "${WALG_PUT_EXIT:-0}"; fi',
+        'if [ "$1 $2" = "st ls" ]; then',
+        '  echo "type size last modified name"',
+        '  for n in $LS_NAMES; do echo "obj 10 2026-11-01 00:00:00 +0000 UTC $n"; done',
+        "fi",
+        "exit 0",
+      ].join("\n"),
+    );
+    return Object.assign(sb, { uploads, received });
+  }
+
+  const env = (
+    sb: Sandbox & { uploads: string; received: string },
+    extra: Record<string, string> = {},
+  ): Record<string, string> => ({
+    WALG_S3_PREFIX: "s3://synthetic-bucket/postgres",
+    AWS_ACCESS_KEY_ID: "synthetic-key-id",
+    AWS_SECRET_ACCESS_KEY: "synthetic-secret",
+    UPLOADS_DIR: toShellPath(sb.uploads),
+    BACKUP_STATUS_DIR: toShellPath(sb.status),
+    RECEIVED: toShellPath(sb.received),
+    LS_NAMES: "",
+    ...extra,
+  });
+
+  it("is a no-op without an S3 target", () => {
+    const sb = uploadsSandbox();
+    const { WALG_S3_PREFIX: _unused, ...rest } = env(sb);
+    expect(sb.run(UPLOADS_SCRIPT, rest).status).toBe(0);
+    expect(calls(sb)).toEqual([]);
+  });
+
+  it("streams a tar of the volume into one new object and clears uploads.failed", () => {
+    const sb = uploadsSandbox();
+    writeFileSync(join(sb.status, "uploads.failed"), "old failure\n");
+    expect(sb.run(UPLOADS_SCRIPT, env(sb)).status).toBe(0);
+    expect(calls(sb)[0]).toMatch(ARCHIVE);
+    const listing = spawnSync("tar", ["-tf", sb.received], { encoding: "utf8" }).stdout;
+    expect(listing).toContain("./ab/ab12-synthetic.png");
+    expect(existsSync(join(sb.status, "uploads.failed"))).toBe(false);
+  });
+
+  it("keeps the newest UPLOADS_RETENTION_COUNT archives and deletes only older ones", () => {
+    const sb = uploadsSandbox();
+    const names = [
+      "uploads_20261103T000000Z.tar",
+      "uploads_20261101T000000Z.tar",
+      "uploads_20261102T000000Z.tar",
+      "unrelated.tar",
+    ];
+    const run = sb.run(
+      UPLOADS_SCRIPT,
+      env(sb, { UPLOADS_RETENTION_COUNT: "2", LS_NAMES: names.join(" ") }),
+    );
+    expect(run.status).toBe(0);
+    expect(calls(sb).filter((line) => line.startsWith("st rm"))).toEqual([
+      "st rm uploads/uploads_20261101T000000Z.tar",
+    ]);
+  });
+
+  it("records a failed upload, removes the partial object and deletes nothing else", () => {
+    const sb = uploadsSandbox();
+    const run = sb.run(
+      UPLOADS_SCRIPT,
+      env(sb, { WALG_PUT_EXIT: "5", LS_NAMES: "uploads_20261101T000000Z.tar" }),
+    );
+    expect(run.status).toBe(1);
+    const failed = readFileSync(join(sb.status, "uploads.failed"), "utf8");
+    expect(failed).toContain("uploads archive FAILED (exit 1)");
+    const log = calls(sb);
+    expect(log[0]).toMatch(ARCHIVE);
+    expect(log[1]).toBe(log[0]!.replace("put --no-compress --read-stdin", "rm"));
+    expect(log).toHaveLength(2);
+  });
+
+  it.each(["0", "", "07", "x"])("refuses UPLOADS_RETENTION_COUNT=%j before any upload", (value) => {
+    const sb = uploadsSandbox();
+    expect(sb.run(UPLOADS_SCRIPT, env(sb, { UPLOADS_RETENTION_COUNT: value })).status).toBe(1);
+    expect(calls(sb)).toEqual([]);
+    expect(existsSync(join(sb.status, "uploads.failed"))).toBe(true);
+  });
+
+  it("fails when the uploads volume is not mounted", () => {
+    const sb = uploadsSandbox();
+    const run = sb.run(UPLOADS_SCRIPT, env(sb, { UPLOADS_DIR: toShellPath(join(sb.dir, "none")) }));
+    expect(run.status).toBe(1);
+    expect(calls(sb)).toEqual([]);
+  });
+});
+
 describe("backup-alert.sh posts status changes to ALERT_WEBHOOK", () => {
   let sb: Sandbox;
 
@@ -330,6 +436,20 @@ describe("backup-alert.sh posts status changes to ALERT_WEBHOOK", () => {
     expect(posts()[0]).toContain("No successful base backup since 2026-11-01T00:00:00Z");
   });
 
+  it("posts a failed uploads archive and its recovery", () => {
+    writeFileSync(
+      join(sb.status, "uploads.failed"),
+      "Jiangtang uploads archive FAILED (exit 1).\n",
+    );
+    sb.run(ALERT_SCRIPT, env());
+    rmSync(join(sb.status, "uploads.failed"));
+    sb.run(ALERT_SCRIPT, env());
+    expect(posts()).toEqual([
+      "Jiangtang uploads archive FAILED (exit 1).",
+      "Jiangtang uploads archive recovered: the latest run succeeded.",
+    ]);
+  });
+
   it("stays quiet for a recent backup and when nothing has run yet", () => {
     sb.run(ALERT_SCRIPT, env());
     writeFileSync(join(sb.status, "backup.ok"), "2026-11-05T00:00:00Z\n");
@@ -365,6 +485,11 @@ describe("compose wiring for backup alerts (static)", () => {
       .split("\n")
       .map((l) => l.trim());
     expect(backupLines).toContain("bash /ops/check-wal-archive.sh || true");
+    // The uploads archive runs right after each base backup: at start and daily.
+    expect(backupLines.filter((l) => l === "bash /ops/uploads-backup.sh || true")).toHaveLength(2);
+    const backup = compose.services.backup!;
+    expect(backup.volumes).toContain("uploads:/uploads:ro");
+    expect(backup.environment?.UPLOADS_DIR).toBe("/uploads");
     const alertingLines = text(compose.services.alerting!.command);
     expect(alertingLines).toContain("bash /ops/backup-alert.sh || true");
     expect(alertingLines).toContain("bash /ops/healthcheck-alert.sh || true");

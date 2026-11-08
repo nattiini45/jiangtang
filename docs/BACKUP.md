@@ -1,17 +1,19 @@
 # Backup and recovery
 
-Two **different** capabilities exist. They are not interchangeable and neither
-one is a full application backup on its own.
+Three capabilities exist. They are not interchangeable: the first two together are the
+everyday backup of a running deployment, and the third is the coherent cold snapshot.
 
 | Capability | Covers | Does not cover |
 | --- | --- | --- |
 | WAL-G database PITR | PostgreSQL data and WAL, restored into a new empty data directory | uploads/attachments, the encryption key, `.env`, any other volume |
+| Daily uploads archive | the encrypted `uploads` volume, archived daily to `uploads/` on the same S3 target while the stack runs | point-in-time precision; uploads newer than the last archive; the encryption key |
 | Stopped-stack all-data recovery | PostgreSQL **plus** encrypted uploads, archived together from a cleanly stopped stack | point-in-time precision; WAL-G cannot rewind uploads |
 
 WAL-G archives only the database. Files under `uploads` are encrypted at rest
-and are **not** in any WAL-G backup. A targeted database restore and the
-current uploads can therefore belong to different moments. Do not advertise or
-promise attachment PITR or "all data from WAL-G".
+and are **not** in any WAL-G backup; the daily uploads archive covers them
+separately. A database restore and an uploads archive therefore belong to
+different moments. Do not advertise or promise attachment PITR or "all data
+from WAL-G".
 
 ## The minimum you must store elsewhere
 
@@ -283,6 +285,101 @@ Both volumes now come from the same stopped snapshot. Never combine this databas
 archive with a later WAL-G PITR database (Capability 1) and call the result
 coherent: that would mix two different moments.
 
+## Capability 3 — daily uploads archive (S3)
+
+With `WALG_S3_PREFIX` set, the backup sidecar runs `ops/postgres/uploads-backup.sh` right after
+each base backup: at start and then daily. It streams a tar of the `uploads` volume (mounted
+read-only) into `wal-g st put`, so the archive lands under `uploads/uploads_<UTC stamp>.tar` in the
+same bucket and prefix as the database backups. The files are already AES-256-GCM ciphertext; the
+archive is not compressed again and is useless without `STORAGE_ENCRYPTION_KEY`. If WAL-G
+encryption is configured, it applies to these objects too.
+
+`UPLOADS_RETENTION_COUNT` (default `14`) archives are kept. Like `WALG_RETENTION_COUNT`, it is a
+count, not a number of days, and anything but a positive integer makes the script refuse to archive
+or delete.
+
+The stack keeps running while the archive is taken. Stored objects are written once under random
+keys and never modified, so an archive holds every object that existed when it started. An upload
+in flight at that moment can be missing or truncated in that archive and is complete in the next.
+Uploads made after the newest archive are not in any backup; the app answers 404 for an attachment
+whose file is missing.
+
+**Which archive goes with which database.** Objects are never rewritten, so a later archive is a
+superset of an earlier one, apart from attachments deleted in between. For a database restored to
+`TARGET_TS`, take the first archive stamped **at or after** `TARGET_TS`; for a latest-available
+restore, take the newest archive. Extra objects in the archive are harmless orphans.
+
+List the archives (read-only):
+
+```bash
+docker compose exec -T backup wal-g st ls uploads/
+```
+
+Take one now, for example before an update (the same script the schedule runs):
+
+```bash
+docker compose exec -T backup bash /ops/uploads-backup.sh
+```
+
+### Restore an uploads archive into a NEW project
+
+Run this after the database restore in "Restore into a NEW project" above, with the same
+`RECOVERY_PROJECT`. It extracts into that project's own `uploads` volume and refuses a volume that
+already holds files.
+
+```bash
+set -euo pipefail
+: "${RECOVERY_PROJECT:?set RECOVERY_PROJECT to the recovery project used for the database}"
+# Optional: UPLOADS_ARCHIVE=uploads_<stamp>.tar picks one; default is the newest.
+
+# Create the recovery project's (empty) volumes without starting anything.
+docker compose -p "$RECOVERY_PROJECT" up --no-start app
+
+docker compose -p "$RECOVERY_PROJECT" --profile restore run --rm --no-deps \
+  -e UPLOADS_ARCHIVE -v "${RECOVERY_PROJECT}_uploads:/target" --entrypoint bash restore -c '
+  set -euo pipefail
+  [ -z "$(ls -A /target)" ] || { echo "refusing a non-empty uploads volume" >&2; exit 1; }
+  name="${UPLOADS_ARCHIVE:-$(wal-g st ls uploads/ | awk "{print \$NF}" \
+    | grep -E "^uploads_[0-9]{8}T[0-9]{6}Z\.tar$" | sort | tail -n 1)}"
+  [ -n "$name" ] || { echo "no uploads archive found" >&2; exit 1; }
+  echo "restoring uploads/$name"
+  wal-g st get --no-decompress "uploads/$name" /tmp/uploads.tar
+  tar --numeric-owner -xf /tmp/uploads.tar -C /target
+  find /target -type f | wc -l
+'
+```
+
+Start the recovered app only with the deployment's original `STORAGE_ENCRYPTION_KEY` (and salt).
+Then sign in and open an attachment: it must render, and `/healthz` must report `"db":"up"`.
+
+### Rehearsing a restore locally
+
+In the plain-HTTP rehearsal (`docker-compose.rehearsal.yml`), the S3 stand-in runs inside the
+source project, so a recovery project cannot reach it by default. Run the recovery project with the
+base `docker-compose.yml`, an env file that adds the rehearsal's S3 values
+(`WALG_S3_PREFIX=s3://jiangtang-rehearsal`, the `REHEARSAL_S3_*` keys as `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY`, `AWS_ENDPOINT` set to the `minio` service on port 9000 over plain HTTP,
+`AWS_S3_FORCE_PATH_STYLE=true`) and an override that joins the source network:
+
+```yaml
+services:
+  postgres:
+    command: ["postgres", "-c", "archive_mode=off"]
+    networks: [default, source]
+  restore:
+    networks: [default, source]
+  caddy:
+    ports: !override
+      - "127.0.0.1:8080:80"
+networks:
+  source:
+    external: true
+    name: jiangtang-rehearsal_default
+```
+
+Stop the source project's `caddy` first so the recovery project can take port 8080. A real S3
+target needs none of this.
+
 ## Failure alerts
 
 With `ALERT_WEBHOOK` set, the `alerting` sidecar posts backup problems to the same webhook as
@@ -293,6 +390,7 @@ sidecar reads it once a minute (`ops/alerting/backup-alert.sh`):
 | --- | --- | --- |
 | Base backup failed | `backup.sh` exits non-zero, including a refused configuration | `ops/postgres/backup.sh` (`backup.failed`) |
 | No recent base backup | the last successful base backup is older than 36 hours (`BACKUP_MAX_AGE_SECONDS`), for example because the sidecar stopped | `backup.sh` stamps `backup.ok` on success |
+| Uploads archive failed | `uploads-backup.sh` exits non-zero, including a refused configuration | `ops/postgres/uploads-backup.sh` (`uploads.failed`) |
 | WAL archiving failing | `pg_stat_archiver` shows a failed push newer than the last successful one, or cannot be read; checked hourly | `ops/postgres/check-wal-archive.sh` (`wal-archive.failed`) |
 
 Each alert is posted once when it appears or its first line changes, repeated every 6 hours while it

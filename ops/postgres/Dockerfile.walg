@@ -14,11 +14,14 @@ ARG WALG_BIN=wal-g-pg-24.04-amd64
 # SHA-256 published by wal-g alongside the release assets
 # (releases/download/v3.0.9/wal-g-pg-24.04-amd64.sha256). v3.0.9 was published
 # 2026-08-20 — well over 7 days old when pinned (2026-10-08).
+# GitHub's release CDN answers an occasional 5xx; the retries keep a deploy or CI
+# build from failing on one, and the checksum below still pins the bytes.
 ARG WALG_SHA256=8015836f246a978f27b31a2462eac7765312558ae5b11ac033322b555abf9e22
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl python3 \
- && curl -fsSL "https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/${WALG_BIN}" \
+ && curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 \
+      "https://github.com/wal-g/wal-g/releases/download/${WALG_VERSION}/${WALG_BIN}" \
       -o /usr/local/bin/wal-g \
  && echo "${WALG_SHA256}  /usr/local/bin/wal-g" | sha256sum -c - \
  && chmod +x /usr/local/bin/wal-g \
