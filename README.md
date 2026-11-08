@@ -51,8 +51,9 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
   carries an amd64 WAL-G binary. ARM hosts are not supported.
 - **One workspace per deployment in this release.** Multi-tenancy is designed but not
   implemented yet — see [docs/MULTI-TENANCY-DESIGN.md](docs/MULTI-TENANCY-DESIGN.md) for the
-  scoping strategy and rollout. The same applies to unifying the `Campus`/`Building`/`Room`
-  trio into the `Location` tree: [docs/PLACES-UNIFICATION-DESIGN.md](docs/PLACES-UNIFICATION-DESIGN.md).
+  scoping strategy and rollout. Rooms (bookable spaces) and locations (any place where things are or
+  happen) are separate concepts by design; see
+  [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#rooms-and-locations).
 - **Self-hosted by default.** Nothing is published for you — no telemetry service, no container
   image. The app ships an opt-in public landing page at `/welcome` (`LANDING_PAGE_ENABLED=1`), and
   [docs/HOSTED-DEMO-SPEC.md](docs/HOSTED-DEMO-SPEC.md) is the runbook an operator follows to run
