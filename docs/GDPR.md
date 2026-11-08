@@ -191,7 +191,7 @@ and may create a processor relationship that the operator has to document.
 
 With `CALDAV_URL`, `CALDAV_USERNAME` and `CALDAV_PASSWORD` set, the outbox worker pushes one `.ics`
 resource per event to the configured collection, using HTTP Basic authentication
-(`app/lib/calendar/caldav.server.ts`). The payload contains the event UID, title, description, start
+(`app/lib/calendar/caldav.server.ts`), and deletes that resource when the event is cancelled. The payload contains the event UID, title, description, start
 and end times, status/sequence, and the names of the booked rooms. The application stores no external
 attendee list; the event's internal service windows (including the covering user) are not part of the
 calendar payload. Free text in a title or description can still contain personal data.

@@ -247,6 +247,7 @@ async function drainPass(publisher: CalendarPublisher, opts?: DrainOptions): Pro
         data: {
           attempts,
           lastError: message,
+          lastAttemptAt: new Date(failedAt()),
           nextAttemptAt: new Date(failedAt() + backoffMs(attempts)),
           ...(parked ? { status: "FAILED" as const } : {}),
         },
@@ -285,6 +286,10 @@ export interface CalendarSyncHealth {
   oldestStuckAt: Date | null;
   /** The oldest stuck rows (failed or retrying), oldest first. */
   stuck: CalendarSyncStuckRow[];
+  /** When the most recent push reached the calendar. */
+  lastSuccessAt: Date | null;
+  /** The most recent failure of a push that has not gone through since. */
+  lastError: { message: string; at: Date } | null;
 }
 
 /** Calendar push status for the admin page: what is waiting, retrying or parked. */
@@ -298,7 +303,7 @@ export async function calendarSyncHealth(opts?: {
     status: "PENDING" as const,
     attempts: { gte: STUCK_AFTER_ATTEMPTS },
   };
-  const [pending, retrying, failed, stuck] = await Promise.all([
+  const [pending, retrying, failed, stuck, lastSent, lastFailed] = await Promise.all([
     db.calendarOutbox.count({ where: { ...uid, status: "PENDING" } }),
     db.calendarOutbox.count({ where: retryingWhere }),
     db.calendarOutbox.count({ where: { ...uid, status: "FAILED" } }),
@@ -314,6 +319,21 @@ export async function calendarSyncHealth(opts?: {
         lastError: true,
         createdAt: true,
       },
+    }),
+    db.calendarOutbox.findFirst({
+      where: { ...uid, status: "SENT" },
+      orderBy: { processedAt: "desc" },
+      select: { processedAt: true },
+    }),
+    db.calendarOutbox.findFirst({
+      where: {
+        ...uid,
+        status: { in: ["PENDING", "FAILED"] },
+        lastError: { not: null },
+        lastAttemptAt: { not: null },
+      },
+      orderBy: { lastAttemptAt: "desc" },
+      select: { lastError: true, lastAttemptAt: true },
     }),
   ]);
   const events = stuck.length
@@ -333,5 +353,10 @@ export async function calendarSyncHealth(opts?: {
       status: r.status === "FAILED" ? "FAILED" : "PENDING",
       event: eventByUid.get(r.eventUid) ?? null,
     })),
+    lastSuccessAt: lastSent?.processedAt ?? null,
+    lastError:
+      lastFailed?.lastError && lastFailed.lastAttemptAt
+        ? { message: lastFailed.lastError, at: lastFailed.lastAttemptAt }
+        : null,
   };
 }
