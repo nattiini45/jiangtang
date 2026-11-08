@@ -112,6 +112,41 @@ describe("CalDavPublisher request timeout", () => {
       vi.useRealTimers();
     }
   });
+
+  /** Sends the headers at once, then never finishes the body until aborted. */
+  function stalledBody(status: number) {
+    return vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = new ReadableStream({
+        start(controller) {
+          init?.signal?.addEventListener("abort", () => controller.error(new Error("aborted")));
+        },
+      });
+      return new Response(body, { status });
+    });
+  }
+
+  it.each([
+    ["an error response", (pub: CalDavPublisher) => pub.upsert(payload()), 500],
+    ["a PROPFIND answer", (pub: CalDavPublisher) => pub.check(), 207],
+  ])("keeps the timeout while reading %s whose body stalls", async (_name, call, status) => {
+    vi.useFakeTimers();
+    try {
+      const pub = new CalDavPublisher(CONFIG, stalledBody(status));
+      let settled = false;
+      const pending = call(pub).then(
+        (v) => ((settled = true), v),
+        (e: unknown) => {
+          settled = true;
+          return e;
+        },
+      );
+      await vi.advanceTimersByTimeAsync(CALDAV_REQUEST_TIMEOUT_MS);
+      await pending;
+      expect(settled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("CalDavPublisher.remove", () => {

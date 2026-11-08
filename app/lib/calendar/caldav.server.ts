@@ -109,12 +109,15 @@ export class CalDavPublisher implements CalendarPublisher {
 
   async upsert(payload: CalendarPayload): Promise<void> {
     const url = resourceUrl(this.config.url, payload.uid);
-    const res = await this.request(url, {
-      method: "PUT",
-      headers: { "Content-Type": "text/calendar; charset=utf-8" },
-      body: renderIcalObject(payloadToFeedEvent(payload)),
-    });
-    await this.throwUnlessOk(res, "PUT", url);
+    await this.request(
+      url,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "text/calendar; charset=utf-8" },
+        body: renderIcalObject(payloadToFeedEvent(payload)),
+      },
+      (res) => this.throwUnlessOk(res, "PUT", url),
+    );
   }
 
   /**
@@ -124,9 +127,10 @@ export class CalDavPublisher implements CalendarPublisher {
    */
   async remove(uid: string): Promise<void> {
     const url = resourceUrl(this.config.url, uid);
-    const res = await this.request(url, { method: "DELETE" });
-    if (res.status === 404 || res.status === 410) return;
-    await this.throwUnlessOk(res, "DELETE", url);
+    await this.request(url, { method: "DELETE" }, async (res) => {
+      if (res.status === 404 || res.status === 410) return;
+      await this.throwUnlessOk(res, "DELETE", url);
+    });
   }
 
   /**
@@ -135,23 +139,27 @@ export class CalDavPublisher implements CalendarPublisher {
    * are given the benefit of the doubt.
    */
   async check(): Promise<CalDavCheck> {
-    let res: Response;
+    let status: number;
+    let text: string;
     try {
-      res = await this.request(this.config.url, {
-        method: "PROPFIND",
-        headers: { Depth: "0", "Content-Type": "application/xml; charset=utf-8" },
-        body: PROPFIND_BODY,
-      });
+      ({ status, text } = await this.request(
+        this.config.url,
+        {
+          method: "PROPFIND",
+          headers: { Depth: "0", "Content-Type": "application/xml; charset=utf-8" },
+          body: PROPFIND_BODY,
+        },
+        async (res) => ({ status: res.status, text: await res.text() }),
+      ));
     } catch (e) {
       return { ok: false, reason: "network", detail: (e as Error).message };
     }
-    const text = await res.text().catch(() => "");
-    if (res.status === 401 || res.status === 403) {
-      return { ok: false, reason: "unauthorized", detail: `HTTP ${res.status}` };
+    if (status === 401 || status === 403) {
+      return { ok: false, reason: "unauthorized", detail: `HTTP ${status}` };
     }
-    if (res.status === 404) return { ok: false, reason: "notFound", detail: "HTTP 404" };
-    if (res.status !== 207) {
-      return { ok: false, reason: "http", detail: `HTTP ${res.status}: ${text.slice(0, 200)}` };
+    if (status === 404) return { ok: false, reason: "notFound", detail: "HTTP 404" };
+    if (status !== 207) {
+      return { ok: false, reason: "http", detail: `HTTP ${status}: ${text.slice(0, 200)}` };
     }
     const resourceType = xmlText(text, "resourcetype") ?? "";
     if (!/<(?:[\w-]+:)?calendar[\s/>]/.test(resourceType)) {
@@ -167,11 +175,16 @@ export class CalDavPublisher implements CalendarPublisher {
     return { ok: true, displayName: xmlText(text, "displayname")?.trim() || null };
   }
 
-  private async request(url: string, init: RequestInit): Promise<Response> {
+  /** Sends one request and consumes its response, both within the timeout. */
+  private async request<T>(
+    url: string,
+    init: RequestInit,
+    consume: (res: Response) => Promise<T>,
+  ): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), CALDAV_REQUEST_TIMEOUT_MS);
     try {
-      return await this.fetchImpl(url, {
+      const res = await this.fetchImpl(url, {
         ...init,
         headers: {
           ...(init.headers as Record<string, string> | undefined),
@@ -179,6 +192,7 @@ export class CalDavPublisher implements CalendarPublisher {
         },
         signal: controller.signal,
       });
+      return await consume(res);
     } finally {
       clearTimeout(timer);
     }
