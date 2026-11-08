@@ -1,6 +1,7 @@
 import { isAPIError } from "better-auth/api";
 import { auth, MAX_PASSWORD_LENGTH, type AuthUser } from "~/lib/auth.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
+import { db } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { qrSvg } from "~/lib/qr.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -223,4 +224,19 @@ export async function resetTwoFactor(userId: string, actor: AuditActor): Promise
     await tx.user.update({ where: { id: userId }, data: { twoFactorEnabled: false } });
     await audit({ action: "TwoFactorReset", entityType: "user", entityId: userId });
   });
+}
+
+/**
+ * The operator command's entry (`pnpm admin:reset-2fa <email>`), for when the
+ * only admin lost their second factor: find the active account by email (any
+ * letter case) and reset it like the admin page does.
+ */
+export async function resetTwoFactorForEmail(email: string, actor: AuditActor): Promise<string> {
+  const user = await db.user.findFirst({
+    where: { email: { equals: email.trim(), mode: "insensitive" }, isActive: true },
+    select: { id: true, email: true },
+  });
+  if (!user) throw new NotFoundError(tr("places.err.reset.noAccount"));
+  await resetTwoFactor(user.id, actor);
+  return user.email;
 }

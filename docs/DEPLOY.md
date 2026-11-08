@@ -216,6 +216,17 @@ Both paths write an audit row (`PasswordResetIssued`, then `PasswordReset` when 
 the operator command is recorded as „Operator (admin:reset-password)". The `ADMIN_EMAIL` bootstrap
 above is only for an installation with no active admin at all.
 
+When the only admin lost both their authenticator and their backup codes, turn their two-factor
+authentication off from the app container; the password alone signs in afterwards and they can set
+it up again on `/account`. It writes a `TwoFactorReset` audit row recorded as „Operator
+(admin:reset-2fa)", and an unknown, deactivated or not enrolled email exits with status 1:
+
+```sh
+docker compose exec app node --import tsx scripts/admin-reset-2fa.ts admin@example.org
+```
+
+In a checkout with `.env` filled in, `pnpm admin:reset-2fa admin@example.org` does the same.
+
 ## 7. Optional demo data
 
 An empty workspace shows an admin-only „Demo-Workspace laden“ button on the dashboard. It loads the
