@@ -1,10 +1,10 @@
 # Places unification design (specification — not implemented in this release)
 
-Status: **design only.** The locked audit decision (§12.4, "Unify into one model") asks for one
-places tree with bookable nodes replacing the separate `Campus`/`Building`/`Room` trio. This
-document is that plan; no code or migration here changes anything yet. When executed, the
-[ARCHITECTURE.md](ARCHITECTURE.md) data-model table rows for "Places for AV work" and "Location
-spine" merge into one row linking this doc.
+Status: **parked.** The project keeps rooms and locations as independent concepts (see
+[ARCHITECTURE.md](ARCHITECTURE.md#rooms-and-locations)); this design is kept for reference only.
+The audit decision (§12.4, "Unify into one model") that asked for one places tree with bookable
+nodes replacing the separate `Campus`/`Building`/`Room` trio has been reversed. This document is
+the plan that decision produced; no code or migration here changes anything.
 
 ## Current state (the duplication)
 

@@ -26,8 +26,8 @@ The schema lives in `prisma/schema.prisma`. The main families:
 
 | Family                 | Models                                                                         | Notes                                                                                                         |
 | ---------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| Places for AV work     | `Campus` → `Building` → `Room` (to be unified into the `Location` tree — see [PLACES-UNIFICATION-DESIGN.md](PLACES-UNIFICATION-DESIGN.md)) | A `Room` carries capabilities (projector, microphones, recording), a status and external links.               |
-| Location spine         | `Location` (self-referencing tree, `LocationKind`: site, building, room, storage, rack, vehicle, …) | Generic places for stock, tasks and notes. A subtree must be reparented before a parent is deleted. |
+| Rooms                  | `Campus` → `Building` → `Room`                                                 | Bookable spaces. A `Room` carries capabilities (projector, microphones, recording), a status and external links. See [Rooms and locations](#rooms-and-locations). |
+| Locations              | `Location` (self-referencing tree, `LocationKind`: site, building, room, storage, rack, vehicle, …) | Any place where things are or happen, independent of rooms. A subtree must be reparented before a parent is deleted. |
 | Equipment              | `EquipmentModel` (catalog), `Equipment` (instances)                            | Fixed or pooled mobility, spare/substitute links, per-type attributes (network, microphone, lamp).            |
 | Stock                  | `InventoryItem`, `Vendor`                                                      | Optional SKU and serial, unique in the database; quantity, warranty, supplier. May link to an `Equipment`.    |
 | Tickets                | `Ticket`                                                                       | Incident, request or repair. A repair may be created already resolved ("born resolved").                     |
@@ -39,6 +39,29 @@ The schema lives in `prisma/schema.prisma`. The main families:
 | History                | `ActivityLog`                                                                  | Append-only audit trail, one row per meaningful mutation.                                                     |
 | Calendar output        | `CalendarOutbox`                                                               | Transactional outbox for CalDAV publishing.                                                                   |
 | Search                 | `Chunk`, `SearchIndexJob`                                                      | Derived index rows, rebuilt from the domain rows; never a source of truth.                                    |
+
+### Rooms and locations
+
+Rooms and locations are two independent concepts, and both stay. Do not merge them, and do not
+treat a location as a kind of room or a room as a kind of location.
+
+- **A room is a bookable space.** `Room` sits in the `Campus` → `Building` → `Room` hierarchy and
+  is what events book: `EventRoomBooking` (with the no-double-booking `EXCLUDE` constraint) and
+  `ServiceWindow` point at it. Fixed equipment (`Equipment.roomId`; `null` means the movable
+  pool), tickets and photo attachments can point at a room too.
+- **A location is any place where things are or happen.** It can be a storage shelf, a rack, a
+  vehicle, an external site, a virtual place, or a building or room in its own right
+  (`LocationKind`). It does not have to be a room and is not tied to one. Stock
+  (`InventoryItem.locationId`), tasks, notes and vendors point at a location, always optionally,
+  with `ON DELETE SET NULL`.
+- **There is no link between the two trees today.** `Room` has no location column and `Location`
+  has no room column, so a location of kind `ROOM` and a `Room` with the same name are unrelated
+  rows. A stock item reaches a room only through its optional `Equipment` link.
+
+When adding a feature, pick by purpose: anything that is booked, scheduled into or checked for
+conflicts uses `Room`; anything that says where something is kept or where work happens uses
+`Location`. A design for unifying the trees exists ([PLACES-UNIFICATION-DESIGN.md](PLACES-UNIFICATION-DESIGN.md));
+it is parked, not planned.
 
 Tickets and tasks are linked in both directions (`Ticket.taskId`, `Task.ticketId`) with
 `ON DELETE SET NULL`, so deleting one never deletes the other. The `workitem` view in the database
