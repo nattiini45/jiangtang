@@ -24,7 +24,7 @@ export function projectColumns(t: Translate): ColumnDef<ProjectListRow>[] {
           {row.original.color ? (
             <span
               aria-hidden
-              className="mr-2 inline-block size-2.5 rounded-sm align-middle"
+              className="mr-2 inline-block size-2.5 rounded-sm align-middle shadow-[inset_0_0_0_1px_var(--input)]"
               style={{ backgroundColor: row.original.color }}
             />
           ) : null}

@@ -23,7 +23,7 @@ import { useT } from "~/i18n/use-t";
  * day, reconstructed from the activity log, plus an ideal line from the
  * starting total to 0 at the project's dueAt.
  */
-const AXIS_TICK = { fontSize: 10, fill: "var(--muted-foreground)" };
+const AXIS_TICK = { fontSize: 10, fill: "var(--chart-secondary)" };
 
 export function ProjectBurndown({
   tasks,
@@ -76,12 +76,12 @@ export function ProjectBurndown({
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis
               dataKey="day"
               tick={AXIS_TICK}
               tickLine={false}
-              axisLine={{ stroke: "var(--border)" }}
+              axisLine={{ stroke: "var(--chart-grid)" }}
               tickFormatter={(d: string) => d.slice(5)}
               minTickGap={24}
             />
@@ -95,6 +95,7 @@ export function ProjectBurndown({
               width={40}
             />
             <Tooltip
+              itemStyle={{ color: "var(--popover-foreground)" }}
               contentStyle={{
                 background: "var(--popover)",
                 color: "var(--popover-foreground)",
@@ -118,7 +119,7 @@ export function ProjectBurndown({
               type="stepAfter"
               dataKey="remaining"
               name="remaining"
-              stroke="var(--fluid-accent)"
+              stroke="var(--chart-primary)"
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}
@@ -128,7 +129,7 @@ export function ProjectBurndown({
                 type="linear"
                 dataKey="ideal"
                 name="ideal"
-                stroke="var(--muted-foreground)"
+                stroke="var(--chart-secondary)"
                 strokeWidth={1.5}
                 strokeDasharray="6 3"
                 dot={false}

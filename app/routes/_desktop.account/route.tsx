@@ -194,12 +194,12 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
         {twoFactorEnabled ? t("account.twoFactor.statusOn") : t("account.twoFactor.statusOff")}
       </p>
       {confirmed ? (
-        <p role="status" className="bg-status-info/15 text-status-info mt-4 rounded-lg p-3 text-sm">
+        <p role="status" className="bg-status-info/15 text-foreground mt-4 rounded-lg p-3 text-sm">
           {t("account.twoFactor.enabled")}
         </p>
       ) : null}
       {disabled ? (
-        <p role="status" className="bg-status-info/15 text-status-info mt-4 rounded-lg p-3 text-sm">
+        <p role="status" className="bg-status-info/15 text-foreground mt-4 rounded-lg p-3 text-sm">
           {t("account.twoFactor.disabled")}
         </p>
       ) : null}
@@ -212,7 +212,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
             <>
               <p
                 role="status"
-                className="bg-status-info/15 text-status-info mt-4 rounded-lg p-3 text-sm"
+                className="bg-status-info/15 text-foreground mt-4 rounded-lg p-3 text-sm"
               >
                 {t("account.twoFactor.regenerated")}
               </p>
@@ -246,7 +246,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
             <div
               role="img"
               aria-label={t("account.twoFactor.qrLabel")}
-              className="bg-white shrink-0 rounded-md p-1 [&>svg]:block [&>svg]:size-44"
+              className="bg-qr-paper shrink-0 rounded-md p-1 [&>svg]:block [&>svg]:size-44"
               dangerouslySetInnerHTML={{ __html: enrolment.qrSvg }}
             />
             <div className="min-w-0">
@@ -288,7 +288,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
       <h2 className="mt-8 text-base font-semibold">{t("account.password.heading")}</h2>
       <p className="text-muted-foreground mt-1 text-sm">{t("account.password.intro")}</p>
       {changed ? (
-        <p role="status" className="bg-status-info/15 text-status-info mt-4 rounded-lg p-3 text-sm">
+        <p role="status" className="bg-status-info/15 text-foreground mt-4 rounded-lg p-3 text-sm">
           {t("account.password.changed")}
         </p>
       ) : null}

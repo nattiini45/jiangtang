@@ -16,7 +16,7 @@ import "./app.css";
 
 export const links: Route.LinksFunction = () => [
   // PWA manifest + theme color. The manifest is scoped to /m/ so the
-  // desktop surface isn't offered "install". theme_color matches the dark token.
+  // desktop surface isn't offered "install".
   { rel: "manifest", href: "/manifest.webmanifest" },
   { rel: "apple-touch-icon", href: "/icon-192.png" },
 ];

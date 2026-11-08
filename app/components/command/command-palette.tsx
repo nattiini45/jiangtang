@@ -272,7 +272,7 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, transition: spring.slow.exit }}
           transition={spring.slow}
-          className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 pt-[12vh] dark:bg-black/50"
+          className="bg-scrim fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh]"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) close();
           }}

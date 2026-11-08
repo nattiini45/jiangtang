@@ -12,11 +12,11 @@
  * flattens to white, so shadow alone separates layers; dark mode climbs an even
  * white ladder. Hover and selected are translucent overlays, so they read on any
  * surface. One accent (focus rings, switch track, selection detail) and never as
- * text. Values target WCAG AA in each mode; the status colors are unchanged
- * because the e2e axe sweep measured them.
+ * text. Semantic colors and control boundaries are measured in both themes.
  */
 
 :root {
+  color-scheme: light;
   /* The Fluid Functionalism blue (#6b97ff) reaches only 2.8:1 on the light floor;
      focus rings and the switch track need 3:1 (WCAG 1.4.11), so light mode uses a
      deeper step of the same hue and dark mode the original. */
@@ -65,23 +65,45 @@
   --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
   --border: rgb(0 0 0 / 0.09);
-  --input: #d9d9d9;
+  --input: #8f8f8f;
   --ring: var(--focus-ring);
   /* Checkbox outline, dark enough to read as a control (3:1 on white). */
-  --checkbox-ring: #8f8f8f;
+  --checkbox-ring: var(--input);
+  --switch-track: var(--input);
+  --switch-thumb: var(--surface-3);
+  --switch-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  --scrim: rgb(0 0 0 / 0.3);
+  --qr-paper: #ffffff;
+  --camera-preview: #000000;
   --checkmark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23171717' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
 
-  /* Frozen status colors (operational / fault / warning / info). */
-  --status-operational: oklch(0.52 0.15 150);
-  --status-operational-foreground: oklch(0.99 0 0);
-  --status-fault: oklch(0.53 0.22 25);
-  --status-fault-foreground: oklch(0.99 0 0);
+  --status-success: oklch(0.52 0.15 150);
+  --status-success-foreground: oklch(0.99 0 0);
+  --status-danger: oklch(0.53 0.22 25);
+  --status-danger-foreground: oklch(0.99 0 0);
+  --status-operational: var(--status-success);
+  --status-operational-foreground: var(--status-success-foreground);
+  --status-fault: var(--status-danger);
+  --status-fault-foreground: var(--status-danger-foreground);
   /* 0.58 → 0.53: text-status-warning on white/tinted backgrounds needs ≥4.5:1
      (axe color-contrast); at 0.58 it measured ~3.7–4.4. */
   --status-warning: oklch(0.53 0.12 70);
   --status-warning-foreground: oklch(0.99 0 0);
   --status-info: oklch(0.52 0.16 250);
   --status-info-foreground: oklch(0.99 0 0);
+  --status-review: oklch(0.55 0.16 300);
+  --status-review-foreground: oklch(0.99 0 0);
+  --priority-urgent: var(--status-danger);
+  --priority-high: var(--status-warning);
+  --priority-medium: var(--foreground);
+  --priority-low: var(--muted-foreground);
+  --chart-primary: var(--fluid-accent);
+  --chart-secondary: var(--muted-foreground);
+  --chart-complete: oklch(0.62 0 0);
+  --chart-critical: var(--status-danger);
+  --chart-grid: var(--border);
+  --chart-booked: color-mix(in oklab, var(--status-info) 75%, transparent);
+  --destructive-hover: color-mix(in oklab, var(--destructive) 88%, black);
 }
 
 /* Size ladder, default step (36px controls). A region can pin a step with its
@@ -133,6 +155,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --surface-1: #171717;
   --surface-2: #1e1e1e;
   --surface-3: #252525;
@@ -172,18 +195,23 @@
   --destructive: oklch(0.7 0.19 25);
   --destructive-foreground: oklch(0.16 0 0);
   --border: rgb(255 255 255 / 0.09);
-  --input: #3d3d3d;
-  --checkbox-ring: #7a7a7a;
+  --input: #7a7a7a;
+  --switch-thumb: var(--background);
+  --scrim: rgb(0 0 0 / 0.5);
   --checkmark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ededed' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-7'/%3E%3C/svg%3E");
 
-  --status-operational: oklch(0.72 0.16 150);
-  --status-operational-foreground: oklch(0.16 0 0);
-  --status-fault: oklch(0.68 0.2 25);
-  --status-fault-foreground: oklch(0.16 0 0);
+  --status-success: oklch(0.72 0.16 150);
+  --status-success-foreground: oklch(0.16 0 0);
+  --status-danger: oklch(0.68 0.2 25);
+  --status-danger-foreground: oklch(0.16 0 0);
   --status-warning: oklch(0.78 0.14 75);
   --status-warning-foreground: oklch(0.16 0 0);
   --status-info: oklch(0.7 0.14 250);
   --status-info-foreground: oklch(0.16 0 0);
+  --status-review: oklch(0.75 0.13 300);
+  --status-review-foreground: oklch(0.16 0 0);
+  --chart-booked: color-mix(in oklab, var(--status-info) 70%, transparent);
+  --chart-complete: oklch(0.6 0 0);
 }
 
 /* Map runtime CSS vars to Tailwind utilities (bg-background, text-foreground,
@@ -213,6 +241,16 @@
   --color-selected: var(--selected);
   --color-tint: var(--tint);
   --color-tint-hover: var(--tint-hover);
+  --color-switch-track: var(--switch-track);
+  --color-switch-thumb: var(--switch-thumb);
+  --color-scrim: var(--scrim);
+  --color-qr-paper: var(--qr-paper);
+  --color-camera-preview: var(--camera-preview);
+  --color-chart-booked: var(--chart-booked);
+  --color-priority-urgent: var(--priority-urgent);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
 
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
@@ -233,6 +271,8 @@
   --color-status-warning-foreground: var(--status-warning-foreground);
   --color-status-info: var(--status-info);
   --color-status-info-foreground: var(--status-info-foreground);
+  --color-status-review: var(--status-review);
+  --color-status-review-foreground: var(--status-review-foreground);
 
   /* Rounded shape: controls 8px, panels and popups 12px, dialogs 16px. A layer
      inset 4px inside a 12px container takes 8px, so corners stay concentric. */

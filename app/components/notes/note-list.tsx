@@ -87,7 +87,8 @@ export function NoteList({
                     className="inline-block size-2 rounded-sm"
                     style={{
                       backgroundColor: note.project.color ?? "transparent",
-                      border: "1px solid var(--border)",
+                      border: "1px solid",
+                      borderColor: note.project.color ? "var(--input)" : "transparent",
                     }}
                   />
                   {note.project.name}

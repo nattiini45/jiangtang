@@ -71,7 +71,7 @@ export function ProjectGantt({
               height={HEADER_H + chartH + 8}
               className="block text-foreground"
             >
-              <text x={8} y={HEADER_H - 10} fontSize={10} className="fill-muted-foreground">
+              <text x={8} y={HEADER_H - 10} fontSize={10} className="fill-(--chart-secondary)">
                 {t("projects.gantt.taskColumn")}
               </text>
               {layout.rows.map((row, i) => (
@@ -80,7 +80,7 @@ export function ProjectGantt({
                   x={8 + row.depth * 16}
                   y={y(i) + 4}
                   fontSize={12}
-                  className={row.done ? "fill-muted-foreground" : "fill-foreground"}
+                  className={row.done ? "fill-(--chart-secondary)" : "fill-foreground"}
                 >
                   {row.task.title.length > 32 ? `${row.task.title.slice(0, 31)}…` : row.task.title}
                 </text>
@@ -105,13 +105,13 @@ export function ProjectGantt({
                     x2={x(w.day)}
                     y1={0}
                     y2={HEADER_H + chartH}
-                    className="stroke-border"
+                    className="stroke-(--chart-grid)"
                     strokeWidth={1}
                   />
                   <text
                     x={Math.max(x(w.day), 0) + 4}
                     y={HEADER_H - 10}
-                    className="fill-muted-foreground nums"
+                    className="fill-(--chart-secondary) nums"
                     fontSize={10}
                   >
                     {w.label}
@@ -138,7 +138,7 @@ export function ProjectGantt({
                 x2={x(layout.today + 0.5)}
                 y1={0}
                 y2={HEADER_H + chartH}
-                className="stroke-destructive"
+                className="stroke-(--chart-critical)"
                 strokeWidth={1.5}
                 strokeDasharray="4 2"
               />
@@ -159,10 +159,10 @@ export function ProjectGantt({
                         rx={1}
                         className={
                           row.overdue
-                            ? "fill-destructive"
+                            ? "fill-(--chart-critical)"
                             : row.done
-                              ? "fill-input"
-                              : "fill-(--fluid-accent)"
+                              ? "fill-(--chart-complete)"
+                              : "fill-(--chart-primary)"
                         }
                       />
                       <Link
@@ -201,10 +201,10 @@ export function ProjectGantt({
                         d={`M ${x(row.milestone) + PX_PER_DAY / 2} ${cy - 7} l 7 7 l -7 7 l -7 -7 z`}
                         className={
                           row.overdue
-                            ? "fill-destructive"
+                            ? "fill-(--chart-critical)"
                             : row.done
-                              ? "fill-input"
-                              : "fill-(--fluid-accent)"
+                              ? "fill-(--chart-complete)"
+                              : "fill-(--chart-primary)"
                         }
                       />
                     </Link>
@@ -225,7 +225,7 @@ export function ProjectGantt({
                   key={i}
                   d={`M ${x0} ${y0} H ${midX} V ${y1} H ${x1}`}
                   fill="none"
-                  className="stroke-muted-foreground"
+                  className="stroke-(--chart-secondary)"
                   strokeWidth={1.25}
                   markerEnd="url(#gantt-arrow)"
                 />
@@ -241,7 +241,7 @@ export function ProjectGantt({
                 markerHeight="7"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 0 L 8 4 L 0 8 z" className="fill-muted-foreground" />
+                <path d="M 0 0 L 8 4 L 0 8 z" className="fill-(--chart-secondary)" />
               </marker>
             </defs>
           </svg>

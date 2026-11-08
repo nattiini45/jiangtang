@@ -19,7 +19,7 @@ export function QrCode({
   return (
     <section className="bg-card shadow-surface-2 flex items-center gap-4 rounded-lg p-4">
       <div
-        className="bg-white shrink-0 rounded-md p-1 [&>svg]:block [&>svg]:size-36"
+        className="bg-qr-paper shrink-0 rounded-md p-1 [&>svg]:block [&>svg]:size-36"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
       <div className="flex min-w-0 flex-col gap-1">

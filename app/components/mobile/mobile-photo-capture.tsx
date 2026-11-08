@@ -108,7 +108,7 @@ export function MobilePhotoCapture({
           {/* a live camera feed has no captions (jsx-a11y media-has-caption N/A) */}
           <video
             ref={videoRef}
-            className="bg-black aspect-video w-full rounded-lg"
+            className="bg-camera-preview aspect-video w-full rounded-lg"
             playsInline
             muted
           />

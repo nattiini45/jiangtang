@@ -2,7 +2,7 @@ import type { StockStatus, TaskPriority, UserRole } from "~/generated/prisma/cli
 import { useLocale } from "~/i18n/use-t";
 import { roleLabel } from "~/components/auth/labels";
 import { kindLabel } from "~/components/locations/labels";
-import { stockStatusLabel, taskPriorityLabel } from "~/lib/status";
+import { stockStatusLabel, taskPriorityClassName, taskPriorityLabel } from "~/lib/status";
 
 /**
  * Localized enum text for the module-level DataGrid column definitions, whose
@@ -10,7 +10,9 @@ import { stockStatusLabel, taskPriorityLabel } from "~/lib/status";
  */
 
 export function TaskPriorityText({ value }: { value: TaskPriority }) {
-  return <>{taskPriorityLabel(useLocale(), value)}</>;
+  return (
+    <span className={taskPriorityClassName(value)}>{taskPriorityLabel(useLocale(), value)}</span>
+  );
 }
 
 export function StockStatusText({ value }: { value: StockStatus }) {
