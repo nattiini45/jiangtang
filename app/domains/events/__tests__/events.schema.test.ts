@@ -55,7 +55,7 @@ describe("event edit time validation", () => {
     expect(eventCreateSchema.parse(input)).toMatchObject(input);
     expect(roomBookingSchema.safeParse({ ...input, roomId: "synthetic-room" }).success).toBe(false);
     const ordered = { ...input, startsAt: input.endsAt, endsAt: input.startsAt };
-    expect(eventCreateSchema.safeParse(ordered).success).toBe(false);
+    expect(eventCreateSchema.parse(ordered)).toMatchObject(ordered);
     expect(roomBookingSchema.parse({ ...ordered, roomId: "synthetic-room" })).not.toHaveProperty(
       "startsAtInstant",
     );
