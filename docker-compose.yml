@@ -278,6 +278,8 @@ services:
       WARRANTY_WINDOW_DAYS: ${WARRANTY_WINDOW_DAYS:-30}
       # Self-hosted iCal feed token (generate a long random; subscribe at /calendar/<token>/ics).
       ICAL_FEED_TOKEN: ${ICAL_FEED_TOKEN:-}
+      # "true" = admins must set up two-factor authentication before they can use the app.
+      REQUIRE_ADMIN_TWO_FACTOR: ${REQUIRE_ADMIN_TWO_FACTOR:-}
       # First-admin bootstrap. It acts only while no active ADMIN exists (first install,
       # or recovery after a full lockout); otherwise the values are ignored. Empty = skip.
       # Recovering an existing ADMIN_EMAIL account needs ADMIN_PASSWORD to match its current

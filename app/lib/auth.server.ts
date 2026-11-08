@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
+import { twoFactor } from "better-auth/plugins";
 import { redirect } from "react-router";
 import { db } from "~/lib/db.server";
 import {
@@ -46,6 +47,10 @@ function loginAttemptOf(ctx: {
  * No admin plugin here: it requires banned/banReason/banExpires columns we don't
  * model. Role checks and the active-user gate use our own role and isActive
  * fields, enforced in the exported helpers below.
+ *
+ * The twoFactor plugin adds optional TOTP with backup codes. Its sign-in hook
+ * turns a correct password of an enrolled user into a short-lived challenge
+ * cookie instead of a session; `/login/two-factor` completes it.
  */
 export const auth = betterAuth({
   appName: "Jiangtang",
@@ -85,6 +90,7 @@ export const auth = betterAuth({
     minPasswordLength: MIN_PASSWORD_LENGTH,
     maxPasswordLength: MAX_PASSWORD_LENGTH,
   },
+  plugins: [twoFactor()],
   user: {
     additionalFields: {
       // input:false → cannot be self-assigned at sign-up (no privilege escalation).
@@ -110,6 +116,7 @@ export type AppRole = "ADMIN" | "MEMBER";
  */
 export type AuthUser = typeof auth.$Infer.Session.user & {
   role: AppRole;
+  twoFactorEnabled: boolean;
   initials: string | null;
   isActive: boolean;
   weeklyCapacityMinutes: number | null;
@@ -143,17 +150,38 @@ export async function getOptionalUser(request: Request): Promise<AuthUser | null
 }
 
 /**
+ * Whether admins must use two-factor authentication. Set
+ * REQUIRE_ADMIN_TWO_FACTOR=true once every admin can enrol; an admin without it
+ * is then held on the account page until they do.
+ */
+export function adminTwoFactorRequired(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.REQUIRE_ADMIN_TWO_FACTOR === "true";
+}
+
+/** Where an admin who still has to enrol is sent, and the paths they may still load. */
+const TWO_FACTOR_ENROLMENT_PATH = "/account";
+const ENROLMENT_PATHS = new Set([TWO_FACTOR_ENROLMENT_PATH, `${TWO_FACTOR_ENROLMENT_PATH}.data`]);
+
+/**
  * Requires a signed-in (active) user; redirects to /login otherwise, preserving
  * the attempted path as `?next=` so the user returns there after authenticating.
  */
 export async function requireUser(request: Request): Promise<AuthUser> {
   const user = await getOptionalUser(request);
+  const { pathname, search } = new URL(request.url);
   if (!user) {
-    const { pathname, search } = new URL(request.url);
     throw redirect(`/login?next=${encodeURIComponent(pathname + search)}`);
   }
   if (user.isActive === false) {
     throw redirect("/login?deactivated=1");
+  }
+  if (
+    user.role === "ADMIN" &&
+    !user.twoFactorEnabled &&
+    adminTwoFactorRequired() &&
+    !ENROLMENT_PATHS.has(pathname)
+  ) {
+    throw redirect(`${TWO_FACTOR_ENROLMENT_PATH}?twoFactor=required`);
   }
   return user;
 }
