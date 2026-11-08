@@ -23,7 +23,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const params = new URL(request.url).searchParams;
   const day = parseCalendarDate(params.get("date"));
   const date = dayIndexToDateKey(day);
-  if (params.get("date") !== date) throw redirect(`/m/events?date=${date}`);
+  if (params.has("date") && params.get("date") !== date) throw redirect(`/m/events?date=${date}`);
   const range = calendarRange(day, "day");
   const calendar = await getCalendarData({ from: range.from, to: range.to });
   return { events: calendar.events.filter((event) => event.status !== "CANCELLED"), day, date };
