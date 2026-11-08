@@ -10,7 +10,7 @@ import {
   clearEmbeddingModels,
 } from "~/lib/search/indexer.server";
 import { logger } from "~/lib/observability/logger.server";
-import { getCalDavConfig } from "~/lib/calendar/caldav.server";
+import { CalDavPublisher, getCalDavConfig, type CalDavCheck } from "~/lib/calendar/caldav.server";
 import { calendarSyncHealth } from "~/lib/calendar/outbox.server";
 import { formatDateTime } from "~/i18n/format";
 import { sourceTypeLabel } from "~/lib/search/labels";
@@ -57,6 +57,11 @@ export async function action({ request }: Route.ActionArgs) {
     kick();
     return { ok: true };
   }
+  if (intent === "testCalendar") {
+    const config = getCalDavConfig();
+    if (!config) return { error: t(locale, "admin.index.calendar.off") };
+    return { calendarCheck: await new CalDavPublisher(config).check() };
+  }
   return { error: t(locale, "err.unknownAction") };
 }
 
@@ -80,6 +85,15 @@ const STATE_LABEL: Record<string, MessageKey> = {
   misconfigured: "admin.index.state.misconfigured",
 };
 
+const CHECK_FAILURE_LABEL: Record<Extract<CalDavCheck, { ok: false }>["reason"], MessageKey> = {
+  unauthorized: "admin.index.calendar.test.unauthorized",
+  notFound: "admin.index.calendar.test.notFound",
+  notCalendar: "admin.index.calendar.test.notCalendar",
+  readOnly: "admin.index.calendar.test.readOnly",
+  http: "admin.index.calendar.test.http",
+  network: "admin.index.calendar.test.network",
+};
+
 const CAPABILITY_LABEL: Record<string, MessageKey> = {
   embedding: "admin.index.capability.embedding",
   reranker: "admin.index.capability.reranker",
@@ -91,6 +105,13 @@ export default function AdminIndex({ loaderData }: Route.ComponentProps) {
   const t = useT();
   const { statuses, stats, jobs, calendar } = loaderData;
   const fetcher = useFetcher<typeof action>();
+  const calendarFetcher = useFetcher<typeof action>();
+  const check =
+    calendarFetcher.state === "idle" &&
+    calendarFetcher.data &&
+    "calendarCheck" in calendarFetcher.data
+      ? calendarFetcher.data.calendarCheck
+      : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -167,9 +188,23 @@ export default function AdminIndex({ loaderData }: Route.ComponentProps) {
       </section>
 
       <section className="bg-card shadow-surface-2 rounded-lg">
-        <h2 className="border-border border-b px-4 py-3 text-base font-semibold">
-          {t("admin.index.calendar")}
-        </h2>
+        <div className="border-border flex items-center justify-between gap-4 border-b px-4 py-3">
+          <h2 className="text-base font-semibold">{t("admin.index.calendar")}</h2>
+          {calendar !== null ? (
+            <calendarFetcher.Form method="post">
+              <Button
+                type="submit"
+                name="intent"
+                value="testCalendar"
+                variant="secondary"
+                size="compact"
+                disabled={calendarFetcher.state !== "idle"}
+              >
+                {t("admin.index.calendar.test")}
+              </Button>
+            </calendarFetcher.Form>
+          ) : null}
+        </div>
         {calendar === null ? (
           <p className="text-muted-foreground px-4 py-3 text-sm">{t("admin.index.calendar.off")}</p>
         ) : (
@@ -189,6 +224,50 @@ export default function AdminIndex({ loaderData }: Route.ComponentProps) {
                 </span>
               ) : null}
             </p>
+            {check ? (
+              <div className="border-border border-t px-4 py-3 text-sm" role="status">
+                {check.ok ? (
+                  <p>
+                    {check.displayName
+                      ? t("admin.index.calendar.test.okNamed", { name: check.displayName })
+                      : t("admin.index.calendar.test.ok")}
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-destructive">{t(CHECK_FAILURE_LABEL[check.reason])}</p>
+                    {check.detail ? (
+                      <p className="text-muted-foreground truncate text-xs" title={check.detail}>
+                        {check.detail}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            ) : null}
+            <div className="border-border flex flex-col gap-1 border-t px-4 py-3 text-sm">
+              <p className="nums">
+                {calendar.lastSuccessAt
+                  ? t("admin.index.calendar.lastSuccess", {
+                      at: formatDateTime(locale, calendar.lastSuccessAt),
+                    })
+                  : t("admin.index.calendar.lastSuccessNever")}
+              </p>
+              {calendar.lastError ? (
+                <p>
+                  <span className="text-destructive nums">
+                    {t("admin.index.calendar.lastError", {
+                      at: formatDateTime(locale, calendar.lastError.at),
+                    })}
+                  </span>
+                  <span
+                    className="text-muted-foreground block truncate text-xs"
+                    title={calendar.lastError.message}
+                  >
+                    {calendar.lastError.message}
+                  </span>
+                </p>
+              ) : null}
+            </div>
             {calendar.stuck.length > 0 ? (
               <ul className="divide-border border-border divide-y border-t text-sm">
                 {calendar.stuck.map((row) => (
