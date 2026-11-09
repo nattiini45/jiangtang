@@ -111,7 +111,9 @@ are optional segments in `flatRoutes`, so the two surfaces are:
   `m.notes.new`, `m.board`, `m.rooms.*`, `m.tickets.*`, `m.search` and `m.offline`. It has its own
   shell, a web manifest and a service worker (`app/lib/pwa/`), and an offline queue that replays
   captured tickets, tasks and notes exactly once (ticket photos are never queued: offline, the
-  `/m` entry form keeps them until the person retries or saves the ticket without them).
+  `/m` entry form keeps them until the person retries or saves the ticket without them). See
+  [mobile installation and updates](MOBILE-PWA.md) for install hints, launch assets and the
+  waiting-worker update flow.
 - **Public or machine routes**: `login`, `logout`, `accept-invite.$token`, `reset-password.$token`, `healthz`,
   `calendar.$token.ics` (token-gated iCal feed), `export.workspace[.]json`, `notes.$id.export`,
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`
