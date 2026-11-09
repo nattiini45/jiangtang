@@ -76,20 +76,10 @@ export const ticketCreateSchema = ticketContent
   });
 
 // ── Status transition (guarded; resolve / start / reopen / cancel) ─────────────
-export const ticketTransitionSchema = z
-  .object({
-    status: z.enum(TicketStatus),
-    resolution: optionalText,
-  })
-  .superRefine((t, ctx) => {
-    if (t.status === TicketStatus.RESOLVED && !t.resolution) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["resolution"],
-        message: msgKey("work.err.ticket.resolutionRequired"),
-      });
-    }
-  });
+export const ticketTransitionSchema = z.object({
+  status: z.enum(TicketStatus),
+  resolution: optionalText,
+});
 
 export type TicketContentInput = z.infer<typeof ticketContent>;
 export type TicketEditInput = z.infer<typeof ticketEditSchema>;

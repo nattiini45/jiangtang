@@ -2,6 +2,7 @@ import { db } from "~/lib/db.server";
 import { Prisma, type TicketStatus, type TicketType } from "~/generated/prisma/client";
 import { listRooms } from "~/domains/rooms/rooms.queries.server";
 import { listEquipment } from "~/domains/inventory/inventory.queries.server";
+import { ticketActionMetadata } from "./tickets.transitions";
 
 /** Read-only queries for the tickets domain (list, detail, assignable users). */
 
@@ -69,8 +70,8 @@ export async function listTickets(
 }
 
 /** Full ticket + linked entities for the detail / edit page. */
-export function getTicket(id: string) {
-  return db.ticket.findUnique({
+export async function getTicket(id: string) {
+  const ticket = await db.ticket.findUnique({
     where: { id },
     include: {
       room: { select: { id: true, slug: true, name: true } },
@@ -85,6 +86,7 @@ export function getTicket(id: string) {
       linkedTasks: { select: { id: true, title: true, status: true } },
     },
   });
+  return ticket ? { ...ticket, ...ticketActionMetadata(ticket.status) } : null;
 }
 
 export interface AssignableUser {

@@ -12,13 +12,15 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { LANES, type Lane } from "~/domains/tasks/tasks.lanes";
+import { LANES, TICKET_LANE_STATUS, type Lane } from "~/domains/tasks/tasks.lanes";
 import { laneTitle } from "~/components/tasks/labels";
 import { BoardColumn } from "./board-column";
 import type { BoardCard } from "./task-card";
 import { parseTicketDragId, type BoardTicket } from "./ticket-card";
 import { computeDrop, finalLaneOrder, type DragOrigin } from "./drop";
 import { Button } from "~/components/ui/button";
+import { Label } from "~/components/ui/label";
+import { Textarea } from "~/components/ui/textarea";
 import { useLocale, useT } from "~/i18n/use-t";
 
 /**
@@ -116,6 +118,13 @@ export function TaskBoard({
   const [ticketLanes, setTicketLanes] = React.useState<BoardTicketLanes>(initialTickets);
   const [error, setError] = React.useState<string | null>(null);
   const [showCancelled, setShowCancelled] = React.useState(false);
+  const [resolutionTicket, setResolutionTicket] = React.useState<BoardTicket | null>(null);
+  const resolutionDialog = React.useRef<HTMLDialogElement>(null);
+  const busy = fetcher.state !== "idle";
+
+  React.useEffect(() => {
+    if (resolutionTicket) resolutionDialog.current?.showModal();
+  }, [resolutionTicket]);
 
   // The drag's origin (lane + id order at pick-up). onDragOver already moves
   // the card between lanes in local state, so `onDragEnd` must compare the drop
@@ -154,6 +163,7 @@ export function TaskBoard({
       setError(fetcher.data.error);
     } else if (fetcher.data?.ok) {
       setError(null);
+      resolutionDialog.current?.close();
     }
   }, [fetcher.data]);
 
@@ -214,6 +224,29 @@ export function TaskBoard({
             : laneOfCard(lanes, overId)
         : undefined;
       if (!targetLane || targetLane === ticketDrag.lane) {
+        resync();
+        return;
+      }
+      const ticket = ticketLanes[ticketDrag.lane].find((ticket) => ticket.id === ticketDrag.id);
+      if (!ticket || busy || resolutionTicket) {
+        resync();
+        return;
+      }
+      const action = ticket.allowedActions.find(
+        (action) => action.target === TICKET_LANE_STATUS[targetLane],
+      );
+      if (!action) {
+        setError(
+          t("tickets.board.invalidDrop", {
+            lane: laneTitle(locale, targetLane),
+            actions: ticket.allowedActions.map((action) => t(action.labelKey)).join(", "),
+          }),
+        );
+        resync();
+        return;
+      }
+      if (action.requiredFields.includes("resolution")) {
+        setResolutionTicket(ticket);
         resync();
         return;
       }
@@ -283,7 +316,73 @@ export function TaskBoard({
 
   return (
     <div className="flex flex-col gap-3">
-      {error ? (
+      <dialog
+        ref={resolutionDialog}
+        aria-labelledby="board-resolution-title"
+        aria-describedby="board-resolution-help"
+        className="bg-card text-foreground shadow-surface-5 fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100%-2rem))] overflow-y-auto rounded-xl p-6 backdrop:bg-(--scrim)"
+        onClose={() => {
+          setResolutionTicket(null);
+          setError(null);
+        }}
+        onCancel={(event) => {
+          if (busy) event.preventDefault();
+        }}
+      >
+        {resolutionTicket ? (
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (busy) return;
+              void fetcher.submit(new FormData(event.currentTarget), {
+                method: "post",
+                action: submitAction,
+              });
+            }}
+          >
+            <h2 id="board-resolution-title" className="text-lg font-semibold break-words">
+              {t("tickets.board.resolveTitle", { title: resolutionTicket.title })}
+            </h2>
+            <p id="board-resolution-help" className="text-muted-foreground text-sm">
+              {t("tickets.detail.resolutionHelp")}
+            </p>
+            <input type="hidden" name="_action" value="move-ticket" />
+            <input type="hidden" name="ticketId" value={resolutionTicket.id} />
+            <input type="hidden" name="lane" value="DONE" />
+            <Label htmlFor="board-resolution">{t("tickets.detail.resolution")}</Label>
+            <Textarea
+              id="board-resolution"
+              name="resolution"
+              required
+              rows={3}
+              aria-describedby={
+                error ? "board-resolution-help board-resolution-error" : "board-resolution-help"
+              }
+              aria-invalid={Boolean(error)}
+            />
+            {error ? (
+              <p id="board-resolution-error" role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="tertiary"
+                disabled={busy}
+                onClick={() => resolutionDialog.current?.close()}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" disabled={busy}>
+                {busy ? t("common.saving") : t("tickets.detail.resolve")}
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </dialog>
+      {error && !resolutionTicket ? (
         <p
           role="alert"
           className="text-destructive bg-card shadow-surface-2 rounded-lg px-3 py-2 text-sm"
