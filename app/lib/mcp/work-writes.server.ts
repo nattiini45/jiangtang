@@ -418,7 +418,8 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     context,
     {
       name: "stop_timer",
-      description: "Stop the signed-in user's running timer.",
+      description:
+        "Stop the signed-in user's running timer strictly after its start time. A start equal to or later than the server's current time is refused without changes. Recover by correcting startsAt or supplying an endsAt after startsAt with update_time_entry, or wait until after the start time.",
       schema: z.object({}),
       write: true,
     },
@@ -434,7 +435,7 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     {
       name: "create_time_entry",
       description:
-        "Create a time entry using ISO instants with offsets. Null endsAt creates a running timer. Members log for themselves; only admins may choose userId.",
+        "Create a time entry using ISO instants with offsets. Null endsAt creates a running timer whose startsAt must be at or before the server's mutation-time now. Use start_timer to start your own timer at server time. Finished intervals require endsAt after startsAt and may be in the future. Members log for themselves; only admins may choose userId.",
       schema: z.object({ input: timeInput }),
       write: true,
     },
@@ -457,7 +458,7 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     {
       name: "update_time_entry",
       description:
-        "Replace a time entry's times, task and comment using ISO instants with offsets. Members edit only their own entries; admins may edit others. Ownership cannot be reassigned.",
+        "Replace a time entry's times, task and comment using ISO instants with offsets. Changed running results (endsAt: null) require startsAt at or before the server's mutation-time now; identical updates remain unaudited no-write no-ops, including existing future-running entries. Finished intervals require endsAt after startsAt and may be in the future. Use start_timer to start your own timer at server time. Members edit only their own entries; admins may edit others. Ownership cannot be reassigned.",
       schema: byId.extend({ input: timeInput.omit({ userId: true }) }),
       write: true,
     },
