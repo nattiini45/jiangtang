@@ -195,6 +195,7 @@ export async function createEventWithBooking(
       entityId: event.id,
       data: { title: event.title },
     });
+    await assertEventMutable(tx, event.id);
     const bookingRow = await insertOrConflict(
       () =>
         tx.eventRoomBooking.create({
