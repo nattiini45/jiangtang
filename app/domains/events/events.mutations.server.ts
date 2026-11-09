@@ -195,7 +195,6 @@ export async function createEventWithBooking(
       entityId: event.id,
       data: { title: event.title },
     });
-    await enqueueUpsert(tx, event);
     const bookingRow = await insertOrConflict(
       () =>
         tx.eventRoomBooking.create({
@@ -214,6 +213,7 @@ export async function createEventWithBooking(
       entityId: bookingRow.id,
       data: { roomId: booking.roomId },
     });
+    await enqueueUpsert(tx, event);
     return event;
   });
 }
