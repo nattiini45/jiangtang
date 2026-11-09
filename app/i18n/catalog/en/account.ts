@@ -49,6 +49,7 @@ export const accountEn = {
   "account.twoFactor.err.alreadyEnabled": "Two-factor authentication is already on.",
   "account.twoFactor.err.enrolmentExpired": "The setup has expired. Please start again.",
   "account.tokens.heading": "Personal access tokens",
+  "account.tokens.inactive": "Personal access tokens cannot be created for an inactive account.",
   "account.tokens.intro":
     "Connect an AI client to Jiangtang through MCP. Each token acts with your account's permissions.",
   "account.tokens.name": "Token name",

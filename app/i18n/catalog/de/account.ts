@@ -50,6 +50,7 @@ export const accountDe = {
   "account.twoFactor.err.alreadyEnabled": "Die Zwei-Faktor-Authentifizierung ist bereits aktiv.",
   "account.twoFactor.err.enrolmentExpired": "Die Einrichtung ist abgelaufen. Bitte starte sie neu.",
   "account.tokens.heading": "Persönliche Zugriffstokens",
+  "account.tokens.inactive": "Für ein inaktives Konto können keine Zugriffstoken erstellt werden.",
   "account.tokens.intro":
     "Verbinde einen KI-Client über MCP mit Jiangtang. Jeder Token nutzt die Berechtigungen deines Kontos.",
   "account.tokens.name": "Tokenname",
