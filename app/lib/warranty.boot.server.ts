@@ -40,7 +40,7 @@ export async function runWarrantySweep(): Promise<number> {
   return expiring.length;
 }
 
-export async function register(_app: Express, _ctx: BootContext): Promise<void> {
+export async function register(_app: Express, ctx: BootContext): Promise<void> {
   async function tick(): Promise<void> {
     try {
       await runWarrantySweep();
@@ -55,4 +55,5 @@ export async function register(_app: Express, _ctx: BootContext): Promise<void> 
   void tick();
   const handle = setInterval(tick, DAY_MS);
   handle.unref?.();
+  ctx.onShutdown(() => clearInterval(handle));
 }

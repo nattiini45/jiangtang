@@ -38,7 +38,7 @@ export function retentionCutoff(retentionDays: number): Date {
   return new Date(Date.now() - retentionDays * DAY_MS);
 }
 
-export async function register(_app: Express, _ctx: BootContext): Promise<void> {
+export async function register(_app: Express, ctx: BootContext): Promise<void> {
   const retentionDays = getRetentionDays();
 
   async function tick(): Promise<void> {
@@ -56,4 +56,5 @@ export async function register(_app: Express, _ctx: BootContext): Promise<void> 
   void tick();
   const handle = setInterval(tick, DAY_MS);
   handle.unref?.();
+  ctx.onShutdown(() => clearInterval(handle));
 }
