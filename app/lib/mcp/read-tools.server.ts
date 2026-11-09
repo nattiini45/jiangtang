@@ -521,10 +521,36 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_ticket",
       description:
-        "Get a ticket with its reporter, assignees, room, equipment, event and linked tasks by ID.",
+        "Get a ticket with its reporter, assignees, room, equipment, event, linked tasks and legal next actions by ID. Use get_allowed_actions to inspect write permission and required inputs before acting.",
       schema: byId,
     },
     ({ id }) => found(getTicket(id)),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "get_allowed_actions",
+      description:
+        "Inspect a ticket's current workflow, legal next actions, required resolution input and caller write permission. Ticket only. OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS; no self transitions. READ_ONLY may inspect but cannot write. Refresh before acting; transition/move still requires human confirmation.",
+      schema: z.object({ entityType: z.enum(["ticket"]), id }),
+    },
+    async ({ entityType, id }, context) => {
+      const ticket = await found(getTicket(id));
+      const canWrite = context.token.scope === "READ_WRITE";
+      return {
+        entity: entityType,
+        id,
+        currentState: ticket.status,
+        allowedTransitions: ticket.allowedTransitions,
+        allowedActions: ticket.allowedActions,
+        canWrite,
+        permissionReason: canWrite
+          ? null
+          : { code: "READ_ONLY", message: tr("err.mcp.writeTokenRequired") },
+        requiresConfirmation: true,
+      };
+    },
   );
   registerTool(
     server,

@@ -4,7 +4,12 @@ import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { tr } from "~/i18n/request-locale.server";
 import { resolveLocale } from "~/i18n/locale.server";
-import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  NotFoundError,
+  toErrorResponse,
+  TransitionError,
+  ValidationError,
+} from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { getTicket } from "~/domains/tickets/tickets.queries.server";
 import { listAttachments } from "~/domains/attachments/attachments.queries.server";
@@ -38,7 +43,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const ticket = await getTicket(params.id);
   if (!ticket) throw toErrorResponse(new NotFoundError(tr("err.ticket.notFound")));
   const attachments = await listAttachments({ ticketId: params.id });
-  return { ticket, attachments };
+  return { ticket, attachments, allowedActions: ticket.allowedActions };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -58,22 +63,24 @@ export async function action({ request, params }: Route.ActionArgs) {
     return redirect(`/m/tickets/${id}`);
   } catch (e) {
     if (e instanceof ValidationError) {
-      // The transition form renders no `status` field, so a field-keyed error is
-      // invisible — surface it as a general form error too (mirrors desktop).
-      return { fieldErrors: e.fieldErrors, formError: e.formErrors[0] };
+      return {
+        fieldErrors: e.fieldErrors,
+        formError: e.formErrors[0],
+        formErrors: e.formErrors,
+        ...(e instanceof TransitionError ? { transition: e.transition } : {}),
+      };
     }
     throw toErrorResponse(e);
   }
 }
 
 export default function MobileTicketDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { ticket, attachments } = loaderData;
+  const { ticket, attachments, allowedActions } = loaderData;
   const nav = useNavigation();
   const busy = nav.state !== "idle";
   const locale = useLocale();
   const t = useT();
   const [searchParams] = useSearchParams();
-  const openish = ticket.status === "OPEN" || ticket.status === "IN_PROGRESS";
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
@@ -165,22 +172,18 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
           </p>
         ) : null}
 
-        {ticket.status === "OPEN" ? (
-          <TransitionButton
-            status="IN_PROGRESS"
-            label={t("tickets.detail.takeInProgress")}
-            busy={busy}
-          />
-        ) : null}
-        {ticket.status === "RESOLVED" || ticket.status === "CANCELLED" ? (
-          <TransitionButton
-            status="OPEN"
-            label={t("tickets.detail.reopen")}
-            variant="outline"
-            busy={busy}
-          />
-        ) : null}
-        {openish ? (
+        {allowedActions
+          .filter((action) => action.requiredFields.length === 0 && action.target !== "CANCELLED")
+          .map((action) => (
+            <TransitionButton
+              key={action.target}
+              status={action.target}
+              label={t(action.labelKey)}
+              variant={action.target === "OPEN" ? "outline" : undefined}
+              busy={busy}
+            />
+          ))}
+        {allowedActions.some((action) => action.requiredFields.includes("resolution")) ? (
           <Form method="post" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="status" value="RESOLVED" />
             <Label htmlFor="resolution">{t("tickets.detail.markResolved")}</Label>
@@ -190,9 +193,19 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
               rows={2}
               placeholder={t("tickets.detail.resolutionPlaceholder")}
               className="text-base"
+              required
+              aria-describedby={
+                actionData?.fieldErrors?.resolution
+                  ? "resolution-help resolution-error"
+                  : "resolution-help"
+              }
+              aria-invalid={Boolean(actionData?.fieldErrors?.resolution)}
             />
+            <p id="resolution-help" className="text-muted-foreground text-xs">
+              {t("tickets.detail.resolutionHelp")}
+            </p>
             {actionData?.fieldErrors?.resolution ? (
-              <p className="text-destructive text-xs" role="alert">
+              <p id="resolution-error" className="text-destructive text-xs" role="alert">
                 {actionData.fieldErrors.resolution[0]}
               </p>
             ) : null}
@@ -201,7 +214,7 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
             </Button>
           </Form>
         ) : null}
-        {openish ? (
+        {allowedActions.some((action) => action.target === "CANCELLED") ? (
           <Form
             method="post"
             onSubmit={(event) => {

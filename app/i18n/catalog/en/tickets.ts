@@ -7,6 +7,10 @@ export const ticketsEn = {
   "tickets.meta.fallbackTitle": "Ticket",
 
   "tickets.back": "← Tickets",
+  "tickets.detail.resolutionHelp":
+    "A resolution note is required. Describe what was done before resolving this ticket.",
+  "tickets.board.resolveTitle": "Resolve ticket: {title}",
+  "tickets.board.invalidDrop": "This ticket cannot move to {lane}. Available actions: {actions}.",
 
   "tickets.list.title": "Tickets",
   "tickets.list.subtitle": "Incidents, requests and repairs.",

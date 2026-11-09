@@ -1,12 +1,16 @@
 import { tr } from "~/i18n/request-locale.server";
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { NotFoundError, TransitionError, ValidationError } from "~/lib/errors.server";
 import { TicketStatus } from "~/generated/prisma/enums";
 import type { Ticket } from "~/generated/prisma/client";
 import { db, type Tx } from "~/lib/db.server";
 import { isUniqueViolation } from "~/lib/db-errors.server";
 import type { TicketCreateInput, TicketEditInput, TicketTransitionInput } from "./tickets.schema";
-import { ticketTransitionSchema } from "./tickets.schema";
+import {
+  TICKET_TRANSITIONS,
+  ticketActionMetadata,
+  type TicketTransitionRejection,
+} from "./tickets.transitions";
 import { laneOfTicketStatus, TICKET_LANE_STATUS, type Lane } from "~/domains/tasks/tasks.lanes";
 import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 
@@ -17,20 +21,6 @@ import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
  */
 
 const isResolved = (s: TicketStatus) => s === TicketStatus.RESOLVED;
-const isOpenish = (s: TicketStatus) => s === TicketStatus.OPEN || s === TicketStatus.IN_PROGRESS;
-
-/**
- * Legal status moves. Enforced server-side so a stale browser tab or a direct
- * POST can't drive an illegal transition (e.g. re-resolving an already-resolved
- * ticket, which would silently overwrite its resolution). Mirrors the buttons the
- * detail UI renders. Same-status (no-op) moves are intentionally excluded.
- */
-const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  OPEN: ["IN_PROGRESS", "RESOLVED", "CANCELLED"],
-  IN_PROGRESS: ["OPEN", "RESOLVED", "CANCELLED"],
-  RESOLVED: ["OPEN", "IN_PROGRESS"],
-  CANCELLED: ["OPEN", "IN_PROGRESS"],
-};
 
 /** Optional links (room / equipment / event). Empty → null (detached). */
 function ticketLinks(input: { roomId?: string; equipmentId?: string; eventId?: string }) {
@@ -192,7 +182,7 @@ export async function updateTicket(
 
 /**
  * The in-transaction half of `transitionTicket` (the `createTicketInTx`
- * precedent): the guarded status move — `ALLOWED_TRANSITIONS`, resolvedAt
+ * precedent): the guarded status move — transition table, resolvedAt
  * side-effects, the precise audit verb — composed inside a caller's
  * `txWithAudit`. `moveTicketToLane` is the caller this exists for, so a
  * board drag goes through exactly the transition rules a button click does.
@@ -203,50 +193,59 @@ export async function transitionTicketInTx(
   id: string,
   input: TicketTransitionInput,
 ): Promise<Ticket> {
+  await tx.$queryRaw`SELECT "id" FROM "Ticket" WHERE "id" = ${id} FOR UPDATE`;
   const current = await tx.ticket.findUnique({
     where: { id },
     select: { status: true, resolvedAt: true },
   });
   if (!current) throw new NotFoundError(tr("work.err.ticket.notFound"));
 
-  if (!ALLOWED_TRANSITIONS[current.status].includes(input.status)) {
+  const edge = TICKET_TRANSITIONS[current.status].find((edge) => edge.target === input.status);
+  if (!edge) {
     const message = tr("work.err.ticket.invalidTransition", {
       from: current.status,
       to: input.status,
     });
-    // The transition form (route) renders no `status` field, so a field-keyed
-    // error would be silently dropped — surface it as a general form error too
-    // so a rejected illegal transition is visible instead of a silent no-op.
-    throw new ValidationError({ status: [message] }, [message]);
+    throw new TransitionError(
+      {
+        entity: "ticket",
+        currentState: current.status,
+        attemptedTarget: input.status,
+        ...ticketActionMetadata(current.status),
+        reason: { code: "INVALID_TRANSITION", message },
+      } satisfies TicketTransitionRejection,
+      { status: [message] },
+    );
   }
 
-  const resolved = isResolved(input.status);
-  const reopened = isOpenish(input.status);
+  if (edge.requiredFields.some((field) => !input[field]?.trim())) {
+    const message = tr("work.err.ticket.resolutionRequired");
+    throw new TransitionError(
+      {
+        entity: "ticket",
+        currentState: current.status,
+        attemptedTarget: input.status,
+        ...ticketActionMetadata(current.status),
+        reason: { code: "RESOLUTION_REQUIRED", message },
+      } satisfies TicketTransitionRejection,
+      { resolution: [message] },
+    );
+  }
 
   const ticket = await tx.ticket.update({
     where: { id },
     data: {
       status: input.status,
-      // Resolving sets the resolution; reopening clears it (and resolvedAt
-      // below); cancelling leaves both as-is.
-      ...(resolved
-        ? { resolution: input.resolution ?? null }
-        : reopened
-          ? { resolution: null }
+      ...(edge.effect === "resolve"
+        ? { resolution: input.resolution!, resolvedAt: current.resolvedAt ?? new Date() }
+        : edge.effect === "clearResolution"
+          ? { resolution: null, resolvedAt: null }
           : {}),
-      resolvedAt: resolved ? (current.resolvedAt ?? new Date()) : reopened ? null : undefined,
     },
   });
 
-  const verb = resolved
-    ? "TicketResolved"
-    : input.status === TicketStatus.CANCELLED
-      ? "TicketCancelled"
-      : input.status === TicketStatus.IN_PROGRESS
-        ? "TicketStarted"
-        : "TicketReopened";
   await audit({
-    action: verb,
+    action: edge.audit,
     entityType: "ticket",
     entityId: ticket.id,
     data: { from: current.status, to: input.status },
@@ -272,7 +271,7 @@ export async function transitionTicket(
 /**
  * `/board` work mode: drop a ticket card on a lane → the ticket takes
  * `TICKET_LANE_STATUS[lane]` through the same guarded transition the detail
- * buttons use — identical `ALLOWED_TRANSITIONS` and audit verbs. IN_REVIEW has
+ * buttons use — identical transition table and audit verbs. IN_REVIEW has
  * no ticket status, so a drop there is refused; a drop in the ticket's current
  * lane is a no-op (no write, no audit); an illegal from→to pair is refused with
  * the transition message.
@@ -284,20 +283,20 @@ export async function moveTicketToLane(
   transition?: Pick<TicketTransitionInput, "resolution">,
 ): Promise<Ticket> {
   const status = TICKET_LANE_STATUS[lane];
-  if (!status) {
-    throw new ValidationError({}, [tr("work.err.ticket.noReviewLane")]);
-  }
   return txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT "id" FROM "Ticket" WHERE "id" = ${ticketId} FOR UPDATE`;
     const current = await tx.ticket.findUnique({ where: { id: ticketId } });
     if (!current) throw new NotFoundError(tr("work.err.ticket.notFound"));
-    if (laneOfTicketStatus(current.status) === lane) return current; // same lane — no-op
-    return transitionTicketInTx(
-      tx,
-      audit,
-      ticketId,
-      transition === undefined
-        ? { status }
-        : ticketTransitionSchema.parse({ ...transition, status }),
-    );
+    if (!status) {
+      throw new TransitionError({
+        entity: "ticket",
+        currentState: current.status,
+        attemptedTarget: lane,
+        ...ticketActionMetadata(current.status),
+        reason: { code: "UNSUPPORTED_LANE", message: tr("work.err.ticket.noReviewLane") },
+      } satisfies TicketTransitionRejection);
+    }
+    if (laneOfTicketStatus(current.status) === lane) return current;
+    return transitionTicketInTx(tx, audit, ticketId, { ...transition, status });
   });
 }
