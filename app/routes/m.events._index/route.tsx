@@ -1,4 +1,5 @@
 import { Form, Link, redirect } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
@@ -99,11 +100,13 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
             berlinDayIndex(new Date(event.endsAt)) !== berlinDayIndex(new Date(event.startsAt));
           return (
             <li key={event.id}>
-              <Link
-                to={`/events/${event.id}`}
-                className="hover:bg-hover active:bg-selected flex min-h-16 flex-col gap-1 px-3 py-3"
+              <ViewSwitch
+                view="desktop"
+                desktopLabel
+                next={`/events/${event.id}`}
+                className="hover:bg-hover active:bg-selected flex min-h-16 w-full flex-col gap-1 px-3 py-3 text-left"
               >
-                <p className="text-muted-foreground nums text-xs">
+                <span className="text-muted-foreground nums text-xs">
                   {spansDays
                     ? `${formatDateWith(locale, event.startsAt, { day: "numeric", month: "short" })} · `
                     : ""}
@@ -112,7 +115,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
                     ? `${formatDateWith(locale, event.endsAt, { day: "numeric", month: "short" })} · `
                     : ""}
                   {formatTime(locale, event.endsAt)}
-                </p>
+                </span>
                 <span className="break-words text-sm font-semibold">{event.title}</span>
                 <span className="text-muted-foreground break-words text-xs">
                   {[
@@ -121,7 +124,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
                     eventStatusLabel(locale, event.status),
                   ].join(" · ")}
                 </span>
-              </Link>
+              </ViewSwitch>
             </li>
           );
         })}

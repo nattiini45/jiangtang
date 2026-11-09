@@ -1,5 +1,8 @@
 /** App chrome: sidebar navigation, header controls, language switcher, mobile shell, error pages. */
 export const shellDe = {
+  "shell.view.desktop": "Zur Desktopansicht wechseln",
+  "shell.view.desktopLabel": "Desktop-Ansicht",
+  "shell.view.mobile": "Zur Mobilansicht wechseln",
   "nav.overview": "Übersicht",
   "nav.board": "Board",
   "nav.tasks": "Aufgaben",

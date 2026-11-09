@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
@@ -64,9 +65,14 @@ export default function MobileStockDetail({ loaderData }: Route.ComponentProps) 
             [
               t("inventory.stock.col.device"),
               item.equipment ? (
-                <Link to={`/inventory/${item.equipment.id}`} className="hover:underline">
+                <ViewSwitch
+                  view="desktop"
+                  desktopLabel
+                  next={`/inventory/${item.equipment.id}`}
+                  className="hover:underline"
+                >
                   {item.equipment.name ?? item.equipment.assetTag ?? item.equipment.id}
-                </Link>
+                </ViewSwitch>
               ) : null,
             ],
             [

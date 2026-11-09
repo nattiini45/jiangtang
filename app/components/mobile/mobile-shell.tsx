@@ -17,6 +17,7 @@ import { useOfflineQueue } from "~/lib/pwa/offline-queue";
 import { QueueBadge } from "~/components/mobile/queue-badge";
 import { NavPendingIndicator } from "~/components/states/nav-pending";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import { WeightLabel } from "~/components/ui/weight-label";
 import type { MessageKey } from "~/i18n";
 import { roleLabel } from "~/components/auth/labels";
@@ -187,13 +188,12 @@ export function MobileShell({
                   </button>
                 </Form>
               </div>
-              <Link
-                to="/"
-                onClick={() => setMenuOpen(false)}
-                className="text-muted-foreground flex min-h-11 items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
+              <ViewSwitch
+                view="desktop"
+                className="text-muted-foreground flex min-h-11 w-full items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
               >
                 {t("mobile.menu.desktop")}
-              </Link>
+              </ViewSwitch>
             </motion.div>
           </>
         ) : null}

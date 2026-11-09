@@ -2,7 +2,8 @@ import { isAPIError } from "better-auth/api";
 import { useEffect } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
-import { auth, getOptionalUser, sanitizeNext } from "~/lib/auth.server";
+import { auth, getOptionalUser } from "~/lib/auth.server";
+import { authLanding } from "~/lib/view.server";
 import { landingPageEnabled } from "~/lib/landing.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
 import { FormField } from "~/components/forms";
@@ -16,7 +17,7 @@ import { purgeSignedInCaches } from "~/lib/pwa/purge-caches";
 
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const next = sanitizeNext(url.searchParams.get("next"));
+  const next = authLanding(request, url.searchParams.get("next"));
   const user = await getOptionalUser(request);
   // A deactivated account keeps a valid session, so `requireUser` sends it here
   // with ?deactivated=1. Redirecting it straight back to `next` would ping-pong
@@ -38,7 +39,7 @@ export async function action({ request }: Route.ActionArgs) {
   const email = String(form.get("email") ?? "");
   const password = String(form.get("password") ?? "");
   // Re-sanitize on the way out: never trust the round-tripped form value.
-  const next = sanitizeNext(String(form.get("next") ?? "/"));
+  const next = authLanding(request, String(form.get("next") ?? "/"));
   const forwardedFor = request.headers.get("x-forwarded-for");
 
   try {

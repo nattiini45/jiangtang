@@ -1,4 +1,6 @@
 import { Form, Link } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
+import { hasMobileEquivalent, viewPath } from "~/lib/view.server";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { hybridSearch } from "~/lib/search/query.server";
@@ -10,12 +12,6 @@ import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
 
-/**
- * Mobile search — one box over `hybridSearch`, results tap through to
- * the entity (the hrefs point at the desktop routes; deep mobile detail
- * pages exist only for tasks/tickets, and the links degrade gracefully to
- * the desktop layout inside the same PWA).
- */
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: translate(metaLocale(matches), "search.page.meta") }];
 }
@@ -26,7 +22,15 @@ export async function loader({ request }: Route.LoaderArgs) {
   const { results, degraded } = q
     ? await hybridSearch(q, { limit: 15 })
     : { results: [], degraded: [] };
-  return { q, results, degraded };
+  return {
+    q,
+    results: results.map((result) => ({
+      ...result,
+      mobileHref:
+        result.href && hasMobileEquivalent(result.href) ? viewPath(result.href, "mobile") : null,
+    })),
+    degraded,
+  };
 }
 
 export default function MobileSearch({ loaderData }: Route.ComponentProps) {
@@ -48,9 +52,9 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg empty:hidden">
         {results.map((r) => (
           <li key={`${r.sourceType}:${r.sourceId}`}>
-            {r.href ? (
+            {r.mobileHref ? (
               <Link
-                to={r.href}
+                to={r.mobileHref}
                 className="active:bg-selected block min-h-12 px-3 py-2 transition-colors duration-80"
               >
                 <div className="truncate text-sm font-semibold">{r.title}</div>
@@ -60,6 +64,19 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
                   dangerouslySetInnerHTML={{ __html: r.snippetHtml }}
                 />
               </Link>
+            ) : r.href ? (
+              <ViewSwitch
+                view="desktop"
+                desktopLabel
+                next={r.href}
+                className="active:bg-selected block min-h-12 w-full px-3 py-2 text-left transition-colors duration-80"
+              >
+                <span className="block truncate text-sm font-semibold">{r.title}</span>
+                <span
+                  className="text-muted-foreground line-clamp-2 text-xs [&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground"
+                  dangerouslySetInnerHTML={{ __html: r.snippetHtml }}
+                />
+              </ViewSwitch>
             ) : (
               <div className="px-3 py-3">
                 <div className="text-muted-foreground truncate text-sm">{r.title}</div>

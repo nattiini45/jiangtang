@@ -1,6 +1,9 @@
 import type { shellDe } from "../de/shell";
 
 export const shellEn = {
+  "shell.view.desktop": "Switch to desktop view",
+  "shell.view.desktopLabel": "Desktop view",
+  "shell.view.mobile": "Switch to mobile view",
   "nav.overview": "Overview",
   "nav.board": "Board",
   "nav.tasks": "Tasks",

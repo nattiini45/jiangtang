@@ -23,6 +23,7 @@ export const inviteSchema = z.object({
 export const acceptInviteSchema = z
   .object({
     token: z.string().min(1),
+    next: z.string().optional(),
     password: z
       .string()
       .min(MIN_PASSWORD_LENGTH, msgKey("places.err.auth.passwordMin"))

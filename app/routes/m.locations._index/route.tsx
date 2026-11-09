@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listLocationTree } from "~/domains/locations/locations.tree.server";
@@ -39,22 +39,24 @@ export default function MobileLocationsIndex({ loaderData }: Route.ComponentProp
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {nodes.map((node) => (
           <li key={node.id}>
-            <Link
-              to={`/locations/${node.id}`}
-              className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
+            <ViewSwitch
+              view="desktop"
+              desktopLabel
+              next={`/locations/${node.id}`}
+              className="active:bg-selected flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-80"
               // Same real hierarchy depth the desktop tree draws — a filtered or
               // mobile list must not flatten a parent into its own child.
               style={{ paddingLeft: `${0.75 + node.depth * 0.75}rem` }}
             >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{node.name}</p>
-                <p className="text-muted-foreground nums text-xs">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{node.name}</span>
+                <span className="text-muted-foreground nums block text-xs">
                   {node.code ? <span className="font-mono">{node.code}</span> : null}
                   {node.code ? " · " : null}
                   {kindLabel(locale, node.kind) || (node.code ? null : "—")}
-                </p>
-              </div>
-            </Link>
+                </span>
+              </span>
+            </ViewSwitch>
           </li>
         ))}
         {nodes.length === 0 ? (
