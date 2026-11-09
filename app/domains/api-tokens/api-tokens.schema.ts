@@ -14,4 +14,5 @@ export interface TokenActor {
   email?: string | null;
   initials?: string | null;
   role: "ADMIN" | "MEMBER";
+  twoFactorEnabled?: boolean;
 }

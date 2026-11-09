@@ -42,6 +42,39 @@ afterAll(async () => {
 });
 
 describe("personal access token creation", () => {
+  it("requires configured admin 2FA for other accounts' token management, not own setup", async () => {
+    process.env.REQUIRE_ADMIN_TWO_FACTOR = "true";
+    const target = await createPersonalAccessToken(member, {
+      name: "Other account",
+      scope: "READ_ONLY",
+    });
+    const own = await createPersonalAccessToken(admin, { name: "Own setup", scope: "READ_ONLY" });
+    await expect(listPersonalAccessTokens(admin, { all: true })).rejects.toMatchObject({
+      status: 403,
+    });
+    await expect(revokePersonalAccessToken(admin, target.record.id)).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(
+      (await db.personalAccessToken.findUniqueOrThrow({ where: { id: target.record.id } }))
+        .revokedAt,
+    ).toBeNull();
+    expect(await listPersonalAccessTokens(admin)).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: own.record.id })]),
+    );
+    await expect(revokePersonalAccessToken(admin, own.record.id)).resolves.toMatchObject({
+      id: own.record.id,
+      revokedAt: expect.any(Date),
+    });
+    await db.user.update({ where: { id: admin.id }, data: { twoFactorEnabled: true } });
+    const enrolled = { ...admin, twoFactorEnabled: true };
+    await expect(listPersonalAccessTokens(enrolled, { all: true })).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: target.record.id })]),
+    );
+    await expect(revokePersonalAccessToken(enrolled, target.record.id)).resolves.toMatchObject({
+      revokedAt: expect.any(Date),
+    });
+  });
   it("validates names and the two supported scopes", () => {
     expect(tokenCreateSchema.parse({ name: "  Synthetic client  ", scope: "READ_ONLY" })).toEqual({
       name: "Synthetic client",

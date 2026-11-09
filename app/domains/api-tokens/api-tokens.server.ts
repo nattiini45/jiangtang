@@ -21,8 +21,14 @@ const TOKEN_METADATA_SELECT = {
   lastUsedAt: true,
 } as const;
 
+export function canManageAllPersonalAccessTokens(actor: TokenActor): boolean {
+  return actor.role === "ADMIN" && (!adminTwoFactorRequired() || actor.twoFactorEnabled === true);
+}
+
 export async function listPersonalAccessTokens(actor: TokenActor, options: { all?: boolean } = {}) {
-  if (options.all && actor.role !== "ADMIN") throw new Response(null, { status: 403 });
+  if (options.all && !canManageAllPersonalAccessTokens(actor)) {
+    throw new Response(null, { status: 403 });
+  }
   const records = await db.personalAccessToken.findMany({
     where: options.all ? {} : { userId: actor.id },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
@@ -89,7 +95,7 @@ export async function revokePersonalAccessToken(actor: TokenActor, id: string) {
       select: TOKEN_METADATA_SELECT,
     });
     if (!existing) throw new NotFoundError();
-    if (existing.userId !== actor.id && actor.role !== "ADMIN") {
+    if (existing.userId !== actor.id && !canManageAllPersonalAccessTokens(actor)) {
       throw new Response(null, { status: 403 });
     }
     if (existing.revokedAt) return existing;

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AuthUser } from "~/lib/auth.server";
 
 const mocks = vi.hoisted(() => ({
@@ -13,11 +13,14 @@ vi.mock("~/lib/auth.server", async (importOriginal) => ({
   requireUser: mocks.requireUser,
 }));
 
-vi.mock("~/domains/api-tokens/api-tokens.server", () => ({
+vi.mock("~/domains/api-tokens/api-tokens.server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/domains/api-tokens/api-tokens.server")>()),
   createPersonalAccessToken: mocks.create,
   revokePersonalAccessToken: mocks.revoke,
   listPersonalAccessTokens: mocks.list,
 }));
+
+afterEach(() => vi.unstubAllEnvs());
 
 const { action, loader } = await import("~/routes/_desktop.account/route");
 
@@ -74,6 +77,18 @@ describe.each(["tokenCreate", "tokenRevoke"])("/account %s origin protection", (
 });
 
 describe("/account token management", () => {
+  it("keeps required-2FA enrollment available without exposing other accounts' tokens", async () => {
+    vi.stubEnv("REQUIRE_ADMIN_TWO_FACTOR", "true");
+    const admin = { ...user, role: "ADMIN", twoFactorEnabled: false };
+    mocks.requireUser.mockResolvedValueOnce(admin);
+    const result = await loader({
+      request: new Request(`${ORIGIN}/account`),
+      params: {},
+      context: {},
+    } as never);
+    expect(mocks.list).toHaveBeenCalledWith(admin, { all: false });
+    expect(result.twoFactorRequired).toBe(true);
+  });
   it("creates a same-origin token and marks the one-time response non-cacheable", async () => {
     const result = await post("tokenCreate", ORIGIN);
     expect(mocks.create).toHaveBeenCalledWith(user, { name: "Example client", scope: "READ_ONLY" });

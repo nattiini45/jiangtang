@@ -9,6 +9,7 @@ import {
   createPersonalAccessToken,
   listPersonalAccessTokens,
   revokePersonalAccessToken,
+  canManageAllPersonalAccessTokens,
 } from "~/domains/api-tokens/api-tokens.server";
 import { tokenCreateSchema } from "~/domains/api-tokens/api-tokens.schema";
 import {
@@ -65,7 +66,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       twoFactorEnabled: user.twoFactorEnabled,
       twoFactorRequired:
         user.role === "ADMIN" && adminTwoFactorRequired() && !user.twoFactorEnabled,
-      tokens: await listPersonalAccessTokens(user, { all: user.role === "ADMIN" }),
+      tokens: await listPersonalAccessTokens(user, { all: canManageAllPersonalAccessTokens(user) }),
     };
   } catch (error) {
     throw toErrorResponse(error);
@@ -360,7 +361,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
       <PersonalAccessTokens
         tokens={loaderData.tokens}
         userId={user.id}
-        isAdmin={user.role === "ADMIN"}
+        isAdmin={user.role === "ADMIN" && !loaderData.twoFactorRequired}
         result={result}
       />
     </div>
