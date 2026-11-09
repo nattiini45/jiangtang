@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { runPrefix } from "./run";
 import { db } from "~/lib/db.server";
+import { berlinDateKey } from "~/lib/berlin-days";
 
 async function openCalendar(page: Page, url: string) {
   await page.goto(url);
@@ -114,7 +115,14 @@ test("day drilling preserves tasks and resource filters", async ({ page }) => {
 });
 
 test("room keyboard navigation skips occupied hours without changing rooms", async ({ page }) => {
-  await openCalendar(page, "/events?view=rooms&status=CONFIRMED&equipment=missing");
+  const event = await db.event.findUniqueOrThrow({
+    where: { id: "seed_event_hybrid" },
+    select: { startsAt: true },
+  });
+  await openCalendar(
+    page,
+    `/events?view=rooms&date=${berlinDateKey(event.startsAt)}&status=CONFIRMED&equipment=missing`,
+  );
   await expect(page.getByRole("link", { name: /Demo-Hybridveranstaltung/ })).toBeVisible();
   const before = page.getByRole("link", { name: /Demo-Raum A.01.*09:00/ });
   await before.focus();

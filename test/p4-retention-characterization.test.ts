@@ -1,4 +1,5 @@
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { configuredCalendarFixture } from "./calendar-config";
 import { db } from "~/lib/db.server";
 import { auth } from "~/lib/auth.server";
 import { createEvent, updateEvent } from "~/domains/events/events.mutations.server";
@@ -9,6 +10,7 @@ import { calendarSyncHealth, drainOnce } from "~/lib/calendar/outbox.server";
 import { loadFeedEvents, renderIcalFeed } from "~/lib/calendar/ical.server";
 import type { CalendarPublisher } from "~/lib/calendar/publisher.server";
 
+configuredCalendarFixture();
 const RUN = `p4_probe_${crypto.randomUUID()}`;
 const NOW = new Date("2026-11-09T12:00:00.000Z");
 const DAY = 86_400_000;
