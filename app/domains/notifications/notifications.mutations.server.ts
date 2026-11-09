@@ -78,10 +78,11 @@ export async function markNotificationRead(actor: AuditActor, id: string) {
     if (!row || row.userId !== actor.id) {
       throw new NotFoundError(tr("err.notFoundBody"));
     }
-    return tx.notification.update({
-      where: { id },
+    await tx.notification.updateMany({
+      where: { id, userId: row.userId, readAt: null },
       data: { readAt: new Date() },
     });
+    return tx.notification.findUniqueOrThrow({ where: { id } });
   });
   // Realtime so other open tabs' bell badges refresh too.
   await emitChange({ entityType: "notification", id: updated.id, op: "updated" });
