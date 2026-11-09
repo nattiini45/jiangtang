@@ -9,6 +9,8 @@ import {
 } from "~/domains/events/events.schema";
 import { eventCreationPrefill } from "~/domains/events/events.prefill.server";
 import { findRoomConflicts } from "~/domains/events/events.availability.server";
+import { t } from "~/i18n";
+import { runWithLocale } from "~/i18n/request-locale.server";
 
 vi.mock("~/lib/auth.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth.server")>()),
@@ -141,6 +143,39 @@ describe("event creation prefills", () => {
 });
 
 describe("event creation actions", () => {
+  it.each(["de", "en"] as const)(
+    "returns localized missing-room fields on both surfaces in %s",
+    async (locale) => {
+      for (const surface of ["desktop", "mobile"] as const) {
+        const title = `${RUN} missing room ${surface} ${locale}`;
+        const result = await runWithLocale(locale, () =>
+          post(surface, {
+            title,
+            roomId: `${RUN}_missing`,
+            startsAt: "2026-07-04T10:00",
+            endsAt: "2026-07-04T12:00",
+            date: "2026-07-04",
+            startTime: "10:00",
+            endTime: "12:00",
+          }),
+        );
+        expect(result).toMatchObject({ fieldErrors: { roomId: [t(locale, "err.room.notFound")] } });
+        expect(await db.event.count({ where: { title } })).toBe(0);
+        expect(await db.eventRoomBooking.count({ where: { roomId: `${RUN}_missing` } })).toBe(0);
+        expect(
+          await db.activityLog.count({
+            where: { action: "EventCreated", data: { path: ["title"], equals: title } },
+          }),
+        ).toBe(0);
+        expect(
+          await db.calendarOutbox.count({
+            where: { payload: { path: ["title"], equals: title } },
+          }),
+        ).toBe(0);
+      }
+    },
+  );
+
   it("still creates an event without a room", async () => {
     const title = `${RUN} unbooked`;
     expect(
