@@ -7,6 +7,9 @@ guarantees the database and the application keep. For installation see [DEPLOY.m
 recovery [BACKUP.md](BACKUP.md), for personal data [GDPR.md](GDPR.md) and for day-to-day code rules
 [conventions.md](conventions.md).
 
+External clients can use the authenticated MCP server; [MCP.md](MCP.md) documents connection,
+tools, resources, prompts and the permission/audit boundary. There is no built-in agent.
+
 ## Purpose and shape
 
 - One TypeScript application: **React Router v7** in framework mode on **Vite**, served by a small

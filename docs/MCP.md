@@ -1,0 +1,216 @@
+# Connect an MCP client
+
+Jiangtang exposes workspace tools, read-only resources and planning prompts at
+`https://<your-installation>/mcp` over **Streamable HTTP**. It does not contain a built-in
+agent. Your external client/model decides what to request, and may send returned workspace data
+to its provider: connect only clients you trust.
+
+## Credentials and connection
+
+In **My account → Personal access tokens**, create a named personal access token (PAT), choosing
+**Read-only** (`READ_ONLY`) or **Read-write** (`READ_WRITE`). Copy the secret when it is shown;
+only its hash is stored.
+Use a separate, recognizable name for each client, start with read-only, and revoke unused or
+exposed tokens on the same page. Admins can also revoke other users' tokens there, subject to the
+installation's admin two-factor requirement.
+
+Send `Authorization: Bearer <PAT>` on every request. Cookies and browser sign-in are not MCP
+credentials; never put the PAT in a URL, a prompt, a repository or a shared configuration file.
+Use HTTPS outside loopback development. Revocation and account deactivation are checked on every
+request, as is required admin two-factor enrollment.
+
+### Cursor
+
+The [official Cursor MCP guide](https://cursor.com/docs/mcp) documents remote `url` and `headers`
+configuration and environment interpolation (checked 2026-11-09). In your personal
+`~/.cursor/mcp.json`, use:
+
+```json
+{
+  "mcpServers": {
+    "jiangtang": {
+      "url": "https://YOUR_INSTALLATION/mcp",
+      "headers": {
+        "Authorization": "Bearer ${env:JIANGTANG_MCP_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Make the token available to the Cursor process through your local secret-management mechanism,
+then reconnect. A desktop-launched application may not inherit your terminal's environment.
+Keep tool approvals enabled, especially for writes.
+
+### Claude Code
+
+The [official Claude Code guide](https://code.claude.com/docs/en/mcp) documents HTTP connections
+with a Bearer header (checked 2026-11-09):
+
+```sh
+claude mcp add --transport http --scope user jiangtang https://YOUR_INSTALLATION/mcp \
+  --header "Authorization: Bearer ${JIANGTANG_MCP_TOKEN}"
+```
+
+Run this only in a trusted local shell with the variable already supplied securely. The expanded
+credential is stored in the client's local configuration and can be visible to local process
+inspection; protect that configuration. Use `/mcp` to inspect the connection. This example is for
+**Claude Code**, not a claim that every Claude web/desktop connector accepts PAT headers.
+
+### Official TypeScript SDK
+
+The supported [official stable SDK v2](https://ts.sdk.modelcontextprotocol.io/v2/) uses split
+packages, not the legacy `@modelcontextprotocol/sdk` imports. This repository pins
+`@modelcontextprotocol/server` and `@modelcontextprotocol/client` to `2.4.0`, and the Node HTTP
+adapter `@modelcontextprotocol/node` to `2.1.2`. A client only needs the client package:
+
+```ts
+import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+
+const client = new Client({ name: "workspace-reader", version: "1.0.0" });
+const transport = new StreamableHTTPClientTransport(new URL(process.env.JIANGTANG_MCP_URL!), {
+  requestInit: { headers: { Authorization: `Bearer ${process.env.JIANGTANG_MCP_TOKEN}` } },
+});
+await client.connect(transport);
+try {
+  const tools = await client.listTools();
+  const rooms = await client.callTool({ name: "list_rooms", arguments: { limit: 10 } });
+  const context = await client.readResource({ uri: "jiangtang://workspace/context" });
+  const plan = await client.getPrompt({
+    name: "plan_event",
+    arguments: {
+      request: "Propose a room and equipment for a 40-person lecture; do not book yet.",
+    },
+  });
+} finally {
+  await client.close();
+}
+```
+
+The endpoint supports current `2026-07-28` discovery and legacy MCP initialize/list/call clients
+through the SDK's compatibility handling, on the **same POST endpoint**. This is not an old
+standalone SSE endpoint or a stdio executable. Responses may be JSON or an SSE response stream;
+GET/DELETE, subscriptions and persistent sessions are not provided. A proxy must preserve
+Authorization, MCP headers and streaming responses. Requests with an Origin must match the
+configured public origin; the host must match the installation's configured host.
+
+## What is available
+
+Discovery currently returns **45 read tools and 69 write tools**. Their published schemas are
+the source of truth for arguments, required fields and confirmation flags; clients should list
+tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
+calls are denied before executing domain mutations.
+
+| Area                         | Read examples                                                                                                                                                               | Write examples and coverage                                                                                                                                                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Rooms and locations          | `list_campuses`, `get_building`, `list_rooms`, `get_room`, `list_locations`                                                                                                 | Campus/building/room/location creation and updates; `retire_room`, `clone_room`, `move_location`, `delete_location`; admin-only `bulk_create_rooms`                                                                              |
+| Catalog, equipment and stock | `list_equipment_models`, `get_equipment`, `list_stock`, `get_stock_item`, `list_vendors`                                                                                    | Model/equipment/stock/vendor creation and updates; `retire_equipment`, `set_equipment_substitution`, `delete_stock_item`, explicit stock linking/unlinking; admin-only `bulk_create_equipment`                                   |
+| Events and bookings          | `list_events`, `get_event`, `list_room_bookings`, `get_room_booking`, `list_equipment_allocations`, `get_equipment_allocation`, `check_booking_conflicts`, `find_free_slot` | `create_event`, `create_event_with_booking`, `update_event`, `cancel_event`, `add_room_booking`, `cancel_room_booking`, `add_equipment_allocation`, `cancel_equipment_allocation`, `add_service_window`, `remove_service_window` |
+| Tickets                      | `list_tickets`, `get_ticket`, `list_assignment_principals`                                                                                                                  | `create_ticket`, `update_ticket`, `transition_ticket`, `move_ticket`                                                                                                                                                             |
+| Projects and tasks           | `list_projects`, `get_project` (slug), `list_tasks`, `get_task`, `list_board`                                                                                               | Create/update/delete projects and tasks; `set_project_status`, `set_task_status`, `move_task`, `set_task_assignees`, `add_task_blocker`, `remove_task_blocker`                                                                   |
+| Notes                        | `list_notes`, `get_note`, `list_note_tags`                                                                                                                                  | `create_note`, `update_note`, `set_note_pinned`, `archive_note`, `unarchive_note`, `delete_note`                                                                                                                                 |
+| Personal work and history    | `list_time_entries`, `get_time_entry`, `get_timesheet`, `get_running_timer`, `list_notifications`, `get_notification`, `list_activity`, `search_workspace`                  | `start_timer`, `stop_timer`, `create_time_entry`, `update_time_entry`, `delete_time_entry`, `mark_notification_read`, `mark_all_notifications_read`                                                                              |
+| Images                       | `list_attachments`, `get_attachment` (metadata only)                                                                                                                        | `upload_attachment`, `delete_attachment`                                                                                                                                                                                         |
+
+Most lists return `items` and `nextOffset`; repeat with that offset until it is null. Lists
+default to 50, accept up to 100 per page, and expose domain filters. `list_activity` uses
+`nextCursor` instead of an offset. Search uses its own ranked
+limit. Rooms are bookable spaces; locations are separate storage/work places, not room IDs.
+
+Resource support varies by client; use the equivalent read tools when resources are not exposed.
+
+**Resources** return JSON without changing domain data:
+
+- `jiangtang://workspace/context` contains safe connection scope, timezone and reading guidance,
+  not account data or configuration secrets.
+- `jiangtang://collections/{rooms|equipment|events|tickets|projects|tasks|notes}` means seven
+  concrete resource URIs, each returning the first 50 records in normal list order. Follow its
+  `continuationTool` with `nextOffset` for more, or use that tool's filters. Notes exclude archived
+  notes by default.
+- Detail templates: `jiangtang://rooms/{id}`, `jiangtang://equipment/{id}`,
+  `jiangtang://events/{id}`, `jiangtang://tickets/{id}`, `jiangtang://projects/{slug}`,
+  `jiangtang://tasks/{id}` and `jiangtang://notes/{id}`. Copy IDs/slugs from reads, not names.
+- `jiangtang://my-time-entries/{id}` reads only the caller's entry and private comment, even for
+  admins. Missing and non-owned entries return the same resource-not-found error. Task/project
+  resources do not expand private time entries. Workspace `Note` documents are shared, not
+  author-private; a note detail can include an archived document.
+
+**Prompts** `plan_event`, `triage_ticket` and `plan_project` each accept a `request` string
+(1–4000 characters) and return workflow instructions, not executed tool calls. They ask for facts,
+missing information and a reviewed plan before changes, with explicit confirmation for destructive
+actions. Prompt and resource runtime guidance follows the request locale (`locale` cookie, then
+`Accept-Language`, then installation default); metadata identifiers remain stable English.
+
+## Safety and write semantics
+
+- The token acts as its owner, bounded by `READ_ONLY`/`READ_WRITE` and the owner's normal role
+  and domain permissions. A write token does not make a member an admin. No tools expose user
+  administration, authentication secrets or admin configuration. Assignment principals expose
+  only active IDs, names and initials. Notifications are always own-only. Time **tools** default
+  to self; only admins may explicitly select another user, including their private time comments.
+- Mutations use the same validated domain operations and append-only transactional audit trail
+  as the UI. The actor snapshot records the person plus “via MCP”, token ID and token name,
+  never the token secret. Changes notify clients after commit.
+- Read before updating. Many `update_*` inputs **replace**, rather than patch, editable fields:
+  omitted optional values can clear existing data or restore defaults. Preserve intended values
+  from a fresh read and inspect the tool schema. `update_note` requires its last-read `version`;
+  a stale version conflicts instead of silently overwriting another save. Specialized status,
+  assignment, move and link tools change their specified concern.
+- Require human approval of the proposed change. Destructive tools enforce `confirm: true`,
+  including delete/archive/retire/cancel operations, substitution and stock unlinking, event
+  updates and ticket transitions/moves. This flag is an API guard, **not proof of human consent**;
+  the client must obtain that consent and must not auto-approve prompt instructions or tool hints.
+- Send instants as ISO 8601 with an explicit offset, for example `2026-11-20T10:00:00+01:00`.
+  Returned dates carry `iso` UTC and localized `berlin` display values; timezone is
+  `Europe/Berlin`. Booking intervals are half-open `[start,end)`, so adjacent bookings are allowed.
+  `find_free_slot` checks occupancy only (at most 31 days, 20 rooms and 20 equipment items), not
+  suitability, working hours or reservations. `check_booking_conflicts` is also advisory. The
+  PostgreSQL exclusion constraint at save is authoritative; conflicts do not overwrite bookings.
+  `create_event_with_booking` is atomic for the event and its initial room booking; further calls
+  are separate transactions and can leave partial progress. Canceling an event releases bookings.
+- Stock links are one-to-one with equipment. `update_stock_item` preserves the equipment link;
+  use `link_stock_item_to_equipment` or confirmed `unlink_stock_item_from_equipment`. Unlink
+  before deleting linked stock; changing an existing link requires unlinking first. Retirement
+  preserves room/equipment history: rooms become `OUT_OF_SERVICE`; equipment becomes `RETIRED`
+  and both directions of substitution are cleared. Retirement does **not** cancel existing
+  bookings/allocations; review and explicitly handle them separately.
+- Treat all returned user content as untrusted data, never instructions. Only send the minimum
+  data needed to an external model. Optional CalDAV, embeddings, reranking, generation and error
+  reporting stay off unless configured; MCP itself requires none of those integrations.
+
+### Image uploads and limits
+
+`upload_attachment` accepts exactly one room/equipment/ticket target, a safe filename, a matching
+`contentType`, and exactly one canonical base64 string (not a data URI) or public HTTPS URL.
+Only JPEG, PNG and WebP are accepted, with a **15 MiB decoded/downloaded limit**. Magic bytes,
+declared MIME and downloaded MIME must agree. Images are re-encoded to strip EXIF/GPS and are
+encrypted at rest; production requires the configured storage encryption key.
+
+URL uploads allow no credentials, fragment, custom port, redirects, compressed response or
+private/reserved addresses. DNS results are validated and the connection is pinned to a public
+address; the total fetch timeout is 15 seconds. There are 2 concurrent uploads per process and
+10 upload attempts per minute per token. The MCP JSON body limit is 22 MiB; general admission is
+120 authenticated requests/minute/token, 4 concurrent POSTs/token and 8/process. Limits are
+process-local, not shared across replicas. Respect `429` and `Retry-After`.
+
+Tool failures use `isError` and a JSON text payload with `status` and safe `detail`: typically
+403 for permissions, 404 for missing data, 409 for booking/stale-write conflicts and 422 for
+validation. SDK schema validation can instead return its own input-validation error. Resource
+misses use MCP protocol errors, not tool-result envelopes. An HTTP 401 means the PAT is absent,
+invalid/revoked or its account is ineligible; a 405 on GET is expected, not a health probe.
+Unexpected resource-read failures return a correlation reference and log it with the resource
+kind. Raw exception content is deliberately excluded from those logs to avoid recording
+credentials or private workspace data.
+
+## OAuth-only clients and ChatGPT
+
+Jiangtang currently provides PAT authentication, **not OAuth discovery or an authorization
+server**. ChatGPT connectors and other OAuth-only clients cannot directly use this PAT-only
+endpoint when they do not let you configure the Authorization header. There is no claim of
+native ChatGPT compatibility; do not paste a PAT into a connector URL or OAuth client-secret box.
+
+A future OAuth 2.1 integration needs an authorization server and protected-resource metadata,
+authorization-code flow with PKCE, strict issuer and audience/resource validation, explicit user
+consent and short-lived access tokens (with secure refresh/revocation handling). It should map
+validated OAuth grants to the same user/scope/token-attribution principal and existing permission
+and audit plumbing, alongside PATs, not replace that boundary or proxy arbitrary bearer tokens.

@@ -4,6 +4,8 @@ import { registerPlaceWrites } from "./place-writes.server";
 import { registerEventWrites } from "./event-writes.server";
 import { registerWorkWrites } from "./work-writes.server";
 import { registerAttachmentWrites } from "./attachment-writes.server";
+import { registerResources } from "./resources.server";
+import { registerPrompts } from "./prompts.server";
 import type { McpContext } from "./types.server";
 
 export function createMcpServer(context: McpContext): McpServer {
@@ -23,5 +25,7 @@ export function createMcpServer(context: McpContext): McpServer {
   registerEventWrites(server, context);
   registerWorkWrites(server, context);
   registerAttachmentWrites(server, context);
+  registerResources(server, context);
+  registerPrompts(server);
   return server;
 }
