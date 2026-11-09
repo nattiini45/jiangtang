@@ -105,6 +105,10 @@ export const errorsWorkDe = {
   "work.err.time.timerAlreadyRunning": "Es läuft bereits ein Timer — zuerst stoppen.",
   "work.err.time.timerRequired": "Timer benötigt einen angemeldeten Nutzer.",
   "work.err.time.noTimerRunning": "Es läuft kein Timer.",
+  "work.err.time.futureRunning":
+    "Ein laufender Zeiteintrag darf nicht in der Zukunft beginnen. Wähle eine Startzeit bis jetzt oder gib eine Endzeit ein.",
+  "work.err.time.futureTimerStop":
+    "Ein Timer kann erst nach seiner Startzeit gestoppt werden. Korrigiere die Startzeit, gib in der Desktop-Zeiterfassung eine spätere Endzeit ein oder warte bis nach der Startzeit.",
   "work.err.time.entryAuthorRequired": "Zeiteintrag benötigt einen angemeldeten Nutzer.",
 
   // ── CSV / workspace / markdown import ──────────────────────────────────────

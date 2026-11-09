@@ -49,6 +49,14 @@ function rethrowUnique(err: unknown): never {
 const minutesOf = (e: { startsAt: Date; endsAt: Date | null }) =>
   e.endsAt ? Math.round((e.endsAt.getTime() - e.startsAt.getTime()) / 60_000) : null;
 
+function assertRunningStart(input: TimeEntryInput): void {
+  const now = new Date();
+  if (input.endsAt === null && input.startsAt > now) {
+    const message = tr("work.err.time.futureRunning");
+    throw new ValidationError({ startsAt: [message] }, [message]);
+  }
+}
+
 /**
  * Start the actor's timer. Refused while one is already running — the partial
  * unique index is the hard backstop, the pre-check is the friendly error.
@@ -88,9 +96,17 @@ export async function startTimer(actor: TimeActor, taskId?: string | null): Prom
 export async function stopTimer(actor: TimeActor): Promise<TimeEntry> {
   if (!actor.id) throw new ValidationError({}, [tr("work.err.time.timerRequired")]);
   return txWithAudit(actor, async (tx, audit) => {
-    const running = await tx.timeEntry.findFirst({ where: { userId: actor.id!, endsAt: null } });
+    const [running] = await tx.$queryRaw<TimeEntry[]>`
+      SELECT * FROM "TimeEntry"
+      WHERE "userId" = ${actor.id!} AND "endsAt" IS NULL
+      FOR UPDATE
+    `;
     if (!running) throw new ValidationError({}, [tr("work.err.time.noTimerRunning")]);
     const endsAt = new Date();
+    if (running.startsAt >= endsAt) {
+      const message = tr("work.err.time.futureTimerStop");
+      throw new ValidationError({ startsAt: [message] }, [message]);
+    }
     const entry = await tx.timeEntry.update({ where: { id: running.id }, data: { endsAt } });
     await audit({
       action: "TimeEntryStopped",
@@ -112,6 +128,7 @@ export async function createTimeEntry(actor: TimeActor, input: TimeEntryInput): 
       const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true } });
       if (!user) throw new ValidationError({ userId: [tr("work.err.time.unknownUser")] });
     }
+    assertRunningStart(input);
     let entry: TimeEntry;
     try {
       entry = await tx.timeEntry.create({
@@ -166,6 +183,7 @@ export async function updateTimeEntry(
       before.comment !== next.comment;
     if (!changed) return before; // no change → no write, no audit row
 
+    assertRunningStart(input);
     let entry: TimeEntry;
     try {
       entry = await tx.timeEntry.update({ where: { id }, data: next });
