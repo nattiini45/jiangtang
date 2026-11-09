@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listProjects } from "~/domains/projects/projects.queries.server";
@@ -34,12 +34,14 @@ export default function MobileProjectsIndex({ loaderData }: Route.ComponentProps
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {projects.map((p) => (
           <li key={p.id}>
-            <Link
-              to={`/projects/${p.slug}`}
-              className="active:bg-selected flex min-h-12 flex-col justify-center gap-0.5 px-3 py-2 transition-colors duration-80"
+            <ViewSwitch
+              view="desktop"
+              desktopLabel
+              next={`/projects/${p.slug}`}
+              className="active:bg-selected flex min-h-12 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left transition-colors duration-80"
             >
-              <div className="truncate text-sm font-semibold">{p.name}</div>
-              <p className="text-muted-foreground truncate text-xs">
+              <span className="truncate text-sm font-semibold">{p.name}</span>
+              <span className="text-muted-foreground truncate text-xs">
                 {[
                   projectStatusLabel(locale, p.status),
                   p.lead?.name ?? null,
@@ -47,8 +49,8 @@ export default function MobileProjectsIndex({ loaderData }: Route.ComponentProps
                 ]
                   .filter(Boolean)
                   .join(" · ")}
-              </p>
-            </Link>
+              </span>
+            </ViewSwitch>
           </li>
         ))}
         {projects.length === 0 ? (

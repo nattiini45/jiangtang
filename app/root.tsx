@@ -12,7 +12,10 @@ import type { Route } from "./+types/root";
 import { resolveLocale } from "~/i18n/locale.server";
 import { useT } from "~/i18n/use-t";
 import { getDensity, getTheme } from "~/lib/theme.server";
+import { viewMiddleware } from "~/lib/view.server";
 import "./app.css";
+
+export const middleware = [viewMiddleware];
 
 export const links: Route.LinksFunction = () => [
   // PWA manifest + theme color. The manifest is scoped to /m/ so the

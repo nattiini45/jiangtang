@@ -117,6 +117,16 @@ are optional segments in `flatRoutes`, so the two surfaces are:
   `attachments.upload`, `attachments.$key`, `api.search`, `api.ask`, `api.events.check-conflict`
   and `prefs.locale`.
 
+Root server middleware in `app/lib/view.server.ts` selects the surface for page GETs before
+loaders run. A one-year `view` cookie overrides `Sec-CH-UA-Mobile`, then a phone user-agent
+fallback; tablets default to desktop. Supported desktop URLs map to their mobile counterparts,
+and desktop-only pages fall back to `/m`. Room and equipment QR links retain capture context.
+The middleware uses React Router's `v8_middleware` support so single-fetch redirects keep the
+framework protocol; mutations and resource endpoints are not rerouted. Authenticated switches
+POST to `/prefs/view`, and desktop-only mobile links identify their persistent desktop handoff.
+Sign-in, two-factor and invitation landing reuse the same sanitized mapping. Mandatory admin
+two-factor enrollment remains reachable on the desktop account page.
+
 Both layouts redirect anonymous visitors to `/login`, but they are not the guard: every loader and
 action calls `requireUser` or `requireRole` itself (see [Authentication and roles](#authentication-and-roles)).
 A new public route goes on the `PUBLIC` list in `test/routes/route-auth-guard.test.ts`, with its

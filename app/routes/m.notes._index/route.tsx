@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listNotes } from "~/domains/notes/notes.queries.server";
@@ -39,19 +40,21 @@ export default function MobileNotesIndex({ loaderData }: Route.ComponentProps) {
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {notes.map((n) => (
           <li key={n.id}>
-            <Link
-              to={`/notes/${n.id}`}
-              className="active:bg-selected flex min-h-12 flex-col justify-center gap-0.5 px-3 py-2 transition-colors duration-80"
+            <ViewSwitch
+              view="desktop"
+              desktopLabel
+              next={`/notes/${n.id}`}
+              className="active:bg-selected flex min-h-12 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left transition-colors duration-80"
             >
-              <div className="truncate text-sm font-semibold">
+              <span className="truncate text-sm font-semibold">
                 {n.pinned ? "📌 " : ""}
                 {n.title}
-              </div>
-              <p className="text-muted-foreground nums truncate text-xs">
+              </span>
+              <span className="text-muted-foreground nums truncate text-xs">
                 {t("mobile.notes.updated", { date: berlinDateInput(n.updatedAt) })}
                 {n.tags.length > 0 ? ` · ${n.tags.join(", ")}` : ""}
-              </p>
-            </Link>
+              </span>
+            </ViewSwitch>
           </li>
         ))}
         {notes.length === 0 ? (

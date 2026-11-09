@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
-import { getOptionalUser, sanitizeNext } from "~/lib/auth.server";
+import { getOptionalUser } from "~/lib/auth.server";
+import { authLanding } from "~/lib/view.server";
 import { completeTwoFactorSignIn } from "~/domains/auth/two-factor.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
 import { FormField } from "~/components/forms";
@@ -20,7 +21,7 @@ import { useT } from "~/i18n/use-t";
  */
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
-  const next = sanitizeNext(url.searchParams.get("next"));
+  const next = authLanding(request, url.searchParams.get("next"));
   const user = await getOptionalUser(request);
   if (user && user.isActive !== false) throw redirect(next);
   return { next, backup: url.searchParams.get("method") === "backup" };
@@ -29,7 +30,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const locale = resolveLocale(request);
   const form = await request.formData();
-  const next = sanitizeNext(String(form.get("next") ?? "/"));
+  const next = authLanding(request, String(form.get("next") ?? "/"));
   const method = form.get("method") === "backup" ? "backup" : "totp";
   const code = String(form.get("code") ?? "")
     .trim()

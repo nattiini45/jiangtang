@@ -1,4 +1,5 @@
 import { redirect } from "react-router";
+import { authLanding } from "~/lib/view.server";
 import type { Route } from "./+types/route";
 import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm } from "~/lib/validation.server";
@@ -35,7 +36,10 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     // taken from `e.message`.
     throw new Response(t(resolveLocale(request), "auth.invite.notFound"), { status: 404 });
   }
-  return { token: params.token! };
+  return {
+    token: params.token!,
+    next: authLanding(request, new URL(request.url).searchParams.get("next")),
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -44,7 +48,8 @@ export async function action({ request }: Route.ActionArgs) {
     if (!result.success) return { fieldErrors: result.fieldErrors };
     const invite = await resolveInvite(result.data.token);
     await acceptInvite(invite, result.data.password);
-    return redirect("/login");
+    const next = authLanding(request, result.data.next);
+    return redirect(next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
   } catch (e) {
     // An email or initials clash: nothing was created, so say why on the form.
     if (e instanceof ValidationError) {
@@ -76,6 +81,7 @@ export default function AcceptInvite({ loaderData, actionData }: Route.Component
         ) : null}
         <ZodForm className="mt-4" fieldErrors={fieldErrors}>
           <input type="hidden" name="token" value={loaderData.token} />
+          <input type="hidden" name="next" value={loaderData.next} />
           <FormField name="password" label={t("auth.invite.password")}>
             <Input name="password" type="password" required autoComplete="new-password" />
           </FormField>

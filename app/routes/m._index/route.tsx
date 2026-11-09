@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { formDataToObject, safeParse } from "~/lib/validation.server";
+import { formDataToObject, parseEnumParam, safeParse } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { resolveLocale } from "~/i18n/locale.server";
 import { CAPTURE_HEADER } from "~/lib/pwa/offline-queue";
@@ -49,7 +49,17 @@ export function meta({ matches }: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const targets = await listTicketTargets();
-  return { rooms: targets.rooms, equipment: targets.equipment };
+  const params = new URL(request.url).searchParams;
+  return {
+    rooms: targets.rooms,
+    equipment: targets.equipment,
+    defaults: {
+      roomId: targets.rooms.find((room) => room.id === params.get("roomId"))?.id ?? "",
+      equipmentId:
+        targets.equipment.find((item) => item.id === params.get("equipmentId"))?.id ?? "",
+      type: parseEnumParam(TicketType, params.get("type")) ?? TicketType.INCIDENT,
+    },
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -92,7 +102,7 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function MobileQuickEntry({ loaderData, actionData }: Route.ComponentProps) {
-  const { rooms, equipment } = loaderData;
+  const { rooms, equipment, defaults } = loaderData;
   const t = useT();
   const locale = useLocale();
   const navigate = useNavigate();
@@ -246,7 +256,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
 
       <Label className="flex flex-col gap-1.5">
         <span>{t("mobile.entry.room")}</span>
-        <Select name="roomId" defaultValue="" className="[&>select]:h-11">
+        <Select name="roomId" defaultValue={defaults.roomId} className="[&>select]:h-11">
           <option value="">{t("mobile.entry.roomPlaceholder")}</option>
           {rooms.map((r) => (
             <option key={r.id} value={r.id}>
@@ -258,7 +268,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
 
       <Label className="flex flex-col gap-1.5">
         <span>{t("mobile.entry.equipment")}</span>
-        <Select name="equipmentId" defaultValue="" className="[&>select]:h-11">
+        <Select name="equipmentId" defaultValue={defaults.equipmentId} className="[&>select]:h-11">
           <option value="">{t("tickets.form.noEquipment")}</option>
           {equipment.map((e) => (
             <option key={e.id} value={e.id}>
@@ -270,7 +280,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
 
       <Label className="flex flex-col gap-1.5">
         <span>{t("mobile.entry.type")}</span>
-        <Select name="type" defaultValue={TicketType.INCIDENT} className="[&>select]:h-11">
+        <Select name="type" defaultValue={defaults.type} className="[&>select]:h-11">
           {Object.values(TicketType).map((type) => (
             <option key={type} value={type}>
               {ticketTypeLabel(locale, type)}

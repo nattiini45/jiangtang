@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
@@ -120,12 +121,13 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
 
       <QrCode svg={loaderData.qr} href={loaderData.qrHref} titleKey="qr.room.title" />
 
-      <Link
-        to={`/rooms/${room.slug}`}
-        className="text-muted-foreground flex min-h-11 items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
+      <ViewSwitch
+        view="desktop"
+        next={`/rooms/${room.slug}`}
+        className="text-muted-foreground flex min-h-11 w-full items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
       >
         {t("mobile.rooms.desktopView")}
-      </Link>
+      </ViewSwitch>
     </div>
   );
 }

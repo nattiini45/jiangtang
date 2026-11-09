@@ -13,6 +13,7 @@ import { useLiveRefetch } from "~/lib/realtime/use-live-refetch";
 import { NavPendingIndicator } from "~/components/states/nav-pending";
 import { NAV, NAV_GROUPS, type NavEntry } from "~/components/layout/nav";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
+import { ViewSwitch } from "~/components/layout/view-switch";
 import { roleLabel } from "~/components/auth/labels";
 import type { UserRole } from "~/generated/prisma/client";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -93,6 +94,10 @@ export function AppShell({
               return <NavSection key={group.id} label={t(group.labelKey)} items={items} />;
             })}
           </nav>
+          <ViewSwitch
+            view="mobile"
+            className="text-muted-foreground hover:text-foreground flex min-h-11 w-full items-center px-4 text-xs underline decoration-(--input) underline-offset-4"
+          />
           <NavLink
             to="/account"
             className={({ isActive }) =>
