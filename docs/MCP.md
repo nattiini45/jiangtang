@@ -262,6 +262,13 @@ Unexpected resource-read failures return a correlation reference and log it with
 kind. Raw exception content is deliberately excluded from those logs to avoid recording
 credentials or private workspace data.
 
+Event detail (`get_event` and the event resource) also includes `allowedActions` for the
+deliberate UI action: Reopen is available only for CANCELLED → PLANNED. Its label and help keys
+come from the same typed metadata as desktop and mobile. This is not a restriction on generic
+`update_event`: that tool still replaces content and status with `confirm:true`, including
+reopening a cancelled event. Reopening never restores cancelled room or equipment bookings;
+the person must book those separately. There is no separate MCP reopen tool.
+
 ## OAuth-only clients and ChatGPT
 
 Jiangtang currently provides PAT authentication, **not OAuth discovery or an authorization

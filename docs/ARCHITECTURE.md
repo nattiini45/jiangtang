@@ -280,9 +280,11 @@ do not bypass the database booking constraints.
 
 On the phone, `/m/rooms/:slug?date=YYYY-MM-DD` reuses that booking read model for a selected
 Berlin day, keeping room status separate from reservations and retaining full booking intervals.
-`/m/events/:id` exposes read-only event, booking, allocation and service-window detail;
-`/m/notes/:id` renders note content through the shared safe Markdown preview. Both authenticate
-before calling existing domain queries and expose no mutation action. Their list and search links
+`/m/events/:id` exposes event, booking, allocation and service-window detail, with a deliberate
+Reopen action for cancelled events. Reopening returns the event to PLANNED without restoring
+previous room or equipment bookings; those must be booked separately. `/m/notes/:id` remains
+read-only and renders note content through the shared safe Markdown preview. Both authenticate
+before calling domain queries or mutations. Their list and search links
 stay mobile; broader event, note, project and equipment editing remains on desktop.
 
 When CalDAV is configured, event mutations enqueue a `CalendarOutbox` row in the same transaction (one row per event UID and

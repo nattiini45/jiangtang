@@ -18,6 +18,7 @@ import type {
 } from "~/domains/events/events.queries.server";
 import { eventStatusLabel, serviceWindowKindLabel } from "./labels";
 import { EventFormFields, type EventDefaults } from "./event-form-fields";
+import { EventReopenAction } from "./event-reopen-action";
 
 export interface EventActionData {
   form?: string;
@@ -87,6 +88,8 @@ export function EventDetailView({
           {actionData.error}
         </p>
       ) : null}
+
+      <EventReopenAction status={event.status} />
 
       {/* Timeline */}
       {rooms.length > 0 || serviceWindows.length > 0 ? (

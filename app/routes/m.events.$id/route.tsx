@@ -1,7 +1,10 @@
-import { Link } from "react-router";
+import { Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
+import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import { reopenEvent } from "~/domains/events/events.mutations.server";
+import { emitChange } from "~/lib/realtime/emit.server";
+import { EventReopenAction } from "~/components/events/event-reopen-action";
 import { getEventDetail } from "~/domains/events/events.queries.server";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import { StatusBadge } from "~/components/ui/status-badge";
@@ -42,7 +45,21 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   }
 }
 
-export default function MobileEventDetail({ loaderData }: Route.ComponentProps) {
+export async function action({ request, params }: Route.ActionArgs) {
+  const actor = await requireUser(request);
+  const form = await request.formData();
+  try {
+    if (form.get("_action") !== "reopenEvent") return null;
+    const event = await reopenEvent(actor, params.id);
+    await emitChange({ entityType: "event", id: event.id, op: "updated" });
+    return redirect(`/m/events/${event.id}`);
+  } catch (error) {
+    if (error instanceof ValidationError) return { error: error.formErrors[0] };
+    throw toErrorResponse(error);
+  }
+}
+
+export default function MobileEventDetail({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
   const locale = useLocale();
   const {
@@ -61,6 +78,12 @@ export default function MobileEventDetail({ loaderData }: Route.ComponentProps) 
         <h1 className="text-lg font-bold">{event.title}</h1>
         <StatusBadge kind="event" value={event.status} />
       </header>
+      {actionData?.error ? (
+        <p className="bg-destructive/10 text-foreground rounded-md p-2 text-sm" role="alert">
+          {actionData.error}
+        </p>
+      ) : null}
+      <EventReopenAction status={event.status} />
       <CalendarSyncPanel sync={calendarSync} />
       <section className="space-y-2">
         <h2 className="text-base font-semibold">{t("mobileDetails.eventTime")}</h2>

@@ -43,6 +43,7 @@ import { BookingConflictError, NotFoundError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { registerTool } from "~/lib/mcp/tools.server";
 import { ticketActionMetadata } from "~/domains/tickets/tickets.transitions";
+import { eventAllowedActions } from "~/domains/events/events.actions";
 import { mcpActor, type McpContext } from "~/lib/mcp/types.server";
 
 const id = z.string().trim().min(1).max(200);
@@ -170,7 +171,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "update_event",
       description:
-        "Replace event content and status. Requires confirm:true because cancellation frees bookings.",
+        "Replace event content and status. Requires confirm:true because cancellation frees bookings. Setting a cancelled event to PLANNED reopens it without restoring previous room or equipment bookings; rebook separately. This generic edit remains distinct from the UI's cancelled-only Reopen action.",
       schema: z.object({ id, input: eventEditSchema.safeExtend(instantFields), confirm }),
       write: true,
       destructive: true,
@@ -182,7 +183,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
         eventEditSchema.parse(eventTimes(input)),
       );
       await emitChange({ entityType: "event", id: event.id, op: "updated" });
-      return { ...event, label: event.title };
+      return { ...event, label: event.title, allowedActions: eventAllowedActions(event.status) };
     },
   );
   registerTool(

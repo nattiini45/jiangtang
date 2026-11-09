@@ -30,6 +30,7 @@ import {
   cancelEvent,
   cancelRoomBooking,
   removeServiceWindow,
+  reopenEvent,
   updateEvent,
 } from "~/domains/events/events.mutations.server";
 import { EventDetailView } from "~/components/events/event-detail";
@@ -94,6 +95,11 @@ export async function action({ request, params }: Route.ActionArgs) {
       }
       case "cancelEvent": {
         const ev = await cancelEvent(actor, id);
+        await emitChange({ entityType: "event", id: ev.id, op: "updated" });
+        return redirect(`/events/${id}`);
+      }
+      case "reopenEvent": {
+        const ev = await reopenEvent(actor, id);
         await emitChange({ entityType: "event", id: ev.id, op: "updated" });
         return redirect(`/events/${id}`);
       }

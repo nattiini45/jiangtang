@@ -127,4 +127,9 @@ export const eventsDe = {
   "events.detail.cancelHint":
     "Veranstaltungen werden nie gelöscht — Absage gibt Räume und Geräte wieder frei.",
   "events.detail.cancelledNote": "{status} — Räume und Geräte sind freigegeben.",
+  "events.detail.reopen": "Wieder öffnen",
+  "events.detail.reopenHint":
+    "Beim Wiederöffnen wird diese Veranstaltung auf Geplant gesetzt. Frühere Raum- und Gerätebuchungen werden nicht wiederhergestellt. Räume und Geräte müssen separat neu gebucht werden.",
+  "events.detail.reopenUnavailable":
+    "Nur abgesagte Veranstaltungen können wieder geöffnet werden. Aktualisiere die Seite, um den aktuellen Status zu sehen.",
 };

@@ -7,6 +7,7 @@ import { findEquipmentConflicts, findRoomConflicts } from "./events.availability
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueEventCalendarOp } from "~/lib/calendar/event-publication.server";
 import { resolveEventTime } from "./events.time.server";
+import { EVENT_REOPEN_ACTION } from "./events.actions";
 import type {
   EquipmentAllocation,
   Event,
@@ -214,6 +215,23 @@ export async function cancelEvent(actor: AuditActor, id: string): Promise<Event>
     const event = await tx.event.update({ where: { id }, data: { status: "CANCELLED" } });
     await audit({ action: "EventCancelled", entityType: "event", entityId: event.id, data: freed });
     await enqueueEventCalendarOp(tx, event, "REMOVE");
+    return event;
+  });
+}
+
+export async function reopenEvent(actor: AuditActor, id: string): Promise<Event> {
+  return txWithAudit(actor, async (tx, audit) => {
+    const changed = await tx.event.updateMany({
+      where: { id, status: EVENT_REOPEN_ACTION.from },
+      data: { status: EVENT_REOPEN_ACTION.target },
+    });
+    const event = await tx.event.findUnique({ where: { id } });
+    if (!event) throw new NotFoundError(tr("work.err.event.notFound"));
+    if (changed.count === 0) {
+      throw new ValidationError({}, [tr("events.detail.reopenUnavailable")]);
+    }
+    await audit({ action: "EventUpdated", entityType: "event", entityId: event.id });
+    await enqueueEventCalendarOp(tx, event, "UPSERT");
     return event;
   });
 }

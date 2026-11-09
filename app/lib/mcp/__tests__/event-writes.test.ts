@@ -11,6 +11,8 @@ import { serializeMcp } from "~/lib/mcp/tools.server";
 import type { McpContext } from "~/lib/mcp/types.server";
 import { db } from "~/lib/db.server";
 import * as eventMutations from "~/domains/events/events.mutations.server";
+import { eventAllowedActions } from "~/domains/events/events.actions";
+import { runWithLocale } from "~/i18n/request-locale.server";
 import * as realtime from "~/lib/realtime/emit.server";
 import {
   roomBookingExactSchema,
@@ -112,6 +114,108 @@ afterAll(async () => {
 });
 
 describe("MCP event writer boundary", () => {
+  it.each(["en", "de"] as const)(
+    "discovers named reopen metadata and preserves generic update_event in %s",
+    async (locale) => {
+      await runWithLocale(locale, async () => {
+        const event = await makeEvent(`${run} reopen ${locale}`);
+        const eventId = String(event.id);
+        await success("cancel_event", { id: eventId, confirm: true });
+        const room = await db.eventRoomBooking.create({
+          data: {
+            eventId,
+            roomId: fixtures.roomId,
+            startsAt: new Date(interval.startsAt),
+            endsAt: new Date(interval.endsAt),
+            cancelled: true,
+          },
+        });
+        const equipment = await db.equipmentAllocation.create({
+          data: {
+            eventId,
+            equipmentId: fixtures.equipmentId,
+            startsAt: new Date(interval.startsAt),
+            endsAt: new Date(interval.endsAt),
+            cancelled: true,
+          },
+        });
+        for (const scope of ["READ_ONLY", "READ_WRITE"] as const) {
+          const context = { ...principal, token: { ...principal.token, scope } };
+          const readerServer = new McpServer({ name: "event-reopen-read", version: "1" });
+          const reader = new Client({ name: "event-reopen-read", version: "1" });
+          registerReadTools(readerServer, context);
+          const [a, b] = InMemoryTransport.createLinkedPair();
+          await readerServer.connect(a);
+          await reader.connect(b);
+          try {
+            const result = await reader.callTool({ name: "get_event", arguments: { id: eventId } });
+            expect(result.isError).not.toBe(true);
+            const detail = (result.structuredContent as { result: Record<string, unknown> }).result;
+            expect(detail.allowedActions).toEqual(eventAllowedActions("CANCELLED"));
+          } finally {
+            await reader.close();
+            await readerServer.close();
+          }
+        }
+        const readOnly = await connect({
+          ...principal,
+          token: { ...principal.token, scope: "READ_ONLY" },
+        });
+        const saved = await db.event.findUniqueOrThrow({ where: { id: eventId } });
+        const logs = await db.activityLog.count({ where: { entityId: eventId } });
+        const ops = await db.calendarOutbox.count({ where: { eventUid: saved.uid } });
+        const emitted = changes.mock.calls.length;
+        try {
+          const refused = await readOnly.client.callTool({
+            name: "update_event",
+            arguments: {
+              id: "missing",
+              input: { title: "Synthetic reopen", ...interval, status: "PLANNED" },
+              confirm: true,
+            },
+          });
+          expect(refused.isError).toBe(true);
+          expect(JSON.stringify(refused.content)).toContain("403");
+        } finally {
+          await readOnly.client.close();
+          await readOnly.server.close();
+        }
+        expect(
+          (
+            await call("update_event", {
+              id: eventId,
+              input: { title: "Synthetic reopen", ...interval, status: "PLANNED" },
+            })
+          ).isError,
+        ).toBe(true);
+        expect(await db.event.findUniqueOrThrow({ where: { id: eventId } })).toEqual(saved);
+        expect(await db.activityLog.count({ where: { entityId: eventId } })).toBe(logs);
+        expect(await db.calendarOutbox.count({ where: { eventUid: saved.uid } })).toBe(ops);
+        expect(changes.mock.calls).toHaveLength(emitted);
+        const result = await success("update_event", {
+          id: eventId,
+          input: { title: "Synthetic reopen", ...interval, status: "PLANNED" },
+          confirm: true,
+        });
+        expect(result).toMatchObject({ status: "PLANNED", allowedActions: [] });
+        expect(await db.eventRoomBooking.findUniqueOrThrow({ where: { id: room.id } })).toEqual(
+          room,
+        );
+        expect(
+          await db.equipmentAllocation.findUniqueOrThrow({ where: { id: equipment.id } }),
+        ).toEqual(equipment);
+        expect(await db.activityLog.count({ where: { entityId: eventId } })).toBe(logs + 1);
+        expect(await db.calendarOutbox.count({ where: { eventUid: saved.uid } })).toBe(ops + 1);
+        expect(changes.mock.calls.slice(emitted)).toEqual([
+          [{ entityType: "event", id: eventId, op: "updated" }],
+        ]);
+        expect((await getEventDetail(eventId))?.allowedActions).toEqual(
+          eventAllowedActions("PLANNED"),
+        );
+      });
+    },
+  );
+
   it("publishes all writes with destructive annotations and ISO input schemas", async () => {
     const { tools } = await client.listTools();
     expect(tools).toHaveLength(14);
