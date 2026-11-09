@@ -1,4 +1,5 @@
 import { db } from "~/lib/db.server";
+import { logger } from "~/lib/observability/logger.server";
 import {
   REALTIME_CHANNEL,
   encodeRealtimeEvent,
@@ -30,5 +31,9 @@ export async function emitChange(input: {
     ts: input.ts ?? Date.now(),
   };
   const payload = encodeRealtimeEvent(ev);
-  await db.$executeRaw`SELECT pg_notify(${REALTIME_CHANNEL}, ${payload})`;
+  try {
+    await db.$executeRaw`SELECT pg_notify(${REALTIME_CHANNEL}, ${payload})`;
+  } catch {
+    logger.warn({ entityType: input.entityType, id: input.id }, "Post-commit notification failed");
+  }
 }

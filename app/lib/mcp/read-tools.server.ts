@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { msgKey } from "~/i18n";
+import { tr } from "~/i18n/request-locale.server";
 import {
   EquipmentCategory,
   EquipmentMobility,
@@ -139,7 +141,7 @@ async function found<T>(result: Promise<T | null>) {
 
 function timeUser(userId: string | undefined, context: McpContext) {
   if (userId && userId !== context.user.id && context.user.role !== "ADMIN") {
-    throw new Response("This operation requires the ADMIN role.", { status: 403 });
+    throw new Response(tr("err.mcp.adminRequired"), { status: 403 });
   }
   return userId ?? context.user.id;
 }
@@ -156,7 +158,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         .extend({ roomId: id.optional() })
         .refine((input) => !input.from || !input.to || new Date(input.from) < new Date(input.to), {
           path: ["to"],
-          message: "to must be after from",
+          message: msgKey("err.mcp.toAfterFrom"),
         }),
     },
     async (input) =>
@@ -192,7 +194,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         .extend({ equipmentId: id.optional() })
         .refine((input) => !input.from || !input.to || new Date(input.from) < new Date(input.to), {
           path: ["to"],
-          message: "to must be after from",
+          message: msgKey("err.mcp.toAfterFrom"),
         }),
     },
     async (input) =>
@@ -397,7 +399,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         })
         .refine((input) => !input.from || !input.to || new Date(input.from) < new Date(input.to), {
           path: ["to"],
-          message: "to must be after from",
+          message: msgKey("err.mcp.toAfterFrom"),
         }),
     },
     async (input) =>
@@ -441,7 +443,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         })
         .refine((input) => new Date(input.endsAt) > new Date(input.startsAt), {
           path: ["endsAt"],
-          message: "endsAt must be after startsAt",
+          message: msgKey("err.mcp.endsAfterStarts"),
         }),
     },
     async (input) => {
@@ -482,7 +484,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
           durationMinutes: z.number().int().min(1).max(10_080),
         })
         .refine((input) => input.roomIds.length + input.equipmentIds.length > 0, {
-          message: "Select at least one room or equipment instance",
+          message: msgKey("err.mcp.resourceRequired"),
         })
         .refine(
           (input) => {
@@ -491,7 +493,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
               window > 0 && window <= 31 * 86_400_000 && input.durationMinutes * 60_000 <= window
             );
           },
-          { path: ["to"], message: "Window must fit the duration and be no longer than 31 days" },
+          { path: ["to"], message: msgKey("err.mcp.slotWindow") },
         ),
     },
     (input) => findFreeSlot({ ...input, from: new Date(input.from), to: new Date(input.to) }),
@@ -547,7 +549,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         .refine(
           (input) =>
             !input.dueFrom || !input.dueTo || new Date(input.dueFrom) <= new Date(input.dueTo),
-          { path: ["dueTo"], message: "dueTo must not be before dueFrom" },
+          { path: ["dueTo"], message: msgKey("err.mcp.dueWindow") },
         ),
     },
     async (input) =>
@@ -733,7 +735,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         .extend({ roomId: id.optional(), equipmentId: id.optional(), ticketId: id.optional() })
         .refine(
           (input) => [input.roomId, input.equipmentId, input.ticketId].filter(Boolean).length === 1,
-          { message: "Select exactly one room, equipment instance or ticket" },
+          { message: msgKey("err.mcp.attachmentTarget") },
         ),
     },
     async (input) => page(await listAttachments(input, queryPage(input)), input),

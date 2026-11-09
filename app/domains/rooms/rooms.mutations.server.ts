@@ -384,11 +384,11 @@ export async function cloneRoom(
 export async function bulkCreateRooms(
   actor: AuditActor,
   rows: RoomCsvRow[],
-): Promise<{ created: number }> {
+): Promise<{ created: number; items: Pick<Room, "id" | "name" | "slug">[] }> {
   return txWithAudit(
     actor,
     async (tx, audit) => {
-      let created = 0;
+      const items: Pick<Room, "id" | "name" | "slug">[] = [];
       for (const row of rows) {
         let campusId: string | null = null;
         if (row.campusName) campusId = await upsertCampus(tx, audit, row.campusName);
@@ -423,9 +423,9 @@ export async function bulkCreateRooms(
           entityId: room.id,
           data: { name: room.name, slug: room.slug, viaImport: true },
         });
-        created++;
+        items.push({ id: room.id, name: room.name, slug: room.slug });
       }
-      return { created };
+      return { created: items.length, items };
     },
     // Dozens of sequential row round-trips in one tx can exceed Prisma's ~5s
     // default and abort with P2028 — give bulk imports generous headroom.

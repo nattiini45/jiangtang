@@ -10,6 +10,56 @@ export const errorsDe = {
   "err.unknownAction": "Unbekannte Aktion.",
   "err.unknownActionNamed": "Unbekannte Aktion: {intent}",
   "err.invalidInput": "Ungültige Eingabe.",
+  "err.mcp.origin": "Die Anfrage stammt nicht von einer erlaubten Adresse.",
+  "err.mcp.tokenRequired": "Ein gültiges persönliches Zugriffstoken ist erforderlich.",
+  "err.mcp.rateLimit": "Das Anfragelimit dieses Tokens wurde erreicht.",
+  "err.mcp.busy":
+    "Zu viele MCP-Anfragen werden gleichzeitig verarbeitet. Versuche es gleich erneut.",
+  "err.mcp.postOnly": "Verwende Streamable-HTTP-Anfragen mit POST.",
+  "err.mcp.bodyTooLarge": "Der Anfrageinhalt ist zu groß.",
+  "err.mcp.invalidJson": "Der Anfrageinhalt ist kein gültiges JSON.",
+  "err.mcp.unique": "Ein Eintrag mit einem dieser eindeutigen Werte ist bereits vorhanden.",
+  "err.mcp.reference":
+    "Ein verknüpfter Eintrag fehlt oder bestehende Verknüpfungen verhindern diesen Vorgang.",
+  "err.mcp.adminRequired": "Dieser Vorgang erfordert die Rolle ADMIN.",
+  "err.mcp.writeTokenRequired":
+    "Dieses Token erlaubt nur Lesezugriff. Ein Token mit Schreibzugriff ist erforderlich.",
+  "err.mcp.confirmRequired": "Setze confirm auf true, um diesen destruktiven Vorgang auszuführen.",
+  "err.mcp.toAfterFrom": "to muss nach from liegen",
+  "err.mcp.endsAfterStarts": "endsAt muss nach startsAt liegen",
+  "err.mcp.resourceRequired": "Wähle mindestens einen Raum oder ein einzelnes Gerät aus",
+  "err.mcp.slotWindow":
+    "Das Zeitfenster muss die Dauer abdecken und darf höchstens 31 Tage lang sein",
+  "err.mcp.dueWindow": "dueTo darf nicht vor dueFrom liegen",
+  "err.mcp.attachmentTarget": "Wähle genau einen Raum, ein einzelnes Gerät oder ein Ticket aus",
+  "err.mcp.createActiveEvent":
+    "Erstelle eine aktive Veranstaltung und verwende dann cancel_event, um sie abzusagen.",
+  "err.mcp.useTransitionTicket": "Verwende transition_ticket, um ein Ticket abzubrechen.",
+  "err.mcp.useRetireEquipment": "Verwende retire_equipment, um ein Gerät auszumustern.",
+  "err.mcp.bookingConflictDetail":
+    "{eventTitle} ({eventId}), Raumbuchung {reservationId}, [{startsAt}, {endsAt})",
+  "err.mcp.allocationConflictDetail":
+    "{eventTitle} ({eventId}), Gerätezuweisung {reservationId}, [{startsAt}, {endsAt})",
+  "err.mcp.attachmentUrlInvalid": "Ungültige Anhang-URL.",
+  "err.mcp.attachmentUrlRequirements":
+    "Anhang-URLs müssen HTTPS auf Port 443 ohne Zugangsdaten oder Fragmente verwenden.",
+  "err.mcp.attachmentUrlPublic": "Die Anhang-URL muss auf eine öffentliche Adresse verweisen.",
+  "err.mcp.attachmentUrlLocal": "Lokale Hostnamen sind für Anhang-URLs nicht erlaubt.",
+  "err.mcp.attachmentFetchUnsafe": "Die Anhang-URL konnte nicht sicher abgerufen werden.",
+  "err.mcp.attachmentHttpStatus":
+    "Die Anhang-URL muss HTTP 200 zurückgeben; Weiterleitungen werden nicht verfolgt.",
+  "err.mcp.attachmentImageType":
+    "Die Anhang-URL muss einen unterstützten Bild-Inhaltstyp zurückgeben.",
+  "err.mcp.attachmentCompressed": "Komprimierte Antworten für Anhänge werden nicht unterstützt.",
+  "err.mcp.attachmentTooLarge": "Der Anhang überschreitet die Grenze von 15 MB.",
+  "err.mcp.attachmentIncomplete": "Die Antwort für den Anhang ist leer oder unvollständig.",
+  "err.mcp.attachmentSource": "Gib genau eines der Felder base64 oder url an.",
+  "err.mcp.attachmentBase64": "Der Anhang muss als kanonisches Base64 mit Padding vorliegen.",
+  "err.mcp.attachmentBusy": "Die Anhang-Uploads sind ausgelastet. Versuche es in Kürze erneut.",
+  "err.mcp.attachmentRateLimit":
+    "Das Anfragelimit für Anhang-Uploads wurde überschritten. Versuche es später erneut.",
+  "err.mcp.attachmentTypeMismatch":
+    "Der Inhaltstyp des Anhangs muss mit seinen Bilddaten übereinstimmen.",
   "err.unknownStatus": "Unbekannter Status.",
   "err.idRequired": "ID ist erforderlich.",
   "err.room.notFound": "Raum nicht gefunden.",

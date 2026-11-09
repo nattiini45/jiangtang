@@ -6,6 +6,7 @@ import type { Ticket } from "~/generated/prisma/client";
 import { db, type Tx } from "~/lib/db.server";
 import { isUniqueViolation } from "~/lib/db-errors.server";
 import type { TicketCreateInput, TicketEditInput, TicketTransitionInput } from "./tickets.schema";
+import { ticketTransitionSchema } from "./tickets.schema";
 import { laneOfTicketStatus, TICKET_LANE_STATUS, type Lane } from "~/domains/tasks/tasks.lanes";
 import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 
@@ -280,6 +281,7 @@ export async function moveTicketToLane(
   actor: AuditActor,
   ticketId: string,
   lane: Lane,
+  transition?: Pick<TicketTransitionInput, "resolution">,
 ): Promise<Ticket> {
   const status = TICKET_LANE_STATUS[lane];
   if (!status) {
@@ -289,6 +291,13 @@ export async function moveTicketToLane(
     const current = await tx.ticket.findUnique({ where: { id: ticketId } });
     if (!current) throw new NotFoundError(tr("work.err.ticket.notFound"));
     if (laneOfTicketStatus(current.status) === lane) return current; // same lane — no-op
-    return transitionTicketInTx(tx, audit, ticketId, { status });
+    return transitionTicketInTx(
+      tx,
+      audit,
+      ticketId,
+      transition === undefined
+        ? { status }
+        : ticketTransitionSchema.parse({ ...transition, status }),
+    );
   });
 }
