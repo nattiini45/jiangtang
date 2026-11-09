@@ -3,6 +3,7 @@ import type { AuditActor, AuditFn } from "~/lib/audit.server";
 import { tr } from "~/i18n/request-locale.server";
 import { ValidationError } from "~/lib/errors.server";
 import type { TransferProject } from "~/domains/transfer/transfer.schema";
+import { PROJECT_RESTORE_AUDIT } from "./projects.transitions";
 
 /**
  * In-transaction project upserts for the workspace import: the owning domain
@@ -74,7 +75,7 @@ export async function importProjectsInTx(
       ? await tx.project.update({ where: { id: p.id }, data })
       : await tx.project.create({ data: { ...data, id: p.id, createdById: actor.id } });
     await audit({
-      action: before ? "ProjectUpdated" : "ProjectImported",
+      action: before ? PROJECT_RESTORE_AUDIT.update : PROJECT_RESTORE_AUDIT.create,
       entityType: "project",
       entityId: project.id,
       data: { name: project.name, slug: project.slug, viaImport: true },

@@ -106,8 +106,8 @@ calls are denied before executing domain mutations.
 | Rooms and locations          | `list_campuses`, `get_building`, `list_rooms`, `get_room`, `list_locations`                                                                                                 | Campus/building/room/location creation and updates; `retire_room`, `clone_room`, `move_location`, `delete_location`; admin-only `bulk_create_rooms`                                                                              |
 | Catalog, equipment and stock | `list_equipment_models`, `get_equipment`, `list_stock`, `get_stock_item`, `list_vendors`                                                                                    | Model/equipment/stock/vendor creation and updates; `retire_equipment`, `set_equipment_substitution`, `delete_stock_item`, explicit stock linking/unlinking; admin-only `bulk_create_equipment`                                   |
 | Events and bookings          | `list_events`, `get_event`, `list_room_bookings`, `get_room_booking`, `list_equipment_allocations`, `get_equipment_allocation`, `check_booking_conflicts`, `find_free_slot` | `create_event`, `create_event_with_booking`, `update_event`, `cancel_event`, `add_room_booking`, `cancel_room_booking`, `add_equipment_allocation`, `cancel_equipment_allocation`, `add_service_window`, `remove_service_window` |
-| Tickets                      | `list_tickets`, `get_ticket`, `get_allowed_actions` (ticket only), `list_assignment_principals`                                                                                | `create_ticket`, `update_ticket`, `transition_ticket`, `move_ticket`                                                                                                                                                             |
-| Projects and tasks           | `list_projects`, `get_project` (slug), `list_tasks`, `get_task`, `list_board`                                                                                               | Create/update/delete projects and tasks; `set_project_status`, `set_task_status`, `move_task`, `set_task_assignees`, `add_task_blocker`, `remove_task_blocker`                                                                   |
+| Tickets                      | `list_tickets`, `get_ticket`, `get_allowed_actions`, `list_assignment_principals`                                                                                | `create_ticket`, `update_ticket`, `transition_ticket`, `move_ticket`                                                                                                                                                             |
+| Projects and tasks           | `list_projects`, `get_project` (slug), `list_tasks`, `get_task`, `list_board`, `get_allowed_actions` (ID)                                                                                               | Create/update/delete projects and tasks; `set_project_status`, `set_task_status`, `move_task`, `set_task_assignees`, `add_task_blocker`, `remove_task_blocker`                                                                   |
 | Notes                        | `list_notes`, `get_note`, `list_note_tags`                                                                                                                                  | `create_note`, `update_note`, `set_note_pinned`, `archive_note`, `unarchive_note`, `delete_note`                                                                                                                                 |
 | Personal work and history    | `list_time_entries`, `get_time_entry`, `get_timesheet`, `get_running_timer`, `list_notifications`, `get_notification`, `list_activity`, `search_workspace`                  | `start_timer`, `stop_timer`, `create_time_entry`, `update_time_entry`, `delete_time_entry`, `mark_notification_read`, `mark_all_notifications_read`                                                                              |
 | Images                       | `list_attachments`, `get_attachment` (metadata only)                                                                                                                        | `upload_attachment`, `delete_attachment`                                                                                                                                                                                         |
@@ -119,10 +119,12 @@ limit. Rooms are bookable spaces; locations are separate storage/work places, no
 
 Resource support varies by client; use the equivalent read tools when resources are not exposed.
 
-### Ticket workflow discovery
+### Workflow discovery
 
 Use `get_allowed_actions({ entityType: "ticket", id })` before changing a ticket's status.
-Only tickets are supported initially. It returns `entity`, `id`, `currentState`,
+The same tool supports `entityType: "task"` and `entityType: "project"`. Discovery always takes
+an ID; `get_project` and the project detail resource continue to take a slug.
+It returns `entity`, `id`, `currentState`,
 `allowedTransitions`, `allowedActions` (target, label key, required fields and workflow legality),
 `canWrite`, `permissionReason` and `requiresConfirmation`. A read-only token can inspect legal
 transitions but receives `canWrite:false` and a localized `READ_ONLY` permission reason.
@@ -142,6 +144,26 @@ BACKLOG to OPEN, IN_PROGRESS to IN_PROGRESS, DONE to RESOLVED and CANCELLED to C
 IN_REVIEW has no ticket equivalent. Same-lane moves are unaudited no-ops, including DONE without
 new resolution input. Actual transitions lock the current ticket row before checking and writing.
 Transition and move tools still require `confirm:true`.
+
+Tasks allow every distinct pair of BACKLOG, TODO, IN_PROGRESS, IN_REVIEW, BLOCKED, DONE and
+CANCELLED. Projects likewise allow every distinct pair of REQUESTED, CONFIRMED, AWAITING_FEEDBACK,
+CONSULTATION_SCHEDULED, COMPLETED, FOLLOW_UP_REQUIRED, REJECTED and CANCELLED. There are no
+dependency, assignment, hierarchy or project-completion gates. Explicit task BLOCKED and
+dependency-derived blocking are independent. Setting the current status is rejected.
+
+`get_task`, `get_project`, their detail resources and task/project status and task move results
+include `allowedTransitions` and `allowedActions`. Task status-set moves to the target lane tail,
+even when both statuses share a lane. Board moves preserve status within a lane and use the
+existing lane default across lanes; identical neighbours remain an unaudited no-op. Positions
+and dependency graph guards are separate from status legality. Project status changes do not
+cascade to contained work. Task/project status and task move tools require no confirmation flag,
+so their discovery returns `requiresConfirmation:false`; destructive tools retain `confirm:true`.
+
+Current-state guards run again atomically inside mutations. Task conditional updates retry the
+whole transaction if status changed, without adding a row lock before multi-row lane rebalancing;
+project status-set locks its current row. Workspace import remains a separate restore operation:
+it restores status/content/assignees, retains existing task positions and uses import/update audit
+verbs, not normal status transitions. Neither status graph has notification or calendar effects.
 
 **Resources** return JSON without changing domain data:
 
@@ -221,12 +243,18 @@ Tool failures use `isError` and a JSON text payload with `status` and safe `deta
 403 for permissions, 404 for missing data, 409 for booking/stale-write conflicts and 422 for
 validation. SDK schema validation can instead return its own input-validation error.
 
-Ticket workflow rejections retain status 422 and existing `fieldErrors`/`formErrors`, adding a
+Ticket, task and project workflow rejections retain status 422 and the `fieldErrors`/`formErrors` response fields, adding a
 `transition` payload with `entity`, `currentState`, `attemptedTarget`, `allowedTransitions`,
 `allowedActions` and `reason: { code, message }`. Reason codes are `INVALID_TRANSITION`,
-`RESOLUTION_REQUIRED` and `UNSUPPORTED_LANE`; messages follow the request locale. Invalid schema
-fields remain ordinary validation failures, and missing tickets remain 404. Unexpected errors
+`RESOLUTION_REQUIRED` and `UNSUPPORTED_LANE` for tickets; task/project same-status rejection uses
+`INVALID_TRANSITION`. Messages follow the request locale. Invalid schema
+fields remain ordinary validation failures, and missing entities remain 404. Unexpected errors
 never include raw exception detail.
+
+For task/project same-status rejection, the existing `fieldErrors.status` is preserved and
+`formErrors:[message]` is now added alongside it. Previously that array was empty, which hid
+the desktop status error from forms that render only form-level feedback. Mobile retains its
+existing 422 error-boundary behavior.
 
 Resource misses use MCP protocol errors, not tool-result envelopes. An HTTP 401 means the PAT is absent,
 invalid/revoked or its account is ineligible; a 405 on GET is expected, not a health probe.

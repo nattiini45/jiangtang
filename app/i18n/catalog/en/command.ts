@@ -5,6 +5,7 @@ export const commandEn = {
   "command.placeholder": "Command or search, e.g. “Create task”…",
   "command.searching": "Searching…",
   "command.noResults": "No results",
+  "command.dismissError": "Dismiss",
   "command.commands": "Commands",
   "command.searchFor": "Search for “{query}”",
 

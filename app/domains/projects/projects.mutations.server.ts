@@ -5,6 +5,7 @@ import { ensureUniqueSlug } from "~/lib/slug.server";
 import { type Tx } from "~/lib/db.server";
 import type { Project, ProjectStatus } from "~/generated/prisma/client";
 import type { ProjectCreateInput, ProjectEditInput } from "./projects.schema";
+import { requireProjectTransition } from "./projects.transitions.server";
 import {
   countProjectReferences,
   isProjectDescendantWithin,
@@ -162,14 +163,17 @@ export async function setProjectStatus(
   status: ProjectStatus,
 ): Promise<Project> {
   return txWithAudit(actor, async (tx, audit) => {
-    const before = await tx.project.findUnique({ where: { id } });
+    const [before] = await tx.$queryRaw<Array<{ status: ProjectStatus }>>`
+      SELECT status FROM "Project" WHERE id = ${id} FOR UPDATE
+    `;
     if (!before) throw new NotFoundError(tr("work.err.project.notFound"));
-    if (before.status === status) {
-      throw new ValidationError({ status: [tr("work.err.project.statusAlready")] });
-    }
-    const project = await tx.project.update({ where: { id }, data: { status } });
+    const edge = requireProjectTransition(before.status, status);
+    const project = await tx.project.update({
+      where: { id },
+      data: edge.effect,
+    });
     await audit({
-      action: "ProjectStatusChanged",
+      action: edge.audit,
       entityType: "project",
       entityId: id,
       data: { name: project.name, from: before.status, to: status },

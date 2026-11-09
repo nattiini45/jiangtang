@@ -4,6 +4,7 @@ export const commandDe = {
   "command.placeholder": "Befehl oder Suche — z. B. „Aufgabe anlegen“…",
   "command.searching": "Suche läuft…",
   "command.noResults": "Keine Treffer",
+  "command.dismissError": "Schließen",
   "command.commands": "Befehle",
   "command.searchFor": "Suchen nach „{query}“",
 

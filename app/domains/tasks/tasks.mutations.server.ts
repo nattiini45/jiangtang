@@ -5,13 +5,10 @@ import { db, type Tx } from "~/lib/db.server";
 import { isUniqueViolation } from "~/lib/db-errors.server";
 import { Prisma } from "~/generated/prisma/client";
 import type { Task, TaskStatus } from "~/generated/prisma/client";
-import {
-  LANE_TASK_STATUSES,
-  laneOfTaskStatus,
-  TASK_LANE_DEFAULT_STATUS,
-  type Lane,
-} from "./tasks.lanes";
+import { LANE_TASK_STATUSES, laneOfTaskStatus, type Lane } from "./tasks.lanes";
 import { positionBetween } from "./tasks.position";
+import { TASK_MOVE_POLICY, taskMoveStatus } from "./tasks.transitions";
+import { requireTaskTransition } from "./tasks.transitions.server";
 import { notifyTaskAssignedInTx } from "~/domains/notifications/notifications.mutations.server";
 import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 import type {
@@ -282,6 +279,39 @@ export async function updateTask(
   });
 }
 
+class TaskStateChanged extends Error {}
+
+async function mutateCurrentTask(
+  actor: AuditActor,
+  id: string,
+  mutate: (tx: Tx, audit: AuditFn, before: Task) => Promise<Task>,
+): Promise<Task> {
+  for (;;) {
+    try {
+      return await txWithAudit(actor, async (tx, audit) => {
+        const before = await tx.task.findUnique({ where: { id } });
+        if (!before) throw new NotFoundError(tr("work.err.task.notFound"));
+        return mutate(tx, audit, before);
+      });
+    } catch (error) {
+      if (!(error instanceof TaskStateChanged)) throw error;
+    }
+  }
+}
+
+async function updateCurrentTask(
+  tx: Tx,
+  before: Task,
+  data: { status: TaskStatus; position: Prisma.Decimal },
+): Promise<Task> {
+  const [task] = await tx.task.updateManyAndReturn({
+    where: { id: before.id, status: before.status },
+    data,
+  });
+  if (!task) throw new TaskStateChanged();
+  return task;
+}
+
 /**
  * `setTaskStatus` — a lifecycle transition, audited `TaskStatusChanged
  * {from,to}`. The card moves to the END of the new status's lane: a status
@@ -294,16 +324,12 @@ export async function setTaskStatus(
   id: string,
   status: TaskStatus,
 ): Promise<Task> {
-  return txWithAudit(actor, async (tx, audit) => {
-    const before = await tx.task.findUnique({ where: { id } });
-    if (!before) throw new NotFoundError(tr("work.err.task.notFound"));
-    if (before.status === status) {
-      throw new ValidationError({ status: [tr("work.err.task.statusAlready")] });
-    }
-    const position = await laneTailPosition(tx, laneOfTaskStatus(status));
-    const task = await tx.task.update({ where: { id }, data: { status, position } });
+  return mutateCurrentTask(actor, id, async (tx, audit, before) => {
+    const edge = requireTaskTransition(before.status, status);
+    const position = await laneTailPosition(tx, edge.effect.lane);
+    const task = await updateCurrentTask(tx, before, { status: edge.effect.status, position });
     await audit({
-      action: "TaskStatusChanged",
+      action: edge.audit,
       entityType: "task",
       entityId: id,
       data: { title: task.title, from: before.status, to: status },
@@ -329,10 +355,7 @@ export async function setTaskStatus(
  * audits nothing.
  */
 export async function moveTask(actor: AuditActor, id: string, move: TaskMoveInput): Promise<Task> {
-  return txWithAudit(actor, async (tx, audit) => {
-    const before = await tx.task.findUnique({ where: { id } });
-    if (!before) throw new NotFoundError(tr("work.err.task.notFound"));
-
+  return mutateCurrentTask(actor, id, async (tx, audit, before) => {
     const lane = move.lane;
     const currentLane = laneOfTaskStatus(before.status);
 
@@ -383,7 +406,10 @@ export async function moveTask(actor: AuditActor, id: string, move: TaskMoveInpu
       }
     }
 
-    const status = lane === currentLane ? before.status : TASK_LANE_DEFAULT_STATUS[lane];
+    const status = taskMoveStatus(before.status, lane);
+    if (lane !== currentLane) {
+      requireTaskTransition(before.status, status);
+    }
 
     let position = positionBetween(prev?.position ?? null, next?.position ?? null);
     if (position === null) {
@@ -406,9 +432,9 @@ export async function moveTask(actor: AuditActor, id: string, move: TaskMoveInpu
       position = positionBetween(prevPos, nextPos)!;
     }
 
-    const task = await tx.task.update({ where: { id }, data: { status, position } });
+    const task = await updateCurrentTask(tx, before, { status, position });
     await audit({
-      action: "TaskMoved",
+      action: TASK_MOVE_POLICY.audit,
       entityType: "task",
       entityId: id,
       data: {
