@@ -65,7 +65,10 @@ test("ticket board drops enforce legal actions and collect resolution before wri
     await expect(dialog).not.toBeVisible();
 
     await drop(page, handle, lane("Erledigt"));
+    await expect(resolution).toBeFocused();
+    await resolution.click();
     await resolution.fill("   ");
+    await expect(resolution).toHaveValue("   ");
     await dialog.getByRole("button", { name: "Lösen", exact: true }).click();
     await expect(dialog.getByRole("alert")).toContainText("Lösung angeben.");
     await expect(resolution).toHaveValue("   ");
@@ -79,7 +82,10 @@ test("ticket board drops enforce legal actions and collect resolution before wri
     await drop(page, handle, lane("Erledigt"));
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("alert")).toHaveCount(0);
+    await expect(resolution).toBeFocused();
+    await resolution.click();
     await resolution.fill("Synthetic browser repair");
+    await expect(resolution).toHaveValue("Synthetic browser repair");
     await dialog.getByRole("button", { name: "Lösen", exact: true }).click();
     await expect(dialog).not.toBeVisible();
     await expect(

@@ -214,6 +214,14 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
   PostgreSQL exclusion constraint at save is authoritative; conflicts do not overwrite bookings.
   `create_event_with_booking` is atomic for the event and its initial room booking; further calls
   are separate transactions and can leave partial progress. Canceling an event releases bookings.
+- A running time entry (`endsAt: null`) must start at or before the server's mutation-time now.
+  Use `start_timer` to start your own timer at server time instead of guessing the server clock.
+  Creation and changed updates reject future starts with localized 422 validation errors;
+  identical no-write updates remain unaudited no-ops. Finished entries may be in the past or
+  future. Existing future-running entries stay stored: Stop returns a localized recovery error
+  without changing them. Stop must be strictly after the start time; stopping at the same instant
+  returns that recovery error too. Correct the start time, supply a valid end time with `update_time_entry`
+  (also available in the desktop timesheet), or wait until after the start time before stopping.
 - Stock links are one-to-one with equipment. `update_stock_item` preserves the equipment link;
   use `link_stock_item_to_equipment` or confirmed `unlink_stock_item_from_equipment`. Unlink
   before deleting linked stock; changing an existing link requires unlinking first. Retirement

@@ -105,6 +105,10 @@ export const errorsWorkEn = {
   "work.err.time.timerAlreadyRunning": "A timer is already running — stop it first.",
   "work.err.time.timerRequired": "Timer requires a signed-in user.",
   "work.err.time.noTimerRunning": "No timer is running.",
+  "work.err.time.futureRunning":
+    "A running time entry cannot start in the future. Choose a start time of now or earlier, or enter an end time.",
+  "work.err.time.futureTimerStop":
+    "A timer can only stop after its start time. Correct the start time, enter a later end time in the desktop timesheet, or wait until after the start time.",
   "work.err.time.entryAuthorRequired": "Time entry requires a signed-in user.",
 
   // ── CSV / workspace / markdown import ──────────────────────────────────────
