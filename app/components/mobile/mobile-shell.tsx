@@ -237,7 +237,7 @@ export function MobileShell({
             ))}
           </nav>
           <div className="flex items-center justify-between gap-2">
-            <LanguageSwitcher size="lg" />
+            <LanguageSwitcher size="lg" className="bg-background" />
             <Form method="post" action="/logout">
               <button
                 type="submit"

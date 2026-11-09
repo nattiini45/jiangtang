@@ -26,36 +26,37 @@ export function LanguageSwitcher({
   const shown: Locale = isLocale(submitted) ? submitted : active;
 
   return (
-    <fetcher.Form
-      method="post"
-      action="/prefs/locale"
-      role="group"
-      aria-label={t("shell.language.label")}
-      className={cn("bg-tint inline-flex gap-0.5 rounded-md p-0.5", className)}
-    >
-      <input type="hidden" name="next" value={`${location.pathname}${location.search}`} />
-      {LOCALES.slice()
-        .sort()
-        .map((locale) => (
-          <button
-            key={locale}
-            type="submit"
-            name="locale"
-            value={locale}
-            lang={locale}
-            aria-pressed={shown === locale}
-            title={t(`shell.language.${locale}`)}
-            className={cn(
-              "cursor-pointer rounded-sm text-xs transition-[color,background-color,box-shadow] duration-80 focus-visible:z-10",
-              size === "lg" ? "min-h-11 min-w-11 px-3" : "h-7 min-w-8 px-2",
-              shown === locale
-                ? "bg-card text-foreground shadow-surface-1 font-semibold"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {locale.toUpperCase()} <span className="sr-only">{t(`shell.language.${locale}`)}</span>
-          </button>
-        ))}
+    <fetcher.Form method="post" action="/prefs/locale" className="inline-flex">
+      <div
+        role="group"
+        aria-label={t("shell.language.label")}
+        className={cn("bg-tint inline-flex gap-0.5 rounded-md p-0.5", className)}
+      >
+        <input type="hidden" name="next" value={`${location.pathname}${location.search}`} />
+        {LOCALES.slice()
+          .sort()
+          .map((locale) => (
+            <button
+              key={locale}
+              type="submit"
+              name="locale"
+              value={locale}
+              lang={locale}
+              aria-pressed={shown === locale}
+              title={t(`shell.language.${locale}`)}
+              className={cn(
+                "cursor-pointer rounded-sm text-xs transition-[color,background-color,box-shadow] duration-80 focus-visible:z-10",
+                size === "lg" ? "min-h-11 min-w-11 px-3" : "h-7 min-w-8 px-2",
+                shown === locale
+                  ? "bg-card text-foreground shadow-surface-1 font-semibold"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {locale.toUpperCase()}{" "}
+              <span className="sr-only">{t(`shell.language.${locale}`)}</span>
+            </button>
+          ))}
+      </div>
     </fetcher.Form>
   );
 }

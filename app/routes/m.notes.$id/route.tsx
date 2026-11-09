@@ -58,7 +58,7 @@ export default function MobileNoteDetail({ loaderData }: Route.ComponentProps) {
       </header>
       {note.body ? (
         <div className="min-w-0 max-w-full overflow-x-auto [&_a]:inline-block [&_a]:min-h-11 [&_a]:py-3 [&_img]:max-w-full">
-          <MarkdownPreview source={note.body} />
+          <MarkdownPreview source={note.body} nestedHeadings />
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">{t("mobileDetails.noteEmpty")}</p>

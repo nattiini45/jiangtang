@@ -47,7 +47,7 @@ for (const viewport of [
     await expect(close).toBeFocused();
     const accessibility = await new AxeBuilder({ page })
       .include("dialog")
-      .withTags(["wcag2a", "wcag2aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
       .analyze();
     expect(accessibility.violations).toEqual([]);
 
@@ -251,6 +251,14 @@ test("week navigation has a separate readable row and mobile form fields meet th
   for (const field of await page.locator('main input:not([type="hidden"]), main select').all()) {
     await expectTarget(field);
   }
+  const date = await page.getByLabel("Datum", { exact: true }).boundingBox();
+  const start = await page.getByLabel("Von", { exact: true }).boundingBox();
+  const end = await page.getByLabel("Bis", { exact: true }).boundingBox();
+  expect(date!.width).toBeGreaterThan(300);
+  expect(start!.width).toBeGreaterThan(150);
+  expect(end!.width).toBeGreaterThan(150);
+  expect(start!.y).toBe(end!.y);
+  expect(start!.y).toBeGreaterThan(date!.y);
 });
 
 test("a missing mobile task keeps its 404 status and offers capture recovery", async ({ page }) => {
@@ -280,6 +288,6 @@ test("the photo picker allows an existing photo without forcing the camera", asy
     ),
   });
   await expect(
-    page.getByRole("status").filter({ hasText: "1 Foto(s) an diesem Ticket" }),
+    page.getByRole("status").filter({ hasText: "Ausgewählte Fotos: 1. Noch nicht hochgeladen." }),
   ).toBeVisible();
 });

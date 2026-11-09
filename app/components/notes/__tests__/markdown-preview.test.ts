@@ -10,6 +10,19 @@ import { MarkdownPreview } from "~/components/notes/markdown-preview";
  * server-side — no DOM needed.
  */
 describe("MarkdownPreview", () => {
+  it("nests phone note headings below the page title without changing default previews", () => {
+    const source = "# Title\n\n## Section\n\n<script>unsafe</script>";
+    const nested = renderToStaticMarkup(
+      createElement(MarkdownPreview, { source, nestedHeadings: true }),
+    );
+    expect(nested).not.toContain("<h1>");
+    expect(nested).toContain("<h2>Title</h2>");
+    expect(nested).toContain("<h3>Section</h3>");
+    expect(nested).not.toContain("<script>");
+    expect(renderToStaticMarkup(createElement(MarkdownPreview, { source }))).toContain(
+      "<h1>Title</h1>",
+    );
+  });
   it("renders raw HTML in the body as escaped text, never as elements", () => {
     const html = renderToStaticMarkup(
       createElement(MarkdownPreview, {

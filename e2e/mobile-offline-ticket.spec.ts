@@ -87,7 +87,7 @@ test("an offline ticket with a photo is not queued until the person drops the ph
   await expect(page.getByText("Nicht gesendet: keine Verbindung.", { exact: false })).toBeVisible();
   await expect(page.locator('input[name="title"]')).toHaveValue(TITLE);
   await expect(page.getByText(`${TITLE} — ausstehend`)).toHaveCount(0);
-  await expect(page.getByText("1 Foto(s) an diesem Ticket")).toBeVisible();
+  await expect(page.getByText("Ausgewählte Fotos: 1. Noch nicht hochgeladen.")).toBeVisible();
 
   await page.getByRole("button", { name: "Offline ohne Fotos speichern" }).click();
   await expect(page.getByText("Offline gespeichert")).toBeVisible();

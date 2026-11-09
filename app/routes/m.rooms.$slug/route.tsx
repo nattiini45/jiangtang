@@ -156,7 +156,7 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
             {t("events.calendar.today")}
           </Link>
         </div>
-        <p className="text-muted-foreground text-xs">Europe/Berlin</p>
+        <p className="text-muted-foreground text-xs">{t("mobile.timeZone")}</p>
         {bookings.length ? (
           <ul className="bg-card shadow-surface-2 divide-y rounded-lg">
             {bookings.map((booking) => (
@@ -192,9 +192,6 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
               <li key={e.id}>
                 <Link
                   to={`/m?roomId=${room.id}&equipmentId=${e.id}`}
-                  aria-label={t("mobileDetails.reportEquipment", {
-                    name: e.name ?? e.modelName ?? "—",
-                  })}
                   className="hover:bg-hover active:bg-selected flex min-h-12 flex-wrap items-center gap-2 px-3 py-3 text-sm"
                 >
                   <span className="min-w-0 flex-1">{e.name ?? e.modelName ?? "—"}</span>
@@ -202,6 +199,11 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
                     {categoryLabel(locale, e.category)}
                   </span>
                   <StatusBadge kind="equipment" value={e.status} />
+                  <span className="text-muted-foreground basis-full text-xs">
+                    {t("mobileDetails.reportEquipment", {
+                      name: e.name ?? e.modelName ?? "—",
+                    })}
+                  </span>
                 </Link>
               </li>
             ))}

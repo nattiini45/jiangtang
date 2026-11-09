@@ -92,7 +92,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
           {t("events.calendar.today")}
         </Link>
       </div>
-      <p className="text-muted-foreground text-xs">Europe/Berlin</p>
+      <p className="text-muted-foreground text-xs">{t("mobile.timeZone")}</p>
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {events.map((event) => {
           const spansDays =

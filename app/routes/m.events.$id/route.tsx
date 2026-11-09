@@ -63,7 +63,7 @@ export default function MobileEventDetail({ loaderData }: Route.ComponentProps) 
       <section className="space-y-2">
         <h2 className="text-base font-semibold">{t("mobileDetails.eventTime")}</h2>
         <p className="nums text-sm">{formatRange(locale, event.startsAt, event.endsAt)}</p>
-        <p className="text-muted-foreground text-xs">Europe/Berlin</p>
+        <p className="text-muted-foreground text-xs">{t("mobile.timeZone")}</p>
         <dl className="space-y-2 text-sm">
           {event.organizer ? (
             <div>

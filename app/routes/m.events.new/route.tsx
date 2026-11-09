@@ -195,34 +195,33 @@ export default function MobileEventNew({ loaderData, actionData }: Route.Compone
             ))}
           </Select>
         </FormField>
-        <div className="flex flex-wrap items-end gap-2">
-          <FormField name="date" label={t("mobile.eventsNew.date")}>
+        <div className="grid grid-cols-2 items-end gap-3">
+          <FormField name="date" label={t("mobile.eventsNew.date")} className="col-span-2 min-w-0">
             <Input
               type="date"
               name="date"
               required
               value={date}
               onChange={(e) => setDate(e.currentTarget.value)}
-              className="w-[9.5rem]"
+              className="min-w-0 w-full"
             />
           </FormField>
-          <FormField name="startTime" label={t("mobile.eventsNew.start")}>
+          <FormField name="startTime" label={t("mobile.eventsNew.start")} className="min-w-0">
             <Input
               type="time"
               name="startTime"
               required
-              className="w-[6.5rem]"
+              className="min-w-0 w-full"
               value={startTime}
               onChange={(e) => setStartTime(e.currentTarget.value)}
             />
           </FormField>
-          <span className="text-muted-foreground pb-2">–</span>
-          <FormField name="endTime" label={t("mobile.eventsNew.end")}>
+          <FormField name="endTime" label={t("mobile.eventsNew.end")} className="min-w-0">
             <Input
               type="time"
               name="endTime"
               required
-              className="w-[6.5rem]"
+              className="min-w-0 w-full"
               value={endTime}
               onChange={(e) => setEndTime(e.currentTarget.value)}
             />

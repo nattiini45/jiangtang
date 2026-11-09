@@ -94,7 +94,9 @@ export const mobileEn = {
   "mobile.photo.take": "Take photo",
   "mobile.photo.close": "Close",
   "mobile.photo.start": "Add a photo",
-  "mobile.photo.count": "{count} photo(s) on this ticket",
+  "mobile.photo.count": "Photos on this ticket: {count}",
+  "mobile.photo.selected": "Selected photos: {count}. Not uploaded yet.",
+  "mobile.timeZone": "Berlin time (Europe/Berlin)",
 
   "mobile.entry.title": "Log an entry",
   "mobile.entry.room": "Room",

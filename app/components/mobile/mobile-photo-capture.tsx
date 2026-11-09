@@ -181,9 +181,14 @@ export function MobilePhotoCapture({
           {error}
         </p>
       ) : null}
-      {captures + existingCount > 0 ? (
+      {existingCount > 0 ? (
         <p role="status" className="text-muted-foreground nums text-xs">
-          {t("mobile.photo.count", { count: captures + existingCount })}
+          {t("mobile.photo.count", { count: existingCount })}
+        </p>
+      ) : null}
+      {captures > 0 ? (
+        <p role="status" className="text-muted-foreground nums text-xs">
+          {t("mobile.photo.selected", { count: captures })}
         </p>
       ) : null}
     </div>

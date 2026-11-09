@@ -101,7 +101,9 @@ export const mobileDe = {
   "mobile.photo.take": "Foto machen",
   "mobile.photo.close": "Schließen",
   "mobile.photo.start": "Foto aufnehmen",
-  "mobile.photo.count": "{count} Foto(s) an diesem Ticket",
+  "mobile.photo.count": "Fotos an diesem Ticket: {count}",
+  "mobile.photo.selected": "Ausgewählte Fotos: {count}. Noch nicht hochgeladen.",
+  "mobile.timeZone": "Berliner Zeit (Europe/Berlin)",
 
   "mobile.entry.title": "Eintrag erfassen",
   "mobile.entry.room": "Raum",

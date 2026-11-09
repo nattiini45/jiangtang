@@ -43,20 +43,15 @@ for (const theme of ["light", "dark"] as const) {
         { name: "view", value: "mobile", url: new URL(baseURL!).origin },
       ]);
       await page.emulateMedia({ colorScheme: theme, reducedMotion: "reduce" });
-      const heading = page.getByRole("heading", { level: 1, name: marker, exact: true }).first();
-      for (let attempt = 0; attempt < 4; attempt++) {
-        await page.goto(path, { waitUntil: "load" });
-        if (await heading.isVisible()) break;
-        await heading.waitFor({ state: "visible", timeout: 5000 }).catch(() => undefined);
-        if (await heading.isVisible()) break;
-      }
+      const heading = page.getByRole("heading", { level: 1, name: marker, exact: true });
+      await page.goto(path, { waitUntil: "load" });
       await expect(heading).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("lang", "de");
       await expect(page.locator("html")).toHaveClass(theme === "dark" ? /dark/ : /^$/);
       await page.evaluate(() => document.fonts.ready);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
       const accessibility = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa"])
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
         .analyze();
       expect(accessibility.violations).toEqual([]);
       await page.screenshot({
@@ -76,6 +71,11 @@ for (const theme of ["light", "dark"] as const) {
     await page.waitForSelector("html[data-hydrated]");
     await page.getByRole("button", { name: "Mehr", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Mehr", exact: true })).toBeVisible();
+    const accessibility = await new AxeBuilder({ page })
+      .include("dialog")
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"])
+      .analyze();
+    expect(accessibility.violations).toEqual([]);
     await page.waitForTimeout(500);
     await page.screenshot({
       path: `test-results/mobile-screens/more-${theme}.png`,
