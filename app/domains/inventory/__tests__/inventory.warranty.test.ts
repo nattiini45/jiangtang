@@ -358,10 +358,17 @@ describe("the boot module", () => {
     const expiring = await makeItem("boot-tick", new Date(Date.now() + 2 * DAY_MS));
     const logsBefore = await db.activityLog.count();
     const intervalSpy = vi.spyOn(globalThis, "setInterval");
+    const onShutdown = vi.fn<BootContext["onShutdown"]>();
+    const ctx: BootContext = {
+      env: "production",
+      server: {} as BootContext["server"],
+      onShutdown,
+    };
 
-    await register({} as unknown as Express, {} as BootContext);
+    await register({} as unknown as Express, ctx);
     intervalHandle = intervalSpy.mock.results[0]?.value as
       ReturnType<typeof setInterval> | undefined;
+    expect(onShutdown).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
 
     // "Daily" asserted on the interval this module creates, not on
     // `vi.getTimerCount()`: that count also includes timers the `pg` pool
