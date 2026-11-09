@@ -96,7 +96,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **45 read tools and 69 write tools**. Their published schemas are
+Discovery currently returns **46 read tools and 69 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -106,7 +106,7 @@ calls are denied before executing domain mutations.
 | Rooms and locations          | `list_campuses`, `get_building`, `list_rooms`, `get_room`, `list_locations`                                                                                                 | Campus/building/room/location creation and updates; `retire_room`, `clone_room`, `move_location`, `delete_location`; admin-only `bulk_create_rooms`                                                                              |
 | Catalog, equipment and stock | `list_equipment_models`, `get_equipment`, `list_stock`, `get_stock_item`, `list_vendors`                                                                                    | Model/equipment/stock/vendor creation and updates; `retire_equipment`, `set_equipment_substitution`, `delete_stock_item`, explicit stock linking/unlinking; admin-only `bulk_create_equipment`                                   |
 | Events and bookings          | `list_events`, `get_event`, `list_room_bookings`, `get_room_booking`, `list_equipment_allocations`, `get_equipment_allocation`, `check_booking_conflicts`, `find_free_slot` | `create_event`, `create_event_with_booking`, `update_event`, `cancel_event`, `add_room_booking`, `cancel_room_booking`, `add_equipment_allocation`, `cancel_equipment_allocation`, `add_service_window`, `remove_service_window` |
-| Tickets                      | `list_tickets`, `get_ticket`, `list_assignment_principals`                                                                                                                  | `create_ticket`, `update_ticket`, `transition_ticket`, `move_ticket`                                                                                                                                                             |
+| Tickets                      | `list_tickets`, `get_ticket`, `get_allowed_actions` (ticket only), `list_assignment_principals`                                                                                | `create_ticket`, `update_ticket`, `transition_ticket`, `move_ticket`                                                                                                                                                             |
 | Projects and tasks           | `list_projects`, `get_project` (slug), `list_tasks`, `get_task`, `list_board`                                                                                               | Create/update/delete projects and tasks; `set_project_status`, `set_task_status`, `move_task`, `set_task_assignees`, `add_task_blocker`, `remove_task_blocker`                                                                   |
 | Notes                        | `list_notes`, `get_note`, `list_note_tags`                                                                                                                                  | `create_note`, `update_note`, `set_note_pinned`, `archive_note`, `unarchive_note`, `delete_note`                                                                                                                                 |
 | Personal work and history    | `list_time_entries`, `get_time_entry`, `get_timesheet`, `get_running_timer`, `list_notifications`, `get_notification`, `list_activity`, `search_workspace`                  | `start_timer`, `stop_timer`, `create_time_entry`, `update_time_entry`, `delete_time_entry`, `mark_notification_read`, `mark_all_notifications_read`                                                                              |
@@ -118,6 +118,30 @@ default to 50, accept up to 100 per page, and expose domain filters. `list_activ
 limit. Rooms are bookable spaces; locations are separate storage/work places, not room IDs.
 
 Resource support varies by client; use the equivalent read tools when resources are not exposed.
+
+### Ticket workflow discovery
+
+Use `get_allowed_actions({ entityType: "ticket", id })` before changing a ticket's status.
+Only tickets are supported initially. It returns `entity`, `id`, `currentState`,
+`allowedTransitions`, `allowedActions` (target, label key, required fields and workflow legality),
+`canWrite`, `permissionReason` and `requiresConfirmation`. A read-only token can inspect legal
+transitions but receives `canWrite:false` and a localized `READ_ONLY` permission reason.
+Workflow legality, required input, permission and human confirmation are separate checks;
+an allowed action is advisory, not a guarantee that a later write will succeed.
+
+The graph is OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED;
+RESOLVED or CANCELLED → OPEN/IN_PROGRESS. Self transitions and closed-to-closed transitions
+are rejected. Resolving requires a nonblank `resolution`; reopening clears resolution and
+resolvedAt, while cancellation preserves them. Ticket type is independently editable and does
+not restrict the graph. Creation semantics are unchanged: MCP creation excludes CANCELLED and
+supports born-resolved entries with a resolution.
+
+`get_ticket`, ticket detail resources and ticket create/update/transition/move results include
+`allowedTransitions` and `allowedActions` without removing existing fields. `move_ticket` maps
+BACKLOG to OPEN, IN_PROGRESS to IN_PROGRESS, DONE to RESOLVED and CANCELLED to CANCELLED;
+IN_REVIEW has no ticket equivalent. Same-lane moves are unaudited no-ops, including DONE without
+new resolution input. Actual transitions lock the current ticket row before checking and writing.
+Transition and move tools still require `confirm:true`.
 
 **Resources** return JSON without changing domain data:
 
@@ -195,8 +219,16 @@ process-local, not shared across replicas. Respect `429` and `Retry-After`.
 
 Tool failures use `isError` and a JSON text payload with `status` and safe `detail`: typically
 403 for permissions, 404 for missing data, 409 for booking/stale-write conflicts and 422 for
-validation. SDK schema validation can instead return its own input-validation error. Resource
-misses use MCP protocol errors, not tool-result envelopes. An HTTP 401 means the PAT is absent,
+validation. SDK schema validation can instead return its own input-validation error.
+
+Ticket workflow rejections retain status 422 and existing `fieldErrors`/`formErrors`, adding a
+`transition` payload with `entity`, `currentState`, `attemptedTarget`, `allowedTransitions`,
+`allowedActions` and `reason: { code, message }`. Reason codes are `INVALID_TRANSITION`,
+`RESOLUTION_REQUIRED` and `UNSUPPORTED_LANE`; messages follow the request locale. Invalid schema
+fields remain ordinary validation failures, and missing tickets remain 404. Unexpected errors
+never include raw exception detail.
+
+Resource misses use MCP protocol errors, not tool-result envelopes. An HTTP 401 means the PAT is absent,
 invalid/revoked or its account is ineligible; a 405 on GET is expected, not a health probe.
 Unexpected resource-read failures return a correlation reference and log it with the resource
 kind. Raw exception content is deliberately excluded from those logs to avoid recording

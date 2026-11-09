@@ -37,11 +37,12 @@ import {
   transitionTicket,
   moveTicketToLane,
 } from "~/domains/tickets/tickets.mutations.server";
-import { LANES, TICKET_LANE_STATUS } from "~/domains/tasks/tasks.lanes";
+import { LANES } from "~/domains/tasks/tasks.lanes";
 import { berlinLocalString } from "~/lib/berlin-days";
 import { BookingConflictError, NotFoundError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { registerTool } from "~/lib/mcp/tools.server";
+import { ticketActionMetadata } from "~/domains/tickets/tickets.transitions";
 import { mcpActor, type McpContext } from "~/lib/mcp/types.server";
 
 const id = z.string().trim().min(1).max(200);
@@ -321,7 +322,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "create_ticket",
       description:
-        "Create a ticket, including a born-resolved repair with a resolution. Dates must be ISO instants.",
+        "Create a ticket, including a born-resolved repair with a resolution. Dates must be ISO instants. Result includes legal next actions; inspect get_allowed_actions before later transitions.",
       schema: z.object({
         input: z
           .object({ ...ticketCreateSchema.shape, ...ticketDates })
@@ -335,7 +336,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     async ({ input }, context) => {
       const ticket = await createTicket(mcpActor(context), ticketCreateSchema.parse(input));
       await emitChange({ entityType: "ticket", id: ticket.id, op: "created" });
-      return { ...ticket, label: ticket.title };
+      return { ...ticket, label: ticket.title, ...ticketActionMetadata(ticket.status) };
     },
   );
   registerTool(
@@ -344,7 +345,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "update_ticket",
       description:
-        "Replace ticket content and assignees without changing its status. Dates must be ISO instants.",
+        "Replace ticket content and assignees without changing its status. Dates must be ISO instants. Result includes legal next actions; see get_allowed_actions.",
       schema: z.object({
         id,
         input: ticketEditSchema
@@ -356,7 +357,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     async ({ id, input }, context) => {
       const ticket = await updateTicket(mcpActor(context), id, ticketEditSchema.parse(input));
       await emitChange({ entityType: "ticket", id: ticket.id, op: "updated" });
-      return { ...ticket, label: ticket.title };
+      return { ...ticket, label: ticket.title, ...ticketActionMetadata(ticket.status) };
     },
   );
   registerTool(
@@ -365,7 +366,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "transition_ticket",
       description:
-        "Change ticket status through the domain workflow. Resolving requires resolution; confirm:true is required.",
+        "Change ticket status: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS. No self transitions. RESOLVED requires nonblank resolution. Refresh get_allowed_actions first; confirm:true is required.",
       schema: z.object({ id, input: ticketTransitionSchema, confirm }),
       write: true,
       destructive: true,
@@ -373,7 +374,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     async ({ id, input }, context) => {
       const ticket = await transitionTicket(mcpActor(context), id, input);
       await emitChange({ entityType: "ticket", id: ticket.id, op: "updated" });
-      return { ...ticket, label: ticket.title };
+      return { ...ticket, label: ticket.title, ...ticketActionMetadata(ticket.status) };
     },
   );
   registerTool(
@@ -382,32 +383,20 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "move_ticket",
       description:
-        "Move a ticket to a board lane. DONE requires resolution; IN_REVIEW is invalid for tickets. Requires confirm:true.",
-      schema: z
-        .object({
-          id,
-          lane: z.enum(LANES).refine((lane) => Boolean(TICKET_LANE_STATUS[lane])),
-          resolution: ticketTransitionSchema.shape.resolution,
-          confirm,
-        })
-        .superRefine((input, refinement) => {
-          const parsed = ticketTransitionSchema.safeParse({
-            status: TICKET_LANE_STATUS[input.lane],
-            resolution: input.resolution,
-          });
-          if (!parsed.success) {
-            for (const issue of parsed.error.issues) {
-              refinement.addIssue({ code: "custom", path: issue.path, message: issue.message });
-            }
-          }
-        }),
+        "Move a ticket through the same workflow as transition_ticket: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; closed → OPEN/IN_PROGRESS. BACKLOG maps OPEN, DONE maps RESOLVED. DONE requires nonblank resolution; IN_REVIEW is invalid. Same-lane moves are unaudited no-ops. Refresh get_allowed_actions first. Requires confirm:true.",
+      schema: z.object({
+        id,
+        lane: z.enum(LANES),
+        resolution: ticketTransitionSchema.shape.resolution,
+        confirm,
+      }),
       write: true,
       destructive: true,
     },
     async ({ id, lane, resolution }, context) => {
       const ticket = await moveTicketToLane(mcpActor(context), id, lane, { resolution });
       await emitChange({ entityType: "ticket", id: ticket.id, op: "updated" });
-      return { ...ticket, label: ticket.title, lane };
+      return { ...ticket, label: ticket.title, lane, ...ticketActionMetadata(ticket.status) };
     },
   );
 }

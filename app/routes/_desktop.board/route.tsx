@@ -4,7 +4,7 @@ import { requireUser } from "~/lib/auth.server";
 import { safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
-import { toErrorResponse, ValidationError } from "~/lib/errors.server";
+import { toErrorResponse, TransitionError, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { z } from "zod";
 import { LANES } from "~/domains/tasks/tasks.lanes";
@@ -12,6 +12,8 @@ import { listBoardTasks } from "~/domains/tasks/tasks.queries.server";
 import { moveTask } from "~/domains/tasks/tasks.mutations.server";
 import { taskMoveSchema } from "~/domains/tasks/tasks.schema";
 import { moveTicketToLane } from "~/domains/tickets/tickets.mutations.server";
+import { ticketAllowedActions } from "~/domains/tickets/tickets.transitions";
+import { ticketTransitionSchema } from "~/domains/tickets/tickets.schema";
 import { listWorkTickets } from "~/domains/board/board.queries.server";
 import { listProjectOptions } from "~/domains/projects/projects.queries.server";
 import { listUsers } from "~/domains/auth/users.queries.server";
@@ -84,6 +86,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         title: t.title,
         type: t.type,
         status: t.status,
+        allowedActions: ticketAllowedActions(t.status),
         priority: t.priority,
         room: t.room,
         assignees: t.assignees,
@@ -112,12 +115,21 @@ export async function action({ request }: Route.ActionArgs) {
     const lane = safeParse(z.enum(LANES), form.lane, locale);
     if (!ticketId.success || !lane.success) return { error: t(locale, "err.invalidInput") };
     try {
-      await moveTicketToLane(actor, ticketId.data, lane.data);
+      const resolution = safeParse(
+        ticketTransitionSchema.shape.resolution,
+        form.resolution,
+        locale,
+      );
+      if (!resolution.success) return { error: t(locale, "err.invalidInput") };
+      await moveTicketToLane(actor, ticketId.data, lane.data, { resolution: resolution.data });
       await emitChange({ entityType: "ticket", id: ticketId.data, op: "updated" });
       return { ok: true as const };
     } catch (e) {
       if (e instanceof ValidationError) {
         return {
+          fieldErrors: e.fieldErrors,
+          formErrors: e.formErrors,
+          ...(e instanceof TransitionError ? { transition: e.transition } : {}),
           error:
             e.formErrors[0] ??
             Object.values(e.fieldErrors).flat()[0] ??

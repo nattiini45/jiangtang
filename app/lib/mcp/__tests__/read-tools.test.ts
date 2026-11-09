@@ -185,6 +185,7 @@ describe("read-only MCP coverage", () => {
       ...listInputs.map(([name]) => name),
       ...entityReads.map((name) => `get_${name}`),
       "get_project",
+      "get_allowed_actions",
       "check_booking_conflicts",
       "find_free_slot",
       "get_timesheet",
