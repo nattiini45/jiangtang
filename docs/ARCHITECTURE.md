@@ -285,7 +285,7 @@ Berlin day, keeping room status separate from reservations and retaining full bo
 before calling existing domain queries and expose no mutation action. Their list and search links
 stay mobile; broader event, note, project and equipment editing remains on desktop.
 
-Event mutations enqueue a `CalendarOutbox` row in the same transaction (one row per event UID and
+When CalDAV is configured, event mutations enqueue a `CalendarOutbox` row in the same transaction (one row per event UID and
 iCal `SEQUENCE`, unique in the database), so calendar downtime never blocks a write. A drain worker
 (`app/lib/calendar/calendar.boot.server.ts`, `app/lib/calendar/outbox.server.ts`) publishes pending rows in
 sequence order through a `CalendarPublisher`. A failed push is retried with exponential backoff
@@ -295,7 +295,25 @@ back the next. `/admin/index` lists retrying and parked pushes, the last success
 error, and offers a connection check. The real publisher writes an event with `PUT` and removes a
 cancelled one with `DELETE`. It is a zero-dependency CalDAV client (`app/lib/calendar/caldav.server.ts`) configured with
 `CALDAV_URL`, `CALDAV_USERNAME` and `CALDAV_PASSWORD`; without them a no-op publisher is used and
-the worker stays idle. The token-gated iCal feed (`calendar.$token.ics`, `ICAL_FEED_TOKEN`) renders
+the worker stays idle and mutations skip enqueueing before allocating a sequence. Event detail
+reports `calendarSync.configured` to desktop, mobile and MCP; unconfigured UI says “Not configured.”
+On first configured startup, initialization under the global drain lock and sorted UID locks marks
+existing PENDING work SUPERSEDED with an audit reason, then queues current snapshots atomically.
+Candidates have `endsAt` strictly after today's Europe/Berlin midnight, including overnight events
+and events that ended earlier today. All non-CANCELLED statuses qualify. A current/future CANCELLED
+event gets only a REMOVE, and only when an earlier UPSERT was SENT, FAILED, attempted or PENDING
+before initialization superseded it. Even a PENDING UPSERT with zero attempts may have reached
+the calendar before a crash between the remote PUT and the SENT update. Past/boundary-ended
+cancellations and cancellations without any such publication evidence
+are not replayed. SENT/FAILED/history stay intact and new sequences exceed the retained maximum.
+Replacement snapshots inherit any unexpired retry delay from attempted PENDING work, so
+initialization does not bypass the drain's network-failure backoff.
+The empty, expand-only `CalendarPublicationInitialization` table records successful first activation
+by marker existence; disposition, snapshot audits and marker commit together. Initialization uses no
+CalDAV HTTP, retries on later worker ticks after failure/lock contention, and gates draining until
+complete without blocking application startup. This is first activation only: destination migration,
+re-enable catch-up and periodic reconciliation are not provided.
+The token-gated iCal feed (`calendar.$token.ics`, `ICAL_FEED_TOKEN`) renders
 live events with the same builder (`app/lib/calendar/ical.server.ts`). Publishing is output-only.
 
 ## Search and AI (optional)

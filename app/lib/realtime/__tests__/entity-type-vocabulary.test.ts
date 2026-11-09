@@ -246,10 +246,11 @@ describe("one entity-type vocabulary", () => {
     for (const member of ENTITY_TYPES) expect(typeof member).toBe("string");
 
     // A derived union would rename 5 live members and admit 12 models that
-    // have no business on an SSE wire. These four are the excluded ones.
-    for (const excluded of ["session", "account", "verification", "calendarOutbox"]) {
+    // have no business on an SSE wire. These are the excluded ones.
+    for (const excluded of ["session", "account", "verification"]) {
       expect(ENTITY_TYPES as readonly string[]).not.toContain(excluded);
     }
+    expect(ENTITY_TYPES).toContain("calendarOutbox");
     // The two members that were once missing: two action routes had 0
     // emitChange calls because these could not be written.
     expect(ENTITY_TYPES).toContain("location");

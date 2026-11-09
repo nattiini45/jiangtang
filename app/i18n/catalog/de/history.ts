@@ -29,6 +29,8 @@ export const historyDe = {
   "history.action.CampusCreated": "Campus angelegt",
   "history.action.CampusUpdated": "Campus bearbeitet",
   "history.action.EventCreated": "Erstellt",
+  "history.action.CalendarOutboxSuperseded": "Kalendervorgang bei Erstkonfiguration übersprungen",
+  "history.action.CalendarPublicationInitialized": "Erste Kalenderveröffentlichung vorgemerkt",
   "history.action.EventUpdated": "Bearbeitet",
   "history.action.EventCancelled": "Abgesagt",
   "history.action.ServiceWindowAdded": "Servicefenster hinzugefügt",

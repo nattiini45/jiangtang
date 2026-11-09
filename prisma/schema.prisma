@@ -612,6 +612,10 @@ enum OutboxStatus {
   SUPERSEDED
 }
 
+model CalendarPublicationInitialization {
+  id String @id
+}
+
 model CalendarOutbox {
   id          String       @id @default(cuid())
   op          CalendarOp

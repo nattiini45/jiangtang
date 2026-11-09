@@ -425,7 +425,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_event",
       description:
-        "Get an event and all active room bookings, equipment allocations, service windows and linked tickets by event ID.",
+        "Get an event and all active room bookings, equipment allocations, service windows and linked tickets by event ID. calendarSync.configured reports whether CalDAV is configured; latest is retained publication history, not a promise of pending work when configured is false.",
       schema: byId,
     },
     ({ id }) => found(getEventDetail(id)),

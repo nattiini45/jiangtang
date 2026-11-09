@@ -23,24 +23,9 @@ import { renderIcalObject, type ICalFeedEvent } from "~/lib/calendar/ical.server
  * only PROPFIND is the admin connection check.
  */
 
-export interface CalDavConfig {
-  /** The calendar COLLECTION url (e.g. https://dav.example.org/cal/av-events/). */
-  url: string;
-  username: string;
-  password: string;
-}
-
-/**
- * Read CalDAV config from the environment. Returns null if any of the three vars
- * is missing/empty — the single signal the factory uses to fall back to Noop.
- */
-export function getCalDavConfig(): CalDavConfig | null {
-  const url = process.env.CALDAV_URL?.trim();
-  const username = process.env.CALDAV_USERNAME?.trim();
-  const password = process.env.CALDAV_PASSWORD;
-  if (!url || !username || !password) return null;
-  return { url, username, password };
-}
+import type { CalDavConfig } from "~/lib/calendar/config.server";
+export { getCalDavConfig } from "~/lib/calendar/config.server";
+export type { CalDavConfig } from "~/lib/calendar/config.server";
 
 /** Injectable fetch — tests pass a mock; production uses global `fetch`. */
 export type FetchLike = typeof fetch;

@@ -1,4 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
+import { configuredCalendarFixture } from "../../../../test/calendar-config";
+
+configuredCalendarFixture();
 import { db } from "~/lib/db.server";
 import { RETRY_WINDOW_MS, calendarSyncHealth, drainOnce } from "~/lib/calendar/outbox.server";
 import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publisher.server";

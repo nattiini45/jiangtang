@@ -5,6 +5,7 @@ import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { getEventDetail } from "~/domains/events/events.queries.server";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import { StatusBadge } from "~/components/ui/status-badge";
+import { CalendarSyncPanel } from "~/components/events/calendar-sync-panel";
 import { serviceWindowKindLabel } from "~/components/events/labels";
 import { buttonVariants } from "~/components/ui/button";
 import { dayIndexToDateKey } from "~/lib/berlin-days";
@@ -45,7 +46,7 @@ export default function MobileEventDetail({ loaderData }: Route.ComponentProps) 
   const t = useT();
   const locale = useLocale();
   const {
-    detail: { event, rooms, allocations, serviceWindows, tickets },
+    detail: { event, rooms, allocations, serviceWindows, tickets, calendarSync },
     date,
   } = loaderData;
   return (
@@ -60,6 +61,7 @@ export default function MobileEventDetail({ loaderData }: Route.ComponentProps) 
         <h1 className="text-lg font-bold">{event.title}</h1>
         <StatusBadge kind="event" value={event.status} />
       </header>
+      <CalendarSyncPanel sync={calendarSync} />
       <section className="space-y-2">
         <h2 className="text-base font-semibold">{t("mobileDetails.eventTime")}</h2>
         <p className="nums text-sm">{formatRange(locale, event.startsAt, event.endsAt)}</p>
