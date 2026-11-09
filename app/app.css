@@ -435,3 +435,79 @@
     font-size: 16px;
   }
 }
+
+html:has(.mobile-shell) {
+  scroll-padding-top: calc(4.5rem + env(safe-area-inset-top));
+  scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+
+.mobile-shell {
+  --control-h: 44px;
+  --fs-body: 14px;
+  --lh-body: 22px;
+  --fs-caption: 14px;
+  --lh-caption: 20px;
+  --fs-subtitle: 16px;
+  --lh-subtitle: 24px;
+  --fs-title: 20px;
+  --lh-title: 28px;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.mobile-shell h1 {
+  font-weight: 700;
+}
+
+.mobile-shell .mobile-header {
+  height: calc(3.5rem + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.mobile-shell main,
+.mobile-shell .mobile-tabs {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.mobile-shell :where(ul, nav, [role="navigation"]) :focus-visible {
+  outline-offset: -3px;
+}
+
+.mobile-shell :where(button, a)[class*="h-control"] {
+  white-space: normal;
+  height: auto;
+  min-height: var(--control-h);
+  padding-block: 0.5rem;
+}
+
+.mobile-shell :where(button, a).min-h-12 {
+  min-height: 3rem;
+}
+
+.mobile-shell :where(button, a).h-7 {
+  min-height: var(--control-h);
+}
+
+.mobile-shell .mobile-more {
+  position: fixed;
+  inset: auto max(0.5rem, env(safe-area-inset-right)) max(0.5rem, env(safe-area-inset-bottom))
+    max(0.5rem, env(safe-area-inset-left));
+  width: auto;
+  max-width: 32rem;
+  max-height: calc(
+    100dvh - max(0.5rem, env(safe-area-inset-top)) - max(0.5rem, env(safe-area-inset-bottom))
+  );
+  margin-inline: auto;
+}
+
+.mobile-shell .mobile-more[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile-shell .mobile-more::backdrop {
+  background: var(--scrim);
+}

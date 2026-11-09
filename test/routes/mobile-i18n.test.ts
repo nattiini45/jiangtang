@@ -56,10 +56,10 @@ describe("mobile PWA strings", () => {
   it("renders the photo capture in English and German", async () => {
     const en = await renderAt("en", photo);
     expect(en).toContain("Add a photo");
-    expect(en).toContain("2 photo(s) on this ticket");
+    expect(en).toContain("Photos on this ticket: 2");
     const de = await renderAt("de", photo);
     expect(de).toContain("Foto aufnehmen");
-    expect(de).toContain("2 Foto(s) an diesem Ticket");
+    expect(de).toContain("Fotos an diesem Ticket: 2");
   });
 
   it("renders the offline fallback page in both languages", async () => {

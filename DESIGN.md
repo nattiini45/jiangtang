@@ -309,6 +309,11 @@ selects step to 16px to avoid iOS focus zoom without changing control height.
 The desktop shell (`app/components/layout/app-shell.tsx`) supplies sidebar navigation, a header
 and scrolling content. The mobile shell (`app/components/mobile/mobile-shell.tsx`) is a separate
 route surface with bottom navigation, safe-area padding and comfortable density pinned locally.
+Within `.mobile-shell`, controls have a 44px minimum, primary capture actions retain a 48px
+minimum, body/caption roles use 14px, subtitles 16px and titles 20px. German compounds wrap
+without hiding identifying text. Desktop density and typography remain unchanged. Scroll padding
+keeps keyboard focus clear of the sticky header and fixed tabs. More is a grouped, scrollable
+native modal dialog with inert background, Escape dismissal and focus restoration.
 It is not a scaled desktop table. Feature routes own their grids and wrapping; there is no single
 global content-column template or custom Tailwind breakpoint scale.
 

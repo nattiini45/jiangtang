@@ -1,15 +1,21 @@
-import { Link } from "react-router";
+import { Form, Link, redirect } from "react-router";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
-import { listAttachments } from "~/domains/attachments/attachments.queries.server";
+import { getCalendarData } from "~/domains/events/events.calendar.queries.server";
+import { EmptyState } from "~/components/states/empty-state";
+import { Input } from "~/components/ui/input";
+import { berlinDayIndex, berlinDayStartMs, dayIndexToDateKey } from "~/lib/berlin-days";
+import { calendarRange, calendarSlotHref, parseCalendarDate } from "~/lib/event-calendar";
+import { formatDateWith, formatRange } from "~/i18n/format";
 import { QrCode } from "~/components/qr/qr-code";
 import { qrSvg } from "~/lib/qr.server";
 import { StatusBadge } from "~/components/ui/status-badge";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { categoryLabel } from "~/components/inventory/labels";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -28,26 +34,59 @@ export function meta({ data, matches }: Route.MetaArgs) {
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   await requireUser(request);
-  const data = await getRoomDashboard(params.slug!);
-  if (!data) throw toErrorResponse(new NotFoundError(tr("err.room.notFound")));
-  const attachments = await listAttachments({ roomId: data.room.id });
-  // Same QR as the desktop room page: scan → quick entry pre-filled with this room.
-  const origin = new URL(request.url).origin;
-  const qrHref = `${origin}/quick-entry?roomId=${data.room.id}`;
-  const qr = await qrSvg(qrHref);
-  return { data, attachments, qr, qrHref };
+  try {
+    const data = await getRoomDashboard(params.slug!);
+    if (!data) throw new NotFoundError(tr("err.room.notFound"));
+    const search = new URL(request.url).searchParams;
+    const day = parseCalendarDate(search.get("date"));
+    const date = dayIndexToDateKey(day);
+    if (search.has("date") && search.get("date") !== date)
+      throw redirect(`/m/rooms/${data.room.slug}?date=${date}`);
+    const range = calendarRange(day, "day");
+    const calendar = await getCalendarData({
+      from: range.from,
+      to: range.to,
+      roomId: data.room.id,
+    });
+    const attachments = data.attachments;
+    // Same QR as the desktop room page: scan → quick entry pre-filled with this room.
+    const origin = new URL(request.url).origin;
+    const qrHref = `${origin}/quick-entry?roomId=${data.room.id}`;
+    const qr = await qrSvg(qrHref);
+    return {
+      data,
+      attachments,
+      qr,
+      qrHref,
+      day,
+      date,
+      bookings: calendar.bookings.filter((booking) => booking.status !== "CANCELLED"),
+    };
+  } catch (error) {
+    throw toErrorResponse(error);
+  }
 }
 
 export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
   const { room, equipment, openTickets } = loaderData.data;
-  const { attachments } = loaderData;
+  const { attachments, day, date, bookings } = loaderData;
+  const createHref = calendarSlotHref(day, 9, room.id, true);
   return (
-    <div className="flex flex-col gap-6 px-4 py-4">
+    <div className="flex min-w-0 flex-col gap-6 px-4 py-4 [overflow-wrap:anywhere]">
       <div className="flex flex-col gap-1">
+        <Link
+          to="/m/rooms"
+          className={`${buttonVariants({ variant: "tertiary" })} min-h-11 self-start`}
+        >
+          {t("mobileDetails.roomBack")}
+        </Link>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold">{room.name}</h1>
+          <h1 className="text-lg font-bold">{room.name}</h1>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">{t("mobileDetails.roomStatus")}</span>
           <StatusBadge kind="room" value={room.status} />
         </div>
         <p className="text-muted-foreground nums text-xs">
@@ -61,6 +100,88 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         <Link to={`/m?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
       </Button>
 
+      <section className="flex min-w-0 flex-col gap-3">
+        <h2 className="text-base font-semibold">{t("mobileDetails.schedule")}</h2>
+        <p className="text-muted-foreground text-sm">{t("mobileDetails.scheduleHint")}</p>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`?date=${dayIndexToDateKey(day - 1)}`}
+            aria-label={t("events.calendar.previous")}
+            className={`${buttonVariants({ variant: "tertiary", size: "icon" })} min-h-11 min-w-11`}
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+          </Link>
+          <Form
+            key={date}
+            method="get"
+            onChange={(event) => event.currentTarget.requestSubmit()}
+            className="min-w-0 flex-1"
+          >
+            <Input
+              type="date"
+              name="date"
+              defaultValue={date}
+              min="1900-01-01"
+              max="2100-12-31"
+              aria-label={t("events.calendar.date")}
+              className="min-h-11"
+            />
+            <noscript>
+              <Button type="submit" className="min-h-11">
+                {t("events.list.filterSubmit")}
+              </Button>
+            </noscript>
+          </Form>
+          <Link
+            to={`?date=${dayIndexToDateKey(day + 1)}`}
+            aria-label={t("events.calendar.next")}
+            className={`${buttonVariants({ variant: "tertiary", size: "icon" })} min-h-11 min-w-11`}
+          >
+            <ChevronRight className="size-4" aria-hidden />
+          </Link>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold">
+            {formatDateWith(locale, berlinDayStartMs(day), {
+              weekday: "long",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </p>
+          <Link
+            to={`?date=${dayIndexToDateKey(berlinDayIndex(new Date()))}`}
+            className={`${buttonVariants({ variant: "ghost" })} min-h-11`}
+          >
+            {t("events.calendar.today")}
+          </Link>
+        </div>
+        <p className="text-muted-foreground text-xs">{t("mobile.timeZone")}</p>
+        {bookings.length ? (
+          <ul className="bg-card shadow-surface-2 divide-y rounded-lg">
+            {bookings.map((booking) => (
+              <li key={booking.id}>
+                <Link
+                  to={`/m/events/${booking.eventId}?date=${date}`}
+                  className="hover:bg-hover active:bg-selected flex min-h-11 flex-col items-start gap-1 px-3 py-3"
+                >
+                  <span className="nums text-xs text-muted-foreground">
+                    {formatRange(locale, booking.startsAt, booking.endsAt)}
+                  </span>
+                  <span className="text-sm font-semibold">{booking.title}</span>
+                  <StatusBadge kind="event" value={booking.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState icon={CalendarDays} title={t("mobileDetails.noBookings")} />
+        )}
+        <Button asChild variant="secondary" className="min-h-11">
+          <Link to={createHref}>{t("events.list.new")}</Link>
+        </Button>
+      </section>
+
       <section className="flex flex-col gap-2">
         <h2 className="text-base font-semibold">{t("mobile.rooms.installed")}</h2>
         {equipment.length === 0 ? (
@@ -68,12 +189,22 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         ) : (
           <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
             {equipment.map((e) => (
-              <li key={e.id} className="flex min-h-12 items-center gap-2 px-3 py-2 text-sm">
-                <span className="flex-1 truncate">{e.name ?? e.modelName ?? "—"}</span>
-                <span className="text-muted-foreground text-xs">
-                  {categoryLabel(locale, e.category)}
-                </span>
-                <StatusBadge kind="equipment" value={e.status} />
+              <li key={e.id}>
+                <Link
+                  to={`/m?roomId=${room.id}&equipmentId=${e.id}`}
+                  className="hover:bg-hover active:bg-selected flex min-h-12 flex-wrap items-center gap-2 px-3 py-3 text-sm"
+                >
+                  <span className="min-w-0 flex-1">{e.name ?? e.modelName ?? "—"}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {categoryLabel(locale, e.category)}
+                  </span>
+                  <StatusBadge kind="equipment" value={e.status} />
+                  <span className="text-muted-foreground basis-full text-xs">
+                    {t("mobileDetails.reportEquipment", {
+                      name: e.name ?? e.modelName ?? "—",
+                    })}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
@@ -119,11 +250,17 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         </section>
       ) : null}
 
-      <QrCode svg={loaderData.qr} href={loaderData.qrHref} titleKey="qr.room.title" />
+      <details className="group">
+        <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold">
+          <ChevronDown className="size-4 group-open:rotate-180" aria-hidden />
+          {t("mobileDetails.qr")}
+        </summary>
+        <QrCode svg={loaderData.qr} href={loaderData.qrHref} titleKey="qr.room.title" />
+      </details>
 
       <ViewSwitch
         view="desktop"
-        next={`/rooms/${room.slug}`}
+        next={`/rooms/${room.slug}?date=${date}`}
         className="text-muted-foreground flex min-h-11 w-full items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
       >
         {t("mobile.rooms.desktopView")}
@@ -132,4 +269,4 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

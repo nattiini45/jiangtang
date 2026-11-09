@@ -3,6 +3,8 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listLocationTree } from "~/domains/locations/locations.tree.server";
 import { kindLabel } from "~/components/locations/labels";
+import { EmptyState } from "~/components/states/empty-state";
+import { MapPin } from "lucide-react";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -49,7 +51,7 @@ export default function MobileLocationsIndex({ loaderData }: Route.ComponentProp
               style={{ paddingLeft: `${0.75 + node.depth * 0.75}rem` }}
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{node.name}</span>
+                <span className="block whitespace-normal text-sm font-semibold">{node.name}</span>
                 <span className="text-muted-foreground nums block text-xs">
                   {node.code ? <span className="font-mono">{node.code}</span> : null}
                   {node.code ? " · " : null}
@@ -60,11 +62,17 @@ export default function MobileLocationsIndex({ loaderData }: Route.ComponentProp
           </li>
         ))}
         {nodes.length === 0 ? (
-          <li className="text-muted-foreground px-3 py-4 text-sm">{t("mobile.locations.empty")}</li>
+          <li>
+            <EmptyState
+              icon={MapPin}
+              title={t("mobile.locations.empty")}
+              hint={t("mobile.locations.emptyHint")}
+            />
+          </li>
         ) : null}
       </ul>
     </div>
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

@@ -30,3 +30,5 @@ export default function MobileLayout() {
     </MobileShell>
   );
 }
+
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

@@ -6,8 +6,11 @@ import { berlinLocalString } from "~/lib/berlin-days";
 import { Button } from "~/components/ui/button";
 import { EmptyState } from "~/components/states/empty-state";
 import { Bell } from "lucide-react";
-import { useT } from "~/i18n/use-t";
+import { useLocale, useT } from "~/i18n/use-t";
 import type { MessageKey } from "~/i18n";
+import type { Locale } from "~/i18n/locales";
+import { formatDate, formatDateTime } from "~/i18n/format";
+import { cn } from "~/lib/utils";
 
 /**
  * The shared inbox list (desktop `/notifications` and `/m/notifications`).
@@ -22,13 +25,14 @@ import type { MessageKey } from "~/i18n";
 export function notificationLabelParams(
   type: NotificationType,
   data: unknown,
+  locale?: Locale,
 ): Record<string, string> {
   const raw = (data ?? {}) as Record<string, unknown>;
   const params: Record<string, string> = {};
   for (const [k, v] of Object.entries(raw)) {
     if (typeof v !== "string") continue;
     if (/^(dueAt|warrantyExpiresAt)$/.test(k) && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
-      params.date = berlinDateInput(v);
+      params.date = locale ? formatDate(locale, v) : berlinDateInput(v);
     } else {
       params[k] = v;
     }
@@ -41,19 +45,26 @@ export function notificationLabelParams(
   return params;
 }
 
-export function NotificationList({ notifications }: { notifications: Notification[] }) {
+export function NotificationList({
+  notifications,
+  mobile = false,
+}: {
+  notifications: Notification[];
+  mobile?: boolean;
+}) {
   const t = useT();
+  const locale = useLocale();
   return (
     <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
       {notifications.map((n) => {
-        const params = notificationLabelParams(n.type, n.data);
+        const params = notificationLabelParams(n.type, n.data, mobile ? locale : undefined);
         const label = t(`notifications.type.${n.type}` as MessageKey, params);
         const href =
           n.entityType && n.entityId ? entityHref(n.entityType, { id: n.entityId }) : null;
         // The entity link and the mark-as-read form are SIBLINGS: nesting the
         // form inside the link would bubble the button's click into a navigation.
         const body = (
-          <span className="min-w-0 flex-1">
+          <span className={cn("min-w-0 flex-1", mobile && "basis-full")}>
             <span className="flex items-center gap-2">
               {n.readAt ? null : (
                 <span
@@ -61,22 +72,24 @@ export function NotificationList({ notifications }: { notifications: Notificatio
                   aria-hidden
                 />
               )}
-              <span className="truncate text-sm font-semibold">{label}</span>
+              <span className={cn("text-sm font-semibold", !mobile && "truncate")}>{label}</span>
             </span>
-            <p className="text-muted-foreground nums truncate text-xs">
-              {berlinLocalString(n.createdAt).slice(0, 16).replace("T", " ")}
+            <p className={cn("text-muted-foreground nums text-xs", !mobile && "truncate")}>
+              {mobile
+                ? formatDateTime(locale, n.createdAt)
+                : berlinLocalString(n.createdAt).slice(0, 16).replace("T", " ")}
             </p>
           </span>
         );
         const markRead = (
-          <Form method="post" className="shrink-0">
+          <Form method="post" className={cn("shrink-0", mobile && "ml-auto")}>
             <input type="hidden" name="_action" value="mark-read" />
             <input type="hidden" name="id" value={n.id} />
             {n.readAt ? null : (
               <Button
                 type="submit"
                 variant="ghost"
-                size="compact"
+                size={mobile ? "default" : "compact"}
                 title={t("notifications.markRead")}
               >
                 {t("notifications.markRead")}
@@ -85,11 +98,17 @@ export function NotificationList({ notifications }: { notifications: Notificatio
           </Form>
         );
         return (
-          <li key={n.id} className="flex min-h-12 items-center gap-3 px-3 py-2">
+          <li
+            key={n.id}
+            className={cn("flex min-h-12 items-center gap-3 px-3 py-2", mobile && "flex-wrap")}
+          >
             {href ? (
               <Link
                 to={href}
-                className="active:bg-selected flex min-w-0 flex-1 items-center transition-colors duration-80"
+                className={cn(
+                  "active:bg-selected flex min-w-0 flex-1 items-center transition-colors duration-80",
+                  mobile && "min-h-11 basis-full",
+                )}
               >
                 {body}
               </Link>
@@ -102,7 +121,11 @@ export function NotificationList({ notifications }: { notifications: Notificatio
       })}
       {notifications.length === 0 ? (
         <li>
-          <EmptyState icon={Bell} title={t("notifications.empty")} />
+          <EmptyState
+            icon={Bell}
+            title={t("notifications.empty")}
+            hint={mobile ? t("mobile.notifications.emptyHint") : undefined}
+          />
         </li>
       ) : null}
     </ul>

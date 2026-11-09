@@ -17,7 +17,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 
 /**
  * Mobile note capture — title, body, comma-separated tags. Same

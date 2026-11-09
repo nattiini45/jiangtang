@@ -110,14 +110,17 @@ test("an expired session keeps the capture, asks for sign-in, and sends it once 
   await expect.poll(async () => (await storedCaptures(page)).length).toBe(0);
 });
 
-test("the More sheet lists every mobile section as a flat single-level list", async ({ page }) => {
+test("the More dialog groups secondary sections and creation actions without duplicate tabs", async ({
+  page,
+}) => {
   await page.goto("/m");
   await page.waitForSelector("html[data-hydrated]");
   await page.getByRole("button", { name: "Mehr" }).click();
   const menu = page.getByRole("navigation", { name: "Weitere Bereiche" });
-  // Flat: every section is a direct link row in the sheet, no nested group.
+  await expect(page.getByRole("dialog", { name: "Mehr", exact: true })).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Räume", exact: true })).toHaveCount(0);
+  await expect(menu.getByRole("link", { name: "Benachrichtigungen", exact: true })).toHaveCount(0);
   for (const label of [
-    "Räume",
     "Standorte",
     "Lager",
     "Veranstaltungen",
@@ -126,11 +129,13 @@ test("the More sheet lists every mobile section as a flat single-level list", as
     "Zeiterfassung",
     "Board",
     "Suche",
-    "Benachrichtigungen",
     "Neue Aufgabe",
     "Neue Notiz",
+    "Veranstaltung anlegen",
   ]) {
+    await menu.getByRole("link", { name: label, exact: true }).scrollIntoViewIfNeeded();
     await expect(menu.getByRole("link", { name: label, exact: true })).toBeVisible();
+    await expect(menu.getByRole("link", { name: label, exact: true })).toBeInViewport();
   }
   await menu.getByRole("link", { name: "Veranstaltungen", exact: true }).click();
   await expect(page).toHaveURL(/\/m\/events/);

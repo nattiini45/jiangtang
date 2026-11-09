@@ -6,8 +6,10 @@ import { requireUser } from "~/lib/auth.server";
 import { hybridSearch } from "~/lib/search/query.server";
 import { EmptyState } from "~/components/states/empty-state";
 import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Button } from "~/components/ui/button";
 import { Search as SearchIcon } from "lucide-react";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
@@ -39,14 +41,21 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
       <h1 className="text-lg font-semibold">{t("nav.search")}</h1>
-      <Form method="get">
-        <Input
-          type="search"
-          name="q"
-          defaultValue={q}
-          placeholder={t("mobile.search.placeholder")}
-          className="min-h-11"
-        />
+      <Form method="get" className="flex flex-col gap-2">
+        <Label htmlFor="mobile-search">{t("mobile.search.label")}</Label>
+        <div className="flex gap-2">
+          <Input
+            id="mobile-search"
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder={t("mobile.search.placeholder")}
+            className="min-h-11 min-w-0 flex-1"
+          />
+          <Button type="submit" variant="secondary">
+            {t("nav.search")}
+          </Button>
+        </div>
       </Form>
 
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg empty:hidden">
@@ -57,7 +66,7 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
                 to={r.mobileHref}
                 className="active:bg-selected block min-h-12 px-3 py-2 transition-colors duration-80"
               >
-                <div className="truncate text-sm font-semibold">{r.title}</div>
+                <div className="whitespace-normal text-sm font-semibold">{r.title}</div>
                 <p
                   className="text-muted-foreground line-clamp-2 text-xs [&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground"
                   // Hybrid-search snippets contain only <mark> tags from our own query.
@@ -71,7 +80,7 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
                 next={r.href}
                 className="active:bg-selected block min-h-12 w-full px-3 py-2 text-left transition-colors duration-80"
               >
-                <span className="block truncate text-sm font-semibold">{r.title}</span>
+                <span className="block whitespace-normal text-sm font-semibold">{r.title}</span>
                 <span
                   className="text-muted-foreground line-clamp-2 text-xs [&_mark]:bg-transparent [&_mark]:font-semibold [&_mark]:text-foreground"
                   dangerouslySetInnerHTML={{ __html: r.snippetHtml }}
@@ -79,17 +88,28 @@ export default function MobileSearch({ loaderData }: Route.ComponentProps) {
               </ViewSwitch>
             ) : (
               <div className="px-3 py-3">
-                <div className="text-muted-foreground truncate text-sm">{r.title}</div>
+                <div className="text-muted-foreground whitespace-normal text-sm">{r.title}</div>
               </div>
             )}
           </li>
         ))}
         {q && results.length === 0 ? (
           <li>
-            <EmptyState icon={SearchIcon} title={t("mobile.search.noHits", { q })} />
+            <EmptyState
+              icon={SearchIcon}
+              title={t("mobile.search.noHits", { q })}
+              hint={t("mobile.filters.emptyHint")}
+            />
           </li>
         ) : null}
       </ul>
+      {!q ? (
+        <EmptyState
+          icon={SearchIcon}
+          title={t("mobile.search.label")}
+          hint={t("mobile.search.hint")}
+        />
+      ) : null}
       {degraded.length > 0 ? (
         <p className="bg-status-warning/15 rounded-md px-3 py-2 text-xs">
           {t("mobile.search.degraded", { sources: degraded.join(", ") })}

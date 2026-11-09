@@ -5,7 +5,7 @@ import { listTasks } from "~/domains/tasks/tasks.queries.server";
 import { LANES, laneOfTaskStatus } from "~/domains/tasks/tasks.lanes";
 import { taskStatusLabel } from "~/components/tasks/labels";
 import { EmptyState } from "~/components/states/empty-state";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { SegmentLink } from "~/components/ui/segment-link";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -57,8 +57,8 @@ export default function MobileBoard({ loaderData }: Route.ComponentProps) {
                   to={`/m/tasks/${task.id}`}
                   className="active:bg-selected flex min-h-12 flex-col justify-center gap-0.5 px-3 py-2 transition-colors duration-80"
                 >
-                  <div className="truncate text-sm font-semibold">{task.title}</div>
-                  <p className="text-muted-foreground nums truncate text-xs">
+                  <div className="whitespace-normal text-sm font-semibold">{task.title}</div>
+                  <p className="text-muted-foreground nums whitespace-normal text-xs">
                     {[taskStatusLabel(locale, task.status), task.project?.name ?? null]
                       .filter(Boolean)
                       .join(" · ")}

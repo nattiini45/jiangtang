@@ -42,13 +42,15 @@ test("an expired desktop switch can sign in without landing on an action-only UR
   }
 });
 
-test("desktop detail handoffs warn visibly before changing view", async ({ page }) => {
+test("note rows keep reading in the mobile view", async ({ page }) => {
   await page.goto("/m/notes");
-  const handoff = page
-    .locator('form[action="/prefs/view"]')
-    .filter({ has: page.locator('input[name="next"][value^="/notes/"]') })
-    .first();
-  await expect(handoff.getByText("Desktop-Ansicht", { exact: true })).toBeVisible();
+  await page
+    .locator('a[href^="/m/notes/"]')
+    .filter({ has: page.locator("span") })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/m\/notes\/[^/]+$/);
+  await expect(page.getByTestId("markdown-preview")).toBeVisible();
 });
 
 test("phone document entry maps a room deep link to the mobile equivalent", async ({
@@ -115,11 +117,11 @@ test("a room's desktop escape persists the override instead of redirecting in a 
   baseURL,
 }) => {
   await page.context().addCookies([{ name: "view", value: "mobile", url: baseURL! }]);
-  await page.goto("/m/rooms/demo-a01");
+  await page.goto("/m/rooms/demo-a01?date=2026-10-25");
   await page
     .getByRole("button", { name: "Vollständige Raum-Ansicht (Desktop)", exact: true })
     .click();
-  await expect(page).toHaveURL(/\/rooms\/demo-a01$/);
+  await expect(page).toHaveURL(/\/rooms\/demo-a01\?date=2026-10-25$/);
   expect((await page.context().cookies()).find((cookie) => cookie.name === "view")?.value).toBe(
     "desktop",
   );

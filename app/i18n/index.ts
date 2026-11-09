@@ -22,6 +22,7 @@ import { landingDe } from "./catalog/de/landing";
 import { labelsDe } from "./catalog/de/labels";
 import { locationsDe } from "./catalog/de/locations";
 import { mobileDe } from "./catalog/de/mobile";
+import { mobileDetailsDe } from "./catalog/de/mobile-details";
 import { mcpDe } from "./catalog/de/mcp";
 import { notificationsDe } from "./catalog/de/notifications";
 import { roomsDe } from "./catalog/de/rooms";
@@ -54,6 +55,7 @@ import { landingEn } from "./catalog/en/landing";
 import { labelsEn } from "./catalog/en/labels";
 import { locationsEn } from "./catalog/en/locations";
 import { mobileEn } from "./catalog/en/mobile";
+import { mobileDetailsEn } from "./catalog/en/mobile-details";
 import { mcpEn } from "./catalog/en/mcp";
 import { notificationsEn } from "./catalog/en/notifications";
 import { roomsEn } from "./catalog/en/rooms";
@@ -94,6 +96,7 @@ const de = {
   ...labelsDe,
   ...locationsDe,
   ...mobileDe,
+  ...mobileDetailsDe,
   ...mcpDe,
   ...notificationsDe,
   ...roomsDe,
@@ -128,6 +131,7 @@ const en = {
   ...labelsEn,
   ...locationsEn,
   ...mobileEn,
+  ...mobileDetailsEn,
   ...mcpEn,
   ...notificationsEn,
   ...roomsEn,

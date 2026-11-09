@@ -3,12 +3,12 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listTasks } from "~/domains/tasks/tasks.queries.server";
 import { taskStatusLabel } from "~/components/tasks/labels";
-import { berlinDateInput } from "~/lib/format-date";
+import { formatDate } from "~/i18n/format";
 import { EmptyState } from "~/components/states/empty-state";
 import { Button } from "~/components/ui/button";
 import { SegmentLink } from "~/components/ui/segment-link";
 import { ListTodo } from "lucide-react";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -59,12 +59,14 @@ export default function MobileTasksIndex({ loaderData }: Route.ComponentProps) {
               to={`/m/tasks/${task.id}`}
               className="active:bg-selected flex min-h-12 flex-col justify-center gap-0.5 px-3 py-2 transition-colors duration-80"
             >
-              <div className="truncate text-sm font-semibold">{task.title}</div>
-              <p className="text-muted-foreground nums truncate text-xs">
+              <div className="whitespace-normal text-sm font-semibold">{task.title}</div>
+              <p className="text-muted-foreground nums whitespace-normal text-xs">
                 {[
                   taskStatusLabel(locale, task.status),
                   task.project?.name ?? null,
-                  task.dueAt ? t("mobile.tasks.due", { date: berlinDateInput(task.dueAt) }) : null,
+                  task.dueAt
+                    ? t("mobile.tasks.due", { date: formatDate(locale, task.dueAt) })
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -77,6 +79,7 @@ export default function MobileTasksIndex({ loaderData }: Route.ComponentProps) {
             <EmptyState
               icon={ListTodo}
               title={all ? t("mobile.tasks.emptyAll") : t("mobile.tasks.emptyMine")}
+              hint={t(all ? "mobile.tasks.emptyHint" : "mobile.tasks.emptyMineHint")}
               action={{ to: "/m/tasks/new", label: t("mobile.tasks.create") }}
             />
           </li>

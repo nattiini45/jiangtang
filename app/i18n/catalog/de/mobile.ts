@@ -1,5 +1,47 @@
 /** Mobile PWA: quick entry, capture forms, offline queue, mobile lists and detail pages. */
 export const mobileDe = {
+  "mobile.notifications.emptyHint":
+    "Neue Zuweisungen und andere Hinweise erscheinen hier, sobald sie vorliegen.",
+  "mobile.error.missingTitle": "Eintrag nicht gefunden",
+  "mobile.error.missingBody":
+    "Der Eintrag wurde möglicherweise entfernt oder der Link ist nicht mehr gültig.",
+  "mobile.error.failedTitle": "Seite konnte nicht angezeigt werden",
+  "mobile.error.failedBody": "Lade die Seite erneut oder kehre zur Erfassung zurück.",
+  "mobile.error.capture": "Zur Erfassung",
+  "mobile.error.retry": "Seite erneut laden",
+  "mobile.loading": "Wird geladen…",
+  "mobile.menu.create": "Anlegen",
+  "mobile.photo.choose": "Foto auswählen",
+  "mobile.photo.starting": "Kamera wird geöffnet…",
+  "mobile.photo.unavailable":
+    "Die Kamera konnte nicht geöffnet werden. Du kannst stattdessen ein Foto auswählen.",
+  "mobile.tickets.created": "Eintrag gespeichert. Hier ist dein Ticket.",
+  "mobile.tickets.cancel": "Ticket stornieren",
+  "mobile.tickets.cancelConfirm": "Ticket „{title}“ stornieren? Du kannst es später wieder öffnen.",
+  "mobile.tickets.search": "Tickets durchsuchen",
+  "mobile.stock.search": "Lager durchsuchen",
+  "mobile.search.label": "Workspace durchsuchen",
+  "mobile.search.hint": "Finde Arbeit, Räume oder Geräte nach Stichwort, ID oder Seriennummer.",
+  "mobile.filters.emptyHint":
+    "Versuche ein anderes Stichwort oder entferne die Filter, um mehr Einträge zu sehen.",
+  "mobile.filters.emptyTitle": "Keine passenden Einträge",
+  "mobile.filters.clear": "Filter entfernen",
+  "mobile.tickets.emptyHint":
+    "Erfasse einen Eintrag, um eine Störung zu melden oder erledigte Arbeit zu dokumentieren.",
+  "mobile.stock.emptyHint":
+    "Der Lagerbestand wird in der Desktopansicht verwaltet. Dort erfasste Artikel erscheinen hier.",
+  "mobile.locations.emptyHint":
+    "Standorte werden in der Desktopansicht verwaltet. Dort erfasste Standorte erscheinen hier.",
+  "mobile.projects.emptyHint":
+    "Projekte werden in der Desktopansicht verwaltet. Dort erfasste Projekte erscheinen hier.",
+  "mobile.tasks.emptyHint": "Lege eine Aufgabe für den nächsten Arbeitsschritt an.",
+  "mobile.tasks.emptyMineHint":
+    "Unter Alle offen findest du Aufgaben des Teams. Für neue Arbeit kannst du eine Aufgabe anlegen.",
+  "mobile.timesheet.emptyHint":
+    "Starte oben den Timer, um Arbeit zu erfassen, oder wähle eine andere Woche.",
+  "mobile.timesheet.previous": "Vorherige Woche",
+  "mobile.timesheet.next": "Nächste Woche",
+  "mobile.timesheet.week": "Woche {week} · {year}",
   "mobile.meta.entry": "Eintrag · Jiangtang",
   "mobile.meta.noteNew": "Notiz anlegen · Jiangtang",
   "mobile.meta.taskNew": "Aufgabe anlegen · Jiangtang",
@@ -58,9 +100,10 @@ export const mobileDe = {
 
   "mobile.photo.take": "Foto machen",
   "mobile.photo.close": "Schließen",
-  "mobile.photo.start": "📷 Foto aufnehmen",
-  "mobile.photo.cameraUnavailable": "Kamera nicht verfügbar: {error}",
-  "mobile.photo.count": "{count} Foto(s) an diesem Ticket",
+  "mobile.photo.start": "Foto aufnehmen",
+  "mobile.photo.count": "Fotos an diesem Ticket: {count}",
+  "mobile.photo.selected": "Ausgewählte Fotos: {count}. Noch nicht hochgeladen.",
+  "mobile.timeZone": "Berliner Zeit (Europe/Berlin)",
 
   "mobile.entry.title": "Eintrag erfassen",
   "mobile.entry.room": "Raum",

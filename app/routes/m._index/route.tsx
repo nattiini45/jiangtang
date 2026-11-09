@@ -142,7 +142,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
           fd.append("file", file);
           fd.append("ticketId", createdId);
           fd.append("category", "TICKET");
-          fd.append("redirectTo", "/m/rooms");
+          fd.append("redirectTo", `/m/tickets/${createdId}`);
           const res = await fetch("/attachments/upload", { method: "POST", body: fd });
           if (!uploadSucceeded(res)) failed.push(file);
         } catch {
@@ -152,7 +152,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
       }),
     );
     if (failed.length === 0) {
-      void navigate("/m/rooms");
+      void navigate(`/m/tickets/${createdId}?created=1`);
       return;
     }
     setUploadError(
@@ -168,7 +168,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
     if (!createdId || startedRef.current) return;
     startedRef.current = true;
     if (pendingPhotos.length === 0) {
-      void navigate("/m/rooms");
+      void navigate(`/m/tickets/${createdId}?created=1`);
       return;
     }
     void uploadPending();
@@ -177,7 +177,9 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
   if (createdId) {
     return (
       <div className="flex flex-col items-start gap-3 px-4 py-4">
-        <p className="text-status-operational text-sm font-semibold">{t("mobile.entry.created")}</p>
+        <p role="status" className="text-status-operational text-sm font-semibold">
+          {t("mobile.entry.created")}
+        </p>
         {uploadError ? (
           <>
             <p className="text-destructive text-sm" role="alert">
@@ -195,7 +197,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => navigate("/m/rooms")}
+                onClick={() => navigate(`/m/tickets/${createdId}?created=1`)}
                 className="text-muted-foreground min-h-11"
               >
                 {t("mobile.entry.continueWithout")}
@@ -377,7 +379,7 @@ export default function MobileQuickEntry({ loaderData, actionData }: Route.Compo
         </p>
       ) : null}
 
-      <Button type="submit" disabled={busy} className="h-12 w-full">
+      <Button type="submit" disabled={busy} className="min-h-12 w-full">
         {busy
           ? t("mobile.entry.submitting")
           : unsent
@@ -408,4 +410,4 @@ function uploadSucceeded(res: Response): boolean {
   }
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

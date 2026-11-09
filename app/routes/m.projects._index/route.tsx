@@ -5,7 +5,7 @@ import { listProjects } from "~/domains/projects/projects.queries.server";
 import { projectStatusLabel } from "~/components/projects/labels";
 import { EmptyState } from "~/components/states/empty-state";
 import { FolderKanban } from "lucide-react";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -40,8 +40,8 @@ export default function MobileProjectsIndex({ loaderData }: Route.ComponentProps
               next={`/projects/${p.slug}`}
               className="active:bg-selected flex min-h-12 w-full flex-col justify-center gap-0.5 px-3 py-2 text-left transition-colors duration-80"
             >
-              <span className="truncate text-sm font-semibold">{p.name}</span>
-              <span className="text-muted-foreground truncate text-xs">
+              <span className="whitespace-normal text-sm font-semibold">{p.name}</span>
+              <span className="text-muted-foreground whitespace-normal text-xs">
                 {[
                   projectStatusLabel(locale, p.status),
                   p.lead?.name ?? null,
@@ -55,7 +55,11 @@ export default function MobileProjectsIndex({ loaderData }: Route.ComponentProps
         ))}
         {projects.length === 0 ? (
           <li>
-            <EmptyState icon={FolderKanban} title={t("mobile.projects.empty")} />
+            <EmptyState
+              icon={FolderKanban}
+              title={t("mobile.projects.empty")}
+              hint={t("mobile.projects.emptyHint")}
+            />
           </li>
         ) : null}
       </ul>

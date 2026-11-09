@@ -8,8 +8,8 @@ import { getStockItemWithRefs } from "~/domains/inventory/inventory.stock.querie
 import { listAttachments } from "~/domains/attachments/attachments.queries.server";
 import { kindLabel } from "~/components/locations/labels";
 import { StockStatusText } from "~/components/i18n/enum-text";
-import { berlinDateInput } from "~/lib/format-date";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { formatDate } from "~/i18n/format";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
@@ -41,7 +41,10 @@ export default function MobileStockDetail({ loaderData }: Route.ComponentProps) 
     <div className="flex flex-col gap-4 px-4 py-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold">{item.name}</h1>
-        <Link to="/m/inventory/stock" className="text-muted-foreground text-sm hover:underline">
+        <Link
+          to="/m/inventory/stock"
+          className="text-muted-foreground flex min-h-11 shrink-0 items-center text-sm hover:underline"
+        >
           {t("mobile.stockDetail.back")}
         </Link>
       </div>
@@ -69,7 +72,7 @@ export default function MobileStockDetail({ loaderData }: Route.ComponentProps) 
                   view="desktop"
                   desktopLabel
                   next={`/inventory/${item.equipment.id}`}
-                  className="hover:underline"
+                  className="inline-flex min-h-11 items-center hover:underline"
                 >
                   {item.equipment.name ?? item.equipment.assetTag ?? item.equipment.id}
                 </ViewSwitch>
@@ -81,7 +84,7 @@ export default function MobileStockDetail({ loaderData }: Route.ComponentProps) 
             ],
             [
               t("inventory.stock.col.warranty"),
-              item.warrantyExpiresAt ? berlinDateInput(item.warrantyExpiresAt) : null,
+              item.warrantyExpiresAt ? formatDate(locale, item.warrantyExpiresAt) : null,
             ],
           ] as [string, React.ReactNode][]
         ).map(([label, value]) => (

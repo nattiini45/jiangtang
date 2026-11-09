@@ -1,4 +1,4 @@
-import { Form, Link } from "react-router";
+import { Form, Link, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
@@ -10,20 +10,16 @@ import { startTimer, stopTimer } from "~/domains/time/time.mutations.server";
 import { getRunningEntry, getWeekTimesheet } from "~/domains/time/time.queries.server";
 import { listOpenTaskOptions } from "~/domains/tasks/tasks.queries.server";
 import { formatHM } from "~/domains/time/time-utils";
-import {
-  berlinLocalString,
-  berlinDayIndex,
-  dayIndexToIsoWeek,
-  isoWeekRange,
-} from "~/lib/berlin-days";
+import { berlinDayIndex, dayIndexToIsoWeek, isoWeekRange } from "~/lib/berlin-days";
 import { EmptyState } from "~/components/states/empty-state";
 import { Button } from "~/components/ui/button";
 import { Select } from "~/components/ui/select";
-import { Timer } from "lucide-react";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { ArrowLeft, ArrowRight, Timer } from "lucide-react";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
-import { useT } from "~/i18n/use-t";
+import { useLocale, useT } from "~/i18n/use-t";
+import { formatDate, formatTime } from "~/i18n/format";
 
 /**
  * Mobile timesheet — the current ISO week (Berlin) plus a start/stop timer.
@@ -92,34 +88,51 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function MobileTimesheet({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
+  const navigation = useNavigation();
+  const busy = navigation.state !== "idle";
   const { sheet, isoWeek, prevWeek, nextWeek, running, taskOptions } = loaderData;
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold">{t("nav.timesheet")}</h1>
-        <div className="flex items-center gap-3 text-sm">
-          <Link to={`/m/timesheet?week=${prevWeek}`} className="hover:underline">
-            ← {prevWeek}
-          </Link>
-          <span className="nums font-semibold">{isoWeek}</span>
-          <Link to={`/m/timesheet?week=${nextWeek}`} className="hover:underline">
-            {nextWeek} →
-          </Link>
-        </div>
+      <h1 className="text-lg font-semibold">{t("nav.timesheet")}</h1>
+      <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 text-sm">
+        <Link
+          to={`/m/timesheet?week=${prevWeek}`}
+          aria-label={t("mobile.timesheet.previous")}
+          className="hover:bg-hover flex size-11 items-center justify-center rounded-md"
+        >
+          <ArrowLeft className="size-5" aria-hidden />
+        </Link>
+        <h2 className="nums text-center font-semibold">
+          {t("mobile.timesheet.week", {
+            year: isoWeek.slice(0, 4),
+            week: Number(isoWeek.slice(6)),
+          })}
+        </h2>
+        <Link
+          to={`/m/timesheet?week=${nextWeek}`}
+          aria-label={t("mobile.timesheet.next")}
+          className="hover:bg-hover flex size-11 items-center justify-center rounded-md"
+        >
+          <ArrowRight className="size-5" aria-hidden />
+        </Link>
       </div>
 
       {running ? (
         <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
-          <span className="bg-destructive inline-block size-2 animate-pulse rounded-full" />
+          <span
+            aria-hidden
+            className="bg-destructive inline-block size-2 animate-pulse rounded-full motion-reduce:animate-none"
+          />
           <span className="nums text-sm">
             {t("mobile.timesheet.runningSince", {
-              time: berlinLocalString(running.startsAt).slice(11, 16),
+              time: formatTime(locale, running.startsAt),
             })}
             {running.task ? ` — ${running.task.title}` : ""}
           </span>
           <Form method="post" className="ml-auto">
             <input type="hidden" name="_action" value="stop-timer" />
-            <Button type="submit" variant="secondary" className="min-h-11">
+            <Button type="submit" variant="secondary" disabled={busy} className="min-h-11">
               {t("shell.timer.stop")}
             </Button>
           </Form>
@@ -142,7 +155,7 @@ export default function MobileTimesheet({ loaderData, actionData }: Route.Compon
               </option>
             ))}
           </Select>
-          <Button type="submit" className="min-h-11">
+          <Button type="submit" disabled={busy} className="min-h-11">
             {t("mobile.timesheet.start")}
           </Button>
         </Form>
@@ -158,19 +171,22 @@ export default function MobileTimesheet({ loaderData, actionData }: Route.Compon
         <ul className="divide-y">
           {sheet.entries.length === 0 ? (
             <li>
-              <EmptyState icon={Timer} title={t("mobile.timesheet.empty")} />
+              <EmptyState
+                icon={Timer}
+                title={t("mobile.timesheet.empty")}
+                hint={t("mobile.timesheet.emptyHint")}
+              />
             </li>
           ) : (
             sheet.entries.map((e) => {
-              const local = berlinLocalString(e.startsAt);
               return (
                 <li key={e.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                  <span className="nums text-xs">{local.slice(5, 10)}</span>
+                  <span className="nums text-xs">{formatDate(locale, e.startsAt)}</span>
                   <span className="nums text-xs">
-                    {local.slice(11, 16)}–
-                    {e.endsAt ? berlinLocalString(e.endsAt).slice(11, 16) : t("timesheet.running")}
+                    {formatTime(locale, e.startsAt)}–
+                    {e.endsAt ? formatTime(locale, e.endsAt) : t("timesheet.running")}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm">
+                  <span className="min-w-0 flex-1 whitespace-normal text-sm">
                     {e.task?.title ?? t("timesheet.noTask")}
                   </span>
                   <span className="nums text-xs font-semibold">

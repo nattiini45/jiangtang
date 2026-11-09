@@ -9,7 +9,7 @@ import {
 } from "~/domains/notifications/notifications.mutations.server";
 import { NotificationList } from "~/components/notifications/notification-list";
 import { Button } from "~/components/ui/button";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
@@ -65,7 +65,7 @@ export default function MobileNotifications({ loaderData }: Route.ComponentProps
           </Form>
         ) : null}
       </div>
-      <NotificationList notifications={notifications} />
+      <NotificationList notifications={notifications} mobile />
     </div>
   );
 }
