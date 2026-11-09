@@ -40,7 +40,10 @@ export interface ProjectListRow {
  * `groupBy` on `(projectId, status)` — never per-row queries — and `open`
  * counts every status that is neither DONE nor CANCELLED.
  */
-export async function listProjects(options: ProjectListOptions = {}): Promise<ProjectListRow[]> {
+export async function listProjects(
+  options: ProjectListOptions = {},
+  page: { offset?: number; limit?: number } = {},
+): Promise<ProjectListRow[]> {
   const where = {
     ...(options.status ? { status: options.status } : {}),
     ...(options.leadId ? { leadId: options.leadId } : {}),
@@ -49,6 +52,8 @@ export async function listProjects(options: ProjectListOptions = {}): Promise<Pr
 
   const [projects, grouped] = await Promise.all([
     db.project.findMany({
+      skip: page.offset,
+      take: page.limit,
       where,
       include: { lead: PROJECT_LEAD },
       orderBy: [{ name: "asc" }, { id: "asc" }],

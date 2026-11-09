@@ -6,17 +6,22 @@ import { db } from "~/lib/db.server";
  */
 export async function listNotifications(
   userId: string,
-  opts: { unreadOnly?: boolean; limit?: number } = {},
+  opts: { unreadOnly?: boolean; limit?: number; offset?: number } = {},
 ) {
   return db.notification.findMany({
     where: { userId, ...(opts.unreadOnly ? { readAt: null } : {}) },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    skip: opts.offset,
     take: opts.limit ?? 100,
   });
 }
 
 export async function unreadNotificationCount(userId: string): Promise<number> {
   return db.notification.count({ where: { userId, readAt: null } });
+}
+
+export function getNotification(userId: string, id: string) {
+  return db.notification.findFirst({ where: { id, userId } });
 }
 
 /** Dedup probe for the sweep jobs: has this user already been notified about

@@ -12,11 +12,16 @@ export interface ModelListRow {
   faultyCount: number;
 }
 
-export async function listModels(opts?: {
-  category?: EquipmentCategory;
-  q?: string;
-}): Promise<ModelListRow[]> {
+export async function listModels(
+  opts?: {
+    category?: EquipmentCategory;
+    q?: string;
+  },
+  page: { offset?: number; limit?: number } = {},
+): Promise<ModelListRow[]> {
   const models = await db.equipmentModel.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: {
       category: opts?.category,
       ...(opts?.q
@@ -28,7 +33,7 @@ export async function listModels(opts?: {
           }
         : {}),
     },
-    orderBy: [{ manufacturer: "asc" }, { name: "asc" }],
+    orderBy: [{ manufacturer: "asc" }, { name: "asc" }, { id: "asc" }],
     include: { _count: { select: { instances: true } } },
   });
 

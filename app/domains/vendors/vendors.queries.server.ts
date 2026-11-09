@@ -80,3 +80,20 @@ export async function listVendors(): Promise<VendorOption[]> {
 export async function getVendor(id: string): Promise<VendorOption | null> {
   return db.vendor.findUnique({ where: { id }, select: { id: true, name: true } });
 }
+
+export function listVendorDetails(options: { q?: string; offset?: number; limit?: number } = {}) {
+  return db.vendor.findMany({
+    where: options.q ? { name: { contains: options.q, mode: "insensitive" } } : {},
+    include: { location: { select: { id: true, name: true } } },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    skip: options.offset,
+    take: options.limit,
+  });
+}
+
+export function getVendorDetail(id: string) {
+  return db.vendor.findUnique({
+    where: { id },
+    include: { location: { select: { id: true, name: true } } },
+  });
+}

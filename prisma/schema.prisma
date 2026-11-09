@@ -101,6 +101,11 @@ enum UserRole {
   MEMBER
 }
 
+enum PersonalAccessTokenScope {
+  READ_ONLY
+  READ_WRITE
+}
+
 // ── Location ─────────────────────────────────────────────────────────────────
 
 model Campus {
@@ -272,6 +277,7 @@ model User {
   sessions        Session[]
   accounts        Account[]
   twoFactor       TwoFactor?
+  personalAccessTokens PersonalAccessToken[]
 
   // Workspace-domain back-references. Named because several
   // models point at User from more than one field.
@@ -317,6 +323,20 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
   @@index([type, entityType, entityId])
+}
+
+model PersonalAccessToken {
+  id         String                   @id @default(cuid())
+  userId     String
+  user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  scope      PersonalAccessTokenScope
+  tokenHash  String                   @unique @db.Char(64)
+  createdAt  DateTime                 @default(now()) @db.Timestamptz(3)
+  revokedAt  DateTime?                @db.Timestamptz(3)
+  lastUsedAt DateTime?                @db.Timestamptz(3)
+
+  @@index([userId, createdAt])
 }
 
 // ── Better Auth tables (Session / Account / Verification) ─────────────────────

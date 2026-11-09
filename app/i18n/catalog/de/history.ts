@@ -103,4 +103,6 @@ export const historyDe = {
   "history.action.TwoFactorDisabled": "Zwei-Faktor deaktiviert",
   "history.action.TwoFactorBackupCodesRegenerated": "Backup-Codes erneuert",
   "history.action.TwoFactorReset": "Zwei-Faktor zurückgesetzt",
+  "history.action.PersonalAccessTokenCreated": "Persönliches Zugriffstoken erstellt",
+  "history.action.PersonalAccessTokenRevoked": "Persönliches Zugriffstoken widerrufen",
 };

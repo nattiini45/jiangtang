@@ -3,8 +3,14 @@ import { data } from "react-router";
 import type { Route } from "./+types/route";
 import { adminTwoFactorRequired, requireUser } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
-import { safeParseForm } from "~/lib/validation.server";
+import { safeParseForm, z } from "~/lib/validation.server";
 import { changeOwnPassword, changePasswordSchema } from "~/domains/auth/account.server";
+import {
+  createPersonalAccessToken,
+  listPersonalAccessTokens,
+  revokePersonalAccessToken,
+} from "~/domains/api-tokens/api-tokens.server";
+import { tokenCreateSchema } from "~/domains/api-tokens/api-tokens.schema";
 import {
   confirmTwoFactorEnrolment,
   disableOwnTwoFactor,
@@ -22,9 +28,16 @@ import { roleLabel } from "~/components/auth/labels";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { PersonalAccessTokens } from "~/routes/_desktop.account/personal-access-tokens";
 
 type Intent =
-  "password" | "twoFactorStart" | "twoFactorConfirm" | "twoFactorDisable" | "twoFactorRegenerate";
+  | "password"
+  | "twoFactorStart"
+  | "twoFactorConfirm"
+  | "twoFactorDisable"
+  | "twoFactorRegenerate"
+  | "tokenCreate"
+  | "tokenRevoke";
 
 interface AccountActionData {
   intent: Intent;
@@ -33,15 +46,30 @@ interface AccountActionData {
   formErrors?: string[];
   enrolment?: TwoFactorEnrolment;
   backupCodes?: string[];
+  createdToken?: { token: string; id: string };
 }
+
+const tokenRevokeSchema = z.object({ id: z.string().min(1) });
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
-  return {
-    user: { name: user.name, email: user.email, initials: user.initials, role: user.role },
-    twoFactorEnabled: user.twoFactorEnabled,
-    twoFactorRequired: user.role === "ADMIN" && adminTwoFactorRequired() && !user.twoFactorEnabled,
-  };
+  try {
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        initials: user.initials,
+        role: user.role,
+      },
+      twoFactorEnabled: user.twoFactorEnabled,
+      twoFactorRequired:
+        user.role === "ADMIN" && adminTwoFactorRequired() && !user.twoFactorEnabled,
+      tokens: await listPersonalAccessTokens(user, { all: user.role === "ADMIN" }),
+    };
+  } catch (error) {
+    throw toErrorResponse(error);
+  }
 }
 
 /**
@@ -61,7 +89,9 @@ export async function action({ request }: Route.ActionArgs) {
     requested === "twoFactorStart" ||
     requested === "twoFactorConfirm" ||
     requested === "twoFactorDisable" ||
-    requested === "twoFactorRegenerate"
+    requested === "twoFactorRegenerate" ||
+    requested === "tokenCreate" ||
+    requested === "tokenRevoke"
       ? requested
       : "password";
   const reply = (rest: Omit<AccountActionData, "intent"> = {}): AccountActionData => ({
@@ -69,6 +99,28 @@ export async function action({ request }: Route.ActionArgs) {
     ...rest,
   });
   try {
+    if (
+      (intent === "tokenCreate" || intent === "tokenRevoke") &&
+      request.headers.get("origin") !== new URL(request.url).origin
+    ) {
+      throw new Response(null, { status: 403 });
+    }
+    if (intent === "tokenCreate") {
+      const result = await safeParseForm(request, tokenCreateSchema);
+      if (!result.success)
+        return reply({ fieldErrors: result.fieldErrors, formErrors: result.formErrors });
+      const { token, record } = await createPersonalAccessToken(user, result.data);
+      return data(reply({ createdToken: { token, id: record.id } }), {
+        headers: { "Cache-Control": "private, no-store" },
+      });
+    }
+    if (intent === "tokenRevoke") {
+      const result = await safeParseForm(request, tokenRevokeSchema);
+      if (!result.success)
+        return reply({ fieldErrors: result.fieldErrors, formErrors: result.formErrors });
+      await revokePersonalAccessToken(user, result.data.id);
+      return reply({ changed: true });
+    }
     if (intent === "password") {
       const result = await safeParseForm(request, changePasswordSchema);
       if (!result.success) return reply({ fieldErrors: result.fieldErrors });
@@ -161,7 +213,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
   const disabled =
     !twoFactorEnabled && result?.intent === "twoFactorDisable" && !result.fieldErrors;
   const regenerated = of("twoFactorRegenerate")?.backupCodes;
-  const twoFactorErrors = result && result.intent !== "password" ? result : undefined;
+  const twoFactorErrors = result?.intent.startsWith("twoFactor") ? result : undefined;
 
   return (
     <div className="max-w-lg">
@@ -304,6 +356,13 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
         </FormField>
         <Button type="submit">{t("account.password.submit")}</Button>
       </ZodForm>
+
+      <PersonalAccessTokens
+        tokens={loaderData.tokens}
+        userId={user.id}
+        isAdmin={user.role === "ADMIN"}
+        result={result}
+      />
     </div>
   );
 }

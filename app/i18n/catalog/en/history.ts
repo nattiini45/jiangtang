@@ -105,4 +105,6 @@ export const historyEn = {
   "history.action.TwoFactorDisabled": "Two-factor turned off",
   "history.action.TwoFactorBackupCodesRegenerated": "Backup codes renewed",
   "history.action.TwoFactorReset": "Two-factor reset",
+  "history.action.PersonalAccessTokenCreated": "Personal access token created",
+  "history.action.PersonalAccessTokenRevoked": "Personal access token revoked",
 } satisfies Record<keyof typeof historyDe, string>;

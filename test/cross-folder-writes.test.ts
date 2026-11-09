@@ -155,6 +155,7 @@ function walkProd(absDir: string): string[] {
 const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/activity": [],
   "app/domains/analytics": [],
+  "app/domains/api-tokens": ["PersonalAccessToken"],
   "app/domains/attachments": ["Attachment"],
   // Account, Session and TwoFactor are Better Auth's tables; the auth folder
   // writes them itself where a credential, sessions or a second factor must
@@ -171,6 +172,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/notifications": ["Notification"],
   "app/domains/projects": ["Project"],
   "app/domains/rooms": ["Campus", "Building", "Room"],
+  "app/domains/search": [],
   "app/domains/tasks": ["Task", "TaskAssignees", "TaskDependency"],
   "app/domains/tickets": ["Ticket"],
   "app/domains/time": ["TimeEntry"],
