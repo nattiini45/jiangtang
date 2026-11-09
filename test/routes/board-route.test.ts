@@ -177,7 +177,7 @@ describe("/board — work mode", () => {
 
   it("move-ticket maps the lane through TICKET_LANE_STATUS", async () => {
     const t = await makeTicket("move-me");
-    // OPEN sits in BACKLOG; every leg stays inside ALLOWED_TRANSITIONS
+    // OPEN sits in BACKLOG; every leg stays inside the transition table
     // (RESOLVED→CANCELLED is illegal, so DONE is exercised from OPEN).
     for (const [lane, status] of [
       ["IN_PROGRESS", "IN_PROGRESS"],
@@ -185,7 +185,12 @@ describe("/board — work mode", () => {
       ["BACKLOG", "OPEN"],
       ["DONE", "RESOLVED"],
     ] as const) {
-      const res = (await postMove({ _action: "move-ticket", ticketId: t.id, lane })) as {
+      const res = (await postMove({
+        _action: "move-ticket",
+        ticketId: t.id,
+        lane,
+        ...(lane === "DONE" ? { resolution: "Synthetic repair completed" } : {}),
+      })) as {
         ok?: boolean;
       };
       expect(res.ok).toBe(true);

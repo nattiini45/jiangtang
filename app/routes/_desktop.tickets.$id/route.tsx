@@ -4,7 +4,12 @@ import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
-import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  NotFoundError,
+  toErrorResponse,
+  TransitionError,
+  ValidationError,
+} from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import {
   getTicket,
@@ -66,6 +71,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const users = [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, "de"));
   return {
     ticket,
+    allowedActions: ticket.allowedActions,
     rooms: targets.rooms,
     equipment: targets.equipment,
     users,
@@ -107,17 +113,20 @@ export async function action({ request, params }: Route.ActionArgs) {
     return redirect(`/tickets/${id}`);
   } catch (e) {
     if (e instanceof ValidationError) {
-      // An illegal transition is keyed to `status`, a field the transition form
-      // doesn't render — surface it as a general form error too so it's visible
-      // instead of a silent no-op.
-      return { fieldErrors: e.fieldErrors, formError: e.formErrors[0] };
+      return {
+        fieldErrors: e.fieldErrors,
+        formError: e.formErrors[0],
+        formErrors: e.formErrors,
+        ...(e instanceof TransitionError ? { transition: e.transition } : {}),
+      };
     }
     throw toErrorResponse(e);
   }
 }
 
 export default function TicketDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const { ticket, rooms, equipment, users, history, attachments, projects } = loaderData;
+  const { ticket, allowedActions, rooms, equipment, users, history, attachments, projects } =
+    loaderData;
   const nav = useNavigation();
   const busy = nav.state !== "idle";
   const t = useT();
@@ -248,33 +257,21 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          {ticket.status === "OPEN" ? (
-            <TransitionButton
-              status="IN_PROGRESS"
-              label={t("tickets.detail.takeInProgress")}
-              busy={busy}
-            />
-          ) : null}
-          {ticket.status === "OPEN" || ticket.status === "IN_PROGRESS" ? (
-            <TransitionButton
-              status="CANCELLED"
-              label={t("common.cancel")}
-              variant="tertiary"
-              busy={busy}
-            />
-          ) : null}
-          {ticket.status === "RESOLVED" || ticket.status === "CANCELLED" ? (
-            <TransitionButton
-              status="OPEN"
-              label={t("tickets.detail.reopen")}
-              variant="tertiary"
-              busy={busy}
-            />
-          ) : null}
+          {allowedActions
+            .filter((action) => action.requiredFields.length === 0)
+            .map((action) => (
+              <TransitionButton
+                key={action.target}
+                status={action.target}
+                label={t(action.labelKey)}
+                variant={action.target === "IN_PROGRESS" ? undefined : "tertiary"}
+                busy={busy}
+              />
+            ))}
         </div>
 
-        {ticket.status === "OPEN" || ticket.status === "IN_PROGRESS" ? (
-          <Form method="post" className="flex flex-col gap-2 border-t pt-3">
+        {allowedActions.some((action) => action.requiredFields.includes("resolution")) ? (
+          <Form method="post" id="resolve-ticket" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="_action" value="transition" />
             <input type="hidden" name="status" value="RESOLVED" />
             <Label htmlFor="resolution">{t("tickets.detail.markResolved")}</Label>
@@ -283,9 +280,19 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
               name="resolution"
               rows={2}
               placeholder={t("tickets.detail.resolutionPlaceholder")}
+              required
+              aria-describedby={
+                actionData?.fieldErrors?.resolution
+                  ? "resolution-help resolution-error"
+                  : "resolution-help"
+              }
+              aria-invalid={Boolean(actionData?.fieldErrors?.resolution)}
             />
+            <p id="resolution-help" className="text-muted-foreground text-xs">
+              {t("tickets.detail.resolutionHelp")}
+            </p>
             {actionData?.fieldErrors?.resolution ? (
-              <p className="text-destructive text-xs" role="alert">
+              <p id="resolution-error" className="text-destructive text-xs" role="alert">
                 {actionData.fieldErrors.resolution[0]}
               </p>
             ) : null}

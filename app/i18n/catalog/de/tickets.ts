@@ -6,6 +6,11 @@ export const ticketsDe = {
   "tickets.meta.fallbackTitle": "Ticket",
 
   "tickets.back": "← Tickets",
+  "tickets.detail.resolutionHelp":
+    "Eine Lösungsnotiz ist erforderlich. Beschreibe vor dem Abschließen, was erledigt wurde.",
+  "tickets.board.resolveTitle": "Ticket lösen: {title}",
+  "tickets.board.invalidDrop":
+    "Dieses Ticket kann nicht nach {lane} verschoben werden. Verfügbare Aktionen: {actions}.",
 
   "tickets.list.title": "Tickets",
   "tickets.list.subtitle": "Störungen, Aufgaben und Reparaturen.",

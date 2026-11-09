@@ -6,6 +6,7 @@ import { cn } from "~/lib/utils";
 import type { MessageKey } from "~/i18n";
 import { useT } from "~/i18n/use-t";
 import type { TicketStatus, TicketType } from "~/generated/prisma/client";
+import type { TicketAction } from "~/domains/tickets/tickets.transitions";
 
 /**
  * A ticket card in `/board`'s work mode. Tickets sort **below** the tasks
@@ -23,6 +24,7 @@ export interface BoardTicket {
   title: string;
   type: TicketType;
   status: TicketStatus;
+  allowedActions: TicketAction[];
   priority: number | null;
   room: { slug: string; name: string; roomNumber: string | null } | null;
   assignees: Array<{ id: string; name: string; initials: string | null }>;

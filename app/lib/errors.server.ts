@@ -4,6 +4,7 @@ import type { Locale } from "~/i18n/locales";
 import { currentLocale, tr } from "~/i18n/request-locale.server";
 import { logger } from "~/lib/observability/logger.server";
 import type { Note } from "~/generated/prisma/client";
+import type { TransitionRejection } from "~/lib/transitions";
 
 /**
  * Canonical error → HTTP mapping. Loaders/actions may THROW these
@@ -35,6 +36,16 @@ export class ValidationError extends Error {
     this.name = "ValidationError";
     this.fieldErrors = fieldErrors;
     this.formErrors = formErrors;
+  }
+}
+
+export class TransitionError extends ValidationError {
+  constructor(
+    readonly transition: TransitionRejection,
+    fieldErrors: FieldErrors = {},
+  ) {
+    super(fieldErrors, [transition.reason.message]);
+    this.name = "TransitionError";
   }
 }
 
@@ -105,6 +116,7 @@ export interface ErrorBody {
   message: string;
   fieldErrors?: FieldErrors;
   formErrors?: string[];
+  transition?: TransitionRejection;
 }
 
 function json(body: ErrorBody, status: number): Response {
@@ -148,6 +160,7 @@ export function toErrorResponse(error: unknown): Response {
         message: tr("err.validationFailed"),
         fieldErrors: localizeFieldErrors(locale, error.fieldErrors),
         formErrors: localizeMessages(locale, error.formErrors),
+        ...(error instanceof TransitionError ? { transition: error.transition } : {}),
       },
       422,
     );
