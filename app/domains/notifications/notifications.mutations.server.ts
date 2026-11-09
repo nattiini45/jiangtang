@@ -102,6 +102,10 @@ export async function markAllNotificationsRead(actor: AuditActor): Promise<numbe
   return result.count;
 }
 
+export async function pruneReadNotifications(cutoff: Date): Promise<number> {
+  return (await db.notification.deleteMany({ where: { readAt: { lt: cutoff } } })).count;
+}
+
 /**
  * Due-soon sweep: every open task whose `dueAt` falls within the horizon gets
  * one TASK_DUE_SOON notification per assignee — deduplicated by
