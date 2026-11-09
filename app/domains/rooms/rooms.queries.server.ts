@@ -14,9 +14,13 @@ export interface CampusWithBuildings {
   buildings: { id: string; name: string; code: string | null; roomCount: number }[];
 }
 
-export async function listCampuses(): Promise<CampusWithBuildings[]> {
+export async function listCampuses(
+  page: { offset?: number; limit?: number } = {},
+): Promise<CampusWithBuildings[]> {
   const campuses = await db.campus.findMany({
-    orderBy: { name: "asc" },
+    skip: page.offset,
+    take: page.limit,
+    orderBy: [{ name: "asc" }, { id: "asc" }],
     include: {
       _count: { select: { rooms: true } },
       buildings: {
@@ -39,10 +43,34 @@ export async function listCampuses(): Promise<CampusWithBuildings[]> {
   }));
 }
 
-export function listBuildings(campusId?: string) {
+export function listBuildings(campusId?: string, page: { offset?: number; limit?: number } = {}) {
   return db.building.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: campusId ? { campusId } : {},
-    orderBy: { name: "asc" },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    include: { campus: { select: { id: true, name: true } } },
+  });
+}
+
+export function getCampus(id: string) {
+  return db.campus.findUnique({ where: { id } });
+}
+
+export function getBuilding(id: string) {
+  return db.building.findUnique({
+    where: { id },
+    include: { campus: { select: { id: true, name: true } } },
+  });
+}
+
+export function getRoom(id: string) {
+  return db.room.findUnique({
+    where: { id },
+    include: {
+      campus: { select: { id: true, name: true } },
+      building: { select: { id: true, name: true } },
+    },
   });
 }
 
@@ -80,12 +108,17 @@ export interface RoomListRow {
   equipmentCount: number;
 }
 
-export async function listRooms(opts?: {
-  campusId?: string;
-  status?: RoomStatus;
-  q?: string;
-}): Promise<RoomListRow[]> {
+export async function listRooms(
+  opts?: {
+    campusId?: string;
+    status?: RoomStatus;
+    q?: string;
+  },
+  page: { offset?: number; limit?: number } = {},
+): Promise<RoomListRow[]> {
   const rooms = await db.room.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: {
       campusId: opts?.campusId,
       status: opts?.status,
@@ -98,7 +131,7 @@ export async function listRooms(opts?: {
           }
         : {}),
     },
-    orderBy: [{ name: "asc" }],
+    orderBy: [{ name: "asc" }, { id: "asc" }],
     include: {
       campus: { select: { name: true } },
       building: { select: { name: true } },

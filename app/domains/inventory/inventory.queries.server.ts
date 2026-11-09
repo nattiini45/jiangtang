@@ -22,15 +22,20 @@ export interface EquipmentListRow {
   frequencyMhz: string | null;
 }
 
-export async function listEquipment(opts?: {
-  roomId?: string;
-  modelId?: string;
-  category?: EquipmentCategory;
-  status?: EquipmentStatus;
-  mobility?: EquipmentMobility;
-  q?: string;
-}): Promise<EquipmentListRow[]> {
+export async function listEquipment(
+  opts?: {
+    roomId?: string;
+    modelId?: string;
+    category?: EquipmentCategory;
+    status?: EquipmentStatus;
+    mobility?: EquipmentMobility;
+    q?: string;
+  },
+  page: { offset?: number; limit?: number } = {},
+): Promise<EquipmentListRow[]> {
   const items = await db.equipment.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: {
       roomId: opts?.roomId,
       modelId: opts?.modelId,
@@ -47,7 +52,7 @@ export async function listEquipment(opts?: {
           }
         : {}),
     },
-    orderBy: [{ category: "asc" }, { name: "asc" }],
+    orderBy: [{ category: "asc" }, { name: "asc" }, { id: "asc" }],
     include: { room: { select: { name: true, slug: true } }, model: { select: { name: true } } },
   });
   return items.map((e) => ({

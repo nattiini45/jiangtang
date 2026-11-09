@@ -17,6 +17,28 @@ export async function getLocation(id: string): Promise<Location | null> {
   return db.location.findUnique({ where: { id } });
 }
 
+export function listLocations(
+  options: {
+    parentId?: string | null;
+    kind?: LocationKind;
+    q?: string;
+    offset?: number;
+    limit?: number;
+  } = {},
+) {
+  return db.location.findMany({
+    where: {
+      parentId: options.parentId,
+      kind: options.kind,
+      ...(options.q ? { name: { contains: options.q, mode: "insensitive" } } : {}),
+    },
+    include: { parent: { select: { id: true, name: true } } },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    skip: options.offset,
+    take: options.limit,
+  });
+}
+
 /** Like {@link getLocation} but throws — for callers that cannot continue without it. */
 export async function requireLocation(id: string): Promise<Location> {
   const location = await getLocation(id);

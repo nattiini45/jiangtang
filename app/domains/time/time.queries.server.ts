@@ -39,19 +39,29 @@ export async function getRunningEntry(userId: string) {
   return db.timeEntry.findFirst({ where: { userId, endsAt: null }, include: ENTRY_INCLUDE });
 }
 
+export function getTimeEntry(userId: string, id: string) {
+  return db.timeEntry.findFirst({ where: { id, userId }, include: ENTRY_INCLUDE });
+}
+
 /** Entries overlapping the week in either direction, oldest first. */
-export async function listWeekEntries(userId: string, isoWeek: string) {
+export async function listWeekEntries(
+  userId: string,
+  isoWeek: string,
+  page: { offset?: number; limit?: number } = {},
+) {
   const { startDay, endDay } = isoWeekRange(isoWeek);
   const from = new Date(berlinDayStartMs(startDay));
   const to = new Date(berlinDayStartMs(endDay + 1));
   return db.timeEntry.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: {
       userId,
       startsAt: { lt: to },
       OR: [{ endsAt: null }, { endsAt: { gt: from } }],
     },
     include: ENTRY_INCLUDE,
-    orderBy: { startsAt: "asc" },
+    orderBy: [{ startsAt: "asc" }, { id: "asc" }],
   });
 }
 

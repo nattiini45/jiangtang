@@ -16,15 +16,20 @@ export interface AttachmentRow {
   createdAt: Date;
 }
 
-export async function listAttachments(where: {
-  roomId?: string;
-  equipmentId?: string;
-  ticketId?: string;
-}): Promise<AttachmentRow[]> {
+export async function listAttachments(
+  where: {
+    roomId?: string;
+    equipmentId?: string;
+    ticketId?: string;
+  },
+  page: { offset?: number; limit?: number } = {},
+): Promise<AttachmentRow[]> {
   if (!where.roomId && !where.equipmentId && !where.ticketId) return [];
   return db.attachment.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: { roomId: where.roomId, equipmentId: where.equipmentId, ticketId: where.ticketId },
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
     select: {
       id: true,
       objectKey: true,
@@ -43,6 +48,25 @@ export function getAttachmentByKey(objectKey: string) {
   return db.attachment.findUnique({
     where: { objectKey },
     select: { id: true, contentType: true, filename: true },
+  });
+}
+
+export function getAttachmentMetadata(id: string) {
+  return db.attachment.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      category: true,
+      filename: true,
+      contentType: true,
+      sizeBytes: true,
+      width: true,
+      height: true,
+      createdAt: true,
+      room: { select: { id: true, name: true } },
+      equipment: { select: { id: true, name: true, assetTag: true } },
+      ticket: { select: { id: true, title: true } },
+    },
   });
 }
 

@@ -47,13 +47,13 @@ export const logger = pino({
 
 /**
  * Replaces the token segment of token-bearing routes (the iCal feed, the invite
- * link and the password reset link) so a request log line never carries the token. Other paths and the query
- * string are returned unchanged.
+ * link and the password reset link) and personal access tokens wherever their
+ * distinctive prefix occurs, so a request log line never carries a credential.
  */
 const TOKEN_SEGMENT = /(\/(?:calendar|accept-invite|reset-password)\/)[^/?#]+/gi;
 
 export function redactTokenSegments(url: string): string {
-  return url.replace(TOKEN_SEGMENT, "$1:token");
+  return url.replace(TOKEN_SEGMENT, "$1:token").replace(/jtg_[A-Za-z0-9_-]{43}/g, ":token");
 }
 
 /** Create a request-scoped child logger carrying a request id. */

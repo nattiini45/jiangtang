@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { logger, redactTokenSegments, requestLogger } from "~/lib/observability/logger.server";
 
+it("redacts personal access tokens mistakenly placed in URLs or header values", () => {
+  const token = `jtg_${"x".repeat(43)}`;
+  expect(redactTokenSegments(`/mcp?access_token=${token}`)).toBe("/mcp?access_token=:token");
+  expect(redactTokenSegments(`Bearer ${token}`)).toBe("Bearer :token");
+});
+
 /**
  * Structured-logger smoke test. Captures a pino sink's output to
  * assert JSON shape, redaction, and the request-id child binding. Pino writes to

@@ -46,13 +46,31 @@ export interface WorkTicket {
  * applies after the detail read. `assigneeId` filters in SQL on the view's
  * `assignee_ids` array.
  */
-export async function listWorkTickets(options: { projectId?: string; assigneeId?: string } = {}) {
+export async function listWorkTickets(
+  options: { projectId?: string; assigneeId?: string } = {},
+  page?: { lane: Lane; offset: number; limit: number },
+) {
   const rows = await db.$queryRaw<WorkitemRow[]>(
-    options.assigneeId
-      ? Prisma.sql`SELECT id, lane, sort_priority, updated_at FROM "workitem"
+    page
+      ? Prisma.sql`SELECT id, lane, sort_priority, updated_at FROM "workitem" w
+                   WHERE kind = 'TICKET' AND lane = ${page.lane}
+                   ${options.assigneeId ? Prisma.sql`AND ${options.assigneeId} = ANY(assignee_ids)` : Prisma.empty}
+                   ${
+                     options.projectId
+                       ? Prisma.sql`AND EXISTS (
+                     SELECT 1 FROM "Ticket" ticket
+                     JOIN "Task" task ON task.id = ticket."taskId"
+                     WHERE ticket.id = w.id AND task."projectId" = ${options.projectId}
+                   )`
+                       : Prisma.empty
+                   }
+                   ORDER BY sort_priority ASC NULLS LAST, updated_at DESC, id ASC
+                   LIMIT ${page.limit} OFFSET ${page.offset}`
+      : options.assigneeId
+        ? Prisma.sql`SELECT id, lane, sort_priority, updated_at FROM "workitem"
                    WHERE kind = 'TICKET' AND ${options.assigneeId} = ANY(assignee_ids)
                    ORDER BY sort_priority ASC NULLS LAST, updated_at DESC`
-      : Prisma.sql`SELECT id, lane, sort_priority, updated_at FROM "workitem"
+        : Prisma.sql`SELECT id, lane, sort_priority, updated_at FROM "workitem"
                    WHERE kind = 'TICKET'
                    ORDER BY sort_priority ASC NULLS LAST, updated_at DESC`,
   );

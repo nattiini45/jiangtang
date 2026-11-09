@@ -42,8 +42,13 @@ function noteWhere(options: NoteListOptions): Prisma.NoteWhereInput {
  * `archived` defaults to `"exclude"`; `"only"` and `"include"` back the
  * archived filter.
  */
-export async function listNotes(options: NoteListOptions = {}) {
+export async function listNotes(
+  options: NoteListOptions = {},
+  page: { offset?: number; limit?: number } = {},
+) {
   return db.note.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: noteWhere(options),
     include: NOTE_INCLUDE,
     orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }, { id: "asc" }],
@@ -68,12 +73,15 @@ export async function requireNote(id: string) {
  * filter result — which part of it is visible is the `archived` filter's call.
  * `unnest` because `tags` is `String[]`, not a table.
  */
-export async function listNoteTags(): Promise<Array<{ tag: string; count: number }>> {
+export async function listNoteTags(
+  page: { offset?: number; limit?: number } = {},
+): Promise<Array<{ tag: string; count: number }>> {
   const rows = await db.$queryRaw<Array<{ tag: string; count: bigint }>>`
     SELECT tag, count(*)::bigint AS count
     FROM "Note", unnest("tags") AS tag
     GROUP BY tag
     ORDER BY count DESC, tag ASC
+    LIMIT ${page.limit ?? null} OFFSET ${page.offset ?? 0}
   `;
   return rows.map((r) => ({ tag: r.tag, count: Number(r.count) }));
 }

@@ -7,7 +7,13 @@ import { berlinLocalToUtc } from "~/lib/time.server";
 import { berlinDayIndex, berlinDayStartMs, isoWeekNumber, isoWeekStart } from "~/lib/berlin-days";
 import { computeCapacity, type CapacityRow } from "./capacity";
 import { unionMinutes } from "~/domains/time/time-utils";
-import { LANES, laneOfTaskStatus, SETTLED_TASK_STATUSES, type Lane } from "./tasks.lanes";
+import {
+  LANES,
+  LANE_TASK_STATUSES,
+  laneOfTaskStatus,
+  SETTLED_TASK_STATUSES,
+  type Lane,
+} from "./tasks.lanes";
 import { berlinDayKey } from "./tasks.dates";
 import type { TaskListOptions } from "./tasks.schema";
 
@@ -60,8 +66,13 @@ const TASK_ASSIGNEES = {
  * job, not the list's. Each row carries `isBlocked` like {@link listBoardTasks}
  * (the list shows the same blocked marker the board does).
  */
-export async function listTasks(options: TaskListOptions = {}) {
+export async function listTasks(
+  options: TaskListOptions = {},
+  page: { offset?: number; limit?: number } = {},
+) {
   const tasks = await db.task.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: taskWhere(options),
     include: {
       project: { select: { id: true, name: true, slug: true, color: true } },
@@ -159,9 +170,23 @@ export interface BoardTask extends Task {
  * inside a lane, which is why lane leads), and `isBlocked` = has a blocker that
  * is not DONE/CANCELLED.
  */
-export async function listBoardTasks(options: { projectId?: string; assigneeId?: string } = {}) {
+export async function listBoardTasks(
+  options: { projectId?: string; assigneeId?: string } = {},
+  page?: { lane: Lane; offset: number; limit: number },
+) {
   const tasks = await db.task.findMany({
-    where: taskWhere({ projectId: options.projectId, assigneeId: options.assigneeId }),
+    where: taskWhere({
+      projectId: options.projectId,
+      assigneeId: options.assigneeId,
+      ...(page ? { statuses: LANE_TASK_STATUSES[page.lane] } : {}),
+    }),
+    ...(page
+      ? {
+          skip: page.offset,
+          take: page.limit,
+          orderBy: [{ position: "asc" as const }, { id: "asc" as const }],
+        }
+      : {}),
     include: {
       project: { select: { id: true, name: true, slug: true, color: true } },
       assignees: TASK_ASSIGNEES,

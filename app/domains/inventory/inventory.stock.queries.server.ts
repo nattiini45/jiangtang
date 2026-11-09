@@ -74,7 +74,10 @@ export async function findStockItemBySerial(serial: string) {
  * assertion exists to catch. The `id` tiebreak is what makes a
  * repeated list reproducible.
  */
-export async function listStock(options: StockListOptions = {} as StockListOptions) {
+export async function listStock(
+  options: StockListOptions = {} as StockListOptions,
+  page: { offset?: number; limit?: number } = {},
+) {
   // `includeUnassigned: false` excludes `locationId = null` with OR
   // without a location — before, the flag was consulted only inside the
   // `locationId` branch, so it was inert on a whole-stock list.
@@ -91,6 +94,8 @@ export async function listStock(options: StockListOptions = {} as StockListOptio
     ...(options.search ? { name: { contains: options.search, mode: "insensitive" as const } } : {}),
   };
   return db.inventoryItem.findMany({
+    skip: page.offset,
+    take: page.limit,
     where,
     include: STOCK_INCLUDE,
     orderBy: [{ name: "asc" }, { id: "asc" }],

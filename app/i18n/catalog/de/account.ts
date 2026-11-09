@@ -49,4 +49,45 @@ export const accountDe = {
   "account.twoFactor.err.codeInvalid": "Der Code ist ungültig.",
   "account.twoFactor.err.alreadyEnabled": "Die Zwei-Faktor-Authentifizierung ist bereits aktiv.",
   "account.twoFactor.err.enrolmentExpired": "Die Einrichtung ist abgelaufen. Bitte starte sie neu.",
+  "account.tokens.heading": "Persönliche Zugriffstokens",
+  "account.tokens.intro":
+    "Verbinde einen KI-Client über MCP mit Jiangtang. Jeder Token nutzt die Berechtigungen deines Kontos.",
+  "account.tokens.name": "Tokenname",
+  "account.tokens.nameHint":
+    "Wähle einen Namen, an dem du den Client oder die Verbindung erkennst.",
+  "account.tokens.scope": "Zugriff",
+  "account.tokens.scopeHint":
+    "Nur lesen erlaubt das Anzeigen und Suchen. Lesen und schreiben erlaubt auch Änderungen im Rahmen deiner Kontoberechtigungen.",
+  "account.tokens.readOnly": "Nur lesen",
+  "account.tokens.readWrite": "Lesen und schreiben",
+  "account.tokens.create": "Token erstellen",
+  "account.tokens.creating": "Token wird erstellt…",
+  "account.tokens.created": "Token erstellt",
+  "account.tokens.warning": "Kopiere diesen Token jetzt. Er wird nicht erneut angezeigt.",
+  "account.tokens.securityHint":
+    "Halte ihn geheim: Wer ihn hat, kann den gewählten Zugriff nutzen. Widerrufe ihn, falls er offengelegt wird.",
+  "account.tokens.secret": "Dein neuer Token",
+  "account.tokens.copy": "Token kopieren",
+  "account.tokens.copied": "Token kopiert.",
+  "account.tokens.copyFailed":
+    "Der Token konnte nicht kopiert werden. Markiere und kopiere ihn von Hand.",
+  "account.tokens.hide": "Token ausblenden",
+  "account.tokens.yours": "Deine Tokens",
+  "account.tokens.empty": "Noch keine Tokens. Erstelle einen, um einen MCP-Client zu verbinden.",
+  "account.tokens.emptyOthers": "Keine Tokens von anderen Konten.",
+  "account.tokens.createdAt": "Erstellt",
+  "account.tokens.lastUsedAt": "Zuletzt verwendet",
+  "account.tokens.neverUsed": "Noch nicht verwendet",
+  "account.tokens.status": "Status",
+  "account.tokens.active": "Aktiv",
+  "account.tokens.revokedAt": "Widerrufen am {date}",
+  "account.tokens.revoke": "Widerrufen",
+  "account.tokens.revokeNamed": "Token {name} widerrufen",
+  "account.tokens.confirmRevoke":
+    "„{name}“ widerrufen? Clients mit diesem Token verlieren sofort den Zugriff. Das kann nicht rückgängig gemacht werden.",
+  "account.tokens.revoked": "Token widerrufen. Er kann nicht mehr auf Jiangtang zugreifen.",
+  "account.tokens.owner": "Inhaber: {name}",
+  "account.tokens.all": "Tokens anderer Konten ({count})",
+  "account.tokens.allHint":
+    "Als Admin kannst du auch Tokens anderer Konten sehen und widerrufen. Die geheimen Tokenwerte werden hier nie angezeigt.",
 };
