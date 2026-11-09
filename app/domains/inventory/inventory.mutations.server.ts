@@ -112,10 +112,42 @@ export async function updateEquipment(
   input: EquipmentEditInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
-    const eq = await tx.equipment.update({ where: { id }, data: equipmentFields(input) });
-    await audit({ action: "EquipmentUpdated", entityType: "equipment", entityId: eq.id });
+    const fields = equipmentFields(input);
+    const { eq, auditData } =
+      input.status === "RETIRED"
+        ? await retireEquipmentInTx(tx, id, fields)
+        : {
+            eq: await tx.equipment.update({ where: { id }, data: fields }),
+            auditData: undefined,
+          };
+    await audit({
+      action: "EquipmentUpdated",
+      entityType: "equipment",
+      entityId: eq.id,
+      data: auditData,
+    });
     return eq;
   });
+}
+
+async function retireEquipmentInTx(
+  tx: Tx,
+  id: string,
+  data: Prisma.EquipmentUncheckedUpdateInput = {},
+) {
+  const eq = await tx.equipment.update({
+    where: { id },
+    data: { ...data, status: "RETIRED", substitutingForId: null },
+  });
+  const clearedSpare = await tx.equipment.updateMany({
+    where: { substitutingForId: id },
+    data: { substitutingForId: null },
+  });
+  return {
+    eq,
+    auditData:
+      clearedSpare.count > 0 ? { clearedSubstitutionLinks: clearedSpare.count } : undefined,
+  };
 }
 
 /**
@@ -127,19 +159,12 @@ export async function updateEquipment(
  */
 export async function retireEquipment(actor: AuditActor, id: string): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
-    const eq = await tx.equipment.update({
-      where: { id },
-      data: { status: "RETIRED", substitutingForId: null },
-    });
-    const clearedSpare = await tx.equipment.updateMany({
-      where: { substitutingForId: id },
-      data: { substitutingForId: null },
-    });
+    const { eq, auditData } = await retireEquipmentInTx(tx, id);
     await audit({
       action: "EquipmentRetired",
       entityType: "equipment",
       entityId: eq.id,
-      data: clearedSpare.count > 0 ? { clearedSubstitutionLinks: clearedSpare.count } : undefined,
+      data: auditData,
     });
     return eq;
   });
