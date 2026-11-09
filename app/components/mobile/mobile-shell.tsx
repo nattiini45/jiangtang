@@ -95,7 +95,7 @@ export function MobileShell({
       className="bg-background text-foreground flex min-h-screen flex-col text-sm"
     >
       <NavPendingIndicator />
-      <header className="bg-background/85 sticky top-0 z-20 flex h-14 items-center justify-between border-b px-4 backdrop-blur-md">
+      <header className="bg-background/85 sticky top-0 z-20 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between border-b pt-[env(safe-area-inset-top)] pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] backdrop-blur-md">
         <span className="flex items-center gap-2.5">
           <span
             aria-hidden
@@ -125,7 +125,7 @@ export function MobileShell({
           </span>
         </span>
       </header>
-      <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)]">
         {children}
       </main>
 
@@ -147,7 +147,7 @@ export function MobileShell({
             />
             <motion.div
               key="sheet"
-              className="bg-surface-5 shadow-surface-5 fixed inset-x-2 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 flex flex-col gap-3 rounded-xl p-3"
+              className="bg-surface-5 shadow-surface-5 fixed right-[calc(0.5rem+env(safe-area-inset-right))] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-[calc(0.5rem+env(safe-area-inset-left))] z-40 flex flex-col gap-3 rounded-xl p-3"
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 16, transition: spring.slow.exit }}
@@ -199,7 +199,7 @@ export function MobileShell({
         ) : null}
       </AnimatePresence>
 
-      <nav className="bg-background/90 fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+      <nav className="bg-background/90 fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] border-t pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] backdrop-blur-md">
         {NAV.map(({ to, labelKey, icon: Icon, end }) => (
           <NavLink
             key={to}

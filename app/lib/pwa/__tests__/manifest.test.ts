@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import sharp from "sharp";
+import { startupImages } from "../startup-images";
 
 // `.webmanifest` isn't a TS-recognized JSON module, so read + parse it at runtime.
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -9,6 +11,7 @@ const manifestPath = resolve(join(HERE, "..", "..", "..", "..", "public", "manif
 const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as {
   name: string;
   short_name: string;
+  id: string;
   description: string;
   display: string;
   scope: string;
@@ -42,8 +45,12 @@ const iconFile = (src: string) => resolve(dirname(manifestPath), src.replace(/^\
 describe("PWA manifest", () => {
   it("declares a standalone display mode scoped to /m", () => {
     expect(manifest.display).toBe("standalone");
-    expect(manifest.scope).toBe("/m/");
-    expect(manifest.start_url).toBe("/m/");
+    expect(manifest.scope).toBe("/m");
+    expect(manifest.start_url).toBe("/m");
+    expect(manifest.id).toBe("/m/");
+    for (const path of ["/m", "/m/", "/m/tasks", "/m/notes/new"]) {
+      expect(path.startsWith(manifest.scope)).toBe(true);
+    }
     // The static manifest declares a fixed document language; the app UI itself
     // follows the locale cookie / Accept-Language at runtime.
     expect(manifest.lang).toBe("en");
@@ -90,5 +97,57 @@ describe("PWA manifest", () => {
     );
     expect(manifest.theme_color).toMatch(/^#/);
     expect(manifest.background_color).toMatch(/^#/);
+  });
+
+  it("uses separate opaque maskable icons with the entire mark inside the safe circle", async () => {
+    const maskable = manifest.icons.filter((icon) => icon.purpose === "maskable");
+    expect(maskable.map((icon) => icon.sizes).sort()).toEqual(["192x192", "512x512"]);
+    expect(
+      manifest.icons
+        .filter((icon) => icon.purpose === "any")
+        .map((icon) => icon.sizes)
+        .sort(),
+    ).toEqual(["192x192", "512x512"]);
+    for (const icon of maskable) {
+      expect(
+        manifest.icons.some((other) => other.purpose === "any" && other.src === icon.src),
+      ).toBe(false);
+      const { data, info } = await sharp(iconFile(icon.src))
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      const center = info.width / 2;
+      let opaque = true;
+      let markRadius = 0;
+      for (let y = 0; y < info.height; y++) {
+        for (let x = 0; x < info.width; x++) {
+          const at = (y * info.width + x) * 4;
+          opaque &&= data[at + 3] === 255;
+          if (data[at]! > 64)
+            markRadius = Math.max(markRadius, Math.hypot(x + 0.5 - center, y + 0.5 - center));
+        }
+      }
+      expect(opaque).toBe(true);
+      expect(markRadius).toBeGreaterThan(0);
+      expect(markRadius).toBeLessThan(info.width * 0.4);
+    }
+  });
+
+  it("ships a 180px apple touch icon and correctly sized light/dark launch images", async () => {
+    const apple = await sharp(iconFile("/apple-touch-icon.png")).metadata();
+    expect([apple.width, apple.height]).toEqual([180, 180]);
+    expect(startupImages.length).toBeGreaterThan(0);
+    for (const image of startupImages) {
+      const dimensions = /\/(\d+)x(\d+)-(light|dark)\.png$/.exec(image.href)!;
+      const { info, data } = await sharp(iconFile(image.href))
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+      expect([info.width, info.height]).toEqual([Number(dimensions[1]), Number(dimensions[2])]);
+      expect(image.media).toContain(`prefers-color-scheme: ${dimensions[3]}`);
+      expect(image.media).toContain("orientation: portrait");
+      expect(data[0]).toBe(dimensions[3] === "dark" ? 23 : 250);
+    }
+    expect(manifest.background_color).toBe("#fafafa");
+    expect(manifest.theme_color).toBe("#fafafa");
   });
 });

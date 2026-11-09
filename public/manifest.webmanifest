@@ -4,16 +4,19 @@
   "description": "The all-in-one workspace for AV and facilities teams: rooms, equipment, events, tickets, tasks and notes.",
   "lang": "en",
   "dir": "ltr",
-  "start_url": "/m/",
-  "scope": "/m/",
+  "id": "/m/",
+  "start_url": "/m",
+  "scope": "/m",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#fafafa",
+  "theme_color": "#fafafa",
   "categories": ["productivity", "business", "utilities"],
   "icons": [
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
   ],
   "screenshots": [
     {
@@ -42,7 +45,7 @@
     {
       "name": "Capture",
       "short_name": "Capture",
-      "url": "/m/",
+      "url": "/m",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {

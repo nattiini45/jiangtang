@@ -1,8 +1,7 @@
-import { useEffect } from "react";
 import { Outlet, useRouteLoaderData } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { maybeRegisterServiceWorker } from "~/lib/pwa/register-sw";
+import { PwaNotices } from "~/components/mobile/pwa-notices";
 import { unreadNotificationCount } from "~/domains/notifications/notifications.queries.server";
 import { MobileShell } from "~/components/mobile/mobile-shell";
 
@@ -20,17 +19,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function MobileLayout() {
-  // Register the service worker once on the mobile surface (scoped to /m).
-  useEffect(() => {
-    maybeRegisterServiceWorker();
-  }, []);
-
   const data = useRouteLoaderData<typeof loader>("routes/m");
   return (
     <MobileShell
       user={data?.user ?? { name: "" }}
       unreadNotifications={data?.unreadNotifications ?? 0}
     >
+      <PwaNotices />
       <Outlet />
     </MobileShell>
   );

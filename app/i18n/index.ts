@@ -6,6 +6,7 @@ import { timesheetDe } from "./catalog/de/timesheet";
 import { eventsDe } from "./catalog/de/events";
 import { notesDe } from "./catalog/de/notes";
 import { projectsDe } from "./catalog/de/projects";
+import { pwaDe } from "./catalog/de/pwa";
 import { ticketsDe } from "./catalog/de/tickets";
 import { timelineDe } from "./catalog/de/timeline";
 import { authDe } from "./catalog/de/auth";
@@ -37,6 +38,7 @@ import { timesheetEn } from "./catalog/en/timesheet";
 import { eventsEn } from "./catalog/en/events";
 import { notesEn } from "./catalog/en/notes";
 import { projectsEn } from "./catalog/en/projects";
+import { pwaEn } from "./catalog/en/pwa";
 import { ticketsEn } from "./catalog/en/tickets";
 import { timelineEn } from "./catalog/en/timeline";
 import { authEn } from "./catalog/en/auth";
@@ -76,6 +78,7 @@ const de = {
   ...eventsDe,
   ...notesDe,
   ...projectsDe,
+  ...pwaDe,
   ...ticketsDe,
   ...timelineDe,
   ...authDe,
@@ -109,6 +112,7 @@ const en = {
   ...eventsEn,
   ...notesEn,
   ...projectsEn,
+  ...pwaEn,
   ...ticketsEn,
   ...timelineEn,
   ...authEn,
