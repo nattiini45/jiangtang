@@ -117,9 +117,9 @@ default to 50, accept up to 100 per page, and expose domain filters. `list_activ
 `nextCursor` instead of an offset. Search uses its own ranked
 limit. Rooms are bookable spaces; locations are separate storage/work places, not room IDs.
 
-**Resources** return JSON without changing domain data:
-
 Resource support varies by client; use the equivalent read tools when resources are not exposed.
+
+**Resources** return JSON without changing domain data:
 
 - `jiangtang://workspace/context` contains safe connection scope, timezone and reading guidance,
   not account data or configuration secrets.
@@ -198,6 +198,9 @@ Tool failures use `isError` and a JSON text payload with `status` and safe `deta
 validation. SDK schema validation can instead return its own input-validation error. Resource
 misses use MCP protocol errors, not tool-result envelopes. An HTTP 401 means the PAT is absent,
 invalid/revoked or its account is ineligible; a 405 on GET is expected, not a health probe.
+Unexpected resource-read failures return a correlation reference and log it with the resource
+kind. Raw exception content is deliberately excluded from those logs to avoid recording
+credentials or private workspace data.
 
 ## OAuth-only clients and ChatGPT
 
