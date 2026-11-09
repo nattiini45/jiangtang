@@ -48,7 +48,8 @@ export async function action({ request }: Route.ActionArgs) {
     if (!result.success) return { fieldErrors: result.fieldErrors };
     const invite = await resolveInvite(result.data.token);
     await acceptInvite(invite, result.data.password);
-    return redirect(`/login?next=${encodeURIComponent(authLanding(request, result.data.next))}`);
+    const next = authLanding(request, result.data.next);
+    return redirect(next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
   } catch (e) {
     // An email or initials clash: nothing was created, so say why on the form.
     if (e instanceof ValidationError) {

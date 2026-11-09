@@ -102,6 +102,11 @@ function matchPage(patterns: readonly string[], pathname: string) {
   )?.at(-1);
 }
 
+function pagePath(pathname: string): string {
+  if (!pathname.endsWith(".data")) return pathname;
+  return pathname === "/_root.data" ? "/" : pathname.slice(0, -5);
+}
+
 export function explicitView(headers: Headers): View | undefined {
   const value = headers
     .get("cookie")
@@ -139,8 +144,7 @@ export function viewPath(raw: string | null | undefined, view: View): string {
   const url = new URL(sanitizeNext(raw), "http://internal.invalid");
   if (sanitizeNext(url.pathname) === "/" && url.pathname !== "/")
     return view === "mobile" ? "/m" : "/";
-  if (url.pathname.endsWith(".data"))
-    url.pathname = url.pathname === "/_root.data" ? "/" : url.pathname.slice(0, -5);
+  url.pathname = pagePath(url.pathname);
   url.searchParams.delete("_routes");
   url.searchParams.delete("index");
   const desktop = matchPage(DESKTOP_PAGES, url.pathname);
@@ -192,9 +196,10 @@ export function authLanding(request: Request, next?: string | null): string {
 export function viewRedirect(request: Request): string | null {
   if (request.method !== "GET") return null;
   const url = new URL(request.url);
-  if (url.pathname === "/account" && url.searchParams.get("twoFactor") === "required") return null;
-  const desktop = matchPage(DESKTOP_PAGES, url.pathname);
-  const mobile = matchPage(MOBILE_PAGES, url.pathname);
+  const pathname = pagePath(url.pathname);
+  if (pathname === "/account" && url.searchParams.get("twoFactor") === "required") return null;
+  const desktop = matchPage(DESKTOP_PAGES, pathname);
+  const mobile = matchPage(MOBILE_PAGES, pathname);
   if (!desktop && !mobile) return null;
   const view = preferredView(request.headers);
   if ((desktop && view === "mobile") || (mobile && explicitView(request.headers) === "desktop")) {
@@ -207,7 +212,13 @@ export const viewMiddleware: MiddlewareFunction<Response> = async ({ request }, 
   const target = viewRedirect(request);
   const response = target ? redirect(target) : await next();
   response.headers.set("Accept-CH", "Sec-CH-UA-Mobile");
-  response.headers.append("Vary", "Cookie, Sec-CH-UA-Mobile, User-Agent");
-  if (target) response.headers.set("Cache-Control", "private, no-store");
+  const pathname = pagePath(new URL(request.url).pathname);
+  if (
+    request.method === "GET" &&
+    (matchPage(DESKTOP_PAGES, pathname) || matchPage(MOBILE_PAGES, pathname))
+  ) {
+    response.headers.set("Cache-Control", "private, no-store");
+  }
+  if (target) response.headers.append("Vary", "Cookie, Sec-CH-UA-Mobile, User-Agent");
   return response;
 };

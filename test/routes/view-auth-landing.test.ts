@@ -152,6 +152,23 @@ describe("chosen-tree sign-in landing", () => {
 });
 
 describe("invitation and preference handoff", () => {
+  it("keeps the existing plain sign-in URL for a default desktop invitation", async () => {
+    const response = await invite.action(
+      args(
+        req(
+          "/accept-invite/invite-token",
+          {
+            token: "invite-token",
+            password: "synthetic-password",
+            confirm: "synthetic-password",
+          },
+          {},
+        ),
+      ),
+    );
+    expect(destination(response)).toBe("/login");
+  });
+
   it("carries safe context through invite acceptance to sign-in", async () => {
     const loaded = await invite.loader(
       args(req("/accept-invite/invite-token?next=%2Fsearch%3Fq%3Dhall")),

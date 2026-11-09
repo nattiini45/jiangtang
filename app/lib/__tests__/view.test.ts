@@ -214,6 +214,14 @@ describe("route equivalents", () => {
 
 describe("routing boundaries", () => {
   it.each([
+    ["/rooms.data?_routes=routes%2F_desktop.rooms._index", "/m/rooms"],
+    ["/_root.data?_routes=root", "/m"],
+    ["/tasks.data?assignee=me", "/m/tasks"],
+  ])("normalizes raw single-fetch request %s before matching", (path, target) => {
+    expect(viewRedirect(request(path))).toBe(target);
+  });
+
+  it.each([
     "/api/auth/get-session",
     "/api/search",
     "/api/ask",
@@ -256,6 +264,29 @@ describe("routing boundaries", () => {
 });
 
 describe("React Router middleware and single-fetch", () => {
+  it("keeps private page responses URL-cacheable offline without routing Vary headers", async () => {
+    const next = vi.fn(async () => new Response("mobile page"));
+    const response = await viewMiddleware({ request: request("/m/tasks") } as never, next as never);
+    if (!response) throw new Error("Expected a page response");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("Vary")).toBeNull();
+    expect(next).toHaveBeenCalledOnce();
+  });
+
+  it("does not change a resource response's cache policy or variation", async () => {
+    const next = async () =>
+      new Response("resource", {
+        headers: { "Cache-Control": "private, max-age=60", Vary: "Accept" },
+      });
+    const response = await viewMiddleware(
+      { request: request("/api/search?q=room") } as never,
+      next as never,
+    );
+    if (!response) throw new Error("Expected a resource response");
+    expect(response.headers.get("Cache-Control")).toBe("private, max-age=60");
+    expect(response.headers.get("Vary")).toBe("Accept");
+  });
+
   function handler() {
     const loader = vi.fn(() => ({ privateTitle: "must never be sent before auth" }));
     const action = vi.fn(() => ({ validationError: "unchanged action result" }));
