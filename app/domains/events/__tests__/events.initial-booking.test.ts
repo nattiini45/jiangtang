@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { configuredCalendarFixture } from "../../../../test/calendar-config";
+
+configuredCalendarFixture();
 import { createEventWithBooking } from "~/domains/events/events.mutations.server";
 import { eventCreateSchema } from "~/domains/events/events.schema";
 import { db } from "~/lib/db.server";

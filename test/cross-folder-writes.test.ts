@@ -185,7 +185,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   // of `app/lib` never opens it, and `CalendarOutbox`'s owner would be a map
   // entry no scan ever consulted.
   "app/lib": ["ActivityLog"],
-  "app/lib/calendar": ["CalendarOutbox"],
+  "app/lib/calendar": ["CalendarOutbox", "CalendarPublicationInitialization"],
   // the indexer owns the derived-data tables — Chunk/SearchIndexJob are
   // rebuilt from audited rows and carry no audit of their own.
   "app/lib/search": ["Chunk", "SearchIndexJob"],
@@ -265,16 +265,10 @@ const MODEL_AXIS_EXEMPTIONS: readonly Exemption[] = [
   },
 ];
 
-/** Two route files are exempt, for two different reasons. */
 const ROUTE_EXEMPTIONS: readonly Exemption[] = [
   {
     file: "app/routes/healthz/route.tsx",
     reason: "A liveness probe has no domain module and must reach the database itself.",
-  },
-  {
-    file: "app/routes/_desktop.events.$id/route.tsx",
-    reason:
-      "A business page reaching past its domain module is a known gap owned by a separate decision. Named here so the guard does not pre-empt it.",
   },
 ];
 
@@ -978,17 +972,19 @@ describe("app/routes is scanned for direct db. access, read or write", () => {
   });
 
   it("sees both the read and the raw-SQL probe — a writes-only rule would pass the read", () => {
+    expect(
+      findRouteDbAccess(
+        "db.calendarOutbox.findFirst({});\ndb.$queryRaw`SELECT 1`;",
+        "app/routes/probe/route.tsx",
+      ).map((access) => access.line),
+    ).toEqual([1, 2]);
     expect([...new Set(ROUTE_ACCESS.map((a) => a.file))].sort()).toEqual([
-      "app/routes/_desktop.events.$id/route.tsx",
       "app/routes/healthz/route.tsx",
     ]);
   });
 
   it("exempts exactly those two files", () => {
-    expect([...ROUTE_EXEMPT_FILES].sort()).toEqual([
-      "app/routes/_desktop.events.$id/route.tsx",
-      "app/routes/healthz/route.tsx",
-    ]);
+    expect([...ROUTE_EXEMPT_FILES].sort()).toEqual(["app/routes/healthz/route.tsx"]);
   });
 
   // --- routes on the model axis, and the limits that survive it ---
@@ -1100,6 +1096,7 @@ describe("the scanned file set is asserted, not assumed", () => {
       ...new Set(SITES.filter((s) => s.model === "CalendarOutbox").map((s) => s.file)),
     ].sort();
     expect(owners).toEqual([
+      "app/lib/calendar/initial-publication.server.ts",
       "app/lib/calendar/outbox.server.ts",
       "app/lib/calendar/publisher.server.ts",
     ]);

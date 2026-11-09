@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { configuredCalendarFixture } from "../../../../test/calendar-config";
+
+configuredCalendarFixture();
 import { db } from "~/lib/db.server";
 import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import {

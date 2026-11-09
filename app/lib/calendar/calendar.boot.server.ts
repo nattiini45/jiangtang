@@ -3,6 +3,7 @@ import type { BootContext } from "~/server/boot";
 import { NoopPublisher } from "~/lib/calendar/publisher.server";
 import { getPublisher } from "~/lib/calendar/publisher-factory.server";
 import { drainOnce } from "~/lib/calendar/outbox.server";
+import { initializeCalendarPublication } from "~/lib/calendar/initial-publication.server";
 
 /**
  * Calendar-outbox drain worker. Periodically dispatches PENDING
@@ -37,6 +38,7 @@ export async function register(_app: Express, ctx: BootContext): Promise<void> {
     if (running) return;
     running = true;
     try {
+      if (!(await initializeCalendarPublication())) return;
       const { sent, failed, skipped, superseded } = await drainOnce(publisher);
       if (sent || failed || skipped || superseded) {
         console.log(

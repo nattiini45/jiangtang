@@ -5,7 +5,7 @@ import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/erro
 import { insertOrConflict } from "~/lib/booking.server";
 import { findEquipmentConflicts, findRoomConflicts } from "./events.availability.server";
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
-import { enqueueCalendarOp } from "~/lib/calendar/publisher.server";
+import { enqueueEventCalendarOp } from "~/lib/calendar/event-publication.server";
 import { resolveEventTime } from "./events.time.server";
 import type {
   EquipmentAllocation,
@@ -34,75 +34,11 @@ import type {
 
 // ── Calendar outbox helpers (transactional-outbox producer side) ──────────────
 
-/**
- * Next monotonic iCal SEQUENCE for an event (the outbox is unique per (uid, seq)).
- * A transaction-scoped advisory lock keyed by the event uid serializes this
- * read-then-write across concurrent mutations on the same event, so two
- * transactions can't both allocate the same sequence and collide on the unique
- * index (which would otherwise surface as an opaque 500). The lock releases on
- * commit/rollback.
- */
-async function nextSequence(tx: Tx, eventUid: string): Promise<number> {
-  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${eventUid}, 0))`;
-  const last = await tx.calendarOutbox.findFirst({
-    where: { eventUid },
-    orderBy: { sequence: "desc" },
-    select: { sequence: true },
-  });
-  return last ? last.sequence + 1 : 0;
-}
-
-/** Non-cancelled room names → a human "location" for the calendar payload. */
-async function roomLocation(tx: Tx, eventId: string): Promise<string | undefined> {
-  const bookings = await tx.eventRoomBooking.findMany({
-    where: { eventId, cancelled: false },
-    include: { room: { select: { name: true } } },
-  });
-  const names = [...new Set(bookings.map((b) => b.room.name))];
-  return names.length ? names.join(", ") : undefined;
-}
-
-async function enqueueUpsert(tx: Tx, event: Event): Promise<void> {
-  const sequence = await nextSequence(tx, event.uid);
-  await enqueueCalendarOp(tx, {
-    op: "UPSERT",
-    eventUid: event.uid,
-    sequence,
-    payload: {
-      uid: event.uid,
-      title: event.title,
-      description: event.description ?? undefined,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      location: await roomLocation(tx, event.id),
-      timezone: "Europe/Berlin",
-      sequence,
-    },
-  });
-}
-
-async function enqueueRemove(tx: Tx, event: Event): Promise<void> {
-  const sequence = await nextSequence(tx, event.uid);
-  await enqueueCalendarOp(tx, {
-    op: "REMOVE",
-    eventUid: event.uid,
-    sequence,
-    payload: {
-      uid: event.uid,
-      title: event.title,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      timezone: "Europe/Berlin",
-      sequence,
-    },
-  });
-}
-
 /** Re-publish an event's calendar entry after its room set changed (the payload's
  *  location is derived from the rooms), unless the event is cancelled. */
 async function reenqueueEvent(tx: Tx, eventId: string): Promise<void> {
   const event = await tx.event.findUnique({ where: { id: eventId } });
-  if (event && event.status !== "CANCELLED") await enqueueUpsert(tx, event);
+  if (event && event.status !== "CANCELLED") await enqueueEventCalendarOp(tx, event, "UPSERT");
 }
 
 /** Guard for the add* mutations below: an event's child rows (bookings,
@@ -164,7 +100,7 @@ export async function createEvent(actor: AuditActor, input: EventCreateInput): P
       entityId: event.id,
       data: { title: event.title },
     });
-    await enqueueUpsert(tx, event);
+    await enqueueEventCalendarOp(tx, event, "UPSERT");
     return event;
   });
 }
@@ -220,7 +156,7 @@ export async function createEventWithBooking(
       entityId: bookingRow.id,
       data: { roomId: booking.roomId },
     });
-    await enqueueUpsert(tx, event);
+    await enqueueEventCalendarOp(tx, event, "UPSERT");
     return event;
   });
 }
@@ -254,9 +190,9 @@ export async function updateEvent(
         entityId: event.id,
         data: { ...freed, viaEdit: true },
       });
-      await enqueueRemove(tx, event);
+      await enqueueEventCalendarOp(tx, event, "REMOVE");
     } else {
-      await enqueueUpsert(tx, event);
+      await enqueueEventCalendarOp(tx, event, "UPSERT");
     }
     return event;
   });
@@ -277,7 +213,7 @@ export async function cancelEvent(actor: AuditActor, id: string): Promise<Event>
     const freed = await freeEventSlots(tx, id);
     const event = await tx.event.update({ where: { id }, data: { status: "CANCELLED" } });
     await audit({ action: "EventCancelled", entityType: "event", entityId: event.id, data: freed });
-    await enqueueRemove(tx, event);
+    await enqueueEventCalendarOp(tx, event, "REMOVE");
     return event;
   });
 }

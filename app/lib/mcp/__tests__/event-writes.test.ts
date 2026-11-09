@@ -1,7 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { configuredCalendarFixture } from "../../../../test/calendar-config";
+
+configuredCalendarFixture();
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { McpServer } from "@modelcontextprotocol/server";
 import { registerEventWrites } from "~/lib/mcp/event-writes.server";
+import { registerReadTools } from "~/lib/mcp/read-tools.server";
+import { getEventDetail } from "~/domains/events/events.queries.server";
+import { serializeMcp } from "~/lib/mcp/tools.server";
 import type { McpContext } from "~/lib/mcp/types.server";
 import { db } from "~/lib/db.server";
 import * as eventMutations from "~/domains/events/events.mutations.server";
@@ -223,6 +229,54 @@ describe("MCP event writer boundary", () => {
 });
 
 describe("MCP event writer transactions", () => {
+  it("keeps disabled writes out of the queue and exposes canonical unconfigured read metadata", async () => {
+    vi.stubEnv("CALDAV_URL", "");
+    const readerServer = new McpServer({ name: "publication-read", version: "1" });
+    const reader = new Client({ name: "publication-read", version: "1" });
+    registerReadTools(readerServer, principal);
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await readerServer.connect(a);
+    await reader.connect(b);
+    try {
+      const event = await makeEvent(`${run} disabled`);
+      const initial = await makeEvent(`${run} disabled initial`, true);
+      await success("update_event", {
+        id: event.id,
+        input: { title: `${run} disabled edit`, ...interval },
+        confirm: true,
+      });
+      const booking = await success("add_room_booking", {
+        eventId: event.id,
+        input: {
+          roomId: fixtures.roomId,
+          startsAt: "2026-10-26T08:00:00Z",
+          endsAt: "2026-10-26T09:00:00Z",
+        },
+      });
+      await success("cancel_room_booking", { eventId: event.id, id: booking.id, confirm: true });
+      await success("cancel_event", { id: event.id, confirm: true });
+      await success("update_event", {
+        id: initial.id,
+        input: { title: `${run} disabled cancelled`, ...interval, status: "CANCELLED" },
+        confirm: true,
+      });
+      expect(
+        await db.calendarOutbox.count({
+          where: { eventUid: { in: [String(event.uid), String(initial.uid)] } },
+        }),
+      ).toBe(0);
+      const result = await reader.callTool({ name: "get_event", arguments: { id: event.id } });
+      expect(result.isError).not.toBe(true);
+      const detail = (result.structuredContent as { result: Record<string, unknown> }).result;
+      expect(detail).toEqual(serializeMcp(await getEventDetail(String(event.id))));
+      expect(detail.calendarSync).toEqual({ configured: false, latest: null });
+    } finally {
+      vi.stubEnv("CALDAV_URL", "https://calendar.example.test/collection/");
+      await reader.close();
+      await readerServer.close();
+    }
+  });
+
   it("lets a member create/update/cancel events and manage every child with exact DST-fold instants", async () => {
     const event = await makeEvent(`${run} lifecycle`);
     const eventId = String(event.id);

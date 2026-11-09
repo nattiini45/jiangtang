@@ -27,7 +27,7 @@ import type { CalendarPayload, CalendarPublisher } from "~/lib/calendar/publishe
  */
 
 const BATCH_SIZE = 25;
-const DRAIN_LOCK_KEY = "jiangtang:calendar-outbox-drain";
+export const DRAIN_LOCK_KEY = "jiangtang:calendar-outbox-drain";
 /**
  * A pass starts no new push after PASS_BUDGET_MS, and each push is bounded by
  * CALDAV_REQUEST_TIMEOUT_MS, so a pass always ends well inside the lock's

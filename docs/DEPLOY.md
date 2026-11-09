@@ -218,6 +218,15 @@ Jiangtang writes to, for example a dedicated "AV events" calendar shared read-on
 Times are written in `Europe/Berlin` with an embedded `VTIMEZONE`, whatever `TZ` the server runs
 in.
 
+Without complete configuration, event writes do not build a CalDAV backlog and event detail
+shows “Not configured.” First configured startup skips old PENDING operations with audited
+SUPERSEDED rows, then publishes current snapshots whose `endsAt` is strictly after today's
+Europe/Berlin midnight. Overnight work is included; events ending at that midnight or earlier
+are not. Current/future cancelled events are removed only if prior publication may have occurred;
+historical cancellations are not replayed. This initialization is atomic and runs only once per
+installation. Changing the destination or re-enabling after a disabled period does not perform
+another catch-up. See [Architecture](ARCHITECTURE.md#calendar-output) for the publication policy.
+
 Sciebo runs Nextcloud, so the steps are the same for both:
 
 1. Sign in to the web interface with the account that should write the events, open

@@ -31,6 +31,8 @@ export const historyEn = {
   "history.action.CampusCreated": "Campus created",
   "history.action.CampusUpdated": "Campus updated",
   "history.action.EventCreated": "Created",
+  "history.action.CalendarOutboxSuperseded": "Calendar operation skipped on first configuration",
+  "history.action.CalendarPublicationInitialized": "Initial calendar publication queued",
   "history.action.EventUpdated": "Updated",
   "history.action.EventCancelled": "Cancelled",
   "history.action.ServiceWindowAdded": "Service window added",

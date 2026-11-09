@@ -1,4 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { configuredCalendarFixture } from "../../../../test/calendar-config";
+
+configuredCalendarFixture();
 import {
   addRoomBooking,
   cancelEvent,

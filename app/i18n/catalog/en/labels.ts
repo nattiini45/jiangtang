@@ -25,6 +25,7 @@ export const labelsEn = {
   "history.entity.vendor": "Vendor",
   "history.entity.timeEntry": "Time entry",
   "history.entity.notification": "Notification",
+  "history.entity.calendarOutbox": "Calendar publication",
 
   "locations.kind.SITE": "Site",
   "locations.kind.BUILDING": "Building",

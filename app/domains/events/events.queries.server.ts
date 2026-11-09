@@ -1,5 +1,6 @@
 import { tr } from "~/i18n/request-locale.server";
 import { db } from "~/lib/db.server";
+import { isCalendarConfigured } from "~/lib/calendar/config.server";
 import type {
   EventStatus,
   ServiceWindowKind,
@@ -95,6 +96,15 @@ export interface EventTicketRow {
 }
 
 export interface EventDetail {
+  calendarSync: {
+    configured: boolean;
+    latest: {
+      status: string;
+      attempts: number;
+      lastError: string | null;
+      processedAt: Date | null;
+    } | null;
+  };
   event: {
     id: string;
     uid: string;
@@ -143,6 +153,14 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
   if (!event) return null;
 
   return {
+    calendarSync: {
+      configured: isCalendarConfigured(),
+      latest: await db.calendarOutbox.findFirst({
+        where: { eventUid: event.uid },
+        orderBy: { sequence: "desc" },
+        select: { status: true, attempts: true, lastError: true, processedAt: true },
+      }),
+    },
     event: {
       id: event.id,
       uid: event.uid,

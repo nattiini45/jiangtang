@@ -23,6 +23,7 @@ const { db } = vi.hoisted(() => {
       equipment: model(),
       inventoryItem: model(),
       event: model(),
+      calendarOutbox: model(),
       eventRoomBooking: model(),
       equipmentAllocation: model(),
       ticket: model(),

@@ -24,9 +24,9 @@ export const REALTIME_CHANNEL = "jiangtang_changes";
  *     vocabulary the writers use.
  *
  * ⚠️ **This is a permission list, not a mirror of the schema**. It is
- * "the things a client may need to refetch after they change", which is
- * deliberately a subset — `Session`, `Account`, `Verification` and
- * `CalendarOutbox` are models with no business on an SSE wire, and
+ * "the things a client may need to refetch or audit after they change", which is
+ * deliberately a subset — `Session`, `Account`, `Verification`
+ * are models with no business on an SSE wire, and
  * deriving it from `ModelName` would rename 5 live members and admit 12 more.
  *
  * Every member is also an `ActivityLog.entityType`: the audit column and this
@@ -57,6 +57,7 @@ export const ENTITY_TYPES = [
   "vendor",
   "timeEntry",
   "notification",
+  "calendarOutbox",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];

@@ -10,6 +10,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "~/lib/db.server";
 import { t } from "~/i18n";
 import { runWithLocale } from "~/i18n/request-locale.server";
+import { configuredCalendarFixture } from "../calendar-config";
+
+configuredCalendarFixture();
 
 vi.mock("~/lib/auth.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/lib/auth.server")>();

@@ -1,7 +1,6 @@
 import { redirect } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/route";
-import { db } from "~/lib/db.server";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { msgKey, t } from "~/i18n";
@@ -14,13 +13,8 @@ import {
 } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { utcToBerlinLocal } from "~/lib/time.server";
-import { formatDateTime } from "~/i18n/format";
 import { metaLocale } from "~/i18n/meta";
-import { useLocale, useT } from "~/i18n/use-t";
-import { syncStatusLabel } from "~/components/events/labels";
-import { Card, CardHeader, CardTitle } from "~/components/ui/card";
-import { cn } from "~/lib/utils";
-import { toneDotClassName, type StatusTone } from "~/lib/status";
+import { CalendarSyncPanel } from "~/components/events/calendar-sync-panel";
 import { getEventDetail, listEventTargets } from "~/domains/events/events.queries.server";
 import {
   allocationSchema,
@@ -63,13 +57,6 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (!detail) throw toErrorResponse(new NotFoundError(t(locale, "err.event.notFound")));
   const targets = await listEventTargets();
   const e = detail.event;
-  // Latest calendar-outbox row for this event's uid — drives the read-only
-  // "Kalender-Sync" panel (status/attempts/lastError/processedAt of the newest op).
-  const outbox = await db.calendarOutbox.findFirst({
-    where: { eventUid: e.uid },
-    orderBy: { sequence: "desc" },
-    select: { status: true, attempts: true, lastError: true, processedAt: true },
-  });
   const editDefaults = {
     title: e.title,
     description: e.description,
@@ -85,7 +72,6 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     editDefaults,
     slotStart: utcToBerlinLocal(e.startsAt),
     slotEnd: utcToBerlinLocal(e.endsAt),
-    calendarSync: outbox,
   };
 }
 
@@ -181,62 +167,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 }
 
-/** Status tone of the newest calendar op, drawn as a dot beside its label. */
-const SYNC_TONE: Record<string, StatusTone> = {
-  SENT: "operational",
-  FAILED: "fault",
-  PENDING: "warning",
-};
-
-/** Read-only calendar-sync panel: state of the latest CalendarOutbox op for this
- *  event's uid. Nothing interactive — the drain worker owns the actual publish. */
-function CalendarSyncPanel({
-  sync,
-}: {
-  sync: {
-    status: string;
-    attempts: number;
-    lastError: string | null;
-    processedAt: Date | string | null;
-  };
-}) {
-  const locale = useLocale();
-  const t = useT();
-  const processed = sync.processedAt ? formatDateTime(locale, sync.processedAt) : null;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("events.sync.title")}</CardTitle>
-      </CardHeader>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-4 text-sm">
-        <span className="inline-flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className={cn(
-              "size-1.5 shrink-0 rounded-full",
-              toneDotClassName(SYNC_TONE[sync.status] ?? "neutral"),
-            )}
-          />
-          {syncStatusLabel(locale, sync.status)}
-        </span>
-        {processed ? <span className="text-muted-foreground nums text-xs">{processed}</span> : null}
-        {sync.attempts > 0 ? (
-          <span className="text-muted-foreground nums text-xs">
-            {t("events.sync.attempts", { attempts: sync.attempts })}
-          </span>
-        ) : null}
-        {sync.status !== "SENT" && sync.lastError ? (
-          <span className="text-destructive w-full truncate text-xs" title={sync.lastError}>
-            {sync.lastError.slice(0, 200)}
-          </span>
-        ) : null}
-      </div>
-    </Card>
-  );
-}
-
 export default function EventDetailRoute({ loaderData, actionData }: Route.ComponentProps) {
-  const { detail, targets, editDefaults, slotStart, slotEnd, calendarSync } = loaderData;
+  const { detail, targets, editDefaults, slotStart, slotEnd } = loaderData;
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <EventDetailView
@@ -247,7 +179,7 @@ export default function EventDetailRoute({ loaderData, actionData }: Route.Compo
         slotEnd={slotEnd}
         actionData={actionData ?? undefined}
       />
-      {calendarSync ? <CalendarSyncPanel sync={calendarSync} /> : null}
+      <CalendarSyncPanel sync={detail.calendarSync} />
     </div>
   );
 }
