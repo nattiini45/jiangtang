@@ -117,7 +117,24 @@ test("long task titles and due dates remain readable, with a reachable Blocked a
   const id = new URL(page.url()).pathname.split("/").at(-1)!;
   const blocked = page.getByRole("button", { name: "Blockiert", exact: true });
   await expectTarget(blocked);
-  await blocked.click();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route(`**/m/tasks/${id}.data*`, async (route) => {
+    if (route.request().method() === "POST") await gate;
+    await route.continue();
+  });
+  try {
+    await blocked.click();
+    await expect(page.locator("main")).toHaveAttribute("aria-busy", "true");
+    await expect(blocked).toBeDisabled();
+    expect((await db.task.findUniqueOrThrow({ where: { id } })).status).toBe("BACKLOG");
+  } finally {
+    release();
+  }
+  await expect(page.getByRole("heading", { level: 1 }).locator("..")).toContainText("Blockiert");
+  await expect(page.locator("main")).toHaveAttribute("aria-busy", "false");
   await expect(blocked).toBeDisabled();
   expect((await db.task.findUniqueOrThrow({ where: { id } })).status).toBe("BLOCKED");
   await page.goto("/m/tasks?all=1");
