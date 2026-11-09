@@ -13,6 +13,7 @@ import {
   HARMONY_ACTION,
   linkStockItemToEquipment,
   unlinkStockItemFromEquipment,
+  updateStockItem,
 } from "~/domains/inventory/inventory.stock.mutations.server";
 import {
   getEquipmentForStockItem,
@@ -20,6 +21,7 @@ import {
 } from "~/domains/inventory/inventory.harmony.queries.server";
 import {
   stockCreateSchema,
+  stockEditSchema,
   type StockCreateInput,
 } from "~/domains/inventory/inventory.stock.schema";
 
@@ -103,6 +105,75 @@ function itemHistory(id: string) {
     orderBy: { occurredAt: "asc" },
   });
 }
+
+describe("stock edits preserve equipment links", () => {
+  it("cannot detach, repoint or establish a link through general updates", async () => {
+    const item = await make({ name: `${RUN}-edit-link` });
+    const linkedEquipment = await makeEquipment(`${RUN}-edit-linked-eq`);
+    const otherEquipment = await makeEquipment(`${RUN}-edit-other-eq`);
+    await linkStockItemToEquipment(actor, item.id, linkedEquipment.id);
+    for (const equipmentId of [undefined, otherEquipment.id, "missing-equipment"]) {
+      const updated = await updateStockItem(
+        actor,
+        item.id,
+        stockEditSchema.parse({
+          id: item.id,
+          name: item.name,
+          equipmentId,
+        }),
+      );
+      expect(updated.equipmentId).toBe(linkedEquipment.id);
+      expect(await db.inventoryItem.findUnique({ where: { id: item.id } })).toMatchObject({
+        equipmentId: linkedEquipment.id,
+      });
+    }
+    const itemLinks = (await itemHistory(item.id)).filter(
+      (row) => row.action === HARMONY_ACTION.linked,
+    );
+    expect(itemLinks).toHaveLength(1);
+    expect(itemLinks[0].data).toMatchObject({ equipmentId: linkedEquipment.id });
+    const equipmentLinks = await db.activityLog.findMany({
+      where: {
+        entityType: "equipment",
+        entityId: linkedEquipment.id,
+        action: HARMONY_ACTION.linked,
+      },
+    });
+    expect(equipmentLinks).toHaveLength(1);
+    expect(equipmentLinks[0].data).toMatchObject({ stockItemId: item.id });
+    expect(
+      await db.activityLog.count({
+        where: {
+          entityId: otherEquipment.id,
+          action: HARMONY_ACTION.linked,
+        },
+      }),
+    ).toBe(0);
+    const unlinked = await make({ name: `${RUN}-edit-unlinked` });
+    expect(
+      await updateStockItem(
+        actor,
+        unlinked.id,
+        stockEditSchema.parse({
+          id: unlinked.id,
+          name: unlinked.name,
+          equipmentId: otherEquipment.id,
+        }),
+      ),
+    ).toMatchObject({ equipmentId: null });
+    await unlinkStockItemFromEquipment(actor, item.id);
+    for (const [entityType, entityId] of [
+      ["inventory-item", item.id],
+      ["equipment", linkedEquipment.id],
+    ]) {
+      expect(
+        await db.activityLog.count({
+          where: { entityType, entityId, action: HARMONY_ACTION.unlinked },
+        }),
+      ).toBe(1);
+    }
+  });
+});
 
 describe("one row per side, and the shipped equipment feed can see it", () => {
   it("(1) a link appends TWO rows: one under the stock item, one under the equipment, each naming the counterpart", async () => {

@@ -227,11 +227,11 @@ export async function setSubstitution(
 export async function bulkCreateEquipment(
   actor: AuditActor,
   rows: EquipmentCsvRow[],
-): Promise<{ created: number }> {
+): Promise<{ created: number; items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] }> {
   return txWithAudit(
     actor,
     async (tx, audit) => {
-      let created = 0;
+      const items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] = [];
       for (const row of rows) {
         // `EquipmentModel` belongs to `catalog/`, so `catalog/` writes it — and it
         // writes it on OUR `tx`, or the model and its audit row would commit
@@ -289,9 +289,9 @@ export async function bulkCreateEquipment(
           entityId: eq.id,
           data: { name: eq.name, viaImport: true },
         });
-        created++;
+        items.push({ id: eq.id, name: eq.name, category: eq.category, assetTag: eq.assetTag });
       }
-      return { created };
+      return { created: items.length, items };
     },
     // Dozens of sequential row round-trips in one tx can exceed Prisma's ~5s
     // default and abort with P2028 — give bulk imports generous headroom.

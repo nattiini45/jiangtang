@@ -105,4 +105,7 @@ export const historyDe = {
   "history.action.TwoFactorReset": "Zwei-Faktor zurückgesetzt",
   "history.action.PersonalAccessTokenCreated": "Persönliches Zugriffstoken erstellt",
   "history.action.PersonalAccessTokenRevoked": "Persönliches Zugriffstoken widerrufen",
+  "history.action.VendorCreated": "Lieferant erstellt",
+  "history.action.VendorUpdated": "Lieferant aktualisiert",
+  "history.action.VendorDeleted": "Lieferant gelöscht",
 };

@@ -36,6 +36,29 @@ function makeRow(over: Partial<RoomCsvRow> & { name: string }): RoomCsvRow {
 }
 
 describe("bulk room import", () => {
+  it("returns the actual committed room IDs and labels alongside the count", async () => {
+    const result = await bulkCreateRooms(actor, [
+      makeRow({ name: `${RUN} IDs1` }),
+      makeRow({ name: `${RUN} IDs2` }),
+    ]);
+    expect(result.created).toBe(2);
+    expect(result.items.map((item) => item.name)).toEqual([`${RUN} IDs1`, `${RUN} IDs2`]);
+    expect(new Set(result.items.map((item) => item.id)).size).toBe(2);
+    for (const item of result.items) {
+      expect(
+        await db.room.findUnique({
+          where: { id: item.id },
+          select: { id: true, name: true, slug: true },
+        }),
+      ).toEqual(item);
+      expect(
+        await db.activityLog.count({
+          where: { entityType: "room", entityId: item.id, action: "RoomCreated" },
+        }),
+      ).toBe(1);
+    }
+  });
+
   it("previewCsv splits valid and invalid rows", () => {
     const csv = `name,campus,projektor\n${RUN} A,${CAMPUS},ja\n,${CAMPUS},nein`;
     const pv = previewCsv(csv, roomCsvRowSchema);

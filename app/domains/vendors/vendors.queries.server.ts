@@ -3,21 +3,9 @@ import { db } from "~/lib/db.server";
 /**
  * Vendors-domain queries (`Vendor`).
  *
- * **This is a READ module, and that is a deliberate boundary, not a stub.**
- * Nothing here writes `Vendor`, and nothing here will. The stock form's picker
+ * This is a read-only module. The stock form's picker
  * needs a supplier list to exist, so that a bad supplier id is impossible rather
  * than merely unlikely, and this module is that list.
- *
- * - The domain-ownership rule puts the writer of a model in the folder that owns
- *   it. A read-only query module creates no claim on the model, so it does not
- *   make this folder `Vendor`'s owner — the `FOLDERS` map in
- *   `test/cross-folder-writes.test.ts` still has to place `Vendor` by hand, and
- *   this file is **not** evidence that it is already placed. `Vendor` sits on
- *   that map's `UNOWNED_MODELS` list precisely because no domain folder writes it.
- * - No domain folder writes a `Vendor` at all: the stock mutations only check
- *   that a `vendorId` names a row (`requireRefs` in
- *   `inventory.stock.mutations.server.ts`), and the rows themselves come from
- *   the demo seed.
  *
  * ⚠️ **Read-only means no transaction is opened here** — every mutating caller opens its
  * own through `txWithAudit`. That is the same rule `locations.queries.server.ts`

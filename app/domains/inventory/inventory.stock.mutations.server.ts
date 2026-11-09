@@ -316,11 +316,14 @@ export async function updateStockItem(
   return txWithAudit(actor, async (tx, audit) => {
     const before = await tx.inventoryItem.findUnique({ where: { id } });
     if (!before) throw new NotFoundError(tr("places.err.stock.notFound"));
-    await requireRefs(tx, input);
+    await requireRefs(tx, { vendorId: input.vendorId, locationId: input.locationId });
 
     let item: InventoryItem;
     try {
-      item = await tx.inventoryItem.update({ where: { id }, data: stockData(input) });
+      item = await tx.inventoryItem.update({
+        where: { id },
+        data: { ...stockData(input), equipmentId: undefined },
+      });
     } catch (error) {
       if (isUniqueViolation(error)) rethrowAsFieldError(error, input);
       throw error;
@@ -339,7 +342,6 @@ export async function updateStockItem(
           quantity: before.quantity !== item.quantity ? before.quantity : undefined,
           locationId: before.locationId !== item.locationId ? before.locationId : undefined,
           vendorId: before.vendorId !== item.vendorId ? before.vendorId : undefined,
-          equipmentId: before.equipmentId !== item.equipmentId ? before.equipmentId : undefined,
         },
         to: { name: item.name, sku: item.sku, serial: item.serial, quantity: item.quantity },
       },

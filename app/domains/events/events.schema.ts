@@ -53,6 +53,27 @@ const exactInstants = {
   endsAtInstant: eventInstantSchema.optional(),
 };
 
+function validateExactInstants(
+  input: {
+    startsAt: string;
+    endsAt: string;
+    startsAtInstant?: string;
+    endsAtInstant?: string;
+  },
+  ctx: z.RefinementCtx,
+) {
+  for (const field of ["startsAt", "endsAt"] as const) {
+    const instantField = `${field}Instant` as const;
+    if (input[instantField] && !matchingEventInstant(input[field], input[instantField])) {
+      ctx.addIssue({
+        code: "custom",
+        path: [instantField],
+        message: msgKey("work.err.event.dateTimeRequired"),
+      });
+    }
+  }
+}
+
 export const eventCreateSchema = eventFields
   .extend(exactInstants)
   .refine(endsAfterStarts, endsAfterStartsIssue);
@@ -69,13 +90,16 @@ export const roomBookingSchema = roomBookingFields.refine(endsAfterStarts, endsA
 export const roomBookingCreateSchema = roomBookingFields
   .extend(exactInstants)
   .refine(endsAfterStarts, endsAfterStartsIssue);
+export const roomBookingExactSchema = roomBookingCreateSchema.superRefine(validateExactInstants);
 
 export const allocationSchema = z
   .object({
     equipmentId: z.string().min(1, msgKey("work.err.event.equipmentRequired")),
     startsAt: dtLocal,
     endsAt: dtLocal,
+    ...exactInstants,
   })
+  .superRefine(validateExactInstants)
   .refine(endsAfterStarts, endsAfterStartsIssue);
 
 export const serviceWindowSchema = z
@@ -86,7 +110,9 @@ export const serviceWindowSchema = z
     endsAt: dtLocal,
     coveringUserId: optionalId,
     notes: optionalText,
+    ...exactInstants,
   })
+  .superRefine(validateExactInstants)
   .refine(endsAfterStarts, endsAfterStartsIssue);
 
 export type EventCreateInput = z.infer<typeof eventCreateSchema>;

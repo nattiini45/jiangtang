@@ -179,7 +179,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   // the import centre orchestrates in-tx writes but owns no model — the
   // owning folders' `importXInTx` functions carry every delegate call.
   "app/domains/transfer": [],
-  "app/domains/vendors": [],
+  "app/domains/vendors": ["Vendor"],
   // `app/lib` is a nested tree, not one folder. Top level owns ActivityLog;
   // calendar/ owns CalendarOutbox and MUST be its own key — a non-recursive read
   // of `app/lib` never opens it, and `CalendarOutbox`'s owner would be a map
@@ -206,7 +206,7 @@ const FOLDERS: Record<string, readonly string[]> = {
  * `TaskDependency`, `Account` and `Session` have moved out of this list into
  * their owning folders).
  */
-const UNOWNED_MODELS = ["Vendor"] as const;
+const UNOWNED_MODELS = [] as const;
 
 /** b: routes are scanned for direct `db.` access, read or write. */
 const ROUTE_SCOPE = "app/routes";

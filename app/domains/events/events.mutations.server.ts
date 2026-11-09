@@ -6,7 +6,6 @@ import { insertOrConflict } from "~/lib/booking.server";
 import { findEquipmentConflicts, findRoomConflicts } from "./events.availability.server";
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueCalendarOp } from "~/lib/calendar/publisher.server";
-import { berlinLocalToUtc } from "~/lib/time.server";
 import { resolveEventTime } from "./events.time.server";
 import type {
   EquipmentAllocation,
@@ -19,7 +18,6 @@ import type {
   AllocationInput,
   EventCreateInput,
   EventEditInput,
-  RoomBookingInput,
   RoomBookingCreateInput,
   ServiceWindowInput,
 } from "./events.schema";
@@ -282,10 +280,10 @@ export async function cancelEvent(actor: AuditActor, id: string): Promise<Event>
 export async function addRoomBooking(
   actor: AuditActor,
   eventId: string,
-  input: RoomBookingInput,
+  input: RoomBookingCreateInput,
 ): Promise<EventRoomBooking> {
-  const startsAt = berlinLocalToUtc(input.startsAt);
-  const endsAt = berlinLocalToUtc(input.endsAt);
+  const startsAt = resolveEventTime(input.startsAt, input.startsAtInstant);
+  const endsAt = resolveEventTime(input.endsAt, input.endsAtInstant);
   try {
     return await txWithAudit(actor, async (tx, audit) => {
       await assertEventMutable(tx, eventId);
@@ -368,8 +366,8 @@ export async function addAllocation(
   eventId: string,
   input: AllocationInput,
 ): Promise<EquipmentAllocation> {
-  const startsAt = berlinLocalToUtc(input.startsAt);
-  const endsAt = berlinLocalToUtc(input.endsAt);
+  const startsAt = resolveEventTime(input.startsAt, input.startsAtInstant);
+  const endsAt = resolveEventTime(input.endsAt, input.endsAtInstant);
   try {
     return await txWithAudit(actor, async (tx, audit) => {
       await assertEventMutable(tx, eventId);
@@ -472,8 +470,8 @@ export async function addServiceWindow(
         eventId,
         roomId: input.roomId ?? null,
         kind: input.kind,
-        startsAt: berlinLocalToUtc(input.startsAt),
-        endsAt: berlinLocalToUtc(input.endsAt),
+        startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
+        endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
         coveringUserId: input.coveringUserId ?? null,
         notes: input.notes ?? null,
       },
