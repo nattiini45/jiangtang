@@ -8,7 +8,8 @@ to its provider: connect only clients you trust.
 ## Credentials and connection
 
 In **My account → Personal access tokens**, create a named personal access token (PAT), choosing
-`READ_ONLY` or `READ_WRITE`. Copy the secret when it is shown; only its hash is stored.
+**Read-only** (`READ_ONLY`) or **Read-write** (`READ_WRITE`). Copy the secret when it is shown;
+only its hash is stored.
 Use a separate, recognizable name for each client, start with read-only, and revoke unused or
 exposed tokens on the same page. Admins can also revoke other users' tokens there, subject to the
 installation's admin two-factor requirement.
@@ -112,10 +113,13 @@ calls are denied before executing domain mutations.
 | Images                       | `list_attachments`, `get_attachment` (metadata only)                                                                                                                        | `upload_attachment`, `delete_attachment`                                                                                                                                                                                         |
 
 Most lists return `items` and `nextOffset`; repeat with that offset until it is null. Lists
-default to 50, accept up to 100 per page, and expose domain filters. Search uses its own ranked
+default to 50, accept up to 100 per page, and expose domain filters. `list_activity` uses
+`nextCursor` instead of an offset. Search uses its own ranked
 limit. Rooms are bookable spaces; locations are separate storage/work places, not room IDs.
 
 **Resources** return JSON without changing domain data:
+
+Resource support varies by client; use the equivalent read tools when resources are not exposed.
 
 - `jiangtang://workspace/context` contains safe connection scope, timezone and reading guidance,
   not account data or configuration secrets.

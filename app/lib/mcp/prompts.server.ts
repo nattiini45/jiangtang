@@ -28,7 +28,7 @@ export function registerPrompts(server: McpServer): void {
       prompt.name,
       {
         description: prompt.description,
-        argsSchema: z.object({ request: z.string().min(1).max(4000) }),
+        argsSchema: z.object({ request: z.string().trim().min(1).max(4000) }),
       },
       ({ request }) => ({
         messages: [

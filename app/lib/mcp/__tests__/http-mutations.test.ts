@@ -167,6 +167,41 @@ describe("MCP mutations through the official HTTP SDK", () => {
     ).not.toBeNull();
   });
 
+  it("discovers resources and prompts through authenticated HTTP with each real token scope", async () => {
+    const task = await success(writer, "create_task", {
+      input: { title: `${prefix} resource detail` },
+    });
+    for (const [client, scope] of [
+      [reader, "READ_ONLY"],
+      [writer, "READ_WRITE"],
+    ] as const) {
+      expect((await client.listResources()).resources).toHaveLength(8);
+      expect((await client.listResourceTemplates()).resourceTemplates).toHaveLength(8);
+      expect((await client.listPrompts()).prompts.map((prompt) => prompt.name).sort()).toEqual([
+        "plan_event",
+        "plan_project",
+        "triage_ticket",
+      ]);
+      const context = await client.readResource({ uri: "jiangtang://workspace/context" });
+      expect(context.contents[0]).toMatchObject({
+        text: expect.stringContaining(`"tokenScope":"${scope}"`),
+      });
+      const detail = await client.readResource({ uri: `jiangtang://tasks/${String(task.id)}` });
+      expect(detail.contents[0]).toMatchObject({
+        text: expect.stringContaining(`"id":"${String(task.id)}"`),
+      });
+      const prompt = await client.getPrompt({
+        name: "plan_event",
+        arguments: { request: "Propose a synthetic lecture without booking it" },
+      });
+      expect(prompt.messages).toHaveLength(2);
+      expect(prompt.messages[0].content).toMatchObject({
+        type: "text",
+        text: expect.stringContaining("create_event_with_booking"),
+      });
+    }
+  });
+
   it("returns a useful overlap conflict and rolls back the losing event, booking, outbox and audit", async () => {
     const times = {
       startsAt: "2026-07-02T10:00:00+02:00",

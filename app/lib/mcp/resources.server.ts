@@ -15,6 +15,7 @@ import { getTask, listTasks } from "~/domains/tasks/tasks.queries.server";
 import { getNote, listNotes } from "~/domains/notes/notes.queries.server";
 import { getTimeEntry } from "~/domains/time/time.queries.server";
 import { serializeMcp } from "~/lib/mcp/tools.server";
+import { logger } from "~/lib/observability/logger.server";
 import type { McpContext } from "~/lib/mcp/types.server";
 
 async function readResource(uri: URL, query: () => Promise<unknown>) {
@@ -32,7 +33,12 @@ async function readResource(uri: URL, query: () => Promise<unknown>) {
     };
   } catch (error) {
     if (error instanceof ProtocolError) throw error;
-    throw new ProtocolError(ProtocolErrorCode.InternalError, tr("err.internal"));
+    const correlationId = crypto.randomUUID();
+    logger.error({ correlationId, resource: uri.hostname }, "MCP resource read failed");
+    throw new ProtocolError(
+      ProtocolErrorCode.InternalError,
+      tr("err.internalRef", { ref: correlationId }),
+    );
   }
 }
 

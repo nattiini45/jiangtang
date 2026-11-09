@@ -90,6 +90,7 @@ describe("MCP planning prompts", () => {
     const invalidArgs: Record<string, string>[] = [
       {},
       { request: "" },
+      { request: "   " },
       { request: "a".repeat(4001) },
     ];
     for (const args of invalidArgs) {

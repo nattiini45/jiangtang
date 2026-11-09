@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { createServer } from "node:http";
 import {
   Client,
@@ -12,6 +12,7 @@ import type { McpContext } from "~/lib/mcp/types.server";
 import { db } from "~/lib/db.server";
 import { runWithLocale } from "~/i18n/request-locale.server";
 import { t } from "~/i18n";
+import { logger } from "~/lib/observability/logger.server";
 
 const prefix = `mcp-resources-${crypto.randomUUID()}`;
 const roomId = `${prefix}-room-00`;
@@ -146,6 +147,37 @@ afterAll(async () => {
 });
 
 describe("MCP resources through the official SDK", () => {
+  it.each(["de", "en"] as const)(
+    "logs a safe correlation reference and sanitizes internal failures in %s",
+    async (locale) => {
+      const client = await connect();
+      const privateDetail = "Private database detail and jtg_" + "x".repeat(43);
+      const query = vi.spyOn(db.note, "findUnique").mockRejectedValueOnce(new Error(privateDetail));
+      const log = vi.spyOn(logger, "error").mockImplementation(() => undefined);
+      try {
+        await runWithLocale(locale, async () => {
+          const error = await client
+            .readResource({ uri: `jiangtang://notes/${noteId}` })
+            .catch((error: unknown) => error);
+          expect(error).toMatchObject({ code: -32603 });
+          expect(log).toHaveBeenCalledExactlyOnceWith(
+            { correlationId: expect.any(String), resource: "notes" },
+            "MCP resource read failed",
+          );
+          const reference = (log.mock.calls[0][0] as { correlationId: string }).correlationId;
+          expect((error as Error).message).toContain(
+            t(locale, "err.internalRef", { ref: reference }),
+          );
+          expect((error as Error).message).not.toContain(privateDetail);
+          expect(JSON.stringify(log.mock.calls)).not.toContain(privateDetail);
+        });
+      } finally {
+        query.mockRestore();
+        log.mockRestore();
+      }
+    },
+  );
+
   it("discovers resources, templates and prompts with a read-only principal over the legacy SDK transport", async () => {
     const client = await connect();
     const resources = await client.listResources();
