@@ -119,6 +119,11 @@ async function assertEventMutable(tx: Tx, eventId: string): Promise<void> {
   }
 }
 
+async function assertRoomExists(tx: Tx, roomId: string): Promise<void> {
+  const room = await tx.room.findUnique({ where: { id: roomId }, select: { id: true } });
+  if (!room) throw new ValidationError({ roomId: [tr("err.room.notFound")] });
+}
+
 /** Cancel every active booking + allocation of an event (freeing their EXCLUDE
  *  slots). Returns the freed counts for the audit payload. Sequential, not
  *  Promise.all: Prisma interactive transactions hold a single reserved
@@ -196,6 +201,7 @@ export async function createEventWithBooking(
       data: { title: event.title },
     });
     await assertEventMutable(tx, event.id);
+    await assertRoomExists(tx, booking.roomId);
     const bookingRow = await insertOrConflict(
       () =>
         tx.eventRoomBooking.create({
@@ -288,6 +294,7 @@ export async function addRoomBooking(
   try {
     return await txWithAudit(actor, async (tx, audit) => {
       await assertEventMutable(tx, eventId);
+      await assertRoomExists(tx, input.roomId);
       const booking = await insertOrConflict(
         () =>
           tx.eventRoomBooking.create({ data: { eventId, roomId: input.roomId, startsAt, endsAt } }),
@@ -466,6 +473,14 @@ export async function addServiceWindow(
 ): Promise<ServiceWindow> {
   return txWithAudit(actor, async (tx, audit) => {
     await assertEventMutable(tx, eventId);
+    if (input.roomId != null) await assertRoomExists(tx, input.roomId);
+    if (input.coveringUserId != null) {
+      const user = await tx.user.findUnique({
+        where: { id: input.coveringUserId },
+        select: { id: true },
+      });
+      if (!user) throw new ValidationError({ coveringUserId: [tr("work.err.unknownUser")] });
+    }
     const sw = await tx.serviceWindow.create({
       data: {
         eventId,

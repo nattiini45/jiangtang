@@ -8,6 +8,8 @@ import {
 } from "react-router";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "~/lib/db.server";
+import { t } from "~/i18n";
+import { runWithLocale } from "~/i18n/request-locale.server";
 
 vi.mock("~/lib/auth.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/lib/auth.server")>();
@@ -99,6 +101,46 @@ async function postEdit(id: string, fields: Record<string, string | null>) {
 }
 
 describe("event edit exact instants", () => {
+  it.each(["de", "en"] as const)(
+    "keeps the existing inline validation presentation for a missing room in %s",
+    async (locale) => {
+      const { event } = await fixture("2026-07-04T08:00:00Z", "2026-07-04T10:00:00Z");
+      const form = new FormData();
+      form.set("_action", "addRoom");
+      form.set("roomId", `${RUN}_missing`);
+      form.set("startsAt", "2026-07-04T12:00");
+      form.set("endsAt", "2026-07-04T13:00");
+      const bookings = await db.eventRoomBooking.findMany({ where: { eventId: event.id } });
+      const outbox = await db.calendarOutbox.findMany({ where: { eventUid: event.uid } });
+      const logs = await db.activityLog.count({
+        where: { action: "RoomBooked", data: { path: ["roomId"], equals: `${RUN}_missing` } },
+      });
+
+      const response = await runWithLocale(locale, () =>
+        route.action({
+          params: { id: event.id },
+          request: new Request(`http://localhost/events/${event.id}`, {
+            method: "POST",
+            body: form,
+            headers: { "Accept-Language": locale },
+          }),
+        } as never),
+      ).catch((error: unknown) => error);
+
+      expect(response).toEqual({ error: t(locale, "err.invalidInput") });
+      expect(await db.event.findUniqueOrThrow({ where: { id: event.id } })).toEqual(event);
+      expect(await db.eventRoomBooking.findMany({ where: { eventId: event.id } })).toEqual(
+        bookings,
+      );
+      expect(await db.calendarOutbox.findMany({ where: { eventUid: event.uid } })).toEqual(outbox);
+      expect(
+        await db.activityLog.count({
+          where: { action: "RoomBooked", data: { path: ["roomId"], equals: `${RUN}_missing` } },
+        }),
+      ).toBe(logs);
+    },
+  );
+
   it.each([
     ["first repeated hour", "2026-10-25T00:00:00.000Z", "2026-10-25T00:45:00.000Z"],
     ["second repeated hour", "2026-10-25T01:00:00.000Z", "2026-10-25T01:45:00.000Z"],
