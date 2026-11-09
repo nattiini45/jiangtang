@@ -6,8 +6,11 @@ import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { hasSqlState, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { deleteResetLinks } from "~/domains/auth/password-reset.server";
+import { revokeUserPersonalAccessTokens } from "~/domains/api-tokens/api-tokens.lifecycle.server";
 import type { InviteInput, EditUserInput } from "~/domains/auth/users.schema";
 import { UserRole } from "~/generated/prisma/enums";
+import { emitChange } from "~/lib/realtime/emit.server";
+import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
 
 /**
  * User/account management. All mutations go through `txWithAudit`
@@ -319,13 +322,14 @@ export async function updateUser(
   input: EditUserInput,
   actor: AuditActor,
 ): Promise<void> {
-  await txWithAudit(actor, async (tx, audit) => {
-    const before = await tx.user.findUnique({ where: { id } });
-    if (!before) throw new NotFoundError(tr("places.err.user.notFound"));
+  const revokedTokenCount = await txWithAudit(actor, async (tx, audit) => {
     await assertCanChangeAdminStatus(tx, id, actor, {
       role: input.role,
       isActive: input.isActive,
     });
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${id} FOR UPDATE`;
+    const before = await tx.user.findUnique({ where: { id } });
+    if (!before) throw new NotFoundError(tr("places.err.user.notFound"));
     // Hours per week → stored minutes; null = capacity unset.
     const capacityMinutes =
       input.weeklyCapacityHours == null ? null : Math.round(input.weeklyCapacityHours * 60);
@@ -340,7 +344,11 @@ export async function updateUser(
     });
     // A link issued before the deactivation must not work again after a
     // reactivation.
-    if (input.isActive === false) await deleteResetLinks(tx, id);
+    let revokedCount = 0;
+    if (input.isActive === false) {
+      await deleteResetLinks(tx, id);
+      revokedCount = await revokeUserPersonalAccessTokens(tx, audit, id, "USER_DEACTIVATED");
+    }
     await audit({
       action: "UserUpdated",
       entityType: "user",
@@ -360,7 +368,11 @@ export async function updateUser(
         },
       } as unknown as import("~/generated/prisma/client").Prisma.InputJsonValue,
     });
+    return revokedCount;
   });
+  if (revokedTokenCount > 0) {
+    await emitChange({ entityType: ENTITY_TYPE.user, id, op: "updated" });
+  }
   // Sessions are owned by Better Auth, so they are revoked through its internal
   // adapter, after the change has committed. A failure here leaves the account
   // inactive, and requireUser already refuses inactive users.

@@ -2,7 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { db } from "~/lib/db.server";
 import { adminTwoFactorRequired } from "~/lib/auth.server";
 import { txWithAudit } from "~/lib/audit.server";
-import { NotFoundError } from "~/lib/errors.server";
+import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { tr } from "~/i18n/request-locale.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
 import {
@@ -72,6 +73,10 @@ export async function createPersonalAccessToken(actor: TokenActor, input: TokenC
   const token = `jtg_${randomBytes(32).toString("base64url")}`;
   const tokenHash = createHash("sha256").update(token).digest("hex");
   const record = await txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${actor.id} FOR UPDATE`;
+    const owner = await tx.user.findUnique({ where: { id: actor.id }, select: { isActive: true } });
+    if (!owner) throw new NotFoundError();
+    if (!owner.isActive) throw new ValidationError({}, [tr("account.tokens.inactive")]);
     const created = await tx.personalAccessToken.create({
       data: { userId: actor.id, ...parsed, tokenHash },
       select: TOKEN_METADATA_SELECT,

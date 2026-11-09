@@ -4,6 +4,8 @@ import { tr } from "~/i18n/request-locale.server";
 import { assertCanChangeAdminStatus } from "~/domains/auth/users.queries.server";
 import { deleteResetLinks } from "~/domains/auth/password-reset.server";
 import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
+import { revokeUserPersonalAccessTokens } from "~/domains/api-tokens/api-tokens.lifecycle.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 
 /**
  * The retention prune has no logged-in session — it runs from the daily
@@ -36,14 +38,14 @@ export async function pseudonymizeUser(
   actor: AuditActor,
   userId: string,
 ): Promise<PseudonymizeResult> {
-  const result = await txWithAudit(actor, async (tx, audit) => {
-    const user = await tx.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundError(tr("places.err.user.notFound"));
-
+  const { auditRowsAffected, revokedTokenCount } = await txWithAudit(actor, async (tx, audit) => {
     // An admin may not erase themselves, nor the sole remaining active
     // admin. Erasure deactivates the account, so the same lockout guard as
     // demotion/deactivation applies.
     await assertCanChangeAdminStatus(tx, userId, actor, { isActive: false });
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    const user = await tx.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundError(tr("places.err.user.notFound"));
 
     // 1. Pseudonymize the audit history via the privileged function (the only path
     //    past the immutability trigger). Snapshot -> initials-only. Runs on `tx`:
@@ -80,6 +82,12 @@ export async function pseudonymizeUser(
       where: { identifier: { equals: user.email, mode: "insensitive" } },
     });
     await deleteResetLinks(tx, userId);
+    const revokedTokenCount = await revokeUserPersonalAccessTokens(
+      tx,
+      audit,
+      userId,
+      "USER_PSEUDONYMIZED",
+    );
 
     // 4. Scrub + deactivate the User row. Email must remain unique but de-identified.
     //    Use a valid RFC-5321 local-part (no bracketed marker in the address
@@ -112,9 +120,12 @@ export async function pseudonymizeUser(
       },
     });
 
-    return { userId, auditRowsAffected };
+    return { auditRowsAffected, revokedTokenCount };
   });
-  return result;
+  if (revokedTokenCount > 0) {
+    await emitChange({ entityType: ENTITY_TYPE.user, id: userId, op: "updated" });
+  }
+  return { userId, auditRowsAffected };
 }
 
 /**

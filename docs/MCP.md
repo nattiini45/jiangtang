@@ -19,6 +19,14 @@ credentials; never put the PAT in a URL, a prompt, a repository or a shared conf
 Use HTTPS outside loopback development. Revocation and account deactivation are checked on every
 request, as is required admin two-factor enrollment.
 
+Deactivation, erasure and admin/operator password-reset link issuance revoke all current PATs in
+the same audited transaction. Reset completion also revokes PATs created while the link was
+pending. Reactivation does not restore revoked PATs. A request already admitted before revocation
+is not retroactively cancelled.
+
+When a lifecycle boundary revokes at least one PAT, it emits one user-change notification after
+commit so open token lists can refetch. Calls with no live PATs do not emit this effect.
+
 ### Cursor
 
 The [official Cursor MCP guide](https://cursor.com/docs/mcp) documents remote `url` and `headers`
