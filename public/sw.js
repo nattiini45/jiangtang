@@ -4,7 +4,7 @@
 //     bookings/equipment/tickets. A stale booking is worse than a slow load.
 //   - the app shell: precached on install.
 //
-// Scope is /m/ (the PWA surface). Registered only when the path starts with /m
+// Scope is /m (the PWA surface). Registered only on /m and its subpaths
 // (register-sw.ts) so the desktop never installs a SW. No external SW library —
 // kept hand-rolled and small for solo-maintainability: mainstream, minimal
 // moving parts.
@@ -17,6 +17,7 @@
 const SHELL_CACHE = "jiangtang-shell-v4";
 const ASSET_CACHE = "jiangtang-assets-v1";
 const SHELL_URLS = [
+  "/m",
   "/m/",
   "/m/offline",
   "/m/rooms",
@@ -67,7 +68,7 @@ async function precache(urls) {
       try {
         if (await cache.match(url)) return;
         const request = new Request(new URL(url, self.location.origin));
-        const response = await fetch(request);
+        const response = await fetch(request, { cache: "no-cache" });
         if (isCacheable(request, response)) await cache.put(request, response);
       } catch {
         // Offline at install: the next signed-in navigation tries again.
@@ -161,7 +162,7 @@ function builtInOffline() {
 async function networkFirst(request, waitUntil) {
   const cache = await caches.open(SHELL_CACHE);
   try {
-    const network = await fetch(request);
+    const network = await fetch(request, { cache: "no-cache" });
     if (isCacheable(request, network)) {
       waitUntil(cache.put(request, network.clone()).catch(() => undefined));
       // After the sign-in page emptied the cache, the next signed-in navigation restores the
@@ -197,7 +198,6 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       await precache(SHELL_URLS);
-      self.skipWaiting();
     })(),
   );
 });
@@ -251,13 +251,16 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/api/realtime") return;
 
   // Hashed assets: cache-first (immutable).
+  const mobile = /^\/m(?:\/|$|\.data$)/.test(url.pathname);
+  if (request.mode === "navigate" && !mobile) return;
+  if (!mobile && !/^\/(?:assets|api|attachments)\//.test(url.pathname)) return;
   const lifetime = extendLifetime(event);
   if (url.pathname.startsWith("/assets/")) {
     lifetime.respondWith(cacheFirst(request, lifetime.waitUntil));
     return;
   }
   // Navigations + everything else under /m: network-first (no stale data).
-  if (request.mode === "navigate" || url.pathname.startsWith("/m") || url.pathname.startsWith("/api")) {
+  if (request.mode === "navigate" || mobile || url.pathname.startsWith("/api/")) {
     lifetime.respondWith(networkFirst(request, lifetime.waitUntil));
     return;
   }

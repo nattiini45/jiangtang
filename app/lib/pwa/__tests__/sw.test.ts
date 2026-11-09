@@ -115,16 +115,25 @@ type Handler = (event: Record<string, unknown>) => void;
 function loadWorker(network: (url: string) => FakeResponse) {
   const caches = createCaches();
   const handlers: Record<string, Handler> = {};
+  const lifecycle = { skipWaiting: 0, claim: 0 };
+  const requests: { url: string; cache?: RequestCache }[] = [];
   const self = {
     location: { origin: ORIGIN },
     addEventListener: (type: string, handler: Handler) => {
       handlers[type] = handler;
     },
-    skipWaiting: () => undefined,
-    clients: { claim: async () => undefined },
+    skipWaiting: () => {
+      lifecycle.skipWaiting++;
+    },
+    clients: {
+      claim: async () => {
+        lifecycle.claim++;
+      },
+    },
   };
   const online = { value: true };
-  const fetchImpl = async (input: string | { url: string }) => {
+  const fetchImpl = async (input: string | { url: string }, init?: RequestInit) => {
+    requests.push({ url: abs(typeof input === "string" ? input : input.url), cache: init?.cache });
     if (!online.value) throw new TypeError("network down");
     return network(abs(typeof input === "string" ? input : input.url));
   };
@@ -197,6 +206,8 @@ function loadWorker(network: (url: string) => FakeResponse) {
   }
 
   return {
+    lifecycle,
+    requests,
     caches,
     online,
     respond,
@@ -462,6 +473,7 @@ describe("service worker caching", () => {
     await worker.install();
     expect(cachedUrls(worker)).toEqual(
       [
+        "/m",
         "/m/",
         "/m/offline",
         "/m/rooms",
@@ -505,5 +517,45 @@ describe("service worker caching", () => {
     await purgeSignedInCaches(asStorage(worker));
 
     expect(worker.caches.stores.get("jiangtang-assets-v1")?.size).toBe(1);
+  });
+
+  it("never forces a waiting update to activate, but claims pages after normal activation", async () => {
+    await worker.install();
+    await worker.activate();
+    expect(worker.lifecycle).toEqual({ skipWaiting: 0, claim: 1 });
+  });
+
+  it("revalidates navigations, loader data and precaches instead of using stale HTTP cache", async () => {
+    await worker.install();
+    await worker.request("/m", { mode: "navigate" });
+    await worker.request("/m.data?index");
+    await worker.request("/m/tasks.data");
+    await worker.request("/api/search?q=room");
+    expect(worker.requests.length).toBeGreaterThan(14);
+    expect(worker.requests.every((request) => request.cache === "no-cache")).toBe(true);
+    await worker.request("/assets/app-new.js");
+    expect(worker.requests.at(-1)?.cache).toBeUndefined();
+  });
+
+  it("returns the new online document rather than a previously cached deploy", async () => {
+    let deploy = "old";
+    const updating = loadWorker((url) => response(url, deploy));
+    await updating.request("/m", { mode: "navigate" });
+    deploy = "new";
+    expect((await updating.request("/m", { mode: "navigate" }))?.body).toBe("new");
+  });
+
+  it("does not intercept lookalike mobile paths, desktop navigations, mutations or SSE", async () => {
+    for (const [path, options] of [
+      ["/mobile", { mode: "navigate" }],
+      ["/mobile/data", {}],
+      ["/more", {}],
+      ["/tasks", { mode: "navigate" }],
+      ["/m.data", { method: "POST" }],
+      ["/api/realtime", {}],
+    ] as const) {
+      expect(await worker.request(path, options)).toBeUndefined();
+    }
+    expect(worker.requests).toHaveLength(0);
   });
 });

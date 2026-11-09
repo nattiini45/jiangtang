@@ -13,15 +13,15 @@ import { resolveLocale } from "~/i18n/locale.server";
 import { useT } from "~/i18n/use-t";
 import { getDensity, getTheme } from "~/lib/theme.server";
 import { viewMiddleware } from "~/lib/view.server";
+import { startupImages } from "~/lib/pwa/startup-images";
 import "./app.css";
 
 export const middleware = [viewMiddleware];
 
 export const links: Route.LinksFunction = () => [
-  // PWA manifest + theme color. The manifest is scoped to /m/ so the
-  // desktop surface isn't offered "install".
   { rel: "manifest", href: "/manifest.webmanifest" },
-  { rel: "apple-touch-icon", href: "/icon-192.png" },
+  { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png" },
+  ...startupImages,
 ];
 
 export function loader({ request }: Route.LoaderArgs) {
@@ -53,7 +53,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     >
       <head>
         <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="Jiangtang" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <style>{"html{background:#fafafa}html.dark{background:#171717}"}</style>
         {theme === "system" ? (
           <>
             <meta name="theme-color" content="#fafafa" media="(prefers-color-scheme: light)" />

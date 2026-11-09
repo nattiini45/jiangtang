@@ -241,8 +241,9 @@ The project-form hex placeholder is an example, not a palette definition.
 
 `--scrim` centralizes the existing black 30% light / 50% dark modal veil. `--qr-paper` stays white
 in both themes for black QR modules, including 2FA; `--camera-preview` stays black behind video.
-Root `theme-color` metadata uses literal floor colors; the PWA manifest retains its existing
-`#0a0a0a` launch background/chrome. Browser chrome cannot resolve CSS variables. Those literals,
+Root `theme-color` metadata uses literal floor colors; the static PWA manifest uses the light
+`#fafafa` launch background/chrome, while iOS startup images follow the OS light/dark floor.
+Browser chrome cannot resolve CSS variables. Those literals,
 the raster app icons/screenshots and the SVG checkmark are intentional media/API
 exceptions, not permission to add per-component hex colors. Synthetic test/seed color data is
 not a UI token.
