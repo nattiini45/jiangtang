@@ -6,7 +6,14 @@ import { FluidHoverHighlight, useFluidHover } from "~/components/ui/fluid-hover"
 import { useLocale, useT } from "~/i18n/use-t";
 import type { MessageKey } from "~/i18n";
 import type { SearchResult, SearchResultType } from "~/routes/api.search/search.server";
-import { scoreVerb, verbsFor, type Verb } from "~/components/command/verbs";
+import {
+  scoreVerb,
+  verbsFor,
+  paletteTask,
+  commandRejection,
+  type Verb,
+} from "~/components/command/verbs";
+import { Button } from "~/components/ui/button";
 
 /**
  * Global command palette (Ctrl/Cmd-K): verbs + entity results in
@@ -67,6 +74,7 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
   const [results, setResults] = React.useState<SearchResult[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [active, setActive] = React.useState(0);
+  const [dismissedResult, setDismissedResult] = React.useState<unknown>();
   const inputRef = React.useRef<HTMLInputElement>(null);
   const dialogRef = React.useRef<HTMLDivElement>(null);
   // Whatever was focused before opening gets focus back on close.
@@ -78,10 +86,13 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
 
   // The task detail route declares `handle = { palette: "task" }`; its match
   // params carry the task id for the context verbs.
-  const taskMatch = matches.find(
-    (m) => (m.handle as { palette?: string } | undefined)?.palette === "task",
-  );
-  const taskId = taskMatch ? (taskMatch.params as { id?: string }).id : undefined;
+  const task = paletteTask(matches);
+  const taskId = task?.id;
+  const taskStatus = task?.status;
+  const rejection =
+    fetcher.state === "idle" && fetcher.data !== dismissedResult
+      ? commandRejection(fetcher.data)
+      : undefined;
 
   const close = React.useCallback(() => {
     setOpen(false);
@@ -150,8 +161,14 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
   }, [query, open]);
 
   const verbs = React.useMemo(
-    () => verbsFor({ admin, context: taskId ? "task" : undefined, locale }),
-    [admin, taskId, locale],
+    () =>
+      verbsFor({
+        admin,
+        context: taskId ? "task" : undefined,
+        task: taskStatus ? { status: taskStatus } : undefined,
+        locale,
+      }),
+    [admin, taskId, taskStatus, locale],
   );
 
   // One ranked list: matched verbs first (score desc, registry order as the
@@ -191,6 +208,7 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
             void navigate(to);
           },
           submit: (fields, action) => {
+            setDismissedResult(undefined);
             const body = new FormData();
             for (const [k, v] of Object.entries(fields)) body.set(k, v);
             void fetcher.submit(body, { method: "post", action });
@@ -264,156 +282,174 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
   });
 
   return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          key="palette"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: spring.slow.exit }}
-          transition={spring.slow}
-          className="bg-scrim fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh]"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) close();
-          }}
+    <>
+      {rejection ? (
+        <div
+          role="alert"
+          className="bg-card shadow-surface-3 fixed right-4 bottom-4 z-50 flex max-w-sm items-start gap-3 rounded-lg p-4 text-sm"
         >
-          <motion.div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label={t("command.label")}
-            onKeyDown={onDialogKeyDown}
-            initial={{ opacity: 0, scale: 0.97 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.98, transition: spring.slow.exit }}
-            transition={spring.slow}
-            className="bg-surface-5 text-popover-foreground shadow-surface-5 w-full max-w-xl overflow-hidden rounded-xl"
+          <p className="min-w-0 break-words">{rejection}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="compact"
+            onClick={() => setDismissedResult(fetcher.data)}
           >
-            <input
-              ref={inputRef}
-              type="text"
-              role="combobox"
-              aria-expanded="true"
-              aria-controls="command-palette-list"
-              aria-activedescendant={rows.length > 0 ? activeId : undefined}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={t("command.placeholder")}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setActive(0);
-              }}
-              className="placeholder:text-muted-foreground h-12 w-full border-b bg-transparent px-4 text-sm outline-none focus-visible:outline-none"
-            />
-
-            <div
-              ref={hover.containerRef}
-              id="command-palette-list"
-              role="listbox"
-              className="relative max-h-80 overflow-y-auto p-1.5"
+            {t("command.dismissError")}
+          </Button>
+        </div>
+      ) : null}
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            key="palette"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: spring.slow.exit }}
+            transition={spring.slow}
+            className="bg-scrim fixed inset-0 z-50 flex items-start justify-center p-4 pt-[12vh]"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) close();
+            }}
+          >
+            <motion.div
+              ref={dialogRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("command.label")}
+              onKeyDown={onDialogKeyDown}
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.98, transition: spring.slow.exit }}
+              transition={spring.slow}
+              className="bg-surface-5 text-popover-foreground shadow-surface-5 w-full max-w-xl overflow-hidden rounded-xl"
             >
-              <FluidHoverHighlight hover={hover} />
-              {loading && (
-                <p className="text-muted-foreground px-2.5 py-3 text-sm">
-                  {t("command.searching")}
-                </p>
-              )}
+              <input
+                ref={inputRef}
+                type="text"
+                role="combobox"
+                aria-expanded="true"
+                aria-controls="command-palette-list"
+                aria-activedescendant={rows.length > 0 ? activeId : undefined}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={t("command.placeholder")}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setActive(0);
+                }}
+                className="placeholder:text-muted-foreground h-12 w-full border-b bg-transparent px-4 text-sm outline-none focus-visible:outline-none"
+              />
 
-              {showEmpty && (
-                <p className="text-muted-foreground px-2.5 py-3 text-sm">
-                  {t("command.noResults")}
-                </p>
-              )}
+              <div
+                ref={hover.containerRef}
+                id="command-palette-list"
+                role="listbox"
+                className="relative max-h-80 overflow-y-auto p-1.5"
+              >
+                <FluidHoverHighlight hover={hover} />
+                {loading && (
+                  <p className="text-muted-foreground px-2.5 py-3 text-sm">
+                    {t("command.searching")}
+                  </p>
+                )}
 
-              {/* Verbs first — the row's flat index feeds aria-activedescendant. */}
-              {rows.some((r) => r.kind === "verb") && (
-                <div>
-                  <div className="text-muted-foreground px-2.5 pt-1.5 pb-1 text-xs">
-                    {t("command.commands")}
-                  </div>
-                  <ul>
-                    {rows
-                      .filter((r): r is Row & { kind: "verb" } => r.kind === "verb")
-                      .map((row) => {
-                        flatIndex += 1;
-                        const idx = flatIndex;
-                        const isActive = idx === clamped;
-                        return (
-                          <li
-                            key={row.verb.id}
-                            id={`palette-row-${idx}`}
-                            role="option"
-                            aria-selected={isActive}
-                          >
-                            <button
-                              type="button"
-                              tabIndex={-1}
-                              {...hover.itemProps(idx)}
-                              onMouseEnter={() => setActive(idx)}
-                              onClick={() => runRow(row)}
-                              className={ROW_CLASS}
-                            >
-                              <span className="truncate">
-                                {row.verb.id === "search-query" && query.trim()
-                                  ? t("command.searchFor", { query: query.trim() })
-                                  : row.verb.label}
-                              </span>
-                              <span className="text-muted-foreground shrink-0 text-xs">
-                                {row.verb.group}
-                              </span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                  </ul>
-                </div>
-              )}
+                {showEmpty && (
+                  <p className="text-muted-foreground px-2.5 py-3 text-sm">
+                    {t("command.noResults")}
+                  </p>
+                )}
 
-              {!loading &&
-                entityGroups.map((group) => (
-                  <div key={group.type} className="pt-1.5">
+                {/* Verbs first — the row's flat index feeds aria-activedescendant. */}
+                {rows.some((r) => r.kind === "verb") && (
+                  <div>
                     <div className="text-muted-foreground px-2.5 pt-1.5 pb-1 text-xs">
-                      {t(groupLabelKey(group.type))}
+                      {t("command.commands")}
                     </div>
                     <ul>
-                      {group.items.map((item) => {
-                        flatIndex += 1;
-                        const idx = flatIndex;
-                        const isActive = idx === clamped;
-                        const row: Row = { kind: "result", result: item };
-                        return (
-                          <li
-                            key={`${item.type}:${item.id}`}
-                            id={`palette-row-${idx}`}
-                            role="option"
-                            aria-selected={isActive}
-                          >
-                            <button
-                              type="button"
-                              tabIndex={-1}
-                              {...hover.itemProps(idx)}
-                              onMouseEnter={() => setActive(idx)}
-                              onClick={() => runRow(row)}
-                              className={ROW_CLASS}
+                      {rows
+                        .filter((r): r is Row & { kind: "verb" } => r.kind === "verb")
+                        .map((row) => {
+                          flatIndex += 1;
+                          const idx = flatIndex;
+                          const isActive = idx === clamped;
+                          return (
+                            <li
+                              key={row.verb.id}
+                              id={`palette-row-${idx}`}
+                              role="option"
+                              aria-selected={isActive}
                             >
-                              <span className="truncate">{item.label}</span>
-                              {item.sublabel && (
-                                <span className="text-muted-foreground nums shrink-0 text-xs">
-                                  {item.sublabel}
+                              <button
+                                type="button"
+                                tabIndex={-1}
+                                {...hover.itemProps(idx)}
+                                onMouseEnter={() => setActive(idx)}
+                                onClick={() => runRow(row)}
+                                className={ROW_CLASS}
+                              >
+                                <span className="truncate">
+                                  {row.verb.id === "search-query" && query.trim()
+                                    ? t("command.searchFor", { query: query.trim() })
+                                    : row.verb.label}
                                 </span>
-                              )}
-                            </button>
-                          </li>
-                        );
-                      })}
+                                <span className="text-muted-foreground shrink-0 text-xs">
+                                  {row.verb.group}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
                     </ul>
                   </div>
-                ))}
-            </div>
+                )}
+
+                {!loading &&
+                  entityGroups.map((group) => (
+                    <div key={group.type} className="pt-1.5">
+                      <div className="text-muted-foreground px-2.5 pt-1.5 pb-1 text-xs">
+                        {t(groupLabelKey(group.type))}
+                      </div>
+                      <ul>
+                        {group.items.map((item) => {
+                          flatIndex += 1;
+                          const idx = flatIndex;
+                          const isActive = idx === clamped;
+                          const row: Row = { kind: "result", result: item };
+                          return (
+                            <li
+                              key={`${item.type}:${item.id}`}
+                              id={`palette-row-${idx}`}
+                              role="option"
+                              aria-selected={isActive}
+                            >
+                              <button
+                                type="button"
+                                tabIndex={-1}
+                                {...hover.itemProps(idx)}
+                                onMouseEnter={() => setActive(idx)}
+                                onClick={() => runRow(row)}
+                                className={ROW_CLASS}
+                              >
+                                <span className="truncate">{item.label}</span>
+                                {item.sublabel && (
+                                  <span className="text-muted-foreground nums shrink-0 text-xs">
+                                    {item.sublabel}
+                                  </span>
+                                )}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+              </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+        ) : null}
+      </AnimatePresence>
+    </>
   );
 }

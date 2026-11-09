@@ -16,6 +16,8 @@ import {
   taskMoveSchema,
 } from "~/domains/tasks/tasks.schema";
 import { LANES } from "~/domains/tasks/tasks.lanes";
+import { taskActionMetadata } from "~/domains/tasks/tasks.transitions";
+import { projectActionMetadata } from "~/domains/projects/projects.transitions";
 import {
   createProject,
   updateProject,
@@ -139,14 +141,15 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     context,
     {
       name: "set_task_status",
-      description: "Change a task status and move it to the tail of its new board lane.",
+      description:
+        "Change a task to any distinct status and move it to its target lane tail, including changes within a lane. Dependencies do not gate status. Returns legal next actions; same status returns a structured transition rejection. No confirm argument required.",
       schema: byId.extend({ status: z.enum(TaskStatus) }),
       write: true,
     },
     async ({ id, status }, ctx) => {
       const task = await setTaskStatus(mcpActor(ctx), id, status);
       await emitChange({ entityType: "task", id: task.id, op: "updated" });
-      return task;
+      return { ...task, ...taskActionMetadata(task.status) };
     },
   );
   registerTool(
@@ -155,14 +158,14 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     {
       name: "move_task",
       description:
-        "Move a task into a board lane between afterId and beforeId using domain fractional ordering. Omit afterId for the top edge or beforeId for the bottom edge.",
+        "Move a task into a board lane between afterId and beforeId using domain fractional ordering. Omit afterId for the top edge or beforeId for the bottom edge. Within-lane reorder preserves status; identical neighbours are an unaudited no-op. Cross-lane moves use the lane default. Returns legal next status actions. No confirm argument required.",
       schema: byId.extend({ lane: z.enum(LANES), afterId: id.optional(), beforeId: id.optional() }),
       write: true,
     },
     async ({ id, ...move }, ctx) => {
       const task = await moveTask(mcpActor(ctx), id, taskMoveSchema.parse(move));
       await emitChange({ entityType: "task", id: task.id, op: "updated" });
-      return task;
+      return { ...task, ...taskActionMetadata(task.status) };
     },
   );
   registerTool(
@@ -272,14 +275,15 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     context,
     {
       name: "set_project_status",
-      description: "Change a project status with an audited transition.",
+      description:
+        "Change a project to any distinct status with an audited transition, without cascading to contained work or imposing completion gates. Returns legal next actions; same status returns a structured transition rejection. No confirm argument required.",
       schema: byId.extend({ status: z.enum(ProjectStatus) }),
       write: true,
     },
     async ({ id, status }, ctx) => {
       const project = await setProjectStatus(mcpActor(ctx), id, status);
       await emitChange({ entityType: "project", id: project.id, op: "updated" });
-      return project;
+      return { ...project, ...projectActionMetadata(project.status) };
     },
   );
   registerTool(

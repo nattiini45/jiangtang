@@ -10,6 +10,7 @@ import { z } from "zod";
 import { LANES } from "~/domains/tasks/tasks.lanes";
 import { listBoardTasks } from "~/domains/tasks/tasks.queries.server";
 import { moveTask } from "~/domains/tasks/tasks.mutations.server";
+import { taskActionMetadata } from "~/domains/tasks/tasks.transitions";
 import { taskMoveSchema } from "~/domains/tasks/tasks.schema";
 import { moveTicketToLane } from "~/domains/tickets/tickets.mutations.server";
 import { ticketAllowedActions } from "~/domains/tickets/tickets.transitions";
@@ -150,12 +151,13 @@ export async function action({ request }: Route.ActionArgs) {
     };
   }
   try {
-    await moveTask(actor, taskId.data, result.data);
+    const task = await moveTask(actor, taskId.data, result.data);
     await emitChange({ entityType: "task", id: taskId.data, op: "updated" });
-    return { ok: true as const };
+    return { ok: true as const, ...taskActionMetadata(task.status) };
   } catch (e) {
     if (e instanceof ValidationError) {
       return {
+        ...(e instanceof TransitionError ? { transition: e.transition } : {}),
         error:
           e.formErrors[0] ??
           Object.values(e.fieldErrors).flat()[0] ??

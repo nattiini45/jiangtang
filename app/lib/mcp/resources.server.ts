@@ -124,13 +124,15 @@ export function registerResources(server: McpServer, context: McpContext): void 
     {
       name: "projects",
       variable: "slug",
-      description: "Project by slug with hierarchy, tasks and dependencies",
+      description:
+        "Project by slug with hierarchy, tasks, dependencies and legal next status actions",
       query: getProjectBySlug,
     },
     {
       name: "tasks",
       variable: "id",
-      description: "Task with assignments, dependencies and linked work; no time entries",
+      description:
+        "Task with assignments, dependencies, linked work and legal next status actions; no time entries",
       query: getTask,
     },
     {

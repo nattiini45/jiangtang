@@ -1,4 +1,5 @@
 import { TaskStatus } from "~/generated/prisma/enums";
+import { taskAllowedActions } from "~/domains/tasks/tasks.transitions";
 import { taskStatusLabel } from "~/components/tasks/labels";
 import { NAV } from "~/components/layout/nav";
 import { cycleDensity, cycleTheme } from "~/lib/prefs";
@@ -38,6 +39,7 @@ export interface Verb {
   adminOnly?: boolean;
   /** Offered only while a matching route handle is in the match list. */
   context?: "task";
+  taskStatus?: TaskStatus;
   run: (ctx: VerbContext) => void;
 }
 
@@ -208,6 +210,7 @@ function buildVerbs(locale: Locale): Verb[] {
     },
     ...TASK_STATUSES.map((status): Verb => ({
       id: `task-set-status-${status.toLowerCase()}`,
+      taskStatus: status,
       label: tr("command.verb.setStatus", { status: taskStatusLabel(locale, status) }),
       keywords: [
         "status",
@@ -255,10 +258,35 @@ export function verbsIn(locale: Locale): Verb[] {
  * The verbs a given user/context may run: admin verbs only for admins,
  * `context` verbs only while that context is active.
  */
-export function verbsFor(opts: { admin: boolean; context?: "task"; locale: Locale }): Verb[] {
+export function verbsFor(opts: {
+  admin: boolean;
+  context?: "task";
+  task?: { status: TaskStatus };
+  locale: Locale;
+}): Verb[] {
+  const allowed = opts.task ? taskAllowedActions(opts.task.status) : [];
   return verbsIn(opts.locale).filter(
-    (v) => (!v.adminOnly || opts.admin) && (!v.context || v.context === opts.context),
+    (v) =>
+      (!v.adminOnly || opts.admin) &&
+      (!v.context || v.context === opts.context) &&
+      (!v.taskStatus || allowed.some((action) => action.allowed && action.target === v.taskStatus)),
   );
+}
+
+export function paletteTask(matches: readonly { handle?: unknown; data?: unknown }[]) {
+  const match = matches.find(
+    (entry) => (entry.handle as { palette?: string } | undefined)?.palette === "task",
+  );
+  const task = (match?.data as { task?: { id?: string; status?: TaskStatus } } | undefined)?.task;
+  return task?.id && task.status && TASK_STATUSES.includes(task.status)
+    ? { id: task.id, status: task.status }
+    : undefined;
+}
+
+export function commandRejection(data: unknown): string | undefined {
+  const result = data as
+    { formErrors?: string[]; fieldErrors?: Record<string, string[]> } | undefined;
+  return result?.formErrors?.[0] ?? Object.values(result?.fieldErrors ?? {}).flat()[0];
 }
 
 /**

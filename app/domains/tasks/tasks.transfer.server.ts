@@ -4,6 +4,7 @@ import { tr } from "~/i18n/request-locale.server";
 import { ValidationError } from "~/lib/errors.server";
 import { laneTailPosition } from "./tasks.mutations.server";
 import { laneOfTaskStatus } from "./tasks.lanes";
+import { TASK_RESTORE_AUDIT } from "./tasks.transitions";
 import { addTaskBlockerInTx } from "./tasks.dependencies.server";
 import type { TransferTask } from "~/domains/transfer/transfer.schema";
 
@@ -96,7 +97,7 @@ export async function importTasksInTx(
       });
     }
     await audit({
-      action: before ? "TaskUpdated" : "TaskImported",
+      action: before ? TASK_RESTORE_AUDIT.update : TASK_RESTORE_AUDIT.create,
       entityType: "task",
       entityId: t.id,
       data: { title: t.title, status: t.status, viaImport: true },

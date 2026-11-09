@@ -48,7 +48,11 @@ import {
 import { listTasks, getTask, listBoardTasks } from "~/domains/tasks/tasks.queries.server";
 import { taskListOptionsSchema } from "~/domains/tasks/tasks.schema";
 import { LANES } from "~/domains/tasks/tasks.lanes";
-import { listProjects, getProjectBySlug } from "~/domains/projects/projects.queries.server";
+import {
+  listProjects,
+  getProjectBySlug,
+  getProject,
+} from "~/domains/projects/projects.queries.server";
 import { projectListOptionsSchema } from "~/domains/projects/projects.schema";
 import { listWorkTickets } from "~/domains/board/board.queries.server";
 import { listNotes, getNote, listNoteTags } from "~/domains/notes/notes.queries.server";
@@ -532,23 +536,28 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_allowed_actions",
       description:
-        "Inspect a ticket's current workflow, legal next actions, required resolution input and caller write permission. Ticket only. OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS; no self transitions. READ_ONLY may inspect but cannot write. Refresh before acting; transition/move still requires human confirmation.",
-      schema: z.object({ entityType: z.enum(["ticket"]), id }),
+        "Inspect a ticket, task or project by ID for current state, legal next actions, required inputs and caller write permission. Tickets: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS. Tasks and projects allow every distinct status pair, without dependency or hierarchy completion gates. No self status transitions; task same-lane reorder remains legal. READ_ONLY may inspect but cannot write. Refresh before acting. Ticket transition/move requires confirm:true; task/project status and task move retain their existing confirmation-free inputs.",
+      schema: z.object({ entityType: z.enum(["ticket", "task", "project"]), id }),
     },
     async ({ entityType, id }, context) => {
-      const ticket = await found(getTicket(id));
+      const entity =
+        entityType === "ticket"
+          ? await found(getTicket(id))
+          : entityType === "task"
+            ? await found(getTask(id))
+            : await found(getProject(id));
       const canWrite = context.token.scope === "READ_WRITE";
       return {
         entity: entityType,
         id,
-        currentState: ticket.status,
-        allowedTransitions: ticket.allowedTransitions,
-        allowedActions: ticket.allowedActions,
+        currentState: entity.status,
+        allowedTransitions: entity.allowedTransitions,
+        allowedActions: entity.allowedActions,
         canWrite,
         permissionReason: canWrite
           ? null
           : { code: "READ_ONLY", message: tr("err.mcp.writeTokenRequired") },
-        requiresConfirmation: true,
+        requiresConfirmation: entityType === "ticket",
       };
     },
   );
@@ -597,7 +606,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_task",
       description:
-        "Get a task with subtasks, parent, dependencies in both directions, assignee IDs/estimates, project, location and linked tickets.",
+        "Get a task with subtasks, parent, dependencies in both directions, assignee IDs/estimates, project, location, linked tickets and legal next status actions. Explicit BLOCKED and dependency-derived blocking are independent.",
       schema: byId,
     },
     ({ id }) => found(getTask(id)),
@@ -619,7 +628,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_project",
       description:
-        "Get a project by its URL slug, including parent, subprojects, lead and task/dependency summaries.",
+        "Get a project by its URL slug, including parent, subprojects, lead, task/dependency summaries and legal next status actions. get_allowed_actions takes the project ID, not its slug.",
       schema: z.object({ slug: id }),
     },
     ({ slug }) => found(getProjectBySlug(slug)),

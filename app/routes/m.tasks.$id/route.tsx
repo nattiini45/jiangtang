@@ -9,6 +9,7 @@ import { setTaskAssignees, setTaskStatus } from "~/domains/tasks/tasks.mutations
 import { emitChange } from "~/lib/realtime/emit.server";
 import { TaskStatus } from "~/generated/prisma/enums";
 import { taskStatusLabel } from "~/components/tasks/labels";
+import { taskActionMetadata, TASK_STATUS_POLICY } from "~/domains/tasks/tasks.transitions";
 import { formatDate } from "~/i18n/format";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -34,7 +35,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const locale = resolveLocale(request);
   const task = await getTask(params.id);
   if (!task) throw toErrorResponse(new NotFoundError(t(locale, "err.task.notFound")));
-  return { task, meId: user.id };
+  return { task, allowedActions: task.allowedActions, meId: user.id };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -50,7 +51,9 @@ export async function action({ request, params }: Route.ActionArgs) {
       if (!Object.values(TaskStatus).includes(status)) {
         throw new ValidationError({ status: [t(locale, "err.unknownStatus")] });
       }
-      await setTaskStatus(actor, params.id, status);
+      const updated = await setTaskStatus(actor, params.id, status);
+      await emitChange({ entityType: "task", id: params.id, op: "updated" });
+      return { ok: true, ...taskActionMetadata(updated.status) };
     } else if (intent === "assign-me") {
       // Append the actor, keep the others — same semantics as the palette verb.
       const next = task.assignees.map((a) => ({
@@ -150,7 +153,16 @@ export default function MobileTaskDetail({ loaderData }: Route.ComponentProps) {
               <Button
                 type="submit"
                 variant={task.status === s ? "primary" : "secondary"}
-                disabled={busy || task.status === s}
+                disabled={
+                  busy ||
+                  !loaderData.allowedActions.some((action) => action.target === s && action.allowed)
+                }
+                title={
+                  !loaderData.allowedActions.some((action) => action.target === s && action.allowed)
+                    ? t(locale, TASK_STATUS_POLICY.reasonKey)
+                    : undefined
+                }
+                aria-describedby={task.status === s ? "task-current-status-reason" : undefined}
                 className={cn("min-h-11 w-full", task.status === s && "disabled:opacity-100")}
               >
                 {taskStatusLabel(locale, s)}
@@ -158,6 +170,9 @@ export default function MobileTaskDetail({ loaderData }: Route.ComponentProps) {
             </Form>
           ))}
         </div>
+        <p id="task-current-status-reason" className="sr-only">
+          {t(locale, TASK_STATUS_POLICY.reasonKey)}
+        </p>
       </section>
     </div>
   );

@@ -6,7 +6,12 @@ import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
-import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  NotFoundError,
+  toErrorResponse,
+  ValidationError,
+  TransitionError,
+} from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { berlinDateInput } from "~/lib/format-date";
 import { berlinLocalString } from "~/lib/berlin-days";
@@ -36,14 +41,15 @@ import { TaskFormErrors } from "~/components/tasks/task-form-errors";
 import { TaskDependencies } from "~/components/tasks/task-dependencies";
 import { TaskAssigneesEditor } from "~/components/tasks/task-assignees-editor";
 import { TaskTicketPanel } from "~/components/tasks/task-ticket-panel";
-import { TASK_STATUSES, taskStatusLabel, taskPriorityLabel } from "~/components/tasks/labels";
+import { taskStatusLabel, taskPriorityLabel } from "~/components/tasks/labels";
+import { StatusTransitionForm } from "~/components/forms/status-transition-form";
+import { TASK_STATUS_POLICY } from "~/domains/tasks/tasks.transitions";
 import { taskPriorityClassName } from "~/lib/status";
 import { cn } from "~/lib/utils";
 import { ActivityFeed } from "~/components/history/activity-feed";
 import { StatusCell, DateCell } from "~/components/data-grid";
 import { isTaskOverdue } from "~/domains/tasks/tasks.dates";
 import { Button } from "~/components/ui/button";
-import { Select } from "~/components/ui/select";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 
@@ -108,6 +114,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   }
   return {
     task,
+    allowedActions: task.allowedActions,
     users: [...byId.values()].sort((a, b) => a.name.localeCompare(b.name, "de")),
     projects,
     parents: parents.map((t) => ({ id: t.id, name: t.title })),
@@ -234,7 +241,11 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
   } catch (e) {
     if (e instanceof ValidationError) {
-      return { fieldErrors: e.fieldErrors, formErrors: e.formErrors };
+      return {
+        fieldErrors: e.fieldErrors,
+        formErrors: e.formErrors,
+        ...(e instanceof TransitionError ? { transition: e.transition } : {}),
+      };
     }
     throw toErrorResponse(e);
   }
@@ -338,24 +349,17 @@ export default function TaskDetail({ loaderData, actionData }: Route.ComponentPr
       {/* Workflow transition */}
       <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
         <h2 className="text-base font-semibold">{t("tasks.detail.status.title")}</h2>
-        <Form method="post" className="flex items-center gap-2">
-          <input type="hidden" name="_action" value="status" />
-          <Select
-            name="status"
-            defaultValue={task.status}
-            aria-label={t("tasks.detail.status.aria")}
-            className="max-w-[14rem]"
-          >
-            {TASK_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {taskStatusLabel(locale, s)}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit" variant="secondary" size="compact" disabled={busy}>
-            {t("tasks.detail.status.submit")}
-          </Button>
-        </Form>
+        <StatusTransitionForm
+          key={task.status}
+          currentState={task.status}
+          currentLabel={taskStatusLabel(locale, task.status)}
+          allowedActions={loaderData.allowedActions}
+          reasonKey={TASK_STATUS_POLICY.reasonKey}
+          selectLabel={t("tasks.detail.status.aria")}
+          submitLabel={t("tasks.detail.status.submit")}
+          variant="secondary"
+          selectClassName="max-w-[14rem]"
+        />
       </section>
 
       {/* Assignees */}

@@ -16,6 +16,7 @@ import {
 } from "./tasks.lanes";
 import { berlinDayKey } from "./tasks.dates";
 import type { TaskListOptions } from "./tasks.schema";
+import { taskActionMetadata } from "./tasks.transitions";
 
 /**
  * Tasks-domain queries. Reads only — every mutating caller opens its own
@@ -111,7 +112,7 @@ const DEPENDENCY_SUMMARY = {
  * the primary task of (`primaryForTickets`), location, creator.
  */
 export async function getTask(id: string) {
-  return db.task.findUnique({
+  const task = await db.task.findUnique({
     where: { id },
     include: {
       project: { select: { id: true, name: true, slug: true } },
@@ -129,6 +130,7 @@ export async function getTask(id: string) {
       createdBy: TASK_USER,
     },
   });
+  return task ? { ...task, ...taskActionMetadata(task.status) } : null;
 }
 
 /** Like {@link getTask} but throws — for mutations that refuse a missing row. */

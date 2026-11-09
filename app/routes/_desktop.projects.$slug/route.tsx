@@ -1,8 +1,13 @@
 import * as React from "react";
-import { Form, Link } from "react-router";
+import { Link } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  NotFoundError,
+  toErrorResponse,
+  ValidationError,
+  TransitionError,
+} from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t, type MessageKey } from "~/i18n";
@@ -16,7 +21,12 @@ import { listBoardTasks } from "~/domains/tasks/tasks.queries.server";
 import { LANES } from "~/domains/tasks/tasks.lanes";
 import { DateCell } from "~/components/data-grid";
 import { StatusBadge } from "~/components/ui/status-badge";
-import { projectStatusLabel, PROJECT_STATUSES } from "~/components/projects/labels";
+import { projectStatusLabel } from "~/components/projects/labels";
+import { StatusTransitionForm } from "~/components/forms/status-transition-form";
+import {
+  PROJECT_STATUS_POLICY,
+  projectActionMetadata,
+} from "~/domains/projects/projects.transitions";
 import { ProjectFormErrors } from "~/components/projects/project-form-errors";
 import { NoteList } from "~/components/notes/note-list";
 import { TaskBoard, type BoardLanes } from "~/components/board/board";
@@ -25,7 +35,6 @@ import { ProjectGantt } from "~/components/projects/project-gantt";
 import { ProjectBurndown } from "~/components/projects/project-burndown";
 import type { BurndownEvent } from "~/components/projects/gantt";
 import { Button } from "~/components/ui/button";
-import { Select } from "~/components/ui/select";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 
@@ -111,7 +120,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     });
   }
 
-  return { project, notes, view, lanes, events };
+  return { project, allowedActions: project.allowedActions, notes, view, lanes, events };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -138,10 +147,19 @@ export async function action({ request, params }: Route.ActionArgs) {
   try {
     const updated = await setProjectStatus(actor, project.id, result.data.status);
     await emitChange({ entityType: "project", id: updated.id, op: "updated" });
-    return { fieldErrors: {}, formErrors: [], status: updated.status };
+    return {
+      fieldErrors: {},
+      formErrors: [],
+      status: updated.status,
+      ...projectActionMetadata(updated.status),
+    };
   } catch (e) {
     if (e instanceof ValidationError) {
-      return { fieldErrors: e.fieldErrors, formErrors: e.formErrors };
+      return {
+        fieldErrors: e.fieldErrors,
+        formErrors: e.formErrors,
+        ...(e instanceof TransitionError ? { transition: e.transition } : {}),
+      };
     }
     throw toErrorResponse(e);
   }
@@ -162,7 +180,7 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
   const locale = useLocale();
   const t = useT();
   const { project, notes, view, lanes, events } = loaderData;
-  const currentStatus = actionData?.status ?? project.status;
+  const currentStatus = project.status;
 
   const ganttTasks = project.tasks.map((t) => ({
     id: t.id,
@@ -204,24 +222,17 @@ export default function ProjectDetail({ loaderData, actionData }: Route.Componen
         <StatusBadge kind="project" value={project.status} />
         {/* Status is its own form: the transition writes `ProjectStatusChanged`,
             so it must not be an editable field on the edit page. */}
-        <Form method="post" className="flex items-center gap-2">
-          <input type="hidden" name="_action" value="status" />
-          <Select
-            name="status"
-            defaultValue={currentStatus}
-            className="max-w-[16rem]"
-            aria-label={t("projects.detail.statusAria")}
-          >
-            {PROJECT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {projectStatusLabel(locale, s)}
-              </option>
-            ))}
-          </Select>
-          <Button type="submit" variant="tertiary" size="compact">
-            {t("projects.detail.setStatus")}
-          </Button>
-        </Form>
+        <StatusTransitionForm
+          key={currentStatus}
+          currentState={currentStatus}
+          currentLabel={projectStatusLabel(locale, currentStatus)}
+          allowedActions={loaderData.allowedActions}
+          reasonKey={PROJECT_STATUS_POLICY.reasonKey}
+          selectLabel={t("projects.detail.statusAria")}
+          submitLabel={t("projects.detail.setStatus")}
+          variant="tertiary"
+          selectClassName="max-w-[16rem]"
+        />
         <ProjectFormErrors formErrors={actionData?.formErrors} />
       </section>
 

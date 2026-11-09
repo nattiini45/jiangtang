@@ -4,6 +4,7 @@ import type { ProjectStatus } from "~/generated/prisma/enums";
 import { db, type Tx } from "~/lib/db.server";
 import { NotFoundError } from "~/lib/errors.server";
 import type { ProjectListOptions } from "./projects.schema";
+import { projectActionMetadata } from "./projects.transitions";
 
 /**
  * Projects-domain queries. Single-row reads, the list with its
@@ -92,7 +93,7 @@ export async function listProjectOptions(): Promise<
 
 /** One project by its URL slug, or `null`. */
 export async function getProjectBySlug(slug: string) {
-  return db.project.findUnique({
+  const project = await db.project.findUnique({
     where: { slug },
     include: {
       lead: PROJECT_LEAD,
@@ -120,6 +121,7 @@ export async function getProjectBySlug(slug: string) {
       },
     },
   });
+  return project ? { ...project, ...projectActionMetadata(project.status) } : null;
 }
 
 /** Like {@link getProjectBySlug} but throws — for routes that 404 without it. */
@@ -131,7 +133,8 @@ export async function requireProjectBySlug(slug: string) {
 
 /** The plain row by id — the mutation path's handle, no relations. */
 export async function getProject(id: string) {
-  return db.project.findUnique({ where: { id } });
+  const project = await db.project.findUnique({ where: { id } });
+  return project ? { ...project, ...projectActionMetadata(project.status) } : null;
 }
 
 export interface ProjectReferenceCounts {
