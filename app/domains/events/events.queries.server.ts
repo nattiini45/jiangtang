@@ -21,17 +21,22 @@ export interface EventListRow {
   roomCount: number;
 }
 
-export async function listEvents(opts?: {
-  status?: EventStatus;
-  q?: string;
-  /** Optional window (UTC instants) with OVERLAP semantics: an event is
-   *  included when its interval intersects [from, to) — `endsAt > from` and
-   *  `startsAt < to` — so an event that started before the window but is still
-   *  running inside it is listed too. Only the mobile events list uses this. */
-  from?: Date;
-  to?: Date;
-}): Promise<EventListRow[]> {
+export async function listEvents(
+  opts?: {
+    status?: EventStatus;
+    q?: string;
+    /** Optional window (UTC instants) with OVERLAP semantics: an event is
+     *  included when its interval intersects [from, to) — `endsAt > from` and
+     *  `startsAt < to` — so an event that started before the window but is still
+     *  running inside it is listed too. Only the mobile events list uses this. */
+    from?: Date;
+    to?: Date;
+  },
+  page: { offset?: number; limit?: number } = {},
+): Promise<EventListRow[]> {
   const events = await db.event.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: {
       status: opts?.status,
       ...(opts?.q ? { title: { contains: opts.q, mode: "insensitive" } } : {}),
@@ -44,7 +49,7 @@ export async function listEvents(opts?: {
           }
         : {}),
     },
-    orderBy: [{ startsAt: "desc" }],
+    orderBy: [{ startsAt: "desc" }, { id: "asc" }],
     include: { rooms: { where: { cancelled: false }, select: { id: true } } },
   });
   return events.map((e) => ({

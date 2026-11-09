@@ -37,6 +37,7 @@ const NEW_BLOCKS = [
   "Note",
   "InventoryItem",
   "Vendor",
+  "PersonalAccessToken",
 ] as const;
 
 /**
@@ -341,8 +342,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(53); // +6 since then: TimeEntry's taskId/userId/createdById, Attachment.createdBy, Notification.user, TwoFactor.user
-    expect(withAction).toBe(41);
+    expect(owning).toBe(54);
+    expect(withAction).toBe(42);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

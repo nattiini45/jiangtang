@@ -21,6 +21,7 @@ export interface AuditActor {
   name?: string | null;
   email?: string | null;
   initials?: string | null;
+  via?: { kind: "mcp"; tokenId: string; tokenName: string };
 }
 
 export interface ActivityInput {
@@ -50,6 +51,10 @@ function actorSnapshot(actor?: AuditActor | null): Prisma.InputJsonValue | undef
   if (actor.name) snap.name = actor.name;
   if (actor.email) snap.email = actor.email;
   if (actor.initials) snap.initials = actor.initials;
+  if (actor.via) {
+    snap.via = `via MCP (${actor.via.tokenName})`;
+    snap.tokenId = actor.via.tokenId;
+  }
   // An actor with only an `id` (e.g. a system/service actor with no
   // name/email/initials on hand) would otherwise produce an EMPTY snapshot,
   // which Prisma writes as SQL NULL — losing attribution once actorId's

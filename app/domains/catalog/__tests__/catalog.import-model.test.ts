@@ -687,6 +687,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261107161719_notification_inbox",
       "20261108110000_calendar_outbox_last_attempt",
       "20261108120000_two_factor",
+      "20261109125000_personal_access_tokens",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only
     // new symbol is a function.

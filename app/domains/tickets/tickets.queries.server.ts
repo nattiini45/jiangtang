@@ -19,14 +19,19 @@ export interface TicketListRow {
   resolvedAt: Date | null;
 }
 
-export async function listTickets(opts?: {
-  type?: TicketType;
-  status?: TicketStatus;
-  roomId?: string;
-  equipmentId?: string;
-  q?: string;
-}): Promise<TicketListRow[]> {
+export async function listTickets(
+  opts?: {
+    type?: TicketType;
+    status?: TicketStatus;
+    roomId?: string;
+    equipmentId?: string;
+    q?: string;
+  },
+  page: { offset?: number; limit?: number } = {},
+): Promise<TicketListRow[]> {
   const tickets = await db.ticket.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: {
       type: opts?.type,
       status: opts?.status,
@@ -41,7 +46,7 @@ export async function listTickets(opts?: {
           }
         : {}),
     },
-    orderBy: [{ occurredAt: "desc" }],
+    orderBy: [{ occurredAt: "desc" }, { id: "asc" }],
     include: {
       room: { select: { name: true, slug: true } },
       equipment: { select: { name: true, assetTag: true } },
@@ -89,10 +94,14 @@ export interface AssignableUser {
 }
 
 /** Active accounts offered as reporter / assignees. */
-export async function listAssignableUsers(): Promise<AssignableUser[]> {
+export async function listAssignableUsers(
+  page: { offset?: number; limit?: number } = {},
+): Promise<AssignableUser[]> {
   const users = await db.user.findMany({
+    skip: page.offset,
+    take: page.limit,
     where: { isActive: true },
-    orderBy: [{ name: "asc" }],
+    orderBy: [{ name: "asc" }, { id: "asc" }],
     select: { id: true, name: true, initials: true },
   });
   return users;
