@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Form, Link, redirect, useNavigation } from "react-router";
+import { Form, Link, redirect, useLocation, useNavigation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
@@ -97,18 +97,34 @@ export async function loader({ request }: Route.LoaderArgs) {
 export default function EventsIndex({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
+  const location = useLocation();
   const navigation = useNavigation();
   const pending = navigation.state !== "idle";
   const { calendar, list, view, date, day, startDay, endDay, filters, feedUrl } = loaderData;
+  const currentLocation =
+    navigation.location?.pathname === location.pathname ? navigation.location : location;
+  const currentParams = new URLSearchParams(currentLocation.search);
+  const rawView = currentParams.get("view");
+  const currentView = CALENDAR_VIEWS.includes(rawView as CalendarView)
+    ? (rawView as CalendarView)
+    : view;
+  const currentDate = currentParams.get("date") ?? date;
+  const currentDay = parseCalendarDate(currentDate);
+  const currentFilters = {
+    status: currentParams.get("status") ?? "",
+    roomId: currentParams.get("room") ?? "",
+    equipmentId: currentParams.get("equipment") ?? "",
+    showTasks: currentParams.get("tasks") === "1",
+  };
   const columns = React.useMemo(() => eventColumns(t), [t]);
   const href = (changes: Record<string, string>) => {
     const params = new URLSearchParams({
-      view,
-      date,
-      status: filters.status,
-      room: filters.roomId,
-      equipment: filters.equipmentId,
-      tasks: filters.showTasks ? "1" : "",
+      view: currentView,
+      date: currentDate,
+      status: currentFilters.status,
+      room: currentFilters.roomId,
+      equipment: currentFilters.equipmentId,
+      tasks: currentFilters.showTasks ? "1" : "",
       ...changes,
     });
     for (const [key, value] of [...params]) if (!value) params.delete(key);
@@ -144,10 +160,6 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
           <Link
             key={option}
             to={href({ view: option })}
-            aria-disabled={pending}
-            onClick={(event) => {
-              if (pending) event.preventDefault();
-            }}
             aria-current={view === option ? "page" : undefined}
             className={buttonVariants({
               variant: view === option ? "secondary" : "ghost",
@@ -162,23 +174,15 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1">
             <Link
-              to={href({ date: dayIndexToDateKey(shiftCalendarDate(day, view, -1)) })}
+              to={href({ date: dayIndexToDateKey(shiftCalendarDate(currentDay, currentView, -1)) })}
               aria-label={t("events.calendar.previous")}
-              aria-disabled={pending}
-              onClick={(event) => {
-                if (pending) event.preventDefault();
-              }}
               className={buttonVariants({ variant: "tertiary", size: "icon-compact" })}
             >
               <ChevronLeft className="size-4" aria-hidden />
             </Link>
             <Link
-              to={href({ date: dayIndexToDateKey(shiftCalendarDate(day, view, 1)) })}
+              to={href({ date: dayIndexToDateKey(shiftCalendarDate(currentDay, currentView, 1)) })}
               aria-label={t("events.calendar.next")}
-              aria-disabled={pending}
-              onClick={(event) => {
-                if (pending) event.preventDefault();
-              }}
               className={buttonVariants({ variant: "tertiary", size: "icon-compact" })}
             >
               <ChevronRight className="size-4" aria-hidden />
@@ -217,11 +221,11 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
         className="flex flex-wrap items-center gap-2"
         onChange={(event) => event.currentTarget.requestSubmit()}
       >
-        <input type="hidden" name="view" value={view} />
+        <input type="hidden" name="view" value={currentView} />
         <Input
           type="date"
           name="date"
-          defaultValue={date}
+          defaultValue={currentDate}
           aria-label={t("events.calendar.date")}
           className="w-40"
           min="1900-01-01"
@@ -231,7 +235,7 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
           <Select
             name="status"
             aria-label={t("events.list.filterStatus")}
-            defaultValue={filters.status}
+            defaultValue={currentFilters.status}
             className="w-40"
           >
             <option value="">{t("events.list.allStatuses")}</option>
@@ -242,14 +246,14 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
             ))}
           </Select>
         ) : (
-          <input type="hidden" name="status" value={filters.status} />
+          <input type="hidden" name="status" value={currentFilters.status} />
         )}
         {view !== "list" ? (
           <>
             <Select
               name="room"
               aria-label={t("events.calendar.filterRoom")}
-              defaultValue={filters.roomId}
+              defaultValue={currentFilters.roomId}
               className="max-w-52"
             >
               <option value="">{t("events.calendar.allRooms")}</option>
@@ -263,7 +267,7 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
               <Select
                 name="equipment"
                 aria-label={t("events.calendar.filterEquipment")}
-                defaultValue={filters.equipmentId}
+                defaultValue={currentFilters.equipmentId}
                 className="max-w-52"
               >
                 <option value="">{t("events.calendar.allEquipment")}</option>
@@ -274,19 +278,25 @@ export default function EventsIndex({ loaderData }: Route.ComponentProps) {
                 ))}
               </Select>
             ) : (
-              <input type="hidden" name="equipment" value={filters.equipmentId} />
+              <input type="hidden" name="equipment" value={currentFilters.equipmentId} />
             )}
             <label className="flex h-control cursor-pointer items-center gap-2 px-1 text-sm">
               <Checkbox
                 name="tasks"
                 value="1"
-                defaultChecked={filters.showTasks}
+                defaultChecked={currentFilters.showTasks}
                 aria-label={t("events.calendar.showTasks")}
               />
               {t("events.calendar.tasks")}
             </label>
           </>
-        ) : null}
+        ) : (
+          <>
+            <input type="hidden" name="room" value={currentFilters.roomId} />
+            <input type="hidden" name="equipment" value={currentFilters.equipmentId} />
+            <input type="hidden" name="tasks" value={currentFilters.showTasks ? "1" : ""} />
+          </>
+        )}
         <noscript>
           <Button type="submit" variant="tertiary" size="compact">
             {t("events.list.filterSubmit")}
