@@ -1,6 +1,7 @@
 import { Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { listLocationTree } from "~/domains/locations/locations.tree.server";
@@ -47,6 +48,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
   try {
     const location = await createLocation(actor, result.data);
+    await emitChange({ entityType: "location", id: location.id, op: "created" });
     return redirect(`/locations/${location.id}`);
   } catch (e) {
     if (e instanceof ValidationError) {

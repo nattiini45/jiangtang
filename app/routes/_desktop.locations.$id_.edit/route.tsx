@@ -1,6 +1,7 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -74,6 +75,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   try {
     if (intent === "delete") {
       await deleteLocation(actor, location.id);
+      await emitChange({ entityType: "location", id: location.id, op: "deleted" });
       return redirect("/locations");
     }
 
@@ -90,6 +92,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         return { fieldErrors: result.fieldErrors, formErrors: result.formErrors };
       }
       await moveLocation(actor, location.id, result.data.parentId);
+      await emitChange({ entityType: "location", id: location.id, op: "updated" });
       return redirect(`/locations/${location.id}`);
     }
 
@@ -102,6 +105,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       return { fieldErrors: result.fieldErrors, formErrors: result.formErrors };
     }
     await updateLocation(actor, location.id, result.data);
+    await emitChange({ entityType: "location", id: location.id, op: "updated" });
     return redirect(`/locations/${location.id}`);
   } catch (e) {
     if (e instanceof ValidationError) {
