@@ -179,6 +179,8 @@ Additional checks: `pnpm typecheck`, `pnpm lint` and `bash scripts/guards.sh`.
 
 ## Deployment and operations
 
+- [docs/MCP.md](docs/MCP.md) — connect external MCP clients with scoped personal access tokens;
+  tools, resources, planning prompts and safety limits.
 - [docs/DEPLOY.md](docs/DEPLOY.md) — installing a fresh production stack, required variables,
   migrations, readiness and upload checks.
 - [docs/BACKUP.md](docs/BACKUP.md) — the recovery runbook: WAL-G database PITR, coherent
