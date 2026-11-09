@@ -1,4 +1,4 @@
-import { Form, Link, redirect, useNavigation } from "react-router";
+import { Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
@@ -10,7 +10,7 @@ import { getTicket } from "~/domains/tickets/tickets.queries.server";
 import { listAttachments } from "~/domains/attachments/attachments.queries.server";
 import { ticketTransitionSchema } from "~/domains/tickets/tickets.schema";
 import { transitionTicket } from "~/domains/tickets/tickets.mutations.server";
-import { berlinDateInput } from "~/lib/format-date";
+import { formatDateTime } from "~/i18n/format";
 import { ticketTypeLabel } from "~/components/tickets/labels";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -72,10 +72,16 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
   const busy = nav.state !== "idle";
   const locale = useLocale();
   const t = useT();
+  const [searchParams] = useSearchParams();
   const openish = ticket.status === "OPEN" || ticket.status === "IN_PROGRESS";
 
   return (
     <div className="flex flex-col gap-6 px-4 py-4">
+      {searchParams.get("created") === "1" ? (
+        <p role="status" className="bg-status-operational/10 rounded-lg p-3 font-semibold">
+          {t("mobile.tickets.created")}
+        </p>
+      ) : null}
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-muted-foreground text-xs">
@@ -93,7 +99,7 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
             {t("tickets.detail.room")}{" "}
             <Link
               to={`/m/rooms/${ticket.room.slug}`}
-              className="text-foreground underline decoration-(--input) underline-offset-4"
+              className="text-foreground inline-flex min-h-11 items-center underline decoration-(--input) underline-offset-4"
             >
               {ticket.room.name}
             </Link>
@@ -105,9 +111,9 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
           </span>
         ) : null}
         <span className="nums text-xs">
-          {t("mobile.tickets.captured", { date: berlinDateInput(ticket.occurredAt) })}
+          {t("mobile.tickets.captured", { date: formatDateTime(locale, ticket.occurredAt) })}
           {ticket.resolvedAt
-            ? t("mobile.tickets.resolvedAt", { date: berlinDateInput(ticket.resolvedAt) })
+            ? t("mobile.tickets.resolvedAt", { date: formatDateTime(locale, ticket.resolvedAt) })
             : ""}
         </span>
       </div>
@@ -174,15 +180,6 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
             busy={busy}
           />
         ) : null}
-        {ticket.status === "OPEN" || ticket.status === "IN_PROGRESS" ? (
-          <TransitionButton
-            status="CANCELLED"
-            label={t("common.cancel")}
-            variant="outline"
-            busy={busy}
-          />
-        ) : null}
-
         {openish ? (
           <Form method="post" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="status" value="RESOLVED" />
@@ -199,8 +196,27 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
                 {actionData.fieldErrors.resolution[0]}
               </p>
             ) : null}
-            <Button type="submit" disabled={busy} className="h-12 w-full">
+            <Button type="submit" disabled={busy} className="min-h-12 w-full">
               {t("tickets.detail.resolve")}
+            </Button>
+          </Form>
+        ) : null}
+        {openish ? (
+          <Form
+            method="post"
+            onSubmit={(event) => {
+              if (!window.confirm(t("mobile.tickets.cancelConfirm", { title: ticket.title })))
+                event.preventDefault();
+            }}
+          >
+            <input type="hidden" name="status" value="CANCELLED" />
+            <Button
+              type="submit"
+              variant="ghost"
+              disabled={busy}
+              className="text-muted-foreground min-h-11 w-full"
+            >
+              {t("mobile.tickets.cancel")}
             </Button>
           </Form>
         ) : null}
@@ -230,11 +246,11 @@ function TransitionButton({
   return (
     <Form method="post">
       <input type="hidden" name="status" value={status} />
-      <Button type="submit" variant={variant} disabled={busy} className="h-12 w-full">
+      <Button type="submit" variant={variant} disabled={busy} className="min-h-12 w-full">
         {label}
       </Button>
     </Form>
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Form, Link, NavLink } from "react-router";
-import { AnimatePresence, motion } from "motion/react";
+import { Form, Link, NavLink, useFetchers, useLocation, useNavigation } from "react-router";
+import { motion } from "motion/react";
 import {
   Bell,
   Camera,
@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   ListTodo,
   ChevronRight,
+  X,
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import { spring } from "~/lib/springs";
@@ -44,10 +45,7 @@ const NAV: { to: string; labelKey: MessageKey; icon: typeof Building2; end?: boo
   { to: "/m/tickets", labelKey: "nav.tickets", icon: Ticket },
 ];
 
-// The More sheet is a flat, single-level list of every mobile section — no
-// nested groups, so every entry is one tap away.
 const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
-  { to: "/m/rooms", labelKey: "nav.rooms" },
   { to: "/m/locations", labelKey: "nav.locations" },
   { to: "/m/inventory/stock", labelKey: "nav.stock" },
   { to: "/m/events", labelKey: "nav.events" },
@@ -56,9 +54,12 @@ const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
   { to: "/m/timesheet", labelKey: "nav.timesheet" },
   { to: "/m/board", labelKey: "nav.board" },
   { to: "/m/search", labelKey: "nav.search" },
-  { to: "/m/notifications", labelKey: "shell.notifications" },
+];
+
+const CREATE_LINKS: { to: string; labelKey: MessageKey }[] = [
   { to: "/m/tasks/new", labelKey: "mobile.menu.newTask" },
   { to: "/m/notes/new", labelKey: "mobile.menu.newNote" },
+  { to: "/m/events/new", labelKey: "mobile.events.create" },
 ];
 
 const TAB_CLASS =
@@ -81,6 +82,29 @@ export function MobileShell({
   // Replays the capture queue on mount + `online`, and gives the badge.
   const { pending, authRequired } = useOfflineQueue();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const dialogRef = React.useRef<HTMLDialogElement>(null);
+  const moreRef = React.useRef<HTMLButtonElement>(null);
+  const navigation = useNavigation();
+  const fetchers = useFetchers();
+  const busy = navigation.state !== "idle" || fetchers.some((f) => f.state !== "idle");
+  const { pathname } = useLocation();
+  const moreActive =
+    menuOpen || MORE_LINKS.some(({ to }) => pathname === to || pathname.startsWith(`${to}/`));
+
+  React.useEffect(() => {
+    if (!menuOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const trigger = moreRef.current;
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      document.documentElement.style.overflow = overflow;
+      trigger?.focus({ preventScroll: true });
+    };
+  }, [menuOpen]);
 
   // Hydration marker: e2e waits for `html[data-hydrated]` before interacting —
   // a pre-hydration submit falls back to a native POST, which offline turns
@@ -92,10 +116,13 @@ export function MobileShell({
   return (
     <div
       data-density="comfortable"
-      className="bg-background text-foreground flex min-h-screen flex-col text-sm"
+      className="mobile-shell bg-background text-foreground flex min-h-screen flex-col text-sm"
     >
       <NavPendingIndicator />
-      <header className="bg-background/85 sticky top-0 z-20 flex h-[calc(3.5rem+env(safe-area-inset-top))] items-center justify-between border-b pt-[env(safe-area-inset-top)] pr-[max(1rem,env(safe-area-inset-right))] pl-[max(1rem,env(safe-area-inset-left))] backdrop-blur-md">
+      <p role="status" className="sr-only">
+        {busy ? t("mobile.loading") : ""}
+      </p>
+      <header className="mobile-header bg-background/85 sticky top-0 z-20 flex items-center justify-between border-b backdrop-blur-md">
         <span className="flex items-center gap-2.5">
           <span
             aria-hidden
@@ -111,11 +138,11 @@ export function MobileShell({
             to="/m/notifications"
             aria-label={t("shell.notifications")}
             title={t("shell.notifications")}
-            className="bg-card relative flex size-9 items-center justify-center rounded-md shadow-[inset_0_0_0_1px_var(--input)]"
+            className="bg-card relative flex size-11 items-center justify-center rounded-md shadow-[inset_0_0_0_1px_var(--input)]"
           >
             <Bell className="size-4" strokeWidth={1.5} aria-hidden />
             {unreadNotifications > 0 ? (
-              <span className="bg-destructive text-destructive-foreground nums absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[10px] font-bold">
+              <span className="bg-destructive text-destructive-foreground nums type-micro absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full font-semibold">
                 {unreadNotifications > 9 ? "9+" : unreadNotifications}
               </span>
             ) : null}
@@ -125,81 +152,111 @@ export function MobileShell({
           </span>
         </span>
       </header>
-      <main className="flex-1 overflow-y-auto pr-[env(safe-area-inset-right)] pb-[calc(4rem+env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)]">
+      <main aria-busy={busy} className="min-w-0 flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {children}
       </main>
 
-      {/* "More" menu — language, logout (no dedicated mobile control before) + a small
-          desktop escape hatch. A sheet over a backdrop that closes it on outside tap. */}
-      <AnimatePresence>
-        {menuOpen ? (
-          <>
-            <motion.button
-              key="backdrop"
-              type="button"
-              aria-label={t("mobile.menu.close")}
-              className="bg-scrim fixed inset-0 z-30"
-              onClick={() => setMenuOpen(false)}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0, transition: spring.slow.exit }}
-              transition={spring.slow}
-            />
-            <motion.div
-              key="sheet"
-              className="bg-surface-5 shadow-surface-5 fixed right-[calc(0.5rem+env(safe-area-inset-right))] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-[calc(0.5rem+env(safe-area-inset-left))] z-40 flex flex-col gap-3 rounded-xl p-3"
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 16, transition: spring.slow.exit }}
-              transition={spring.slow}
-            >
-              <div className="flex flex-col px-1">
-                <span className="font-semibold">{user.name}</span>
-                {user.role ? (
-                  <span className="text-muted-foreground text-xs">
-                    {roleLabel(locale, user.role)}
-                  </span>
-                ) : null}
-              </div>
-              <nav
-                className="bg-card shadow-surface-1 flex flex-col divide-y overflow-hidden rounded-lg"
-                aria-label={t("mobile.menu.moreSections")}
+      <dialog
+        ref={dialogRef}
+        id="mobile-more"
+        aria-labelledby="mobile-more-title"
+        className="mobile-more bg-surface-5 text-foreground shadow-surface-5 rounded-xl p-0"
+        onClose={() => setMenuOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key !== "Tab") return;
+          const targets = event.currentTarget.querySelectorAll<HTMLElement>(
+            'a[href], button:not(:disabled), input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+          );
+          const first = targets[0];
+          const last = targets[targets.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last?.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first?.focus();
+          }
+        }}
+        onClick={(event) => {
+          if (event.target !== event.currentTarget) return;
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom
+          )
+            setMenuOpen(false);
+        }}
+      >
+        <div className="flex items-center justify-between gap-3 px-4 pt-3">
+          <h2 id="mobile-more-title" className="text-base font-semibold">
+            {t("mobile.nav.more")}
+          </h2>
+          <button
+            type="button"
+            aria-label={t("mobile.menu.close")}
+            onClick={() => setMenuOpen(false)}
+            className="hover:bg-hover flex size-11 shrink-0 items-center justify-center rounded-md"
+          >
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
+        <div className="flex min-h-0 flex-col gap-4 overflow-y-auto overscroll-contain p-4">
+          <div className="flex flex-col px-1">
+            <span className="font-semibold">{user.name}</span>
+            {user.role ? (
+              <span className="text-muted-foreground text-xs">{roleLabel(locale, user.role)}</span>
+            ) : null}
+          </div>
+          <nav aria-label={t("mobile.menu.moreSections")} className="flex flex-col gap-4">
+            {[
+              { label: t("mobile.menu.moreSections"), links: MORE_LINKS },
+              { label: t("mobile.menu.create"), links: CREATE_LINKS },
+            ].map((group) => (
+              <section key={group.label} className="flex flex-col gap-2">
+                <h3 className="text-muted-foreground px-1 font-semibold">{group.label}</h3>
+                <div className="bg-card shadow-surface-1 flex flex-col divide-y overflow-hidden rounded-lg">
+                  {group.links.map((l) => (
+                    <Link
+                      key={l.to}
+                      to={l.to}
+                      onClick={() => setMenuOpen(false)}
+                      className="active:bg-selected flex min-h-12 items-center justify-between px-3 transition-colors duration-80"
+                    >
+                      {t(l.labelKey)}
+                      <ChevronRight
+                        className="text-muted-foreground size-4 shrink-0"
+                        strokeWidth={1.5}
+                        aria-hidden
+                      />
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </nav>
+          <div className="flex items-center justify-between gap-2">
+            <LanguageSwitcher size="lg" />
+            <Form method="post" action="/logout">
+              <button
+                type="submit"
+                className="bg-tint active:bg-tint-hover flex min-h-11 cursor-pointer items-center rounded-md px-4 font-semibold transition-colors duration-80"
               >
-                {MORE_LINKS.map((l) => (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    onClick={() => setMenuOpen(false)}
-                    className="active:bg-selected flex min-h-12 items-center justify-between px-3 transition-colors duration-80"
-                  >
-                    {t(l.labelKey)}
-                    <ChevronRight className="text-muted-foreground size-4" strokeWidth={1.5} />
-                  </Link>
-                ))}
-              </nav>
-              <div className="flex items-center justify-between gap-2">
-                <LanguageSwitcher size="lg" />
-                <Form method="post" action="/logout">
-                  <button
-                    type="submit"
-                    className="bg-tint active:bg-tint-hover flex min-h-11 cursor-pointer items-center rounded-md px-4 font-semibold transition-colors duration-80"
-                  >
-                    {t("shell.logout")}
-                  </button>
-                </Form>
-              </div>
-              <ViewSwitch
-                view="desktop"
-                className="text-muted-foreground flex min-h-11 w-full items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
-              >
-                {t("mobile.menu.desktop")}
-              </ViewSwitch>
-            </motion.div>
-          </>
-        ) : null}
-      </AnimatePresence>
+                {t("shell.logout")}
+              </button>
+            </Form>
+          </div>
+          <ViewSwitch
+            view="desktop"
+            className="text-muted-foreground flex min-h-11 w-full items-center justify-center text-xs underline decoration-(--input) underline-offset-4"
+          >
+            {t("mobile.menu.desktop")}
+          </ViewSwitch>
+        </div>
+      </dialog>
 
-      <nav className="bg-background/90 fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] border-t pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] backdrop-blur-md">
+      <nav className="mobile-tabs bg-background/90 fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] border-t pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
         {NAV.map(({ to, labelKey, icon: Icon, end }) => (
           <NavLink
             key={to}
@@ -232,13 +289,17 @@ export function MobileShell({
           </NavLink>
         ))}
         <button
+          ref={moreRef}
           type="button"
+          aria-haspopup="dialog"
+          aria-controls="mobile-more"
+          aria-current={moreActive ? "true" : undefined}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((o) => !o)}
-          className={cn(TAB_CLASS, menuOpen ? "text-foreground" : "text-muted-foreground")}
+          className={cn(TAB_CLASS, moreActive ? "text-foreground" : "text-muted-foreground")}
         >
           <span className="relative flex h-7 w-12 items-center justify-center">
-            {menuOpen ? (
+            {moreActive ? (
               <motion.span
                 layoutId="mobile-tab-active"
                 transition={spring.moderate}
@@ -247,11 +308,11 @@ export function MobileShell({
             ) : null}
             <MoreHorizontal
               className="relative size-5"
-              strokeWidth={menuOpen ? 2 : 1.5}
+              strokeWidth={moreActive ? 2 : 1.5}
               aria-hidden
             />
           </span>
-          <WeightLabel active={menuOpen}>{t("mobile.nav.more")}</WeightLabel>
+          <WeightLabel active={moreActive}>{t("mobile.nav.more")}</WeightLabel>
         </button>
       </nav>
     </div>

@@ -19,7 +19,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { dayIndexToDateKey, berlinDayIndex } from "~/lib/berlin-days";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
@@ -161,7 +161,10 @@ export default function MobileEventNew({ loaderData, actionData }: Route.Compone
     <div className="flex flex-col gap-4 px-4 py-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-lg font-semibold">{t("mobile.eventsNew.title")}</h1>
-        <Link to="/m/events" className="text-muted-foreground text-sm hover:underline">
+        <Link
+          to="/m/events"
+          className="text-muted-foreground flex min-h-11 shrink-0 items-center text-sm hover:underline"
+        >
           {t("mobile.events.back")}
         </Link>
       </div>

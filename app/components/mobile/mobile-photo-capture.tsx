@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useT } from "~/i18n/use-t";
 import { Button } from "~/components/ui/button";
+import { Camera, ImagePlus } from "lucide-react";
 
 /**
  * Mobile photo capture. Camera → photo → attach to a
@@ -24,22 +25,32 @@ export function MobilePhotoCapture({
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [captures, setCaptures] = React.useState(0);
+  const [starting, setStarting] = React.useState(false);
+  const [ready, setReady] = React.useState(false);
+  const mounted = React.useRef(true);
   // Mirrors `stream` state but read from the unmount cleanup below, which
   // otherwise closes over the initial (null) `stream` from first render.
   const streamRef = React.useRef<MediaStream | null>(null);
 
   async function startCamera() {
+    if (starting) return;
     setError(null);
+    fileInputRef.current?.setAttribute("capture", "environment");
     if (!navigator.mediaDevices?.getUserMedia) {
       // No getUserMedia — fall back to the file input (iOS Safari path).
       fileInputRef.current?.click();
       return;
     }
+    setStarting(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
       });
+      if (!mounted.current) {
+        s.getTracks().forEach((track) => track.stop());
+        return;
+      }
       setStream(s);
       streamRef.current = s;
       // Attach the stream once the video element renders.
@@ -49,22 +60,26 @@ export function MobilePhotoCapture({
           void videoRef.current.play();
         }
       });
-    } catch (e) {
+    } catch {
       // Permission denied / no camera → fall back to file input.
-      setError((e as Error).message);
+      if (!mounted.current) return;
+      setError(t("mobile.photo.unavailable"));
       fileInputRef.current?.click();
+    } finally {
+      if (mounted.current) setStarting(false);
     }
   }
 
   function stopCamera() {
     stream?.getTracks().forEach((t) => t.stop());
     setStream(null);
+    setReady(false);
     streamRef.current = null;
   }
 
   function snap() {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || video.readyState < 2 || !video.videoWidth) return;
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 1024;
     canvas.height = video.videoHeight || 768;
@@ -93,9 +108,11 @@ export function MobilePhotoCapture({
   }
 
   React.useEffect(() => {
+    mounted.current = true;
     // Cleanup on unmount: stop tracks via the ref (not `stopCamera`, whose
     // first-render closure would otherwise see a stale null `stream`).
     return () => {
+      mounted.current = false;
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
@@ -111,9 +128,11 @@ export function MobilePhotoCapture({
             className="bg-camera-preview aspect-video w-full rounded-lg"
             playsInline
             muted
+            onLoadedData={() => setReady(true)}
           />
           <div className="flex gap-2">
-            <Button type="button" onClick={snap} className="min-h-11 flex-1">
+            <Button type="button" onClick={snap} disabled={!ready} className="min-h-11 flex-1">
+              <Camera aria-hidden className="size-4" />
               {t("mobile.photo.take")}
             </Button>
             <Button
@@ -131,26 +150,39 @@ export function MobilePhotoCapture({
           type="button"
           variant="secondary"
           onClick={startCamera}
+          disabled={starting}
           className="min-h-11 w-full py-6 text-sm"
         >
-          {t("mobile.photo.start")}
+          <Camera aria-hidden className="size-4" />
+          {starting ? t("mobile.photo.starting") : t("mobile.photo.start")}
         </Button>
       )}
+      <Button
+        type="button"
+        variant="ghost"
+        className="min-h-11"
+        onClick={() => {
+          fileInputRef.current?.removeAttribute("capture");
+          fileInputRef.current?.click();
+        }}
+      >
+        <ImagePlus aria-hidden className="size-4" />
+        {t("mobile.photo.choose")}
+      </Button>
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={onFileChange}
         className="hidden"
       />
       {error ? (
-        <p className="text-muted-foreground text-xs">
-          {t("mobile.photo.cameraUnavailable", { error })}
+        <p role="status" className="text-muted-foreground text-xs">
+          {error}
         </p>
       ) : null}
       {captures + existingCount > 0 ? (
-        <p className="text-muted-foreground nums text-xs">
+        <p role="status" className="text-muted-foreground nums text-xs">
           {t("mobile.photo.count", { count: captures + existingCount })}
         </p>
       ) : null}

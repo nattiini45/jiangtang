@@ -9,10 +9,10 @@ import { setTaskAssignees, setTaskStatus } from "~/domains/tasks/tasks.mutations
 import { emitChange } from "~/lib/realtime/emit.server";
 import { TaskStatus } from "~/generated/prisma/enums";
 import { taskStatusLabel } from "~/components/tasks/labels";
-import { berlinDateInput } from "~/lib/format-date";
+import { formatDate } from "~/i18n/format";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 import { cn } from "~/lib/utils";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale } from "~/i18n/use-t";
@@ -33,7 +33,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await requireUser(request);
   const locale = resolveLocale(request);
   const task = await getTask(params.id);
-  if (!task) throw new NotFoundError(t(locale, "err.task.notFound"));
+  if (!task) throw toErrorResponse(new NotFoundError(t(locale, "err.task.notFound")));
   return { task, meId: user.id };
 }
 
@@ -43,7 +43,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
   const task = await getTask(params.id);
-  if (!task) throw new NotFoundError(t(locale, "err.task.notFound"));
+  if (!task) throw toErrorResponse(new NotFoundError(t(locale, "err.task.notFound")));
   try {
     if (intent === "set-status") {
       const status = String(form.get("status") ?? "") as TaskStatus;
@@ -75,6 +75,7 @@ const QUICK_STATUSES: TaskStatus[] = [
   TaskStatus.TODO,
   TaskStatus.IN_PROGRESS,
   TaskStatus.IN_REVIEW,
+  TaskStatus.BLOCKED,
   TaskStatus.DONE,
 ];
 
@@ -97,7 +98,7 @@ export default function MobileTaskDetail({ loaderData }: Route.ComponentProps) {
             taskStatusLabel(locale, task.status),
             task.project?.name ?? null,
             task.dueAt
-              ? t(locale, "mobile.tasks.due", { date: berlinDateInput(task.dueAt) })
+              ? t(locale, "mobile.tasks.due", { date: formatDate(locale, task.dueAt) })
               : null,
           ]
             .filter(Boolean)

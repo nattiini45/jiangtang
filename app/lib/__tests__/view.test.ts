@@ -93,12 +93,14 @@ const equivalents = [
   ["/board", "/m/board"],
   ["/events", "/m/events"],
   ["/events/new", "/m/events/new"],
+  ["/events/event-1", "/m/events/event-1"],
   ["/inventory/stock", "/m/inventory/stock"],
   ["/inventory/equipment-1", "/m?equipmentId=equipment-1"],
   ["/inventory/stock/item-1", "/m/inventory/stock/item-1"],
   ["/locations", "/m/locations"],
   ["/notes", "/m/notes"],
   ["/notes/new", "/m/notes/new"],
+  ["/notes/note-1", "/m/notes/note-1"],
   ["/notifications", "/m/notifications"],
   ["/projects", "/m/projects"],
   ["/rooms", "/m/rooms"],
@@ -183,6 +185,8 @@ describe("route equivalents", () => {
     ["/inventory/projector-1?equipmentId=forged", "/m?equipmentId=projector-1"],
     ["/inventory/a%20b", "/m?equipmentId=a+b"],
     ["/rooms/a%20b#bookings", "/m/rooms/a%20b#bookings"],
+    ["/rooms/hall?date=2026-10-25", "/m/rooms/hall?date=2026-10-25"],
+    ["/events/e-1?date=2026-10-25&edit=1", "/m/events/e-1?date=2026-10-25"],
     ["/tasks/a%3Fb%23c", "/m/tasks/a%3Fb%23c"],
     ["/tasks.data?_routes=routes%2F_desktop.tasks._index&assignee=me", "/m/tasks"],
     ["/_root.data?_routes=root", "/m"],
@@ -192,6 +196,10 @@ describe("route equivalents", () => {
 
   it("maps the explicit desktop switch back to real routes", () => {
     expect(viewPath("/m/tasks/t-1", "desktop")).toBe("/tasks/t-1");
+    expect(viewPath("/m/events/e-1?date=2026-10-25", "desktop")).toBe(
+      "/events/e-1?date=2026-10-25",
+    );
+    expect(viewPath("/m/notes/n-1", "desktop")).toBe("/notes/n-1");
     expect(viewPath("/m/tasks", "desktop")).toBe("/tasks?assignee=me");
     expect(viewPath("/m/tasks?all=1", "desktop")).toBe("/tasks");
     expect(viewPath("/m?roomId=a", "desktop")).toBe("/quick-entry?roomId=a");
@@ -213,6 +221,11 @@ describe("route equivalents", () => {
 });
 
 describe("routing boundaries", () => {
+  it.each(["events/e-1", "notes/n-1"])("retains direct authenticated phone detail %s", (path) => {
+    expect(authLanding(request("/login", {}), `/m/${path}`)).toBe(`/m/${path}`);
+    expect(authLanding(request("/login"), `/${path}`)).toBe(`/m/${path}`);
+    expect(viewRedirect(request(`/${path}`))).toBe(`/m/${path}`);
+  });
   it.each([
     ["/rooms.data?_routes=routes%2F_desktop.rooms._index", "/m/rooms"],
     ["/_root.data?_routes=root", "/m"],

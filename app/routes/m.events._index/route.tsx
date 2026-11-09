@@ -1,5 +1,4 @@
 import { Form, Link, redirect } from "react-router";
-import { ViewSwitch } from "~/components/layout/view-switch";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
@@ -47,7 +46,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
         <Link
           to={`?date=${dayIndexToDateKey(day - 1)}`}
           aria-label={t("events.calendar.previous")}
-          className={buttonVariants({ variant: "tertiary", size: "icon" })}
+          className={`${buttonVariants({ variant: "tertiary", size: "icon" })} min-h-11 min-w-11`}
         >
           <ChevronLeft className="size-4" aria-hidden />
         </Link>
@@ -73,7 +72,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
         <Link
           to={`?date=${dayIndexToDateKey(day + 1)}`}
           aria-label={t("events.calendar.next")}
-          className={buttonVariants({ variant: "tertiary", size: "icon" })}
+          className={`${buttonVariants({ variant: "tertiary", size: "icon" })} min-h-11 min-w-11`}
         >
           <ChevronRight className="size-4" aria-hidden />
         </Link>
@@ -88,7 +87,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
         </h2>
         <Link
           to={`?date=${dayIndexToDateKey(berlinDayIndex(new Date()))}`}
-          className={buttonVariants({ variant: "ghost", size: "compact" })}
+          className={`${buttonVariants({ variant: "ghost", size: "compact" })} min-h-11`}
         >
           {t("events.calendar.today")}
         </Link>
@@ -100,10 +99,8 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
             berlinDayIndex(new Date(event.endsAt)) !== berlinDayIndex(new Date(event.startsAt));
           return (
             <li key={event.id}>
-              <ViewSwitch
-                view="desktop"
-                desktopLabel
-                next={`/events/${event.id}`}
+              <Link
+                to={`/m/events/${event.id}?date=${date}`}
                 className="hover:bg-hover active:bg-selected flex min-h-16 w-full flex-col gap-1 px-3 py-3 text-left"
               >
                 <span className="text-muted-foreground nums text-xs">
@@ -124,7 +121,7 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
                     eventStatusLabel(locale, event.status),
                   ].join(" · ")}
                 </span>
-              </ViewSwitch>
+              </Link>
             </li>
           );
         })}
@@ -142,4 +139,4 @@ export default function MobileEventsIndex({ loaderData }: Route.ComponentProps) 
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

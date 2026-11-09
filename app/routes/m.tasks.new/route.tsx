@@ -18,7 +18,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Select } from "~/components/ui/select";
-import { RouteErrorBoundary } from "~/components/route-error-boundary";
+import { MobileRouteErrorBoundary as RouteErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
 
 /**
  * Mobile task capture — title + optional project + optional due day.

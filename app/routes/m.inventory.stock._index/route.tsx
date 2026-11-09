@@ -1,4 +1,9 @@
-import { Link } from "react-router";
+import { Form, Link } from "react-router";
+import { EmptyState } from "~/components/states/empty-state";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Button } from "~/components/ui/button";
+import { Package } from "lucide-react";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listStock } from "~/domains/inventory/inventory.stock.queries.server";
@@ -38,16 +43,37 @@ export async function loader({ request }: Route.LoaderArgs) {
     search: url.searchParams.get("q") ?? undefined,
     includeUnassigned: url.searchParams.get("hideUnassigned") === "1" ? false : undefined,
   });
-  return { items: await listStock(options) };
+  return {
+    items: await listStock(options),
+    q: options.search ?? "",
+    hideUnassigned: url.searchParams.get("hideUnassigned") === "1",
+  };
 }
 
 export default function MobileStockIndex({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
-  const { items } = loaderData;
+  const { items, q, hideUnassigned } = loaderData;
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
       <h1 className="text-lg font-semibold">{t("nav.stock")}</h1>
+      <Form method="get" className="flex flex-col gap-2">
+        <Label htmlFor="stock-search">{t("mobile.stock.search")}</Label>
+        {hideUnassigned ? <input type="hidden" name="hideUnassigned" value="1" /> : null}
+        <div className="flex gap-2">
+          <Input
+            key={q}
+            id="stock-search"
+            type="search"
+            name="q"
+            defaultValue={q}
+            className="min-w-0 flex-1"
+          />
+          <Button type="submit" variant="secondary">
+            {t("nav.search")}
+          </Button>
+        </div>
+      </Form>
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {items.map((item) => {
           const quantity = `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`;
@@ -64,8 +90,8 @@ export default function MobileStockIndex({ loaderData }: Route.ComponentProps) {
                 className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold">{item.name}</p>
-                  <p className="text-muted-foreground nums truncate text-xs">
+                  <p className="whitespace-normal text-sm font-semibold">{item.name}</p>
+                  <p className="text-muted-foreground nums whitespace-normal text-xs">
                     {[quantity, location, status].filter(Boolean).join(" · ")}
                     {identifier ? (
                       <>
@@ -80,11 +106,22 @@ export default function MobileStockIndex({ loaderData }: Route.ComponentProps) {
           );
         })}
         {items.length === 0 ? (
-          <li className="text-muted-foreground px-3 py-4 text-sm">{t("mobile.stock.empty")}</li>
+          <li>
+            <EmptyState
+              icon={Package}
+              title={t(q || hideUnassigned ? "mobile.filters.emptyTitle" : "mobile.stock.empty")}
+              hint={t(q || hideUnassigned ? "mobile.filters.emptyHint" : "mobile.stock.emptyHint")}
+              action={
+                q || hideUnassigned
+                  ? { to: "/m/inventory/stock", label: t("mobile.filters.clear") }
+                  : undefined
+              }
+            />
+          </li>
         ) : null}
       </ul>
     </div>
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";

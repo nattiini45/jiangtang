@@ -1,6 +1,42 @@
 import type { mobileDe } from "../de/mobile";
 
 export const mobileEn = {
+  "mobile.notifications.emptyHint":
+    "New assignments and other updates appear here when they arrive.",
+  "mobile.error.missingTitle": "Entry not found",
+  "mobile.error.missingBody": "The entry may have been removed or the link is no longer valid.",
+  "mobile.error.failedTitle": "The page could not be shown",
+  "mobile.error.failedBody": "Try loading the page again, or return to capture.",
+  "mobile.error.capture": "Back to capture",
+  "mobile.error.retry": "Reload page",
+  "mobile.loading": "Loading…",
+  "mobile.menu.create": "Create",
+  "mobile.photo.choose": "Choose a photo",
+  "mobile.photo.starting": "Opening camera…",
+  "mobile.photo.unavailable": "The camera could not be opened. You can choose a photo instead.",
+  "mobile.tickets.created": "Entry logged. This is your ticket.",
+  "mobile.tickets.cancel": "Cancel ticket",
+  "mobile.tickets.cancelConfirm": "Cancel the ticket “{title}”? You can reopen it later.",
+  "mobile.tickets.search": "Search tickets",
+  "mobile.stock.search": "Search stock",
+  "mobile.search.label": "Search the workspace",
+  "mobile.search.hint": "Find work, rooms or equipment by keyword, ID or serial number.",
+  "mobile.filters.emptyHint": "Try another keyword or clear the filters to see more entries.",
+  "mobile.filters.emptyTitle": "No matching entries",
+  "mobile.filters.clear": "Clear filters",
+  "mobile.tickets.emptyHint": "Log an entry to report a fault or record completed work.",
+  "mobile.stock.emptyHint":
+    "Stock is managed in the desktop workspace. Items recorded there appear here.",
+  "mobile.locations.emptyHint":
+    "Locations are managed in the desktop workspace. Recorded locations appear here.",
+  "mobile.projects.emptyHint":
+    "Projects are managed in the desktop workspace. Recorded projects appear here.",
+  "mobile.tasks.emptyHint": "Create a task to record the next piece of work.",
+  "mobile.tasks.emptyMineHint": "Check All open for team tasks, or create a task for new work.",
+  "mobile.timesheet.emptyHint": "Start the timer above to record work, or choose another week.",
+  "mobile.timesheet.previous": "Previous week",
+  "mobile.timesheet.next": "Next week",
+  "mobile.timesheet.week": "Week {week} · {year}",
   "mobile.meta.entry": "Capture · Jiangtang",
   "mobile.meta.noteNew": "Create note · Jiangtang",
   "mobile.meta.taskNew": "Create task · Jiangtang",
@@ -57,8 +93,7 @@ export const mobileEn = {
 
   "mobile.photo.take": "Take photo",
   "mobile.photo.close": "Close",
-  "mobile.photo.start": "📷 Add a photo",
-  "mobile.photo.cameraUnavailable": "Camera unavailable: {error}",
+  "mobile.photo.start": "Add a photo",
   "mobile.photo.count": "{count} photo(s) on this ticket",
 
   "mobile.entry.title": "Log an entry",

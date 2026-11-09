@@ -139,7 +139,7 @@ test("a retry after a lost answer keeps one ticket and uploads its photo", async
 
   await page.unroute(isEntryPost);
   await page.getByRole("button", { name: "Erneut versuchen" }).click();
-  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/m\/tickets\/[^/?]+\?created=1$/, { timeout: 15_000 });
   expect(await db.ticket.count({ where: { title: TITLE } })).toBe(1);
   const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
   expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(1);
@@ -161,7 +161,7 @@ test("saving without photos drops them, even when the connection is back", async
   // The connection returns before the person picks "without photos".
   await page.unroute(isEntryPost);
   await page.getByRole("button", { name: "Offline ohne Fotos speichern" }).click();
-  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/m\/tickets\/[^/?]+\?created=1$/, { timeout: 15_000 });
   const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
   expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(0);
 });
@@ -183,7 +183,7 @@ test("a retry keeps the time of the first attempt", async ({ page }) => {
   await page.waitForTimeout(3_000);
   await page.unroute(isEntryPost);
   await page.getByRole("button", { name: "Erneut versuchen" }).click();
-  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/m\/tickets\/[^/?]+\?created=1$/, { timeout: 15_000 });
   const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
   expect(ticket.occurredAt.getTime()).toBeLessThan(firstAttempt + 2_000);
 });
@@ -200,7 +200,7 @@ test("online, the entry is created and its photo uploaded", async ({ page }) => 
   });
   await submitButton(page).click();
 
-  await expect(page).toHaveURL(/\/m\/rooms$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/m\/tickets\/[^/?]+\?created=1$/, { timeout: 15_000 });
   const ticket = await db.ticket.findFirstOrThrow({ where: { title: TITLE } });
   expect(await db.attachment.count({ where: { ticketId: ticket.id } })).toBe(1);
 });

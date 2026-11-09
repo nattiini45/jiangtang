@@ -3,6 +3,8 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listRooms } from "~/domains/rooms/rooms.queries.server";
 import { StatusBadge } from "~/components/ui/status-badge";
+import { EmptyState } from "~/components/states/empty-state";
+import { DoorOpen } from "lucide-react";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
@@ -26,17 +28,17 @@ export default function MobileRoomsIndex({ loaderData }: Route.ComponentProps) {
   const { rooms } = loaderData;
   const t = useT();
   return (
-    <div className="flex flex-col gap-4 px-4 py-4">
+    <div className="flex min-w-0 flex-col gap-4 px-4 py-4 [overflow-wrap:anywhere]">
       <h1 className="text-lg font-semibold">{t("nav.rooms")}</h1>
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {rooms.map((r) => (
           <li key={r.id}>
             <Link
               to={`/m/rooms/${r.slug}`}
-              className="active:bg-selected flex min-h-12 items-center gap-3 px-3 py-2 transition-colors duration-80"
+              className="hover:bg-hover active:bg-selected flex min-h-12 flex-wrap items-center gap-3 px-3 py-3 transition-colors duration-80"
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{r.name}</p>
+                <p className="text-sm font-semibold">{r.name}</p>
                 <p className="text-muted-foreground nums text-xs">
                   {r.roomNumber ? <span className="font-mono">{r.roomNumber}</span> : null}
                   {r.roomNumber && r.campusName ? " · " : null}
@@ -48,11 +50,13 @@ export default function MobileRoomsIndex({ loaderData }: Route.ComponentProps) {
           </li>
         ))}
         {rooms.length === 0 ? (
-          <li className="text-muted-foreground px-3 py-4 text-sm">{t("mobile.rooms.empty")}</li>
+          <li>
+            <EmptyState icon={DoorOpen} title={t("mobile.rooms.empty")} />
+          </li>
         ) : null}
       </ul>
     </div>
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+export { MobileRouteErrorBoundary as ErrorBoundary } from "~/components/mobile/mobile-route-error-boundary";
