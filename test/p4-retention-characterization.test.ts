@@ -389,10 +389,10 @@ describe("P4 stage-one real-database characterization only", () => {
     await markNotificationRead({ id: member.id }, notificationIds[0]);
     expect(
       (await db.notification.findUniqueOrThrow({ where: { id: notificationIds[0] } })).readAt,
-    ).toEqual(NOW);
+    ).toEqual(reads[0]);
     expect(
       await db.notification.count({ where: { userId: member.id, readAt: { lt: readCutoff } } }),
-    ).toBe(0);
+    ).toBe(1);
     console.log(
       "P4 age boundaries",
       JSON.stringify({
@@ -401,7 +401,7 @@ describe("P4 stage-one real-database characterization only", () => {
         nullProcessedRetained: true,
         pendingFailedRetained: true,
         exactNinetyDaysRetained: true,
-        repeatedReadMovesTimestampOnMain: true,
+        repeatedReadPreservesTimestamp: true,
       }),
     );
   });
