@@ -103,37 +103,72 @@ for (const locale of ["en", "de"] as const) {
     await expect(projectSubmit).toBeDisabled();
   });
 
-  test(`${locale}: a stale task palette command surfaces the real server rejection`, async ({
-    page,
-    context,
-    baseURL,
-  }) => {
-    const { actor, task } = await fixture();
-    await context.addCookies([{ name: "locale", value: locale, url: baseURL! }]);
-    await page.goto(`/tasks/${task.id}`);
-    await page.locator("html[data-hydrated]").waitFor();
-    await page.keyboard.press("Control+k");
-    const palette = page.getByRole("dialog", { name: t(locale, "command.label") });
-    const command = t(locale, "command.verb.setStatus", {
-      status: t(locale, "status.task.IN_PROGRESS"),
+  for (const dismissError of [true, false]) {
+    test(`${locale}: a stale task palette command surfaces the real server rejection (${dismissError ? "dismissed" : "undismissed"})`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      const { actor, task } = await fixture();
+      await context.addCookies([{ name: "locale", value: locale, url: baseURL! }]);
+      await page.goto(`/tasks/${task.id}`);
+      await page.locator("html[data-hydrated]").waitFor();
+      await page.keyboard.press("Control+k");
+      const palette = page.getByRole("dialog", { name: t(locale, "command.label") });
+      const command = t(locale, "command.verb.setStatus", {
+        status: t(locale, "status.task.IN_PROGRESS"),
+      });
+      await palette.getByRole("combobox").fill(command);
+      const before = await db.activityLog.count({
+        where: { entityType: "task", entityId: task.id },
+      });
+      await page.route(`**/tasks/${task.id}*`, async (route) => {
+        if (route.request().method() === "POST") await setTaskStatus(actor, task.id, "IN_PROGRESS");
+        await route.continue();
+      });
+      await palette.getByRole("option", { name: new RegExp(`^${command}`) }).click();
+      await expect(palette).not.toBeVisible();
+      await expect(page.getByRole("alert")).toContainText(t(locale, "work.err.task.statusAlready"));
+      expect(await db.activityLog.count({ where: { entityType: "task", entityId: task.id } })).toBe(
+        before + 1,
+      );
+      if (dismissError) {
+        await page
+          .getByRole("button", { name: t(locale, "command.dismissError"), exact: true })
+          .click();
+        await expect(page.getByRole("alert")).toHaveCount(0);
+      }
+      await page.unroute(`**/tasks/${task.id}*`);
+      await page.keyboard.press("Control+k");
+      const nextCommand = t(locale, "command.verb.setStatus", {
+        status: t(locale, "status.task.DONE"),
+      });
+      await palette.getByRole("combobox").fill(nextCommand);
+      await palette.getByRole("option", { name: new RegExp(`^${nextCommand}`) }).click();
+      await expect
+        .poll(async () => (await db.task.findUniqueOrThrow({ where: { id: task.id } })).status)
+        .toBe("DONE");
+      await expect(
+        page.getByRole("combobox", { name: t(locale, "tasks.detail.status.aria"), exact: true }),
+      ).toHaveValue("DONE");
+      await expect(palette).not.toBeVisible();
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      await page.route(`**/tasks/${task.id}*`, async (route) => {
+        if (route.request().method() === "POST") await setTaskStatus(actor, task.id, "TODO");
+        await route.continue();
+      });
+      await page.keyboard.press("Control+k");
+      const rejectedAgain = t(locale, "command.verb.setStatus", {
+        status: t(locale, "status.task.TODO"),
+      });
+      await palette.getByRole("combobox").fill(rejectedAgain);
+      await palette.getByRole("option", { name: new RegExp(`^${rejectedAgain}`) }).click();
+      await expect(page.getByRole("alert")).toContainText(t(locale, "work.err.task.statusAlready"));
+      expect(await db.activityLog.count({ where: { entityType: "task", entityId: task.id } })).toBe(
+        before + 3,
+      );
     });
-    await palette.getByRole("combobox").fill(command);
-    const before = await db.activityLog.count({ where: { entityType: "task", entityId: task.id } });
-    await page.route(`**/tasks/${task.id}*`, async (route) => {
-      if (route.request().method() === "POST") await setTaskStatus(actor, task.id, "IN_PROGRESS");
-      await route.continue();
-    });
-    await palette.getByRole("option", { name: new RegExp(`^${command}`) }).click();
-    await expect(palette).not.toBeVisible();
-    await expect(page.getByRole("alert")).toContainText(t(locale, "work.err.task.statusAlready"));
-    expect(await db.activityLog.count({ where: { entityType: "task", entityId: task.id } })).toBe(
-      before + 1,
-    );
-    await page
-      .getByRole("button", { name: t(locale, "command.dismissError"), exact: true })
-      .click();
-    await expect(page.getByRole("alert")).toHaveCount(0);
-  });
+  }
 
   test(`${locale}: mobile keeps its compact status subset and uses the shared current-state reason`, async ({
     page,

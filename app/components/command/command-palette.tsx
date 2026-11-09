@@ -208,7 +208,7 @@ export function CommandPalette({ admin = false }: { admin?: boolean }) {
             void navigate(to);
           },
           submit: (fields, action) => {
-            setDismissedResult(undefined);
+            setDismissedResult(fetcher.data);
             const body = new FormData();
             for (const [k, v] of Object.entries(fields)) body.set(k, v);
             void fetcher.submit(body, { method: "post", action });
