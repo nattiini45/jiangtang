@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { configuredCalendarFixture } from "../../../test/calendar-config";
 import { db } from "~/lib/db.server";
 import { pruneLifecycleData } from "~/lib/lifecycle-retention.boot.server";
 import { calendarSyncHealth, drainOnce } from "~/lib/calendar/outbox.server";
@@ -6,6 +7,7 @@ import { loadFeedEvents } from "~/lib/calendar/ical.server";
 import { createEvent, updateEvent } from "~/domains/events/events.mutations.server";
 import type { OutboxStatus } from "~/generated/prisma/client";
 
+configuredCalendarFixture();
 const RUN = `lifecycle_${crypto.randomUUID()}`;
 const NOW = new Date("2070-11-09T12:00:00Z");
 const DAY = 86_400_000;
