@@ -68,7 +68,12 @@ export async function initializeCalendarPublication(now = new Date()): Promise<b
             },
             select: { id: true },
           });
-          if (!published) continue;
+          if (
+            !published &&
+            !backlog.some((row) => row.eventUid === event.uid && row.op === "UPSERT")
+          ) {
+            continue;
+          }
         }
         await enqueueEventCalendarOp(tx, event, event.status === "CANCELLED" ? "REMOVE" : "UPSERT");
         const retryAfter = backlog

@@ -303,8 +303,10 @@ On first configured startup, initialization under the global drain lock and sort
 existing PENDING work SUPERSEDED with an audit reason, then queues current snapshots atomically.
 Candidates have `endsAt` strictly after today's Europe/Berlin midnight, including overnight events
 and events that ended earlier today. All non-CANCELLED statuses qualify. A current/future CANCELLED
-event gets only a REMOVE, and only when an earlier UPSERT was SENT, FAILED or attempted (it may
-have reached the calendar). Past/boundary-ended cancellations and never-published cancellations
+event gets only a REMOVE, and only when an earlier UPSERT was SENT, FAILED, attempted or PENDING
+before initialization superseded it. Even a PENDING UPSERT with zero attempts may have reached
+the calendar before a crash between the remote PUT and the SENT update. Past/boundary-ended
+cancellations and cancellations without any such publication evidence
 are not replayed. SENT/FAILED/history stay intact and new sequences exceed the retained maximum.
 Replacement snapshots inherit any unexpired retry delay from attempted PENDING work, so
 initialization does not bypass the drain's network-failure backoff.

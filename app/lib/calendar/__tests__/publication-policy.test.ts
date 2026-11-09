@@ -200,7 +200,8 @@ describe("first configured publication", () => {
     const today = await fixture("today", new Date("2040-03-25T09:00:00Z"), "DONE");
     const future = await fixture("future", new Date("2040-03-26T12:00:00Z"), "CONFIRMED");
     const active = await fixture("active", now, "IN_PROGRESS");
-    const cancelled = await fixture("cancelled-unpublished", now, "CANCELLED");
+    const uncertainCancellation = await fixture("cancelled-pending-zero", now, "CANCELLED");
+    const unpublishedCancellation = await fixture("cancelled-no-upsert-history", now, "CANCELLED");
     const publishedCancellation = await fixture("cancelled-published", now, "CANCELLED");
     const attemptedCancellation = await fixture("cancelled-attempted", now, "CANCELLED");
     const pastCancellation = await fixture("cancelled-past", boundary, "CANCELLED");
@@ -211,7 +212,7 @@ describe("first configured publication", () => {
       row(exact.uid, 0),
       row(overnight.uid, 4),
       row(today.uid, 8),
-      row(cancelled.uid, 0),
+      row(uncertainCancellation.uid, 0),
       row(attemptedCancellation.uid, 4, "PENDING", 1),
       row(orphanUid, 0),
     ]);
@@ -272,7 +273,10 @@ describe("first configured publication", () => {
     const snapshots = await db.calendarOutbox.findMany({
       where: { eventUid: { in: uids }, status: "PENDING" },
     });
-    expect(snapshots).toHaveLength(6);
+    expect(snapshots).toHaveLength(7);
+    expect(
+      await db.calendarOutbox.count({ where: { eventUid: unpublishedCancellation.uid } }),
+    ).toBe(0);
     expect(
       snapshots.find((snapshot) => snapshot.eventUid === attemptedCancellation.uid)?.nextAttemptAt,
     ).toEqual(new Date(now.getTime() + 60_000));
@@ -284,6 +288,7 @@ describe("first configured publication", () => {
         [today.uid, "UPSERT", 15],
         [future.uid, "UPSERT", 0],
         [active.uid, "UPSERT", 0],
+        [uncertainCancellation.uid, "REMOVE", 1],
         [publishedCancellation.uid, "REMOVE", 2],
         [attemptedCancellation.uid, "REMOVE", 5],
       ]),
@@ -303,7 +308,7 @@ describe("first configured publication", () => {
     const audits = await db.activityLog.findMany({
       where: { action: "CalendarPublicationInitialized", entityId: { in: eventIds } },
     });
-    expect(audits).toHaveLength(6);
+    expect(audits).toHaveLength(7);
     expect(
       audits.every(
         (log) => (log.data as Record<string, unknown>).boundary === boundary.toISOString(),
@@ -316,7 +321,7 @@ describe("first configured publication", () => {
       await db.activityLog.count({
         where: { action: "CalendarPublicationInitialized", entityId: { in: eventIds } },
       }),
-    ).toBe(6);
+    ).toBe(7);
     const fake = { upsert: vi.fn(), remove: vi.fn() };
     await drainOnce(fake, { now, eventUidPrefix: attemptedCancellation.uid });
     expect(fake.remove).not.toHaveBeenCalled();
@@ -325,6 +330,42 @@ describe("first configured publication", () => {
       eventUidPrefix: attemptedCancellation.uid,
     });
     expect(fake.remove).toHaveBeenCalledExactlyOnceWith(attemptedCancellation.uid, 5);
+  });
+
+  it("removes a cancelled current event whose remote PUT may have succeeded before a crash", async () => {
+    const event = await fixture("pending-zero-remote-put", now, "CANCELLED");
+    const previous = await row(event.uid, 17);
+    const remoteObjects = new Set([event.uid]);
+    const fake = {
+      upsert: vi.fn(),
+      remove: vi.fn(async (uid: string) => {
+        remoteObjects.delete(uid);
+      }),
+    };
+    configured(true);
+    expect(await initializeCalendarPublication(now)).toBe(true);
+    expect(
+      await db.calendarOutbox.findMany({
+        where: { eventUid: event.uid },
+        orderBy: { sequence: "asc" },
+      }),
+    ).toEqual([
+      { ...previous, status: "SUPERSEDED", processedAt: now, nextAttemptAt: null },
+      expect.objectContaining({ op: "REMOVE", sequence: 18, status: "PENDING" }),
+    ]);
+    await drainOnce(fake, { now, eventUidPrefix: event.uid });
+    expect(fake.upsert).not.toHaveBeenCalled();
+    expect(fake.remove).toHaveBeenCalledExactlyOnceWith(event.uid, 18);
+    expect(remoteObjects.has(event.uid)).toBe(false);
+    const before = await db.calendarOutbox.findMany({ where: { eventUid: event.uid } });
+    const auditsBefore = await db.activityLog.findMany({
+      where: { entityId: { in: [event.id, previous.id] } },
+    });
+    expect(await initializeCalendarPublication(now)).toBe(true);
+    expect(await db.calendarOutbox.findMany({ where: { eventUid: event.uid } })).toEqual(before);
+    expect(
+      await db.activityLog.findMany({ where: { entityId: { in: [event.id, previous.id] } } }),
+    ).toEqual(auditsBefore);
   });
 
   it("commits exactly one bootstrap under concurrent initializers", async () => {
