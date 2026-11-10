@@ -28,7 +28,7 @@ LABEL org.opencontainers.image.version=$APP_VERSION \
 ENV APP_COMMIT=$VCS_REF
 ENV NODE_ENV=production
 ENV PORT=3000
-RUN groupadd -r app && useradd -r -g app -m app
+RUN corepack cache clean && groupadd -r app && useradd -r -g app -m app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build
 COPY --from=build /app/app ./app
