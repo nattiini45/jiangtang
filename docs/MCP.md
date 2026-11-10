@@ -19,6 +19,14 @@ credentials; never put the PAT in a URL, a prompt, a repository or a shared conf
 Use HTTPS outside loopback development. Revocation and account deactivation are checked on every
 request, as is required admin two-factor enrollment.
 
+Deactivation, erasure and admin/operator password-reset link issuance revoke all current PATs in
+the same audited transaction. Reset completion also revokes PATs created while the link was
+pending. Reactivation does not restore revoked PATs. A request already admitted before revocation
+is not retroactively cancelled.
+
+When a lifecycle boundary revokes at least one PAT, it emits one user-change notification after
+commit so open token lists can refetch. Calls with no live PATs do not emit this effect.
+
 ### Cursor
 
 The [official Cursor MCP guide](https://cursor.com/docs/mcp) documents remote `url` and `headers`
@@ -214,6 +222,14 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
   PostgreSQL exclusion constraint at save is authoritative; conflicts do not overwrite bookings.
   `create_event_with_booking` is atomic for the event and its initial room booking; further calls
   are separate transactions and can leave partial progress. Canceling an event releases bookings.
+- A running time entry (`endsAt: null`) must start at or before the server's mutation-time now.
+  Use `start_timer` to start your own timer at server time instead of guessing the server clock.
+  Creation and changed updates reject future starts with localized 422 validation errors;
+  identical no-write updates remain unaudited no-ops. Finished entries may be in the past or
+  future. Existing future-running entries stay stored: Stop returns a localized recovery error
+  without changing them. Stop must be strictly after the start time; stopping at the same instant
+  returns that recovery error too. Correct the start time, supply a valid end time with `update_time_entry`
+  (also available in the desktop timesheet), or wait until after the start time before stopping.
 - Stock links are one-to-one with equipment. `update_stock_item` preserves the equipment link;
   use `link_stock_item_to_equipment` or confirmed `unlink_stock_item_from_equipment`. Unlink
   before deleting linked stock; changing an existing link requires unlinking first. Retirement

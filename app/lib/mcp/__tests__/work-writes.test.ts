@@ -5,6 +5,8 @@ import { db } from "~/lib/db.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { registerWorkWrites } from "~/lib/mcp/work-writes.server";
 import type { McpContext } from "~/lib/mcp/types.server";
+import { runWithLocale } from "~/i18n/request-locale.server";
+import { t } from "~/i18n";
 
 vi.mock("~/lib/realtime/emit.server", () => ({ emitChange: vi.fn() }));
 
@@ -161,6 +163,47 @@ describe("MCP work writes", () => {
     expect(
       tools.find((tool) => tool.name === "create_time_entry")?.inputSchema.properties?.input,
     ).toMatchObject({ properties: { startsAt: { type: "string", format: "date-time" } } });
+    for (const [name, fragments] of [
+      [
+        "stop_timer",
+        [
+          "strictly after its start time",
+          "server's current time",
+          "refused without changes",
+          "update_time_entry",
+          "wait until after the start time",
+        ],
+      ],
+      [
+        "create_time_entry",
+        [
+          "ISO instants with offsets",
+          "at or before the server's mutation-time now",
+          "Use start_timer to start your own timer at server time",
+          "endsAt after startsAt",
+          "may be in the future",
+          "only admins may choose userId",
+        ],
+      ],
+      [
+        "update_time_entry",
+        [
+          "ISO instants with offsets",
+          "Changed running results (endsAt: null)",
+          "at or before the server's mutation-time now",
+          "identical updates remain unaudited no-write no-ops",
+          "including existing future-running entries",
+          "endsAt after startsAt",
+          "may be in the future",
+          "Use start_timer to start your own timer at server time",
+          "Members edit only their own entries; admins may edit others",
+          "Ownership cannot be reassigned",
+        ],
+      ],
+    ] as const) {
+      const description = tools.find((tool) => tool.name === name)?.description;
+      for (const fragment of fragments) expect(description).toContain(fragment);
+    }
   });
 
   it("refuses read-only tokens before writes and allows ordinary members to create work", async () => {
@@ -412,6 +455,124 @@ describe("MCP work writes", () => {
     expectStatus(await call(client, "stop_timer"), 422);
     await success(adminClient, "stop_timer");
   });
+
+  it.each(["en", "de"] as const)(
+    "%s: future running create/edit/Stop use canonical recoverable errors without writes",
+    async (locale) => {
+      const client = await connect();
+      const future = new Date(Date.now() + 3_600_000);
+      const input = { startsAt: future.toISOString(), endsAt: null };
+      const entry = await db.timeEntry.create({
+        data: { userId: member.user.id, startsAt: future },
+      });
+      const snapshot = async () => ({
+        entry: await db.timeEntry.findUniqueOrThrow({ where: { id: entry.id } }),
+        count: await db.timeEntry.count({ where: { userId: member.user.id } }),
+        audits: await db.activityLog.findMany({
+          where: { actorId: member.user.id },
+          orderBy: { id: "asc" },
+        }),
+      });
+      const before = await snapshot();
+      await runWithLocale(locale, async () => {
+        for (const [name, args, key] of [
+          ["create_time_entry", { input }, "work.err.time.futureRunning"],
+          [
+            "update_time_entry",
+            { id: entry.id, input: { ...input, comment: "Changed" } },
+            "work.err.time.futureRunning",
+          ],
+          ["stop_timer", {}, "work.err.time.futureTimerStop"],
+        ] as const) {
+          const result = await call(client, name, args);
+          expect(result.isError).toBe(true);
+          expect(result.content).toEqual([{ type: "text", text: expect.any(String) }]);
+          const content = result.content as Array<{ type: "text"; text: string }>;
+          expect(JSON.parse(content[0].text)).toEqual({
+            status: 422,
+            detail: {
+              error: "ValidationError",
+              message: t(locale, "err.validationFailed"),
+              fieldErrors: { startsAt: [t(locale, key)] },
+              formErrors: [t(locale, key)],
+            },
+          });
+          expect(await snapshot()).toEqual(before);
+          expect(emitChange).not.toHaveBeenCalled();
+        }
+      });
+      await success(client, "update_time_entry", {
+        id: entry.id,
+        input: { startsAt: new Date(Date.now() - 60_000).toISOString(), endsAt: null },
+      });
+      await success(client, "stop_timer");
+      const stopped = await db.timeEntry.findUniqueOrThrow({ where: { id: entry.id } });
+      expect(stopped.endsAt).not.toBeNull();
+      const logs = await db.activityLog.findMany({ where: { entityId: entry.id } });
+      expect(logs.map((log) => log.action).sort()).toEqual([
+        "TimeEntryStopped",
+        "TimeEntryUpdated",
+      ]);
+      expect(logs.every((log) => log.actorId === member.user.id)).toBe(true);
+      expect(
+        logs.every(
+          (log) => (log.actorSnapshot as { via: string }).via === "via MCP (Synthetic work writer)",
+        ),
+      ).toBe(true);
+      expect(emitChange).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each(["en", "de"] as const)(
+    "%s: exact-now Stop returns canonical validation without writes, and +1ms succeeds",
+    async (locale) => {
+      const client = await connect();
+      const now = new Date("2026-11-09T12:00:00Z");
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(now);
+      try {
+        await runWithLocale(locale, async () => {
+          const entry = await success(client, "start_timer");
+          vi.mocked(emitChange).mockClear();
+          const snapshot = async () => ({
+            entry: await db.timeEntry.findUniqueOrThrow({ where: { id: entry.id as string } }),
+            audits: await db.activityLog.findMany({ where: { entityId: entry.id as string } }),
+          });
+          const before = await snapshot();
+          const result = await call(client, "stop_timer");
+          expect(await snapshot()).toEqual(before);
+          expect(emitChange).not.toHaveBeenCalled();
+          expect(result.isError).toBe(true);
+          const content = result.content as Array<{ type: "text"; text: string }>;
+          expect(JSON.parse(content[0].text)).toEqual({
+            status: 422,
+            detail: {
+              error: "ValidationError",
+              message: t(locale, "err.validationFailed"),
+              fieldErrors: { startsAt: [t(locale, "work.err.time.futureTimerStop")] },
+              formErrors: [t(locale, "work.err.time.futureTimerStop")],
+            },
+          });
+          const endsAt = new Date(now.getTime() + 1);
+          vi.setSystemTime(endsAt);
+          await success(client, "stop_timer");
+          const after = await snapshot();
+          expect(after.entry).toMatchObject({ startsAt: now, endsAt });
+          expect(after.audits).toHaveLength(2);
+          expect(after.audits.find((log) => log.action === "TimeEntryStopped")?.data).toMatchObject(
+            { minutes: 0 },
+          );
+          expect(emitChange).toHaveBeenCalledExactlyOnceWith({
+            entityType: "timeEntry",
+            id: entry.id,
+            op: "updated",
+          });
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("limits notification writes to the actor's inbox even for admins", async () => {
     const client = await connect();

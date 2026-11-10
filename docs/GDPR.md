@@ -121,7 +121,7 @@ record why any remainder is kept.
 
 ## Retention
 
-The only automatic retention job is for the audit log. `app/lib/retention.boot.server.ts` runs once
+The audit retention job, `app/lib/retention.boot.server.ts`, runs once
 at boot and then daily. It prunes `ActivityLog` rows whose `occurredAt` is older than the cutoff:
 
 - `ACTIVITY_RETENTION_DAYS` sets the window; the default is 2555 days (about seven years). An unset,
@@ -129,9 +129,35 @@ at boot and then daily. It prunes `ActivityLog` rows whose `occurredAt` is older
 - The cutoff is recomputed on every tick from the current time.
 - The prune deletes audit rows only. When it deletes at least one row it writes one summary audit
   row (`ActivityLogPruned`) in the same transaction.
-- Nothing else is pruned. Sessions and invitation tokens have their own expiry; operational
-  records, the search index and attachments remain until deleted through the application or by the
-  operator.
+
+A separate lifecycle job, `app/lib/lifecycle-retention.boot.server.ts`, runs at boot and daily.
+It never changes the audit log. Each category is deleted independently:
+
+- Sessions and verifications (including invitation and reset tokens) are deleted when
+  `expiresAt` is at or before the sweep time.
+- Read notifications are deleted when `readAt` is strictly older than 90 days. Unread
+  notifications are not pruned.
+- Completed calendar outbox rows (`SENT` and `SUPERSEDED`) are deleted when `processedAt` is
+  strictly older than 30 days, except for rows still needed for sequence allocation, supersession
+  or sync health. For each UID with an existing event or `PENDING`/`FAILED` work, the job preserves
+  the highest allocated sequence and the highest `SENT` sequence. It also preserves one global
+  latest successful timestamp row among those UIDs when distinct. These old completed anchors are
+  bounded by two per UID plus one global row; recent history and conservatively retained rows
+  with unknown completion time (`processedAt` null) are outside that bound.
+- When an event no longer exists and its UID has no `PENDING` or `FAILED` work, all completed
+  rows for that UID are deleted on the next sweep, regardless of age or completion timestamp.
+  There is no foreign-key cascade from Event to CalendarOutbox: this is eventual sweep cleanup,
+  not atomic event-deletion cleanup. The application currently cancels events rather than
+  hard-deleting them. `PENDING` and `FAILED` rows themselves are never pruned.
+
+Outbox payloads are historical snapshots and can contain older titles, descriptions, room names
+and times that differ from the current event. Necessary anchors retain those snapshots unchanged;
+they are not limited to copies of current event fields. The global success timestamp may recede
+or disappear when completed rows of a deleted, quiescent event are removed.
+
+The lifecycle windows are elapsed periods of 30 or 90 times 24 hours, not rounded Berlin calendar
+days. Operational records, the search index and attachments otherwise remain until deleted
+through the application or by the operator.
 
 The default window is generous. Choosing a shorter window is a deliberate operator decision, and a
 shorter window also shortens how long audit detail and old actor snapshots remain available.
@@ -259,7 +285,7 @@ At a minimum, an operator should:
   `app/routes/_desktop.admin.users.$id_.erase/route.tsx`.
 - Audit guard and privileged functions: the `20261023000300_audit_privacy` migration.
 - Invariant verification: `ops/postgres/verify-invariants.sql`.
-- Retention: `app/lib/retention.boot.server.ts`.
+- Retention: `app/lib/retention.boot.server.ts`, `app/lib/lifecycle-retention.boot.server.ts`.
 - Data on the device: `app/lib/pwa/offline-queue.ts`, `app/lib/pwa/purge-caches.ts`, `public/sw.js`.
 - Calendar: `app/lib/calendar/`.
 - Search index: `app/lib/search/`.

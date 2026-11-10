@@ -4,6 +4,9 @@ import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { db, type Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
+import { revokeUserPersonalAccessTokens } from "~/domains/api-tokens/api-tokens.lifecycle.server";
+import { emitChange } from "~/lib/realtime/emit.server";
+import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
 
 /**
  * One-time password reset links. An admin issues one from the user's page; when
@@ -34,7 +37,7 @@ export function passwordResetPath(token: string): string {
 /** Issue a reset link for an active user, replacing any earlier one. Returns the token. */
 export async function createPasswordReset(userId: string, actor: AuditActor): Promise<string> {
   const token = randomBytes(32).toString("hex");
-  await txWithAudit(actor, async (tx, audit) => {
+  const revokedTokenCount = await txWithAudit(actor, async (tx, audit) => {
     // Lock the user row so two simultaneous issues run one after the other and
     // the second replaces the first, instead of both surviving.
     await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
@@ -51,8 +54,18 @@ export async function createPasswordReset(userId: string, actor: AuditActor): Pr
         expiresAt: new Date(Date.now() + RESET_TTL_MS),
       },
     });
+    const revokedCount = await revokeUserPersonalAccessTokens(
+      tx,
+      audit,
+      userId,
+      "PASSWORD_RESET_ISSUED",
+    );
     await audit({ action: "PasswordResetIssued", entityType: "user", entityId: userId });
+    return revokedCount;
   });
+  if (revokedTokenCount > 0) {
+    await emitChange({ entityType: ENTITY_TYPE.user, id: userId, op: "updated" });
+  }
   return token;
 }
 
@@ -97,10 +110,11 @@ export async function resolvePasswordReset(token: string): Promise<PasswordReset
 export async function completePasswordReset(token: string, password: string): Promise<void> {
   // The page is public: refuse an unknown or expired token before spending the
   // password KDF on it. The transaction below checks again, for races.
-  await findResetLink(db, token);
+  const pending = await findResetLink(db, token);
   const passwordHash = await hashPassword(password);
   const actor: AuditActor = {};
-  await txWithAudit(actor, async (tx, audit) => {
+  const { userId, revokedTokenCount } = await txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${pending.userId} FOR UPDATE`;
     const link = await findResetLink(tx, token);
     // The account is the actor; `audit` reads the actor when it is called.
     Object.assign(actor, { id: link.userId, name: link.name, email: link.email });
@@ -128,13 +142,23 @@ export async function completePasswordReset(token: string, password: string): Pr
     }
     await tx.session.deleteMany({ where: { userId: link.userId } });
     await deleteResetLinks(tx, link.userId);
+    const revokedTokenCount = await revokeUserPersonalAccessTokens(
+      tx,
+      audit,
+      link.userId,
+      "PASSWORD_RESET_COMPLETED",
+    );
     await audit({
       action: "PasswordReset",
       entityType: "user",
       entityId: link.userId,
       data: { sessionsRevoked: true },
     });
+    return { userId: link.userId, revokedTokenCount };
   });
+  if (revokedTokenCount > 0) {
+    await emitChange({ entityType: ENTITY_TYPE.user, id: userId, op: "updated" });
+  }
 }
 
 /** Delete every reset link of a user (also used by the erasure). */
