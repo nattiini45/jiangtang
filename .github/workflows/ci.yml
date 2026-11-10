@@ -271,10 +271,6 @@ jobs:
       TZ: Europe/Berlin
 
     steps:
-      - name: Temporary shard failure propagation probe
-        if: matrix.shard == 1
-        run: exit 1
-
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
