@@ -5,13 +5,14 @@ import { changeInvitation, listInvitations } from "~/domains/auth/users.queries.
 import { invitationActionSchema } from "~/domains/auth/users.schema";
 import { safeParseForm } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
-import { DataGrid, DateCell, type ColumnDef } from "~/components/data-grid";
+import { DataGrid, type ColumnDef } from "~/components/data-grid";
 import { InvitationLink } from "~/components/auth/invitation-link";
 import { Button } from "~/components/ui/button";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
-import { useT } from "~/i18n/use-t";
+import { useLocale, useT } from "~/i18n/use-t";
+import { formatDate, formatDateTime } from "~/i18n/format";
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireRole(request, "ADMIN");
@@ -49,20 +50,57 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export default function Invitations({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const busy = useNavigation().state !== "idle";
   type Row = (typeof loaderData.invitations)[number];
   const columns: ColumnDef<Row>[] = [
     {
       accessorKey: "email",
       header: t("admin.users.col.email"),
-      size: 260,
-      cell: ({ row }) => row.original.email,
+      size: 200,
+      cell: ({ row }) => (
+        <span className="truncate" title={row.original.email}>
+          {row.original.email}
+        </span>
+      ),
     },
-    { accessorKey: "name", header: t("admin.users.col.name"), size: 160 },
+    { accessorKey: "name", header: t("admin.users.col.name"), size: 110 },
+    {
+      accessorKey: "role",
+      header: t("admin.users.col.role"),
+      size: 75,
+      cell: ({ row }) => t(`auth.role.${row.original.role}`),
+    },
+    {
+      accessorKey: "state",
+      header: t("admin.users.col.status"),
+      size: 260,
+      cell: ({ row }) => {
+        const invitation = row.original;
+        const date = invitation.acceptedAt ?? invitation.revokedAt ?? invitation.expiresAt;
+        return (
+          <span title={formatDateTime(locale, date)} className="nums">
+            {t(`admin.invitations.lifecycle.${invitation.state}`, {
+              date: formatDate(locale, date),
+            })}
+          </span>
+        );
+      },
+    },
+    {
+      id: "invitedBy",
+      header: t("admin.invitations.by"),
+      size: 110,
+      cell: ({ row }) => (
+        <span className="truncate" title={row.original.invitedBy?.email}>
+          {row.original.invitedBy?.name || t("admin.invitations.unknown")}
+        </span>
+      ),
+    },
     {
       id: "actions",
       header: t("admin.invitations.actions"),
-      size: 210,
+      size: 230,
       cell: ({ row }) => (
         <Form method="post" className="flex gap-2">
           <input type="hidden" name="id" value={row.original.id} />
@@ -100,42 +138,6 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
           ) : null}
         </Form>
       ),
-    },
-    {
-      accessorKey: "role",
-      header: t("admin.users.col.role"),
-      size: 110,
-      cell: ({ row }) => t(`auth.role.${row.original.role}`),
-    },
-    {
-      accessorKey: "state",
-      header: t("admin.users.col.status"),
-      size: 110,
-      cell: ({ row }) => t(`admin.invitations.${row.original.state}`),
-    },
-    {
-      id: "invitedBy",
-      header: t("admin.invitations.by"),
-      size: 160,
-      cell: ({ row }) => row.original.invitedBy?.name || t("admin.invitations.unknown"),
-    },
-    {
-      accessorKey: "createdAt",
-      header: t("admin.invitations.created"),
-      size: 155,
-      cell: ({ row }) => <DateCell value={row.original.createdAt} />,
-    },
-    {
-      accessorKey: "expiresAt",
-      header: t("admin.invitations.expires"),
-      size: 155,
-      cell: ({ row }) => <DateCell value={row.original.expiresAt} />,
-    },
-    {
-      accessorKey: "acceptedAt",
-      header: t("admin.invitations.acceptedAt"),
-      size: 155,
-      cell: ({ row }) => <DateCell value={row.original.acceptedAt} />,
     },
   ];
   return (
