@@ -8,6 +8,7 @@ export const DESKTOP_PAGES = [
   "/account",
   "/activity",
   "/admin/index",
+  "/admin/invitations",
   "/admin/users",
   "/admin/users/new",
   "/admin/users/:id",

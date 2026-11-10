@@ -1,4 +1,4 @@
-import { redirect } from "react-router";
+import { isRouteErrorResponse, redirect, useRouteError } from "react-router";
 import { authLanding } from "~/lib/view.server";
 import type { Route } from "./+types/route";
 import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
@@ -29,11 +29,6 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     await resolveInvite(params.token!);
   } catch (e) {
     if (!(e instanceof NotFoundError)) throw toErrorResponse(e);
-    // A bad/used token is a routine 404, not a server error. Carry the message
-    // as the response body: RouteErrorBoundary only prints `data` when it is a
-    // string, so toErrorResponse()'s JSON object body would show the generic
-    // fallback text instead. Worded here, in the request language, rather than
-    // taken from `e.message`.
     throw new Response(t(resolveLocale(request), "auth.invite.notFound"), { status: 404 });
   }
   return {
@@ -55,6 +50,8 @@ export async function action({ request }: Route.ActionArgs) {
     if (e instanceof ValidationError) {
       return { fieldErrors: e.fieldErrors, formErrors: e.formErrors };
     }
+    if (e instanceof NotFoundError)
+      throw new Response(t(resolveLocale(request), "auth.invite.notFound"), { status: 404 });
     throw toErrorResponse(e);
   }
 }
@@ -97,4 +94,17 @@ export default function AcceptInvite({ loaderData, actionData }: Route.Component
   );
 }
 
-export { RouteErrorBoundary as ErrorBoundary };
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const t = useT();
+  if (!isRouteErrorResponse(error) || error.status !== 404) return <RouteErrorBoundary />;
+  return (
+    <main className="flex min-h-screen items-center justify-center p-6">
+      <LanguageSwitcher className="absolute right-4 top-4" />
+      <div className="bg-card text-card-foreground shadow-surface-3 w-full max-w-sm rounded-xl p-6">
+        <h1 className="text-xl font-bold">{t("admin.invitations.invalid")}</h1>
+        <p className="text-muted-foreground mt-2 text-sm">{t("admin.invitations.askAdmin")}</p>
+      </div>
+    </main>
+  );
+}

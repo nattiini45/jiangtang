@@ -82,6 +82,10 @@ export async function pseudonymizeUser(
       where: { identifier: { equals: user.email, mode: "insensitive" } },
     });
     await deleteResetLinks(tx, userId);
+    await tx.invitation.deleteMany({
+      where: { email: { equals: user.email, mode: "insensitive" } },
+    });
+    await tx.invitation.updateMany({ where: { invitedById: userId }, data: { invitedById: null } });
     const revokedTokenCount = await revokeUserPersonalAccessTokens(
       tx,
       audit,

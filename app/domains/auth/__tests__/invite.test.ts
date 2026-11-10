@@ -26,6 +26,7 @@ afterAll(async () => {
   }
   for (const email of createdEmails) {
     await db.verification.deleteMany({ where: { identifier: email } });
+    await db.invitation.deleteMany({ where: { email: email.toLowerCase() } });
   }
   await db.$disconnect();
 });
@@ -55,7 +56,7 @@ describe("invite flow", () => {
     expect(persisted).not.toBeNull();
     expect(persisted!.role).toBe("ADMIN");
     expect(persisted!.initials).toBe("IN");
-    expect(persisted!.emailVerified).toBe(true);
+    expect(persisted!.emailVerified).toBe(false);
 
     // An accepted invite can log in through the public sign-in endpoint
     // (public sign-UP is disabled; sign-in stays open).
