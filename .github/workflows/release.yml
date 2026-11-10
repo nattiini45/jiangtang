@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer 0.y.z, without the v prefix
+        required: true
+        type: string
+      commit:
+        description: Full commit SHA already running in production for at least a day
+        required: true
+        type: string
+      dry_run:
+        description: Validate, build and scan without publishing anything
+        type: boolean
+        default: true
+  pull_request:
+    paths:
+      - .github/workflows/release.yml
+      - Dockerfile
+      - scripts/release.py
+      - scripts/test_release.py
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.event_name == 'pull_request' && github.ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      version: ${{ steps.guard.outputs.version }}
+      minor: ${{ steps.guard.outputs.minor }}
+      commit: ${{ steps.guard.outputs.commit }}
+      image_id: ${{ steps.image.outputs.id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test the release guards
+        run: python3 -m unittest discover -s scripts -p test_release.py
+      - name: Validate release guards and select source
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_COMMIT: ${{ inputs.commit || github.sha }}
+        run: python3 scripts/release.py
+      - name: Build the selected commit (linux/amd64 only)
+        env:
+          VERSION: ${{ steps.guard.outputs.version }}
+          COMMIT: ${{ steps.guard.outputs.commit }}
+        run: docker build --platform linux/amd64 --build-arg APP_VERSION="$VERSION" --build-arg VCS_REF="$COMMIT" -t release-candidate:local .
+      - name: Verify the image stamp and record its identity
+        id: image
+        env:
+          VERSION: ${{ steps.guard.outputs.version }}
+          COMMIT: ${{ steps.guard.outputs.commit }}
+        run: |
+          test "$(docker image inspect release-candidate:local --format '{{index .Config.Labels "org.opencontainers.image.version"}}')" = "$VERSION"
+          test "$(docker image inspect release-candidate:local --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$COMMIT"
+          echo "id=$(docker image inspect release-candidate:local --format '{{.Id}}')" >> "$GITHUB_OUTPUT"
+      - name: Scan all image vulnerabilities
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: release-candidate:local
+          scanners: vuln
+          format: json
+          output: ${{ runner.temp }}/release/scan.json
+          exit-code: "0"
+          ignore-unfixed: false
+          trivy-config: /dev/null
+        env:
+          TRIVY_IGNORE_FILE: /dev/null
+      - name: Refuse critical vulnerabilities with an available fix
+        run: jq -e '(.Results | type == "array") and ([.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" and (.FixedVersion // "") != "")] | length == 0)' "$RUNNER_TEMP/release/scan.json"
+      - name: Generate the CycloneDX SBOM
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        with:
+          image-ref: release-candidate:local
+          format: cyclonedx
+          output: ${{ runner.temp }}/release/sbom.cdx.json
+          trivy-config: /dev/null
+          skip-setup-trivy: true
+      - name: Preserve the exact scanned image
+        shell: bash
+        run: docker save release-candidate:local | gzip > "$RUNNER_TEMP/release/image.tar.gz"
+      - name: Upload full scan report even when the gate fails
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: vulnerability-report
+          path: ${{ runner.temp }}/release/scan.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Hand the scanned candidate to the publisher
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: release-candidate
+          path: ${{ runner.temp }}/release/
+          compression-level: 0
+          retention-days: 3
+      - name: Dry-run result
+        if: github.event_name == 'pull_request' || inputs.dry_run
+        run: echo 'Dry run passed — guards, image build, vulnerability gate and SBOM completed. Nothing was published.' >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+      attestations: write
+      id-token: write
+    env:
+      IMAGE: ghcr.io/nattiini45/jiangtang
+      VERSION: ${{ needs.build.outputs.version }}
+      MINOR: ${{ needs.build.outputs.minor }}
+      COMMIT: ${{ needs.build.outputs.commit }}
+      IMAGE_ID: ${{ needs.build.outputs.image_id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: release-candidate
+          path: ${{ runner.temp }}/release
+      - name: Publish the scanned image, without rebuilding
+        id: push
+        env:
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+          docker load -i "$RUNNER_TEMP/release/image.tar.gz"
+          test "$(docker image inspect release-candidate:local --format '{{.Id}}')" = "$IMAGE_ID"
+          docker tag release-candidate:local "$IMAGE:$VERSION"
+          docker tag release-candidate:local "$IMAGE:$MINOR"
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:$MINOR"
+          digest=$(docker image inspect "$IMAGE:$VERSION" | jq -r --arg image "$IMAGE@" '.[0].RepoDigests[] | select(startswith($image))')
+          echo "digest=${digest#*@}" >> "$GITHUB_OUTPUT"
+      - name: Attest build provenance for the selected source commit
+        uses: actions/attest@daf44fb950173508f38bd2406030372c1d1162b1 # v3.0.0
+        with:
+          subject-name: ghcr.io/nattiini45/jiangtang
+          subject-digest: ${{ steps.push.outputs.digest }}
+          predicate-type: https://slsa.dev/provenance/v1
+          predicate-path: ${{ runner.temp }}/release/provenance.json
+          push-to-registry: true
+      - name: Attest the SBOM
+        uses: actions/attest-sbom@4651f806c01d8637787e274ac3bdf724ef169f34 # v3
+        with:
+          subject-name: ghcr.io/nattiini45/jiangtang
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: ${{ runner.temp }}/release/sbom.cdx.json
+          push-to-registry: true
+      - name: Create the immutable version tag and release
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/v$VERSION" -f "sha=$COMMIT"
+          gh release create "v$VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$VERSION" --notes-file "$RUNNER_TEMP/release/notes.md" "$RUNNER_TEMP/release/sbom.cdx.json"
