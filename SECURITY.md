@@ -1,7 +1,7 @@
 # Security Policy
 
-Jiangtang is at its initial release. This policy covers the application code, the Compose
-deployment in this repository and the documented operational path.
+This policy covers the application code, the Compose deployment in this repository and the
+documented operational path.
 
 ## Reporting a vulnerability
 
@@ -25,10 +25,16 @@ identifies a person.
 
 ## Supported releases and upgrades
 
-Only the current release is supported. Fresh installations start from an empty database, as
-described in [README.md](README.md) and [docs/DEPLOY.md](docs/DEPLOY.md). There is no supported
-in-place upgrade path from a pre-release database, uploads directory or browser queue: an older
-pre-release installation has to export what it needs and start from a new empty installation.
+Only the latest release is supported. Security fixes land on `main` and ship in the next patch
+release; older releases do not get backports, so upgrade to the latest release to receive a fix.
+
+Releases follow SemVer 0.y.z. An upgrade is supported from any release to the next minor release,
+migrations run automatically when the stack starts, and you should take a backup first. Each
+release publishes the application image as `ghcr.io/nattiini45/jiangtang:<X.Y.Z>` and
+`ghcr.io/nattiini45/jiangtang:<X.Y>` for `linux/amd64`; there is no `latest` tag, and the
+PostgreSQL image is built from the tagged source. The full policy is in
+[README.md](README.md#releases-and-upgrades), and the steps are in
+[docs/DEPLOY.md](docs/DEPLOY.md#updating).
 
 Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); report
 problems in those components to their upstream projects as well.

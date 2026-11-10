@@ -2,9 +2,9 @@
 
 Jiangtang is a self-hosted AV and facility workspace. The user interface is available in
 English and German and displays times in `Europe/Berlin`; code, comments, tests and public
-documentation are English. Installations
-are fresh installations by design: do not add upgrade or import paths for data from an older
-installation.
+documentation are English. Released versions are upgraded in place, so a migration has to work on
+a database from the previous minor release. Do not add compatibility code for databases from before
+the first release.
 
 ## What fits the project
 
