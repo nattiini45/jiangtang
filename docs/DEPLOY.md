@@ -112,8 +112,8 @@ starts. Migrations only go forward, so the way back from a bad update is a resto
 you take in step 2. When the update crosses a release, move one minor version at a time (for
 example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next minor release.
 
-1. Read what changes: `git fetch && git log --oneline HEAD..origin/main`, and look for new folders
-   under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)).
+1. Read what changes: `git fetch --tags && git log --oneline HEAD..origin/main`, and look for new
+   folders under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)).
 2. Take a fresh backup of both parts:
 
    ```bash
@@ -121,16 +121,29 @@ example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next 
    docker compose exec -T backup bash /ops/uploads-backup.sh
    ```
 
-3. Update and rebuild:
+3. Update and rebuild. To follow `main`:
 
    ```bash
    git pull --ff-only
    docker compose up -d --build
    ```
 
+   To stop at a release instead, fetch the tags and check out the tag of the release you are
+   moving to (release tags are named `vX.Y.Z`; `v0.4.0` here only illustrates the form), then
+   rebuild the same way:
+
+   ```bash
+   git fetch --tags
+   git checkout v0.4.0
+   docker compose up -d --build
+   ```
+
 4. Check: `docker compose ps` (`migrate` exited 0, `app` healthy), `docker compose logs migrate`,
    and `curl -fsS https://<APP_DOMAIN>/healthz`.
 5. Reclaim disk from old images: `docker image prune -f`.
+
+When the update crosses more than one minor release, repeat steps 2 to 4 for each one, in order:
+back up, move to the next minor release, rebuild and check, then continue.
 
 ## 1. DNS and HTTPS
 
@@ -171,8 +184,9 @@ services:
 The profile keeps `caddy` from starting, and the `ports` entry makes the app reachable from the
 host's own proxy at `http://127.0.0.1:3000`. It binds to the loopback address on purpose: a port
 published on all interfaces would bypass your firewall rules (see the host checklist above). Change
-the left-hand port if 3000 is taken. A proxy that runs in a container can instead join the
-Compose network and reach `app:3000`, in which case you need no `ports` entry.
+the left-hand port if 3000 is taken, and then point your proxy at that port as well: a changed
+mapping with a proxy still aimed at 3000 leaves the site unreachable. A proxy that runs in a container can instead join the Compose network
+and reach `app:3000`, in which case you need no `ports` entry.
 
 Name both files on every Compose command, or set `COMPOSE_FILE=docker-compose.yml:docker-compose.proxy.yml`
 in `.env`:
@@ -187,7 +201,9 @@ from starting. Set it to your public hostname; nothing else in the stack reads i
 
 ### What the proxy must forward
 
-- **Target.** Plain HTTP to `127.0.0.1:3000` (or `app:3000`). Terminate TLS at the proxy.
+- **Target.** Plain HTTP to `127.0.0.1:3000`, or to the host port you chose in the override
+  instead of 3000, or to `app:3000` from a container on the Compose network. Terminate TLS at the
+  proxy.
 - **`Host` and `X-Forwarded-Host`.** The app takes the public host from the request. The MCP
   endpoint at `/mcp` rejects any request whose host differs from the host in `BETTER_AUTH_URL`,
   so the proxy must not rewrite the `Host` header to the upstream address.
