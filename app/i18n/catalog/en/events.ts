@@ -125,4 +125,9 @@ export const eventsEn = {
   "events.detail.cancelEvent": "Cancel event",
   "events.detail.cancelHint": "Events are never deleted — cancelling releases rooms and equipment.",
   "events.detail.cancelledNote": "{status} — rooms and equipment are released.",
+  "events.detail.reopen": "Reopen",
+  "events.detail.reopenHint":
+    "Reopening returns this event to Planned. Previous room and equipment bookings are not restored. Book rooms and equipment again separately.",
+  "events.detail.reopenUnavailable":
+    "Only cancelled events can be reopened. Refresh to see the current event status.",
 } satisfies Record<keyof typeof eventsDe, string>;

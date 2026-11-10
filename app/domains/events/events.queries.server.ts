@@ -1,6 +1,7 @@
 import { tr } from "~/i18n/request-locale.server";
 import { db } from "~/lib/db.server";
 import { isCalendarConfigured } from "~/lib/calendar/config.server";
+import { eventAllowedActions } from "./events.actions";
 import type {
   EventStatus,
   ServiceWindowKind,
@@ -96,6 +97,7 @@ export interface EventTicketRow {
 }
 
 export interface EventDetail {
+  allowedActions: ReturnType<typeof eventAllowedActions>;
   calendarSync: {
     configured: boolean;
     latest: {
@@ -153,6 +155,7 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
   if (!event) return null;
 
   return {
+    allowedActions: eventAllowedActions(event.status),
     calendarSync: {
       configured: isCalendarConfigured(),
       latest: await db.calendarOutbox.findFirst({
