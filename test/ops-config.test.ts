@@ -1464,12 +1464,26 @@ function shellCommands(script: string): string[] {
     .filter((line) => line.length > 0 && !line.startsWith("#"));
 }
 
-function parseWorkflow(text: string): CIWorkflow {
-  return parse(text) as CIWorkflow;
+function parseWorkflow(text: string): ParallelWorkflow {
+  return parse(text) as ParallelWorkflow;
 }
 
-function ciRunSteps(workflow: CIWorkflow): CIRunStep[] {
-  const steps = workflow.jobs?.ci?.steps ?? [];
+type ParallelWorkflow = Omit<CIWorkflow, "jobs"> & {
+  defaults?: unknown;
+  jobs?: Record<
+    string,
+    NonNullable<CIWorkflow["jobs"]>[string] & {
+      name?: string;
+      needs?: string[];
+      strategy?: unknown;
+      defaults?: unknown;
+      steps?: Array<CIStep & { shell?: unknown; with?: Record<string, unknown> }>;
+    }
+  >;
+};
+
+function ciRunSteps(workflow: CIWorkflow, jobId = "checks"): CIRunStep[] {
+  const steps = workflow.jobs?.[jobId]?.steps ?? [];
   const out: CIRunStep[] = [];
   steps.forEach((step, index) => {
     if (typeof step.run !== "string" || step.run.trim() === "") return;
@@ -1518,11 +1532,51 @@ function inImageSteps(workflow: CIWorkflow, argv: string): CIRunStep[] {
 
 /** Every `docker build` that targets the WAL-G image. The application image has its own step. */
 function buildCommands(workflow: CIWorkflow): BuildRef[] {
-  return ciRunSteps(workflow).flatMap((step) =>
-    shellCommands(step.run)
-      .filter((command) => isWalgBuild(command))
-      .map((command) => ({ step, command, tag: IMAGE_BUILD.exec(command)?.[1] })),
-  );
+  return imageBuildCommands(workflow).filter((build) => isWalgBuild(build.command));
+}
+
+function imageBuildCommands(workflow: CIWorkflow): BuildRef[] {
+  return (workflow.jobs?.checks?.steps ?? []).flatMap((definition, index) => {
+    const step = {
+      index,
+      name: definition.name ?? "",
+      run: definition.run ?? "",
+      step: definition,
+    };
+    if (definition.uses?.startsWith("docker/build-push-action@")) {
+      const inputs = (definition as CIStep & { with?: Record<string, unknown> }).with ?? {};
+      const command = `docker build --platform ${String(inputs.platforms)}${inputs.file === undefined ? "" : ` -f ${String(inputs.file)}`} -t ${String(inputs.tags)} ${String(inputs.context)}`;
+      const tag = (isWalgBuild(command) ? IMAGE_BUILD : APP_BUILD).exec(command)?.[1];
+      const allowed = [
+        "context",
+        "file",
+        "platforms",
+        "tags",
+        "load",
+        "cache-from",
+        "cache-to",
+        "push",
+      ];
+      return [
+        {
+          step,
+          command,
+          tag:
+            (inputs.load === true || inputs.load === "true") &&
+            Object.keys(inputs).every((key) => allowed.includes(key))
+              ? tag
+              : undefined,
+        },
+      ];
+    }
+    return shellCommands(step.run)
+      .filter((command) => command.startsWith("docker build "))
+      .map((command) => ({
+        step,
+        command,
+        tag: (isWalgBuild(command) ? IMAGE_BUILD : APP_BUILD).exec(command)?.[1],
+      }));
+  });
 }
 
 function isWalgBuild(command: string): boolean {
@@ -1557,12 +1611,21 @@ const IMAGE_PUBLISH =
  * build-push action. Scanning every job means a publication added to a new job fails the same
  * check as one added to `ci`.
  */
-function imagePublicationSites(workflow: CIWorkflow): string[] {
+function imagePublicationSites(workflow: ParallelWorkflow): string[] {
   const sites: string[] = [];
   for (const [jobId, job] of Object.entries(workflow.jobs ?? {})) {
     for (const step of job.steps ?? []) {
       if (typeof step.uses === "string" && step.uses.startsWith("docker/build-push-action")) {
-        sites.push(`${jobId}: uses ${step.uses}`);
+        const inputs = step.with ?? {};
+        if (
+          !step.uses.startsWith("docker/build-push-action@") ||
+          (inputs.push !== undefined && inputs.push !== false && inputs.push !== "false") ||
+          inputs.outputs !== undefined ||
+          (inputs["cache-to"] !== undefined &&
+            (typeof inputs["cache-to"] !== "string" ||
+              !/^type=gha,scope=[a-z-]+,mode=max$/.test(inputs["cache-to"])))
+        )
+          sites.push(`${jobId}: uses ${step.uses}`);
       }
       if (typeof step.run !== "string") continue;
       for (const command of shellCommands(joinContinuedLines(step.run))) {
@@ -1584,7 +1647,7 @@ function publicationsIn(run: string): string[] {
  */
 function ciWiringProblems(text: string): string[] {
   const problems: string[] = [];
-  let workflow: CIWorkflow;
+  let workflow: ParallelWorkflow;
   try {
     workflow = parseWorkflow(text);
   } catch (error) {
@@ -1607,14 +1670,22 @@ function ciWiringProblems(text: string): string[] {
   for (const [id, job] of Object.entries(workflow.jobs ?? {})) {
     if (job.permissions !== undefined)
       problems.push(`job "${id}" declares its own permissions block`);
-    if (job.if !== undefined) {
-      problems.push(`job "${id}" is gated by if: ${String(job.if)} and could be skipped`);
+    if (id === "ci" ? job.if !== "always()" : job.if !== undefined) {
+      if (id === "ci") problems.push('job "ci" must use if: always()');
+      else problems.push(`job "${id}" is gated by if: ${String(job.if)} and could be skipped`);
     }
     if (job["continue-on-error"] !== undefined) {
       problems.push(`job "${id}" sets continue-on-error: ${String(job["continue-on-error"])}`);
     }
   }
 
+  problems.push(...aggregateProblems(workflow));
+  if (
+    JSON.stringify(workflow.jobs?.e2e?.strategy) !==
+    JSON.stringify({ "fail-fast": false, matrix: { shard: [1, 2] } })
+  ) {
+    problems.push('job "e2e" must run exactly shards 1 and 2 without fail-fast');
+  }
   const steps = ciRunSteps(workflow);
 
   // (1) The image build. `docker build` has no `--platform` default, so the
@@ -1651,6 +1722,9 @@ function ciWiringProblems(text: string): string[] {
     }
     const owner = owners[0];
     if (owner === undefined) return;
+    if (build !== undefined && owner.index < build.step.index) {
+      problems.push(`step ${stepLabel(owner)} must run after the WAL-G image build`);
+    }
     problems.push(...unconditionalDefects(owner));
     const commands = shellCommands(owner.run).filter((command) => command.includes(argv));
     for (const command of commands) {
@@ -1673,7 +1747,13 @@ function ciWiringProblems(text: string): string[] {
 
   // (4) Every pre-existing check survives, including the RUNNER-level selector
   // suite, which tests host Python rather than the image's own Python.
-  const runLines = steps.flatMap((step) => step.run.split(/\r?\n/).map((line) => line.trim()));
+  const browserSteps = ciRunSteps(workflow, "e2e");
+  const browserGates = browserSteps.filter((step) => step.run.startsWith("pnpm test:e2e"));
+  if (browserGates.length !== 1) problems.push('job "e2e" must run exactly one browser gate');
+  for (const gate of browserGates) problems.push(...unconditionalDefects(gate));
+  const runLines = [...steps, ...browserSteps].flatMap((step) =>
+    step.run.split(/\r?\n/).map((line) => line.trim()),
+  );
   const required: Array<[string, RegExp]> = [
     ["pnpm install --frozen-lockfile", /^pnpm install --frozen-lockfile$/],
     ["bash scripts/guards.sh", /^bash scripts\/guards\.sh$/],
@@ -1689,14 +1769,17 @@ function ciWiringProblems(text: string): string[] {
     ["pnpm test", /^pnpm test$/],
     ["pnpm build", /^pnpm build$/],
     ["pnpm db:seed (E2E migrate-and-seed)", /^pnpm db:seed$/],
-    ["pnpm test:e2e (browser gate)", /^pnpm test:e2e$/],
+    [
+      "pnpm test:e2e (browser gate)",
+      /^pnpm test:e2e --shard=\$\{\{ matrix.shard \}\}\/2 --retries=\$\{\{ github.event_name == 'push' && github.ref == 'refs\/heads\/main' && 1 \|\| 0 \}\}$/,
+    ],
   ];
   for (const [label, pattern] of required) {
     if (!runLines.some((line) => pattern.test(line))) {
       problems.push(`pre-existing CI check is missing: ${label}`);
     }
   }
-  if (!steps.some((step) => step.run.includes("CREATE DATABASE"))) {
+  if (!browserSteps.some((step) => step.run.includes("CREATE DATABASE"))) {
     problems.push("pre-existing CI check is missing: the isolated E2E database creation");
   }
   const runnerSelector = steps.filter((step) =>
@@ -1714,11 +1797,7 @@ function ciWiringProblems(text: string): string[] {
 
   // (4b) The application image and the two production gates built on it: the
   // database-invariant check (with a negative control) and the image smoke test.
-  const appBuilds = steps.flatMap((step) =>
-    shellCommands(step.run)
-      .filter((command) => command.startsWith("docker build ") && !isWalgBuild(command))
-      .map((command) => ({ step, tag: APP_BUILD.exec(command)?.[1] })),
-  );
+  const appBuilds = imageBuildCommands(workflow).filter((build) => !isWalgBuild(build.command));
   const appBuild = appBuilds[0];
   if (appBuilds.length !== 1 || appBuild?.tag === undefined) {
     problems.push(
@@ -1973,17 +2052,16 @@ function ciWiringProblems(text: string): string[] {
   }
 
   // (5) Least privilege, no secrets, no publication of any artifact type.
-  const stepDefs = workflow.jobs?.ci?.steps ?? [];
+  const stepDefs = Object.values(workflow.jobs ?? {}).flatMap((job) => job.steps ?? []);
   const uses = stepDefs.map((step) => step.uses ?? "");
   if (!uses.some((ref) => /^actions\/upload-artifact@v\d+$/.test(ref))) {
     problems.push("pre-existing CI check is missing: the Playwright failure-diagnostics upload");
   }
-  const executableText = [...steps.map((step) => step.run), ...uses].join("\n");
+  const executableText = [...stepDefs.map((step) => step.run ?? ""), ...uses].join("\n");
   const publishing: Array<[string, RegExp]> = [
     ["docker push", /^[ \t]*docker[ \t]+push\b/m],
     ["docker login", /^[ \t]*docker[ \t]+login\b/m],
     ["docker tag", /^[ \t]*docker[ \t]+tag\b/m],
-    ["docker/build-push-action", /docker\/build-push-action/],
     ["npm or pnpm publish", /^[ \t]*(npm|pnpm)[ \t]+publish\b/m],
     ["gh release", /^[ \t]*gh[ \t]+release\b/m],
     ["upload-pages-artifact", /upload-pages-artifact/],
@@ -1993,9 +2071,80 @@ function ciWiringProblems(text: string): string[] {
   for (const [label, pattern] of publishing) {
     if (pattern.test(executableText)) problems.push(`workflow publishes an artifact: ${label}`);
   }
+  problems.push(
+    ...imagePublicationSites(workflow).map((site) => `workflow publishes an image: ${site}`),
+  );
   if (/\$\{\{\s*secrets\./.test(text)) problems.push("workflow references repository secrets");
 
   return problems;
+}
+
+function aggregateProblems(workflow: ParallelWorkflow): string[] {
+  const aggregate = workflow.jobs?.ci;
+  const dependencies = Object.keys(workflow.jobs ?? {})
+    .filter((id) => id !== "ci")
+    .sort();
+  if (aggregate?.name !== "ci" || dependencies.some((id) => workflow.jobs?.[id]?.name === "ci")) {
+    return ['only the aggregate job may be named "ci"'];
+  }
+  if (
+    !aggregate ||
+    JSON.stringify([...(aggregate.needs ?? [])].sort()) !== JSON.stringify(dependencies)
+  ) {
+    return ['job "ci" must need every other job exactly once'];
+  }
+  const steps = aggregate.steps ?? [];
+  const step = steps[0];
+  if (
+    steps.length !== 1 ||
+    !step?.run ||
+    step.uses ||
+    step.if !== undefined ||
+    step["continue-on-error"] !== undefined
+  ) {
+    return ['job "ci" must have one unconditional aggregate run step'];
+  }
+  const results = ["success", "failure", "cancelled", "skipped"];
+  if (
+    workflow.defaults !== undefined ||
+    aggregate.defaults !== undefined ||
+    (step.shell !== undefined && step.shell !== "bash") ||
+    /GITHUB_|github\./.test(step.run)
+  ) {
+    return ['job "ci" must use the standard bash shell and only bound result inputs'];
+  }
+  const combinations = dependencies.reduce<string[][]>(
+    (rows) => rows.flatMap((row) => results.map((result) => [...row, result])),
+    [[]],
+  );
+  for (const combination of combinations) {
+    const env: Record<string, string> = { PATH: process.env.PATH ?? "" };
+    for (const [key, value] of Object.entries(step.env ?? {})) {
+      const dependency = /^\$\{\{ needs\.([\w-]+)\.result \}\}$/.exec(String(value))?.[1];
+      if (!dependency || !dependencies.includes(dependency))
+        return ['job "ci" has an invalid result binding'];
+      env[key] = combination[dependencies.indexOf(dependency)] as string;
+    }
+    const result = spawnSync(
+      resolveHostBash(),
+      [
+        "--noprofile",
+        "--norc",
+        "-e",
+        ...(step.shell === "bash" ? ["-o", "pipefail"] : []),
+        "-c",
+        step.run,
+      ],
+      {
+        env,
+        timeout: 1_000,
+      },
+    );
+    if ((result.status === 0) !== combination.every((value) => value === "success")) {
+      return [`job "ci" accepts the wrong result for ${combination.join("/")}`];
+    }
+  }
+  return [];
 }
 
 /** Text fixture helpers. Each throws if its anchor is absent, so a no-op mutation cannot pass. */
@@ -2044,11 +2193,24 @@ function withStepKey(text: string, stepName: string, key: string): string {
   const lines = text.split(/\r?\n/);
   const header = lines.findIndex((line) => line.trim() === `- name: ${stepName}`);
   if (header === -1) throw new Error(`fixture anchor step not found: ${stepName}`);
-  const runIndex = lines.findIndex(
-    (line, index) => index > header && line.trim().startsWith("run:"),
+  lines.splice(header + 1, 0, `        ${key}`);
+  return lines.join("\n");
+}
+
+function withBuildInput(text: string, stepName: string, input: string, value: string): string {
+  const lines = text.split(/\r?\n/);
+  const [start, end] = stepRange(lines, `- name: ${stepName}`);
+  const index = lines.findIndex(
+    (line, index) => index > start && index < end && line.trim().startsWith(`${input}:`),
   );
-  if (runIndex === -1) throw new Error(`fixture anchor step has no run: line: ${stepName}`);
-  lines.splice(runIndex, 0, `        ${key}`);
+  if (index !== -1) lines[index] = `          ${input}: ${value}`;
+  else {
+    const withIndex = lines.findIndex(
+      (line, index) => index > start && index < end && line.trim() === "with:",
+    );
+    if (withIndex === -1) throw new Error(`build inputs not found: ${stepName}`);
+    lines.splice(withIndex + 1, 0, `          ${input}: ${value}`);
+  }
   return lines.join("\n");
 }
 
@@ -2097,6 +2259,191 @@ function withReplacedOnce(text: string, from: string, to: string): string {
 }
 
 describe("CI: in-image restore guards are wired", () => {
+  for (const matrix of ["[1]", "[1, 3]", "[1, 2, 3]"]) {
+    it(`rejects an incomplete or unexpected browser shard matrix: ${matrix}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(
+        ciWiringProblems(withReplacedOnce(live, "shard: [1, 2]", `shard: ${matrix}`)),
+      ).toContain('job "e2e" must run exactly shards 1 and 2 without fail-fast');
+    });
+  }
+
+  for (const alteration of ["exclude: [{ shard: 1 }]", "include: [{ shard: 3 }]"]) {
+    it(`rejects browser matrix filtering: ${alteration}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(
+        ciWiringProblems(
+          withReplacedOnce(live, "shard: [1, 2]", `shard: [1, 2]\n        ${alteration}`),
+        ),
+      ).toContain('job "e2e" must run exactly shards 1 and 2 without fail-fast');
+    });
+  }
+
+  for (const shell of ['"true {0}"', '"bash {0}"', "sh"]) {
+    it(`rejects aggregate shell semantics that differ from the simulation: ${shell}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(ciWiringProblems(withReplacedOnce(live, "shell: bash", `shell: ${shell}`))).toContain(
+        'job "ci" must use the standard bash shell and only bound result inputs',
+      );
+    });
+  }
+
+  it("rejects aggregate behavior that depends on the GitHub event", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      'echo "checks=$CHECKS_RESULT, e2e=$E2E_RESULT"',
+      '[ "$GITHUB_EVENT_NAME" = push ] && exit 0',
+    );
+    expect(ciWiringProblems(fixture)).toContain(
+      'job "ci" must use the standard bash shell and only bound result inputs',
+    );
+  });
+
+  it("rejects workflow and aggregate shell defaults", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    for (const fixture of [
+      withReplacedOnce(live, "jobs:\n", 'defaults: { run: { shell: "true {0}" } }\njobs:\n'),
+      withJobKey(live, "ci", 'defaults: { run: { shell: "true {0}" } }'),
+    ]) {
+      expect(ciWiringProblems(fixture)).toContain(
+        'job "ci" must use the standard bash shell and only bound result inputs',
+      );
+    }
+  });
+
+  for (const key of ["if: false", "continue-on-error: true"]) {
+    it(`rejects ${key} on the browser gate`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(
+        ciWiringProblems(withStepKey(live, "E2E browser gate (loopback :3100)", key)).length,
+      ).toBeGreaterThan(0);
+    });
+  }
+
+  it("executes the aggregate shell against all 16 needed result combinations", async () => {
+    expect(aggregateProblems(parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8")))).toEqual([]);
+  });
+
+  it("rejects an aggregate that leaves a job out of needs", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    expect(
+      ciWiringProblems(withReplacedOnce(live, "needs: [checks, e2e]", "needs: [checks]")),
+    ).toContain('job "ci" must need every other job exactly once');
+  });
+
+  it("rejects an aggregate that tolerates a skipped shard result", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withReplacedOnce(
+      live,
+      '"$E2E_RESULT" == success ]]',
+      '( "$E2E_RESULT" == success || "$E2E_RESULT" == skipped ) ]]',
+    );
+    expect(ciWiringProblems(fixture)).toContain(
+      'job "ci" accepts the wrong result for success/skipped',
+    );
+  });
+
+  for (const condition of [undefined, "success()", "failure()"]) {
+    it(`rejects the aggregate without its exact always() condition: ${String(condition)}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      const fixture =
+        condition === undefined
+          ? withoutLine(live, "if: always()")
+          : withReplacedOnce(live, "if: always()", `if: ${condition}`);
+      expect(ciWiringProblems(fixture)).toContain('job "ci" must use if: always()');
+    });
+  }
+
+  for (const job of ["checks", "e2e"]) {
+    it(`rejects a job-level if on ${job}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(ciWiringProblems(withJobKey(live, job, "if: false"))).toContain(
+        `job "${job}" is gated by if: false and could be skipped`,
+      );
+    });
+
+    it(`rejects job-level continue-on-error on ${job}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(ciWiringProblems(withJobKey(live, job, "continue-on-error: true"))).toContain(
+        `job "${job}" sets continue-on-error: true`,
+      );
+    });
+  }
+
+  for (const name of ["Build the WALG PostgreSQL image", APP_BUILD_STEP]) {
+    for (const [input, value] of [
+      ["push", "true"],
+      ["push", "${{ true }}"],
+      ["outputs", "type=registry"],
+      ["outputs", "type=image,push=true"],
+      ["outputs", "type=image,push=1"],
+      ["outputs", "type=image,push=t"],
+      ["outputs", "type=image,push=TRUE"],
+      ["outputs", "type=Registry"],
+      ["cache-to", "type=gha,scope=application,mode=max,type=registry"],
+    ]) {
+      it(`rejects publication through ${name}: ${input}=${value}`, async () => {
+        const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+        expect(
+          imagePublicationSites(parseWorkflow(withBuildInput(live, name, input!, value!))),
+        ).toHaveLength(1);
+      });
+    }
+
+    it(`accepts a literal non-publishing push input on ${name}`, async () => {
+      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+      expect(ciWiringProblems(withBuildInput(live, name, "push", "false"))).toEqual([]);
+    });
+
+    for (const [input, value] of [
+      ["load", "false"],
+      ["platforms", "linux/arm64"],
+      ["context", "elsewhere"],
+    ]) {
+      it(`rejects an unusable ${name}: ${input}=${value}`, async () => {
+        const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+        expect(ciWiringProblems(withBuildInput(live, name, input!, value!)).length).toBeGreaterThan(
+          0,
+        );
+      });
+    }
+
+    it(`rejects a duplicated ${name}`, async () => {
+      expect(
+        ciWiringProblems(withStepDuplicated(await readFile(CI_WORKFLOW_PATH, "utf8"), name)).length,
+      ).toBeGreaterThan(0);
+    });
+
+    for (const key of ["if: false", "continue-on-error: true"]) {
+      it(`rejects ${key} on ${name}`, async () => {
+        expect(
+          ciWiringProblems(withStepKey(await readFile(CI_WORKFLOW_PATH, "utf8"), name, key)).length,
+        ).toBeGreaterThan(0);
+      });
+    }
+  }
+
+  it("rejects restore guards ordered before their image build", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    expect(
+      ciWiringProblems(
+        withStepMovedBefore(
+          live,
+          "In-image restore guard suite",
+          "- name: Build the WALG PostgreSQL image",
+        ),
+      ),
+    ).toContain('step "In-image restore guard suite" must run after the WAL-G image build');
+  });
+
+  it("rejects an application smoke test ordered before its image build", async () => {
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    expect(
+      ciWiringProblems(withStepMovedBefore(live, SMOKE_STEP, `- name: ${APP_BUILD_STEP}`)),
+    ).toContain(`step "${SMOKE_STEP}" must run after the application image build`);
+  });
+
   it("parses the workflow with zero wiring problems", async () => {
     const problems = ciWiringProblems(await readFile(CI_WORKFLOW_PATH, "utf8"));
     expect(problems).toEqual([]);
@@ -2119,11 +2466,7 @@ describe("CI: in-image restore guards are wired", () => {
 
   it("builds the application image once, in a named, unconditional step, and never pushes it", async () => {
     const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
-    const appBuilds = ciRunSteps(workflow).flatMap((step) =>
-      shellCommands(step.run)
-        .filter((command) => command.startsWith("docker build ") && !isWalgBuild(command))
-        .map((command) => ({ step, command })),
-    );
+    const appBuilds = imageBuildCommands(workflow).filter((build) => !isWalgBuild(build.command));
     expect(appBuilds.map((build) => build.command)).toEqual([
       "docker build --platform linux/amd64 -t jiangtang:ci .",
     ]);
@@ -2185,7 +2528,9 @@ describe("CI: in-image restore guards are wired", () => {
 
   it("keeps every pre-existing runner check alongside the in-image runs", async () => {
     const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
-    const lines = ciRunSteps(workflow).flatMap((step) => shellCommands(step.run));
+    const lines = [...ciRunSteps(workflow), ...ciRunSteps(workflow, "e2e")].flatMap((step) =>
+      shellCommands(step.run),
+    );
     for (const command of [
       "pnpm install --frozen-lockfile",
       "bash scripts/guards.sh",
@@ -2198,22 +2543,26 @@ describe("CI: in-image restore guards are wired", () => {
       "pnpm test",
       "pnpm build",
       "pnpm db:seed",
-      "pnpm test:e2e",
     ]) {
       expect(lines, command).toContain(command);
     }
-    expect(ciRunSteps(workflow).some((step) => step.run.includes("CREATE DATABASE"))).toBe(true);
+    expect(ciRunSteps(workflow, "e2e").some((step) => step.run.includes("CREATE DATABASE"))).toBe(
+      true,
+    );
+    expect(
+      ciRunSteps(workflow, "e2e").find((step) => step.run.startsWith("pnpm test:e2e"))?.run,
+    ).toBe(
+      "pnpm test:e2e --shard=${{ matrix.shard }}/2 --retries=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 1 || 0 }}",
+    );
   });
 
   it("rejects a docker push added to the application build step", async () => {
-    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
-    const fixture = withLineSuffix(
-      live,
-      "run: docker build --platform linux/amd64 -t jiangtang:ci .",
-      "&& docker push jiangtang:ci",
-    );
-    expect(fixture).toContain("docker push jiangtang:ci");
-    expect(imagePublicationSites(parseWorkflow(fixture))).toEqual(["ci: docker push jiangtang:ci"]);
+    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
+    const build = workflow.jobs?.checks?.steps?.find((step) => step.name === APP_BUILD_STEP);
+    expect(build).toBeDefined();
+    if (!build) throw new Error("application build is missing");
+    build.run = "docker push jiangtang:ci";
+    expect(imagePublicationSites(workflow)).toEqual(["checks: docker push jiangtang:ci"]);
   });
 
   it("rejects an image publication in a job other than ci", async () => {

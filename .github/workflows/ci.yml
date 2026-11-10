@@ -405,6 +405,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Require every job to succeed
+        shell: bash
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
