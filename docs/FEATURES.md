@@ -78,6 +78,5 @@ visitor can switch with the language control. Times are stored as UTC and displa
 
 ## Operations
 
-- See [DEPLOY.md](DEPLOY.md) for the Compose production stack, [BACKUP.md](BACKUP.md) for
-  WAL-G backups, and [HOSTED-DEMO-SPEC.md](HOSTED-DEMO-SPEC.md) for how to run a hosted read-only
-  demo.
+- See [DEPLOY.md](DEPLOY.md) for the Compose production stack and [BACKUP.md](BACKUP.md) for
+  WAL-G backups.

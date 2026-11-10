@@ -155,8 +155,9 @@ Markdown is therefore not checked or enforced by `pnpm format`.
 
 ## Pull requests
 
-- Keep the change small and about one concern. A bug fix should not also rename unrelated symbols,
-  move files or upgrade dependencies.
+- Keep the change small and about one concern, about 600 changed lines at most. A bug fix should not
+  also rename unrelated symbols, move files or upgrade dependencies. Stack dependent changes instead
+  of merging them into one pull request.
 - Add or update a test that would fail without the change. Database-backed behaviour needs a test
   against the real constraint or transaction, not only a mock.
 - Do not weaken an invariant, a guard or a test to make a run green. The booking `EXCLUDE`
@@ -173,3 +174,12 @@ Markdown is therefore not checked or enforced by `pnpm format`.
 
 No particular editor, AI tool or agent hook is required to contribute. Use the tools you prefer and
 review what they produce.
+
+## Licence and sign-off
+
+Contributions are accepted under the Apache License 2.0 in [LICENSE](LICENSE). Sign off each commit
+with `git commit -s` to certify the [Developer Certificate of Origin](https://developercertificate.org/);
+the flag adds a `Signed-off-by` line with your name and e-mail address.
+
+When AI tools wrote substantial parts of a change, the pull request says so in its AI assistance
+section and names those parts, so the reviewer knows what to check closely.
