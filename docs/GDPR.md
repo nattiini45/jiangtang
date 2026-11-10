@@ -9,6 +9,19 @@ The data model assumes a fresh installation. There is no upgrade path from an ol
 database or uploads. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
 not an upgrade path.
 
+## Personal time visibility
+
+Time entries are private by default, including from administrators. On a user's admin page,
+an admin can explicitly grant or revoke `time.viewOthers` or `time.editOthers`; editing includes
+viewing. Grants and revocations use the same transactional, append-only audit trail as mutations.
+Each person's desktop and mobile timesheet names the active people who can see their entries.
+Opening someone else's timesheet is recorded at most once per viewer, person and Europe/Berlin day.
+
+The workspace activity page and its MCP tool require `audit.view` (admins by default). Members
+retain per-record history and the dashboard's recent-activity card; that card omits time-entry
+activity. Capacity keeps planning assignments visible, but personal logged minutes follow time
+permissions. These application controls do not hide data from a database operator or a backup.
+
 ## Who is responsible for what
 
 - **The operator is the controller.** You choose the deployment, the accounts, the retention

@@ -1,4 +1,8 @@
 export const historyDe = {
+  "history.action.UserPermissionGranted": "Berechtigung für Zeiteinträge erteilt",
+  "history.action.UserPermissionRevoked": "Berechtigung für Zeiteinträge entzogen",
+  "history.action.TimesheetViewed": "Zeiteinträge angesehen",
+
   "history.empty": "Noch keine Aktivität.",
 
   "history.action.TicketCreated": "Erstellt",

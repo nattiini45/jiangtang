@@ -1,5 +1,7 @@
 import { Form, Link, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
+import { listTimeViewers } from "~/domains/time/time-access.server";
+import { TimeVisibility } from "~/components/timesheet/time-visibility";
 import { requireUser } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
@@ -52,6 +54,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const { startDay } = isoWeekRange(isoWeek);
   return {
     sheet,
+    viewers: await listTimeViewers(user),
     running,
     isoWeek,
     prevWeek: dayIndexToIsoWeek(startDay - 7),
@@ -95,6 +98,7 @@ export default function MobileTimesheet({ loaderData, actionData }: Route.Compon
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
       <h1 className="text-lg font-semibold">{t("nav.timesheet")}</h1>
+      <TimeVisibility viewers={loaderData.viewers} />
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 text-sm">
         <Link
           to={`/m/timesheet?week=${prevWeek}`}

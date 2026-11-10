@@ -463,7 +463,16 @@ describe("read-only MCP coverage", () => {
     expect(db.activityLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          NOT: { entityType: "timeEntry" },
+          NOT: {
+            OR: [
+              { entityType: "timeEntry" },
+              {
+                action: {
+                  in: ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"],
+                },
+              },
+            ],
+          },
           entityType: { in: expect.not.arrayContaining(["user", "timeEntry", "notification"]) },
         },
       }),

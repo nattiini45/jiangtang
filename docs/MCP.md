@@ -201,7 +201,11 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
   and domain permissions. A write token does not make a member an admin. No tools expose user
   administration, authentication secrets or admin configuration. Assignment principals expose
   only active IDs, names and initials. Notifications are always own-only. Time **tools** default
-  to self; only admins may explicitly select another user, including their private time comments.
+  to self. Reading another person’s entries requires `time.viewOthers`; creating, editing or
+  deleting them requires `time.editOthers` (which also grants view access), including for admins.
+  Opening another person’s timesheet is audited once per viewer, person and Berlin day.
+  `list_activity` requires `audit.view`, held by admins by default. Permission grants are only
+  available on the user’s admin page, never through MCP.
 - Mutations use the same validated domain operations and append-only transactional audit trail
   as the UI. The actor snapshot records the person plus “via MCP”, token ID and token name,
   never the token secret. Changes notify clients after commit.

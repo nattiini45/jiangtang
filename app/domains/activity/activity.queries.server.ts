@@ -139,7 +139,20 @@ async function queryActivity(options: ActivityListOptions, hideTime: boolean) {
   const cursor = decodeActivityCursor(options.cursor);
   const rows = await db.activityLog.findMany({
     where: {
-      ...(hideTime ? { NOT: { entityType: "timeEntry" } } : {}),
+      ...(hideTime
+        ? {
+            NOT: {
+              OR: [
+                { entityType: "timeEntry" },
+                {
+                  action: {
+                    in: ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"],
+                  },
+                },
+              ],
+            },
+          }
+        : {}),
       ...(options.actorId ? { actorId: options.actorId } : {}),
       ...(options.entityTypes?.length ? { entityType: { in: options.entityTypes } } : {}),
       ...(cursor

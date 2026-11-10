@@ -1,6 +1,17 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.user.time.title": "Access to other people’s time entries",
+  "admin.user.time.hint":
+    "Private by default, including for admins. Editing includes viewing. Every change is recorded in the activity log.",
+  "admin.user.time.view": "View others’ time entries",
+  "admin.user.time.edit": "Edit others’ time entries",
+  "admin.user.time.grant": "Grant",
+  "admin.user.time.revoke": "Revoke",
+  "admin.user.time.grantNamed": "Grant: {permission}",
+  "admin.user.time.revokeNamed": "Revoke: {permission}",
+  "admin.user.time.saved": "Time-entry access updated.",
+
   "admin.users.meta": "Users · Jiangtang",
   "admin.users.title": "Users",
   "admin.users.subtitle": "Manage, invite and deactivate accounts.",
