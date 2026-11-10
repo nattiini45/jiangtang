@@ -91,6 +91,11 @@ const ALLOWED_EXTERNAL_LINKS: ReadonlyArray<ExternalDeclaration> = [
     why: "the repository's private advisory form, named as the reporting target",
   },
   {
+    from: "CONTRIBUTING.md",
+    target: "https://developercertificate.org/",
+    why: "the Developer Certificate of Origin that a signed-off commit certifies",
+  },
+  {
     from: "THIRD_PARTY_NOTICES.md",
     target: "https://github.com/shadcn-ui/ui",
     why: "upstream source for the vendored shadcn/ui components",

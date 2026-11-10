@@ -1,9 +1,8 @@
 # Architecture
 
 Jiangtang (讲堂, "lecture hall") is a self-hosted workspace for an AV or facilities team. One
-installation serves one team in this release; multi-tenancy is specified in
-[MULTI-TENANCY-DESIGN.md](MULTI-TENANCY-DESIGN.md). This document describes how the code is organised and which
-guarantees the database and the application keep. For installation see [DEPLOY.md](DEPLOY.md), for
+installation serves one team; separate organisations run separate installations. This document
+describes how the code is organised and which guarantees the database and the application keep. For installation see [DEPLOY.md](DEPLOY.md), for
 recovery [BACKUP.md](BACKUP.md), for personal data [GDPR.md](GDPR.md) and for day-to-day code rules
 [conventions.md](conventions.md).
 

@@ -1,6 +1,6 @@
 # Places unification design (specification — not implemented in this release)
 
-Status: **parked.** The project keeps rooms and locations as independent concepts (see
+Status: **not adopted.** The project keeps rooms and locations as independent concepts (see
 [ARCHITECTURE.md](ARCHITECTURE.md#rooms-and-locations)); this design is kept for reference only.
 The audit decision (§12.4, "Unify into one model") that asked for one places tree with bookable
 nodes replacing the separate `Campus`/`Building`/`Room` trio has been reversed. This document is

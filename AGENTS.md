@@ -75,6 +75,11 @@ For design work, read [PRODUCT.md](PRODUCT.md), [DESIGN.md](DESIGN.md) and the m
 - Comments explain a non-obvious reason, never what the code does. Do not reference tickets,
   slices, people or planning documents in code or comments.
 - Tests use synthetic data only. Database tests exercise the real constraint or transaction.
+- Tests pass with `TZ=UTC` and at any time of day. Expectations come from fixed dates, never from the
+  wall clock's local date.
+- In Playwright, wait for the rendered, committed state before asserting on it.
+- Keep a pull request to one concern and to about 600 changed lines; stack dependent changes instead
+  of merging them.
 
 ### i18n keys
 
@@ -106,6 +111,17 @@ statements.
 5. Apply with `pnpm db:deploy`, then restart the dev server (`tsx watch` does not reload
    `app/generated/`).
 6. Add a catalog check to `ops/postgres/verify-invariants.sql` for any new unmodelled invariant.
+
+Main deploys continuously, and a failed deploy rolls back the code but not the schema. Every
+migration must therefore work with the code that was live before it: add first, and remove or
+tighten in a later change once nothing deployed reads the old shape. The pull request says how the
+migration stays compatible.
+
+After adding a migration, run `pnpm db:deploy && pnpm exec prisma db execute --file ops/postgres/verify-invariants.sql`
+against the migrated database. Then update what counts or lists schema objects: the expected
+migration list in test (5) of `app/domains/catalog/__tests__/catalog.import-model.test.ts`, and the
+counts in `ops/postgres/verify-invariants.sql` (checks 12 and 13 and the closing NOTICE) when the
+migration adds an enum, foreign key, `EXCLUDE`, `CHECK` or index.
 
 Never use `prisma db push` (it reconciles hand-written objects away) and never apply a draft with
 `migrate dev`. Never edit, rename, squash or reorder an applied migration. `prisma.config.ts` uses a

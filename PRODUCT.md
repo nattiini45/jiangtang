@@ -21,7 +21,7 @@ calendars. This is a product goal, not a claim of feature parity or completed mi
 
 ## Operating Context
 
-- One installation serves one team. Multi-tenancy is specified, not implemented.
+- One installation serves one team; separate organisations run separate installations.
 - The desktop route tree renders at `/`. The separate mobile web PWA at `/m` supports on-site
   capture, an offline replay queue, search and mobile lists; its board is read-only.
 - English and German are supported. German is the intended installation language for the team:
