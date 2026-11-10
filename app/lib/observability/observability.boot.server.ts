@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { BootContext } from "~/server/boot";
 import { logger, redactTokenSegments } from "~/lib/observability/logger.server";
 import { initSentry, captureException, flushSentry } from "~/lib/observability/sentry.server";
+import { buildInfo } from "~/lib/version.server";
 
 /**
  * Observability boot. Registers structured request logging
@@ -21,6 +22,7 @@ import { initSentry, captureException, flushSentry } from "~/lib/observability/s
 export const order = -10;
 
 export async function register(app: Express, ctx: BootContext): Promise<void> {
+  logger.info(buildInfo, "application boot");
   initSentry();
 
   // Request logging: stamp each request with an id, log on finish with status + duration.

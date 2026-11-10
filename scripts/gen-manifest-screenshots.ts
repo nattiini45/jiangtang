@@ -2,7 +2,7 @@
  * `pnpm exec tsx scripts/gen-manifest-screenshots.ts` — regenerates the PWA
  * manifest screenshots in public/shots/. They are branded placeholders built
  * from the same J mark as scripts/generate-icons.ts (replace them with real
- * captures once the mobile UI is final — see WORKSTATE.md). The brand tokens
+ * captures once the mobile UI is final). The brand tokens
  * are the dark-mode values from app/app.css: surface #171717, foreground
  * #ededed.
  */
