@@ -1,7 +1,7 @@
 # Releasing Jiangtang
 
 A release is a deliberate checkpoint, not an automatic consequence of merging.
-Only the Captain starts a publishing run of `.github/workflows/release.yml`, by
+Only a release maintainer starts a publishing run of `.github/workflows/release.yml`, by
 hand, from `main`. This machinery change does not prepare or cut a release.
 
 ## Prepare, soak, publish
@@ -12,7 +12,7 @@ hand, from `main`. This machinery change does not prepare or cut a release.
    such as `## [0.1.0] - YYYY-MM-DD`, with a `### Upgrade notes` block even when
    there is no operator action. Only release-prep changes edit the changelog.
 2. Merge normally, with green checks. Let production run that exact commit for
-   **at least a day without a rollback**. The Captain verifies the soak; the
+   **at least a day without a rollback**. The release maintainer verifies the soak; the
    workflow cannot infer production history from the commit's age.
 3. In GitHub Actions, select **Release → Run workflow**, using `main`. Supply the
    version without `v` and the full lowercase 40-character commit SHA. Leave
