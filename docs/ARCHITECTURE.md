@@ -206,6 +206,15 @@ test, and weakening one needs a deliberate review.
   `(resource, during)` where `cancelled = false`. A conflict raises SQLSTATE `23P01`;
   `insertOrConflict` in `app/lib/booking.server.ts` turns it into `BookingConflictError` (HTTP 409).
   UI pre-checks (`api.events.check-conflict`) are only an accelerator.
+- **Audited health exceptions for new reservations.** Initial and later room bookings lock the
+  current `Room` row; equipment allocations lock the current `Equipment` row before checking
+  health and mobility. OUT_OF_SERVICE rooms and FAULTY/MAINTENANCE pooled equipment require
+  `healthOverrideConfirmed === true` and a trimmed, nonblank `healthOverrideReason`. Shared typed
+  descriptors drive UI controls, MCP discovery and the structured `HEALTH_OVERRIDE_REQUIRED`
+  rejection. The existing booking/allocation audit stores the actual unhealthy status and reason
+  with the authenticated actor in the same transaction. RETIRED equipment cannot be overridden;
+  existing reservations and service-window behavior stay unchanged. Asset locks serialize health
+  changes through the reservation commit, while EXCLUDE remains the final overlap protection.
 - **Append-only audit.** `ActivityLog` is written in the same transaction as each mutation through
   `txWithAudit` in `app/lib/audit.server.ts`. A trigger (`ENABLE ALWAYS`) rejects `UPDATE` and
   `DELETE` unless a transaction-local setting, `jiangtang.audit_bypass`, is on. Only the two

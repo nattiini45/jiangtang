@@ -1,9 +1,16 @@
 import * as React from "react";
-import { Link, redirect, useFetcher, useNavigation } from "react-router";
+import { data, Link, redirect, useFetcher, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
-import { BookingConflictError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  BookingConflictError,
+  toErrorResponse,
+  TransitionError,
+  ValidationError,
+} from "~/lib/errors.server";
+import { HealthOverrideFields } from "~/components/events/health-override-fields";
+import { healthOverrideFromForm, roomBookingAction } from "~/domains/events/events.health-policy";
 import { resolveLocale } from "~/i18n/locale.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { eventCreateSchema, roomBookingCreateSchema } from "~/domains/events/events.schema";
@@ -36,7 +43,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
   const locale = resolveLocale(request);
-  const obj = formDataToObject(await request.formData());
+  const obj = healthOverrideFromForm(formDataToObject(await request.formData()));
   const result = safeParse(eventCreateSchema, obj, locale);
   if (!result.success) return { fieldErrors: result.fieldErrors };
   const booking = obj.roomId ? safeParse(roomBookingCreateSchema, obj, locale) : undefined;
@@ -48,6 +55,8 @@ export async function action({ request }: Route.ActionArgs) {
     await emitChange({ entityType: "event", id: event.id, op: "created" });
     return redirect(`/events/${event.id}`);
   } catch (e) {
+    if (e instanceof TransitionError)
+      return data({ fieldErrors: e.fieldErrors, transition: e.transition }, { status: 422 });
     if (e instanceof BookingConflictError) return { conflict: true, fieldErrors: undefined };
     if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
     throw toErrorResponse(e);
@@ -121,6 +130,13 @@ export default function NewEvent({ loaderData, actionData }: Route.ComponentProp
             ))}
           </Select>
         </FormField>
+        <HealthOverrideFields
+          key={window.roomId}
+          entity="room"
+          action={roomBookingAction(
+            rooms.find((room) => room.id === window.roomId)?.status ?? "ALL_GOOD",
+          )}
+        />
         {conflicts.length > 0 || (actionData && "conflict" in actionData && actionData.conflict) ? (
           <p className="text-status-fault text-sm" role="alert">
             {t("mobile.eventsNew.conflict")}

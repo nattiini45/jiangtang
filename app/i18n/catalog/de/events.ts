@@ -1,5 +1,14 @@
 /** Events: list, calendar, detail (rooms, allocations, service windows), subscribe, sync. */
 export const eventsDe = {
+  "events.health.title": "Gesundheitsstatus übergehen",
+  "events.health.roomWarning":
+    "Dieser Raum ist außer Betrieb. Buche ihn nur, wenn die Nutzung bewusst geprüft wurde. Bestehende Buchungen bleiben unverändert.",
+  "events.health.equipmentWarning":
+    "Dieses Gerät ist defekt oder in Wartung. Weise es nur nach bewusster Prüfung zu. Bestehende Zuweisungen bleiben unverändert.",
+  "events.health.reason": "Begründung für die Ausnahme",
+  "events.health.confirm": "Ich bestätige die Nutzung trotz dieses Zustands.",
+  "events.health.overrideRequired":
+    "Bestätige die Nutzung trotz des Gesundheitszustands ausdrücklich und gib eine nicht leere Begründung an.",
   "events.meta.list": "Veranstaltungen · Jiangtang",
   "events.meta.new": "Neue Veranstaltung · Jiangtang",
   "events.meta.detail": "{title} · Jiangtang",

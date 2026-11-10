@@ -7,6 +7,8 @@ import type {
   ServiceWindowKind,
   TicketStatus,
   TicketType,
+  RoomStatus,
+  EquipmentStatus,
 } from "~/generated/prisma/client";
 import { listRooms } from "~/domains/rooms/rooms.queries.server";
 import { listEquipment } from "~/domains/inventory/inventory.queries.server";
@@ -212,8 +214,8 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
 // ── Picker targets ───────────────────────────────────────────────────────────
 
 export interface EventTargets {
-  rooms: { id: string; name: string }[];
-  pooledEquipment: { id: string; label: string }[];
+  rooms: { id: string; name: string; status: RoomStatus }[];
+  pooledEquipment: { id: string; label: string; status: EquipmentStatus }[];
   users: { id: string; name: string; initials: string | null }[];
 }
 
@@ -231,12 +233,14 @@ export async function listEventTargets(): Promise<EventTargets> {
   return {
     rooms: rooms.map((r) => ({
       id: r.id,
+      status: r.status,
       name: r.roomNumber ? `${r.name} (${r.roomNumber})` : r.name,
     })),
     pooledEquipment: equipment
       .filter((e) => e.status !== "RETIRED")
       .map((e) => ({
         id: e.id,
+        status: e.status,
         label: [e.name ?? e.modelName ?? e.category, e.assetTag].filter(Boolean).join(" · "),
       })),
     users,

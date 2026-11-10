@@ -80,10 +80,27 @@ export const eventCreateSchema = eventFields
 export const eventEditSchema = eventCreateSchema;
 
 // ── Bookable atoms ───────────────────────────────────────────────────────────
+const healthOverrideFields = {
+  healthOverrideConfirmed: z
+    .boolean()
+    .optional()
+    .describe(
+      "Explicit true confirmation is required for an unhealthy asset; never inferred from a reason.",
+    ),
+  healthOverrideReason: z
+    .string()
+    .trim()
+    .optional()
+    .describe(
+      "Nonblank reason required with healthOverrideConfirmed:true for an unhealthy asset. Recorded with the authenticated actor in the booking audit.",
+    ),
+};
+
 const roomBookingFields = z.object({
   roomId: z.string().min(1, msgKey("work.err.event.roomRequired")),
   startsAt: dtLocal,
   endsAt: dtLocal,
+  ...healthOverrideFields,
 });
 
 export const roomBookingSchema = roomBookingFields.refine(endsAfterStarts, endsAfterStartsIssue);
@@ -95,6 +112,7 @@ export const roomBookingExactSchema = roomBookingCreateSchema.superRefine(valida
 export const allocationSchema = z
   .object({
     equipmentId: z.string().min(1, msgKey("work.err.event.equipmentRequired")),
+    ...healthOverrideFields,
     startsAt: dtLocal,
     endsAt: dtLocal,
     ...exactInstants,

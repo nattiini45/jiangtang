@@ -240,6 +240,26 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
   data needed to an external model. Optional CalDAV, embeddings, reranking, generation and error
   reporting stay off unless configured; MCP itself requires none of those integrations.
 
+### Asset-health booking overrides
+
+`get_room`, `list_rooms` and their resources expose `bookingAction`; equipment reads expose
+`allocationAction`. These shared descriptors separate action legality from required inputs and
+confirmation: only OUT_OF_SERVICE rooms and FAULTY/MAINTENANCE pooled equipment require
+`healthOverrideConfirmed:true` plus a trimmed, nonblank `healthOverrideReason`. Send those fields
+inside `booking` for `create_event_with_booking`, or `input` for `add_room_booking` and
+`add_equipment_allocation`. Confirmation must be a JSON boolean, not a string or number; reasons
+must be strings. Healthy writes remain compatible without either field. RETIRED equipment and
+non-POOLED equipment remain forbidden regardless of override input.
+
+An incomplete unhealthy override returns the shared 422 validation envelope with `transition`,
+`reason.code: "HEALTH_OVERRIDE_REQUIRED"`, the current asset state, attempted `BOOK`/`ALLOCATE`
+action and its required fields. Descriptors are advisory; writes lock the current asset row and
+check its committed status inside the booking transaction. A successful unhealthy override adds
+the actual status and trimmed reason to the existing `RoomBooked`/`EquipmentAllocated` audit,
+attributed to the authenticated token owner through the normal audit actor. Overlap exclusion,
+parent cancellation and mobility rules still apply. Existing reservations and service windows
+are unchanged.
+
 ### Image uploads and limits
 
 `upload_attachment` accepts exactly one room/equipment/ticket target, a safe filename, a matching
