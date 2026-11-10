@@ -341,7 +341,7 @@ describe("read-only MCP coverage", () => {
     ["list_attachments", { roomId: "r", ticketId: "t" }],
     ["get_timesheet", { isoWeek: "2025-W53" }],
     ["list_time_entries", { isoWeek: "2026-W00" }],
-    ["list_activity", { entityTypes: ["user"] }],
+    ["list_activity", { entityTypes: ["notification"] }],
   ])("%s rejects invalid input before querying", async (name, input) => {
     expect(await status(name as string, input)).toBe(422);
     expect(db.room.findMany).not.toHaveBeenCalled();
@@ -419,14 +419,14 @@ describe("read-only MCP coverage", () => {
     });
   });
 
-  it("redacts actor emails and excludes account/private activity types", async () => {
+  it("redacts actor emails while applying time ownership and exposing accountability", async () => {
     db.user.findUnique.mockResolvedValue({
       ...member.user,
       role: "ADMIN",
       isActive: true,
       permissions: [],
     });
-    db.activityLog.findMany.mockResolvedValue([
+    db.activityLog.findMany.mockResolvedValueOnce([]).mockResolvedValue([
       {
         id: "log",
         action: "TaskCreated",
@@ -463,10 +463,30 @@ describe("read-only MCP coverage", () => {
     expect(db.activityLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          NOT: { entityType: "timeEntry" },
-          entityType: { in: expect.not.arrayContaining(["user", "timeEntry", "notification"]) },
+          AND: [
+            {
+              OR: [
+                { NOT: { entityType: { equals: "timeEntry", mode: "insensitive" } } },
+                { entityType: { equals: "timeEntry", mode: "insensitive" }, entityId: { in: [] } },
+              ],
+            },
+            {
+              OR: [
+                { entityType: { not: "user" } },
+                {
+                  action: {
+                    in: ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"],
+                  },
+                },
+              ],
+            },
+          ],
+          entityType: { in: expect.arrayContaining(["user", "timeEntry"]) },
         },
       }),
+    );
+    expect(db.activityLog.findMany.mock.lastCall?.[0].where.entityType.in).not.toContain(
+      "notification",
     );
   });
 

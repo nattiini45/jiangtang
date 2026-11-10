@@ -1,5 +1,7 @@
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { listTimeViewers } from "~/domains/time/time-access.server";
+import { TimeVisibility } from "~/components/timesheet/time-visibility";
 import { hasPermission } from "~/lib/rbac.server";
 import { requireUser } from "~/lib/auth.server";
 import { EmptyState } from "~/components/states/empty-state";
@@ -101,6 +103,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     canViewOthers,
     canEdit: targetUserId === actor.id || (await hasPermission(actor, "time.editOthers")),
     ownSheet: targetUserId === actor.id,
+    viewers: targetUserId === actor.id ? await listTimeViewers(actor) : null,
     users,
     targetUserId,
     taskOptions,
@@ -239,6 +242,10 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
           {t("nav.capacity")}
         </Link>
       </nav>
+
+      {tab === "timesheet" && loaderData.viewers ? (
+        <TimeVisibility viewers={loaderData.viewers} />
+      ) : null}
 
       {tab === "capacity" && capacity ? (
         <CapacityPanel overview={capacity} />

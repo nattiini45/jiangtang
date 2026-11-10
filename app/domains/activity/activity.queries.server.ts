@@ -1,6 +1,7 @@
 import { Prisma } from "~/generated/prisma/client";
 import type { AuditActor } from "~/lib/audit.server";
-import { hasPermission, requirePermission } from "~/lib/rbac.server";
+import { requirePermission } from "~/lib/rbac.server";
+import { TIME_ACTIVITY_TYPE, timeActivityVisibility } from "~/domains/time/time-access.server";
 import { db } from "~/lib/db.server";
 import { entityHref } from "~/lib/entity-links";
 
@@ -21,7 +22,14 @@ export interface ActivityListOptions {
   entityTypes?: string[];
   cursor?: string;
   limit?: number;
+  userAccountabilityOnly?: boolean;
 }
+
+const TIME_ACCOUNTABILITY_ACTIONS = [
+  "TimesheetViewed",
+  "UserPermissionGranted",
+  "UserPermissionRevoked",
+];
 
 export interface ActivityListRow {
   id: string;
@@ -127,19 +135,41 @@ function titleFromData(data: Prisma.JsonValue): string | null {
 
 export async function listActivity(actor: AuditActor, options: ActivityListOptions = {}) {
   await requirePermission(actor, "audit.view");
-  return queryActivity(options, !(await hasPermission(actor, "time.viewOthers")));
+  return queryActivity(options, await timeActivityVisibility(actor));
 }
 
 export async function listRecentActivity() {
-  return queryActivity({ limit: 10 }, true);
+  return queryActivity(
+    { limit: 10 },
+    {
+      NOT: {
+        OR: [{ entityType: TIME_ACTIVITY_TYPE }, { action: { in: TIME_ACCOUNTABILITY_ACTIONS } }],
+      },
+    },
+  );
 }
 
-async function queryActivity(options: ActivityListOptions, hideTime: boolean) {
+async function queryActivity(
+  options: ActivityListOptions,
+  visibility: Prisma.ActivityLogWhereInput,
+) {
   const limit = options.limit ?? 50;
   const cursor = decodeActivityCursor(options.cursor);
   const rows = await db.activityLog.findMany({
     where: {
-      ...(hideTime ? { NOT: { entityType: "timeEntry" } } : {}),
+      AND: [
+        visibility,
+        ...(options.userAccountabilityOnly
+          ? [
+              {
+                OR: [
+                  { entityType: { not: "user" } },
+                  { action: { in: TIME_ACCOUNTABILITY_ACTIONS } },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(options.actorId ? { actorId: options.actorId } : {}),
       ...(options.entityTypes?.length ? { entityType: { in: options.entityTypes } } : {}),
       ...(cursor

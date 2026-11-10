@@ -78,7 +78,11 @@ export async function startTimer(actor: TimeActor, taskId?: string | null): Prom
       action: "TimeEntryStarted",
       entityType: "timeEntry",
       entityId: entry!.id,
-      data: { taskId: entry!.taskId, startsAt: entry!.startsAt.toISOString() },
+      data: {
+        userId: entry!.userId,
+        taskId: entry!.taskId,
+        startsAt: entry!.startsAt.toISOString(),
+      },
     });
     return entry!;
   });
@@ -104,7 +108,7 @@ export async function stopTimer(actor: TimeActor): Promise<TimeEntry> {
       action: "TimeEntryStopped",
       entityType: "timeEntry",
       entityId: entry.id,
-      data: { taskId: entry.taskId, minutes: minutesOf(entry) },
+      data: { userId: entry.userId, taskId: entry.taskId, minutes: minutesOf(entry) },
     });
     return entry;
   });

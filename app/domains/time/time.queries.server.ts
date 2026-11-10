@@ -1,5 +1,5 @@
 import type { AuditActor } from "~/lib/audit.server";
-import { requireTimeAccess } from "./time-access.server";
+import { recordTimesheetView, requireTimeAccess } from "./time-access.server";
 import { db } from "~/lib/db.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { TimeEntry } from "~/generated/prisma/client";
@@ -82,6 +82,7 @@ export async function getWeekTimesheet(
   now: Date = new Date(),
 ): Promise<WeekTimesheet> {
   await requireTimeAccess(actor, userId);
+  await recordTimesheetView(actor, userId);
   const { startDay, endDay } = isoWeekRange(isoWeek);
   const weekStart = berlinDayStartMs(startDay);
   const weekEnd = berlinDayStartMs(endDay + 1);

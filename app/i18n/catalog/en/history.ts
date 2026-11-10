@@ -1,6 +1,10 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.UserPermissionGranted": "Time-entry permission granted",
+  "history.action.UserPermissionRevoked": "Time-entry permission revoked",
+  "history.action.TimesheetViewed": "Time entries viewed",
+
   "history.empty": "No activity yet.",
 
   "history.action.TicketCreated": "Created",

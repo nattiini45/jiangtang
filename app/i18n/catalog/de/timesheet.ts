@@ -1,5 +1,9 @@
 /** Time tracking, capacity heatmap and analytics dashboards. */
 export const timesheetDe = {
+  "timesheet.visibility.onlyYou": "Nur du kannst deine Zeiteinträge sehen.",
+  "timesheet.visibility.people":
+    "Deine Zeiteinträge sind für dich und folgende Personen sichtbar: {names}.",
+
   "timesheet.meta": "Zeiterfassung · Jiangtang",
   "timesheet.tabs.aria": "Abschnitte der Zeiterfassung",
   "timesheet.userPickerAria": "Nutzer für Zeiterfassung wählen",
