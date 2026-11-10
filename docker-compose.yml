@@ -235,8 +235,12 @@ services:
   # the app never starts against a database missing an un-droppable invariant
   # — the "minimum real net for prod".
   migrate:
+    image: ${JIANGTANG_IMAGE:-jiangtang-prod-migrate}
     build:
       context: .
+      args:
+        APP_VERSION: ${JIANGTANG_VERSION:-development}
+        VCS_REF: ${JIANGTANG_COMMIT:-unknown}
     command:
       - "sh"
       - "-c"
@@ -254,8 +258,12 @@ services:
     restart: "no"
 
   app:
+    image: ${JIANGTANG_IMAGE:-jiangtang-prod-app}
     build:
       context: .
+      args:
+        APP_VERSION: ${JIANGTANG_VERSION:-development}
+        VCS_REF: ${JIANGTANG_COMMIT:-unknown}
     environment:
       NODE_ENV: production
       PORT: 3000
