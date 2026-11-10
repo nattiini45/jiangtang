@@ -125,15 +125,21 @@ bash scripts/guards.sh --self-test   # when changing the guard script itself
 pnpm build
 ```
 
-CI (`.github/workflows/ci.yml`) runs on `main` and pull requests. It runs the guards and their
+CI (`.github/workflows/ci.yml`) runs on `main` and pull requests. Its `checks` job runs the guards and their
 self-test, the Python backup-selector tests and the in-image WAL-G checks, builds the production
 application image without pushing it, generates the client, migrates its own database and runs
 `ops/postgres/verify-invariants.sql` against it (plus a negative control that must fail), then
 smoke-tests the built image the way production runs it: its migrate job against a database of its
 own, then the app in production mode until `/healthz` and `/login` answer 200. After that it runs
-typecheck, lint, Vitest and the production build. It then runs the Playwright E2E browser
-gate: it installs Chromium and runs `pnpm test:e2e` against an isolated E2E database. The live
-retrieval evaluation (`pnpm eval:live`) is not part of CI.
+typecheck, lint, Vitest and the production build. It also gates repository-wide Prettier formatting.
+In parallel, two Playwright shards each install Chromium and run `pnpm test:e2e --shard=N/2`
+against their own runner and isolated E2E database, with one worker per shard. Pull requests get
+no retries; pushes to `main` get one retry. Docker layers and the Chromium download are cached.
+The final required `ci` job succeeds only when `checks` and both browser shards succeed; a failed,
+cancelled or skipped dependency fails it. Superseded pull request runs are cancelled, but every
+push to `main` has a commit-specific concurrency group, so main runs never cancel or queue behind
+one another at the workflow level (runner capacity can still limit parallelism). The live retrieval
+evaluation (`pnpm eval:live`) is not part of CI.
 
 `pnpm eval:live` is optional and not part of the default checks. It calls the AI endpoints
 configured in your environment, so it sends retrieval data there and a hosted provider may bill you.

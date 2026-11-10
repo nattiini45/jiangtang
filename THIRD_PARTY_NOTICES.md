@@ -262,8 +262,8 @@ exact version or digest resolve at pull time.
 | WAL-G | v3.0.9, binary `wal-g-pg-24.04-amd64`, SHA-256 `8015836f246a978f27b31a2462eac7765312558ae5b11ac033322b555abf9e22` | WAL archiving, base backup and restore inside the locally built `jiangtang-postgres-walg` image | Apache-2.0; Copyright 2017 Citus Data Inc. |
 | Node.js | 22 (`node:22-bookworm-slim`) | Application build and runtime base | MIT; bundled components carry their own licenses |
 | Debian | bookworm-slim (inside the Node image) | Base operating system | Various free-software licenses; the image package inventory defines the exact terms |
-| Caddy | 2 (`caddy:2`) | Reverse proxy and TLS termination | Apache-2.0 |
-| Alpine Linux and curl | `alpine/curl:latest` | Alerting sidecar; `latest` is not digest-pinned | Alpine package licenses (various) and the curl license |
+| Caddy | 2.11.9 (`caddy:2.11.9`) | Reverse proxy and TLS termination | Apache-2.0 |
+| Alpine Linux and curl | `alpine/curl:8.23.0` | Alerting sidecar; version-pinned, not digest-pinned | Alpine package licenses (various) and the curl license |
 | RustFS | `rustfs/rustfs:latest` | Rehearsal-only S3-compatible backup target; `latest` is not digest-pinned | Apache-2.0 |
 | AWS CLI | `amazon/aws-cli:latest` | Rehearsal-only bucket creation; `latest` is not digest-pinned | Apache-2.0; Copyright Amazon.com, Inc. or its affiliates |
 | BuildKit Dockerfile frontend | `docker/dockerfile:1` | Build-time only | Apache-2.0 |
