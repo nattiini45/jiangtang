@@ -36,6 +36,7 @@ afterAll(async () => {
   await db.session.deleteMany({ where: { user: owners } });
   await db.user.deleteMany({ where: owners });
   await db.verification.deleteMany({ where: { identifier: { in: emails } } });
+  await db.invitation.deleteMany({ where: { email: { in: emails } } });
   await db.$disconnect();
 });
 

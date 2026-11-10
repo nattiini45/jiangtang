@@ -44,7 +44,14 @@ test.describe("English browser, no cookie", () => {
 
   test("an unknown invite link says so in English", async ({ page }) => {
     await page.goto("/accept-invite/no-such-token");
-    await expect(page.getByText("This invitation was not found or has expired.")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "This invitation is no longer valid", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Ask the administrator who invited you for a new invitation link.", {
+        exact: true,
+      }),
+    ).toBeVisible();
   });
 
   test("the switcher changes the language, keeps the route and survives a reload", async ({

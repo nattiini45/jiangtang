@@ -1,5 +1,5 @@
 import * as React from "react";
-import { redirect } from "react-router";
+import { data } from "react-router";
 import type { Route } from "./+types/route";
 import { requireRole } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
@@ -10,6 +10,7 @@ import { ZodForm, FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Button } from "~/components/ui/button";
+import { InvitationLink } from "~/components/auth/invitation-link";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
@@ -36,7 +37,10 @@ export async function action({ request }: Route.ActionArgs) {
       email: actor.email,
       initials: actor.initials,
     });
-    return redirect(`/admin/users?invited=${encodeURIComponent(token)}`);
+    return data(
+      { link: `${new URL(request.url).origin}/accept-invite/${token}` },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (e) {
     if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
     throw toErrorResponse(e);
@@ -55,6 +59,11 @@ export default function InviteUser({ actionData }: Route.ComponentProps) {
     <div className="max-w-lg">
       <h1 className="text-xl font-bold">{t("admin.invite.title")}</h1>
       <p className="text-muted-foreground mt-1 text-sm">{t("admin.invite.subtitle")}</p>
+      {actionData && "link" in actionData ? (
+        <div className="mt-4">
+          <InvitationLink key={actionData.link} link={actionData.link} />
+        </div>
+      ) : null}
       <ZodForm className="mt-6" fieldErrors={fieldErrors}>
         <FormField name="email" label={t("admin.invite.email")}>
           <Input name="email" type="email" required autoComplete="email" />

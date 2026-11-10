@@ -369,6 +369,32 @@ describe("credential and invitation erasure", () => {
       },
     });
 
+    const invitations = await Promise.all(
+      ["pending", "accepted", "expired", "revoked"].map((state) =>
+        db.invitation.create({
+          data: {
+            email: state === "pending" ? email.toUpperCase() : email,
+            name: target.name,
+            initials: "EC",
+            role: "MEMBER",
+            expiresAt: state === "expired" ? new Date(0) : expiresAt,
+            acceptedAt: state === "accepted" ? new Date() : null,
+            revokedAt: state === "revoked" ? new Date() : null,
+          },
+        }),
+      ),
+    );
+    const invitedByTarget = await db.invitation.create({
+      data: {
+        email: bystander.email,
+        name: bystander.name,
+        initials: "CB",
+        role: "MEMBER",
+        expiresAt,
+        invitedById: target.id,
+      },
+    });
+
     try {
       await pseudonymizeUser(
         { id: "test-admin", name: "Admin", email: "a@a", initials: "AD" },
@@ -380,11 +406,21 @@ describe("credential and invitation erasure", () => {
       expect(await db.verification.findUnique({ where: { id: invite.id } })).toBeNull();
       expect(await db.verification.findUnique({ where: { id: resetLink.id } })).toBeNull();
       expect(await db.verification.findUnique({ where: { id: legacyInvite.id } })).toBeNull();
+      expect(
+        await db.invitation.count({ where: { id: { in: invitations.map((row) => row.id) } } }),
+      ).toBe(0);
+      expect(await db.invitation.findUnique({ where: { id: invitedByTarget.id } })).toMatchObject({
+        email: bystander.email,
+        invitedById: null,
+      });
       // Other people's credentials and invitations are untouched.
       expect(await db.account.count({ where: { userId: bystander.id } })).toBe(1);
       expect(await db.verification.findUnique({ where: { id: otherInvite.id } })).not.toBeNull();
     } finally {
       await db.account.deleteMany({ where: { userId: bystander.id } });
+      await db.invitation.deleteMany({
+        where: { id: { in: [...invitations.map((row) => row.id), invitedByTarget.id] } },
+      });
       await db.verification.deleteMany({
         where: { id: { in: [invite.id, legacyInvite.id, resetLink.id, otherInvite.id] } },
       });
