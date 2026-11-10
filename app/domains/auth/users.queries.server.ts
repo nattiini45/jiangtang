@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { auth } from "~/lib/auth.server";
 import { db, type Tx } from "~/lib/db.server";
@@ -14,8 +14,8 @@ import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
 
 /**
  * User/account management. All mutations go through `txWithAudit`
- * (audit in the same tx). Invite flow: an admin records a one-time invite token
- * in the `Verification` table; the invitee consumes it at `/accept-invite/:token`
+ * (audit in the same tx). Invite flow: an admin records a hashed one-time token;
+ * the invitee consumes it at `/accept-invite/:token`
  * to set their password, which creates the User and its Better Auth credential
  * Account in one transaction.
  *
@@ -66,49 +66,63 @@ export async function findUser(id: string): Promise<UserListRow> {
   return u;
 }
 
-/** Create an invite: a pending token in Verification. Returns the token. */
+export type InvitationState = "pending" | "accepted" | "expired" | "revoked";
+
+export function invitationState(row: {
+  acceptedAt: Date | null;
+  revokedAt: Date | null;
+  expiresAt: Date;
+}): InvitationState {
+  if (row.acceptedAt) return "accepted";
+  if (row.revokedAt) return "revoked";
+  return row.expiresAt <= new Date() ? "expired" : "pending";
+}
+
+export async function listInvitations() {
+  const rows = await db.invitation.findMany({
+    orderBy: { createdAt: "desc" },
+    omit: { tokenHash: true },
+    include: { invitedBy: { select: { name: true, email: true } } },
+  });
+  return rows.map((row) => ({ ...row, state: invitationState(row) }));
+}
+
+function inviteHash(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
 export async function createInvite(input: InviteInput, actor: AuditActor): Promise<string> {
   const token = randomBytes(24).toString("hex");
-  // Better Auth stores and signs in with lower-cased emails, so the invite does too.
   input = {
     ...input,
     email: input.email.trim().toLowerCase(),
     initials: input.initials.toUpperCase(),
   };
   await txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtextextended(${input.email}, 0))`;
     const clash = await findInviteClash(tx, input.email, input.initials);
-    if (clash === "email") {
+    if (clash === "email")
       throw new ValidationError({ email: [tr("places.err.invite.emailTaken")] });
-    }
     if (clash === "initials") {
       throw new ValidationError({
         initials: [tr("places.err.invite.initialsTaken", { initials: input.initials })],
       });
     }
-
-    // Supersede any still-pending invite(s) for this email first, so
-    // re-inviting someone can't leave multiple valid tokens/roles coexisting —
-    // only the newest invite should ever be resolvable.
-    // Case-insensitive: invites created before emails were lower-cased kept the
-    // email as typed.
+    await tx.invitation.updateMany({
+      where: { email: input.email, acceptedAt: null, revokedAt: null },
+      data: { revokedAt: new Date(), tokenHash: null },
+    });
     await tx.verification.deleteMany({
       where: { identifier: { equals: input.email, mode: "insensitive" } },
     });
-
-    // Token keyed by the invitee's email so /accept-invite can look it up. The
-    // role/initials/name are stashed as JSON in `value` (alongside the token)
-    // since Verification is the only Better Auth table for opaque tokens.
-    const payload = JSON.stringify({
-      token,
-      email: input.email,
-      name: input.name,
-      initials: input.initials,
-      role: input.role,
-    });
-    await tx.verification.create({
+    const inviter = actor.id
+      ? await tx.user.findUnique({ where: { id: actor.id }, select: { id: true } })
+      : null;
+    const row = await tx.invitation.create({
       data: {
-        identifier: input.email,
-        value: payload,
+        ...input,
+        tokenHash: inviteHash(token),
+        invitedById: inviter?.id,
         expiresAt: new Date(Date.now() + INVITE_TTL_MS),
       },
     });
@@ -116,17 +130,45 @@ export async function createInvite(input: InviteInput, actor: AuditActor): Promi
       action: "UserInvited",
       entityType: "user",
       entityId: input.email,
-      data: {
-        email: input.email,
-        name: input.name,
-        role: input.role,
-      } as unknown as import("~/generated/prisma/client").Prisma.InputJsonValue,
+      data: { invitationId: row.id, email: input.email, name: input.name, role: input.role },
+    });
+  });
+  return token;
+}
+
+export async function changeInvitation(
+  id: string,
+  intent: "revoke" | "reissue",
+  actor: AuditActor,
+) {
+  const token = intent === "reissue" ? randomBytes(24).toString("hex") : null;
+  await txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT id FROM "Invitation" WHERE id = ${id} FOR UPDATE`;
+    const row = await tx.invitation.findUnique({ where: { id } });
+    if (!row) throw new NotFoundError(tr("places.err.invite.notFound"));
+    const state = invitationState(row);
+    if (state !== "pending" && !(intent === "reissue" && state === "expired")) {
+      throw new ValidationError({}, [tr("admin.invitations.changed")]);
+    }
+    await tx.invitation.update({
+      where: { id },
+      data: token
+        ? { tokenHash: inviteHash(token), expiresAt: new Date(Date.now() + INVITE_TTL_MS) }
+        : { tokenHash: null, revokedAt: new Date() },
+    });
+    await tx.verification.deleteMany({ where: { id } });
+    await audit({
+      action: token ? "InvitationReissued" : "InvitationRevoked",
+      entityType: "user",
+      entityId: row.email,
+      data: { invitationId: id },
     });
   });
   return token;
 }
 
 export interface InviteRecord {
+  id: string;
   token: string;
   email: string;
   name: string;
@@ -134,38 +176,23 @@ export interface InviteRecord {
   role: UserRole;
 }
 
-/** Look up + validate an invite token by its token (extracted from the URL). */
-export async function resolveInvite(token: string): Promise<InviteRecord> {
-  // The token lives inside the JSON `value`; scan by identifier==email isn't
-  // possible without the email, so pre-filter on the token field across rows.
-  // This is an unindexed substring scan, but it's anchored on the literal
-  // `"token":"<value>"` key/value pair (not a bare substring match), so a
-  // candidate can only be pulled in by an actual token value containing ours
-  // as a substring — not by an unrelated field. The JSON.parse + exact
-  // `parsed.token === token` check below is what actually decides a match; this
-  // is purely a cheap pre-filter to avoid parsing every row. A real fix (exact
-  // lookup) would need a dedicated indexed token column.
-  const candidates = await db.verification.findMany({
-    where: { value: { contains: `"token":"${token}"` } },
-  });
-  for (const row of candidates) {
-    if (row.expiresAt <= new Date()) continue;
-    try {
-      const parsed = JSON.parse(row.value) as Partial<InviteRecord> & { token: string };
-      if (parsed.token === token) {
-        return {
-          token,
-          email: parsed.email ?? row.identifier,
-          name: parsed.name ?? "",
-          initials: parsed.initials ?? "",
-          role: (parsed.role ?? "MEMBER") as UserRole,
-        };
-      }
-    } catch {
-      continue;
-    }
+async function findInvite(tx: Tx, token: string): Promise<InviteRecord> {
+  const row = await tx.invitation.findUnique({ where: { tokenHash: inviteHash(token) } });
+  if (!row || invitationState(row) !== "pending") {
+    throw new NotFoundError(tr("places.err.invite.notFound"));
   }
-  throw new NotFoundError(tr("places.err.invite.notFound"));
+  return {
+    id: row.id,
+    token,
+    email: row.email,
+    name: row.name,
+    initials: row.initials,
+    role: row.role,
+  };
+}
+
+export async function resolveInvite(token: string): Promise<InviteRecord> {
+  return findInvite(db, token);
 }
 
 /**
@@ -209,6 +236,7 @@ export async function acceptInvite(
   invite: InviteRecord,
   password: string,
 ): Promise<{ id: string; email: string }> {
+  invite = await resolveInvite(invite.token);
   const email = invite.email.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
   // No session exists at acceptance time (the public /accept-invite route), so
@@ -218,6 +246,8 @@ export async function acceptInvite(
 
   try {
     return await txWithAudit(selfActor, async (tx, audit) => {
+      await tx.$queryRaw`SELECT id FROM "Invitation" WHERE id = ${invite.id} FOR UPDATE`;
+      invite = await findInvite(tx, invite.token);
       const clash = await findInviteClash(tx, email, invite.initials);
       if (clash) throw acceptClashError(clash, invite);
 
@@ -227,7 +257,7 @@ export async function acceptInvite(
           name: invite.name,
           role: invite.role,
           initials: invite.initials,
-          emailVerified: true,
+          emailVerified: false,
         },
       });
       await tx.account.create({
@@ -240,16 +270,11 @@ export async function acceptInvite(
       });
       selfActor.id = user.id;
 
-      // Single-use: delete any invite rows for this email/token.
-      await tx.verification.deleteMany({
-        where: {
-          OR: [
-            { identifier: { equals: email, mode: "insensitive" } },
-            { value: { contains: `"token":"${invite.token}"` } },
-          ],
-        },
+      await tx.invitation.update({
+        where: { id: invite.id },
+        data: { acceptedAt: new Date(), tokenHash: null },
       });
-
+      await tx.verification.deleteMany({ where: { id: invite.id } });
       await audit({
         action: "InviteAccepted",
         entityType: "user",

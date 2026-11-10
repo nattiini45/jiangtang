@@ -9,6 +9,11 @@ import { z } from "~/lib/validation.server";
 
 export const INVITE_ID = "invite";
 
+export const invitationActionSchema = z.object({
+  id: z.string().min(1),
+  intent: z.enum(["revoke", "reissue"]),
+});
+
 export const inviteSchema = z.object({
   email: z.email(msgKey("places.err.auth.emailRequired")),
   name: z.string().min(1, msgKey("places.err.auth.nameRequired")).max(120),

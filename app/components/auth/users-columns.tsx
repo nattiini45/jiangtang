@@ -24,6 +24,16 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
     cell: ({ row }) => row.original.email,
   },
   {
+    accessorKey: "emailVerified",
+    header: t("admin.users.verification"),
+    size: 180,
+    cell: ({ row }) => (
+      <span className="text-muted-foreground text-xs">
+        {t(row.original.emailVerified ? "admin.users.verified" : "admin.users.unverified")}
+      </span>
+    ),
+  },
+  {
     accessorKey: "initials",
     header: t("admin.users.col.initials"),
     size: 100,
