@@ -182,7 +182,7 @@ describe("MCP work writes", () => {
           "Use start_timer to start your own timer at server time",
           "endsAt after startsAt",
           "may be in the future",
-          "only admins may choose userId",
+          "Another userId requires time.editOthers, including for admins",
         ],
       ],
       [
@@ -196,7 +196,7 @@ describe("MCP work writes", () => {
           "endsAt after startsAt",
           "may be in the future",
           "Use start_timer to start your own timer at server time",
-          "Members edit only their own entries; admins may edit others",
+          "Editing others requires time.editOthers, including for admins",
           "Ownership cannot be reassigned",
         ],
       ],
