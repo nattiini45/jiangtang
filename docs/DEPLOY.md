@@ -113,7 +113,15 @@ you take in step 2. When the update crosses a release, move one minor version at
 example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next minor release.
 
 1. Read what changes: `git fetch --tags && git log --oneline HEAD..origin/main`, and look for new
-   folders under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)).
+   folders under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)). To see which
+   releases lie between your checkout and `main`, list them:
+
+   ```bash
+   git tag --merged origin/main --no-merged HEAD --sort=version:refname
+   ```
+
+   If the list holds tags of more than one minor version (for example `v0.4.1` and `v0.5.0`),
+   you are more than one minor release behind and must use the release path in step 3.
 2. Take a fresh backup of both parts:
 
    ```bash
@@ -121,16 +129,16 @@ example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next 
    docker compose exec -T backup bash /ops/uploads-backup.sh
    ```
 
-3. Update and rebuild. To follow `main`:
+3. Update and rebuild. To follow `main`, when the update crosses at most one minor release:
 
    ```bash
    git pull --ff-only
    docker compose up -d --build
    ```
 
-   To stop at a release instead, fetch the tags and check out the tag of the release you are
-   moving to (release tags are named `vX.Y.Z`; `v0.4.0` here only illustrates the form), then
-   rebuild the same way:
+   To stop at a release instead, or when the update crosses more than one minor release, fetch the
+   tags and check out a tag of the next minor version (release tags are named `vX.Y.Z`; `v0.4.0`
+   here only illustrates the form), then rebuild the same way:
 
    ```bash
    git fetch --tags
@@ -138,12 +146,15 @@ example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next 
    docker compose up -d --build
    ```
 
+   A tag checkout is detached, so `git pull --ff-only` fails on it. Before you follow `main`
+   again, run `git switch main`, then `git pull --ff-only`.
+
 4. Check: `docker compose ps` (`migrate` exited 0, `app` healthy), `docker compose logs migrate`,
    and `curl -fsS https://<APP_DOMAIN>/healthz`.
 5. Reclaim disk from old images: `docker image prune -f`.
 
-When the update crosses more than one minor release, repeat steps 2 to 4 for each one, in order:
-back up, move to the next minor release, rebuild and check, then continue.
+When the update crosses more than one minor release, repeat steps 2 to 4 for each one with the tag
+path, in order: back up, move to the next minor release, rebuild and check, then continue.
 
 ## 1. DNS and HTTPS
 
