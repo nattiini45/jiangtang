@@ -22,7 +22,14 @@ export interface ActivityListOptions {
   entityTypes?: string[];
   cursor?: string;
   limit?: number;
+  userAccountabilityOnly?: boolean;
 }
+
+const TIME_ACCOUNTABILITY_ACTIONS = [
+  "TimesheetViewed",
+  "UserPermissionGranted",
+  "UserPermissionRevoked",
+];
 
 export interface ActivityListRow {
   id: string;
@@ -136,10 +143,7 @@ export async function listRecentActivity() {
     { limit: 10 },
     {
       NOT: {
-        OR: [
-          { entityType: TIME_ACTIVITY_TYPE },
-          { action: { in: ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"] } },
-        ],
+        OR: [{ entityType: TIME_ACTIVITY_TYPE }, { action: { in: TIME_ACCOUNTABILITY_ACTIONS } }],
       },
     },
   );
@@ -153,7 +157,19 @@ async function queryActivity(
   const cursor = decodeActivityCursor(options.cursor);
   const rows = await db.activityLog.findMany({
     where: {
-      AND: [visibility],
+      AND: [
+        visibility,
+        ...(options.userAccountabilityOnly
+          ? [
+              {
+                OR: [
+                  { entityType: { not: "user" } },
+                  { action: { in: TIME_ACCOUNTABILITY_ACTIONS } },
+                ],
+              },
+            ]
+          : []),
+      ],
       ...(options.actorId ? { actorId: options.actorId } : {}),
       ...(options.entityTypes?.length ? { entityType: { in: options.entityTypes } } : {}),
       ...(cursor

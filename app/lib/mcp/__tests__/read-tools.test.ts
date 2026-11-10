@@ -470,6 +470,16 @@ describe("read-only MCP coverage", () => {
                 { entityType: { equals: "timeEntry", mode: "insensitive" }, entityId: { in: [] } },
               ],
             },
+            {
+              OR: [
+                { entityType: { not: "user" } },
+                {
+                  action: {
+                    in: ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"],
+                  },
+                },
+              ],
+            },
           ],
           entityType: { in: expect.arrayContaining(["user", "timeEntry"]) },
         },

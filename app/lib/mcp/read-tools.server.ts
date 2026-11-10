@@ -814,6 +814,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       const result = await listActivity(ctx.user, {
         ...input,
         entityTypes: input.entityTypes ?? [...activityTypes],
+        userAccountabilityOnly: true,
       });
       return {
         ...result,

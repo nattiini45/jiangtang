@@ -80,6 +80,15 @@ beforeAll(async () => {
   await setTimePermission(owner, reader.id, "time.editOthers", true);
   await setTimePermission(owner, reader.id, "time.editOthers", false);
   await recordTimesheetView(reader, owner.id, time);
+  await db.activityLog.create({
+    data: {
+      action: "UserPasswordReset",
+      entityType: "user",
+      entityId: owner.id,
+      actorId: owner.id,
+      occurredAt: time,
+    },
+  });
 });
 afterAll(async () => {
   await db.timeEntry.deleteMany({ where: { userId: { in: users.map((user) => user.id) } } });
@@ -139,6 +148,15 @@ it("filters global, filtered, per-entry and MCP activity by owner or explicit vi
     });
     expect(accountability.isError).not.toBe(true);
     expect(JSON.stringify(accountability.structuredContent)).toContain("UserPermissionRevoked");
+    expect(JSON.stringify(accountability.structuredContent)).not.toContain("UserPasswordReset");
+    const smallPage = await client.callTool({
+      name: "list_activity",
+      arguments: { actorId: owner.id, entityTypes: ["user"], limit: 1 },
+    });
+    expect(
+      (smallPage.structuredContent as { result: { items: unknown[] } }).result.items,
+    ).toHaveLength(1);
+    expect(JSON.stringify(smallPage.structuredContent)).not.toContain("UserPasswordReset");
     await client.close();
     await server.close();
   }
