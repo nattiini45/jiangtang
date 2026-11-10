@@ -46,7 +46,6 @@ jobs:
       # URL. Each browser shard provisions `jiangtang_e2e` on its own runner.
       DATABASE_URL: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang?schema=public
       TZ: Europe/Berlin
-      DOCKER_BUILD_RECORD_UPLOAD: "false"
 
     steps:
       # No later step pushes, so the checkout does not keep the token in .git/config.
@@ -81,8 +80,6 @@ jobs:
 
       - run: python3 -m unittest discover -s ops/postgres -p test_select_backup.py
 
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
-
       # ── In-image ops checks ───────────────────────────────────────
       # The suite above tests the RUNNER's Python. The two runs below execute
       # inside the shipped WAL-G image instead, where the restore guard's real
@@ -92,15 +89,7 @@ jobs:
       # runs; the tag is job-scoped and nothing is pushed or published. A
       # nonzero exit in any of the three fails the job as usual.
       - name: Build the WALG PostgreSQL image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
-        with:
-          context: ops/postgres
-          file: ops/postgres/Dockerfile.walg
-          platforms: linux/amd64
-          tags: jiangtang-postgres-walg:ci
-          load: true
-          cache-from: type=gha,scope=postgres-walg
-          cache-to: type=gha,scope=postgres-walg,mode=max
+        run: docker build --platform linux/amd64 -f ops/postgres/Dockerfile.walg -t jiangtang-postgres-walg:ci ops/postgres
 
       - name: In-image restore guard suite
         run: docker run --rm --network none -v "$PWD/ops/postgres:/ops:ro" jiangtang-postgres-walg:ci bash /ops/test-restore-guards.sh
@@ -112,14 +101,7 @@ jobs:
       # never pushed. Nothing else in this workflow builds it, so a broken
       # Dockerfile would otherwise surface only at deploy time.
       - name: Build the application image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
-        with:
-          context: .
-          platforms: linux/amd64
-          tags: jiangtang:ci
-          load: true
-          cache-from: type=gha,scope=application
-          cache-to: type=gha,scope=application,mode=max
+        run: docker build --platform linux/amd64 -t jiangtang:ci .
 
       # app/generated/ is gitignored — regenerate the client before typecheck.
       - run: pnpm db:generate

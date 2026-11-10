@@ -1477,7 +1477,7 @@ type ParallelWorkflow = Omit<CIWorkflow, "jobs"> & {
       needs?: string[];
       strategy?: unknown;
       defaults?: unknown;
-      steps?: Array<CIStep & { shell?: unknown; with?: Record<string, unknown> }>;
+      steps?: Array<CIStep & { shell?: unknown }>;
     }
   >;
 };
@@ -1532,51 +1532,11 @@ function inImageSteps(workflow: CIWorkflow, argv: string): CIRunStep[] {
 
 /** Every `docker build` that targets the WAL-G image. The application image has its own step. */
 function buildCommands(workflow: CIWorkflow): BuildRef[] {
-  return imageBuildCommands(workflow).filter((build) => isWalgBuild(build.command));
-}
-
-function imageBuildCommands(workflow: CIWorkflow): BuildRef[] {
-  return (workflow.jobs?.checks?.steps ?? []).flatMap((definition, index) => {
-    const step = {
-      index,
-      name: definition.name ?? "",
-      run: definition.run ?? "",
-      step: definition,
-    };
-    if (definition.uses?.startsWith("docker/build-push-action@")) {
-      const inputs = (definition as CIStep & { with?: Record<string, unknown> }).with ?? {};
-      const command = `docker build --platform ${String(inputs.platforms)}${inputs.file === undefined ? "" : ` -f ${String(inputs.file)}`} -t ${String(inputs.tags)} ${String(inputs.context)}`;
-      const tag = (isWalgBuild(command) ? IMAGE_BUILD : APP_BUILD).exec(command)?.[1];
-      const allowed = [
-        "context",
-        "file",
-        "platforms",
-        "tags",
-        "load",
-        "cache-from",
-        "cache-to",
-        "push",
-      ];
-      return [
-        {
-          step,
-          command,
-          tag:
-            (inputs.load === true || inputs.load === "true") &&
-            Object.keys(inputs).every((key) => allowed.includes(key))
-              ? tag
-              : undefined,
-        },
-      ];
-    }
-    return shellCommands(step.run)
-      .filter((command) => command.startsWith("docker build "))
-      .map((command) => ({
-        step,
-        command,
-        tag: (isWalgBuild(command) ? IMAGE_BUILD : APP_BUILD).exec(command)?.[1],
-      }));
-  });
+  return ciRunSteps(workflow).flatMap((step) =>
+    shellCommands(step.run)
+      .filter((command) => isWalgBuild(command))
+      .map((command) => ({ step, command, tag: IMAGE_BUILD.exec(command)?.[1] })),
+  );
 }
 
 function isWalgBuild(command: string): boolean {
@@ -1611,21 +1571,12 @@ const IMAGE_PUBLISH =
  * build-push action. Scanning every job means a publication added to a new job fails the same
  * check as one added to `ci`.
  */
-function imagePublicationSites(workflow: ParallelWorkflow): string[] {
+function imagePublicationSites(workflow: CIWorkflow): string[] {
   const sites: string[] = [];
   for (const [jobId, job] of Object.entries(workflow.jobs ?? {})) {
     for (const step of job.steps ?? []) {
       if (typeof step.uses === "string" && step.uses.startsWith("docker/build-push-action")) {
-        const inputs = step.with ?? {};
-        if (
-          !step.uses.startsWith("docker/build-push-action@") ||
-          (inputs.push !== undefined && inputs.push !== false && inputs.push !== "false") ||
-          inputs.outputs !== undefined ||
-          (inputs["cache-to"] !== undefined &&
-            (typeof inputs["cache-to"] !== "string" ||
-              !/^type=gha,scope=[a-z-]+,mode=max$/.test(inputs["cache-to"])))
-        )
-          sites.push(`${jobId}: uses ${step.uses}`);
+        sites.push(`${jobId}: uses ${step.uses}`);
       }
       if (typeof step.run !== "string") continue;
       for (const command of shellCommands(joinContinuedLines(step.run))) {
@@ -1797,7 +1748,11 @@ function ciWiringProblems(text: string): string[] {
 
   // (4b) The application image and the two production gates built on it: the
   // database-invariant check (with a negative control) and the image smoke test.
-  const appBuilds = imageBuildCommands(workflow).filter((build) => !isWalgBuild(build.command));
+  const appBuilds = steps.flatMap((step) =>
+    shellCommands(step.run)
+      .filter((command) => command.startsWith("docker build ") && !isWalgBuild(command))
+      .map((command) => ({ step, tag: APP_BUILD.exec(command)?.[1] })),
+  );
   const appBuild = appBuilds[0];
   if (appBuilds.length !== 1 || appBuild?.tag === undefined) {
     problems.push(
@@ -2062,6 +2017,7 @@ function ciWiringProblems(text: string): string[] {
     ["docker push", /^[ \t]*docker[ \t]+push\b/m],
     ["docker login", /^[ \t]*docker[ \t]+login\b/m],
     ["docker tag", /^[ \t]*docker[ \t]+tag\b/m],
+    ["docker/build-push-action", /docker\/build-push-action/],
     ["npm or pnpm publish", /^[ \t]*(npm|pnpm)[ \t]+publish\b/m],
     ["gh release", /^[ \t]*gh[ \t]+release\b/m],
     ["upload-pages-artifact", /upload-pages-artifact/],
@@ -2197,23 +2153,6 @@ function withStepKey(text: string, stepName: string, key: string): string {
   return lines.join("\n");
 }
 
-function withBuildInput(text: string, stepName: string, input: string, value: string): string {
-  const lines = text.split(/\r?\n/);
-  const [start, end] = stepRange(lines, `- name: ${stepName}`);
-  const index = lines.findIndex(
-    (line, index) => index > start && index < end && line.trim().startsWith(`${input}:`),
-  );
-  if (index !== -1) lines[index] = `          ${input}: ${value}`;
-  else {
-    const withIndex = lines.findIndex(
-      (line, index) => index > start && index < end && line.trim() === "with:",
-    );
-    if (withIndex === -1) throw new Error(`build inputs not found: ${stepName}`);
-    lines.splice(withIndex + 1, 0, `          ${input}: ${value}`);
-  }
-  return lines.join("\n");
-}
-
 /** One step's line range, from its header (`- name: X` or `- run: X`) up to the next step or comment. */
 function stepRange(lines: string[], header: string): [number, number] {
   const starts = lines.flatMap((line, index) =>
@@ -2259,6 +2198,14 @@ function withReplacedOnce(text: string, from: string, to: string): string {
 }
 
 describe("CI: in-image restore guards are wired", () => {
+  it("rejects build-push actions outright in every job", async () => {
+    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
+    for (const job of Object.values(workflow.jobs ?? {})) {
+      job.steps = [...(job.steps ?? []), { uses: "docker/build-push-action@v7" }];
+    }
+    expect(imagePublicationSites(workflow)).toHaveLength(Object.keys(workflow.jobs ?? {}).length);
+  });
+
   for (const matrix of ["[1]", "[1, 3]", "[1, 2, 3]"]) {
     it(`rejects an incomplete or unexpected browser shard matrix: ${matrix}`, async () => {
       const live = await readFile(CI_WORKFLOW_PATH, "utf8");
@@ -2372,43 +2319,6 @@ describe("CI: in-image restore guards are wired", () => {
   }
 
   for (const name of ["Build the WALG PostgreSQL image", APP_BUILD_STEP]) {
-    for (const [input, value] of [
-      ["push", "true"],
-      ["push", "${{ true }}"],
-      ["outputs", "type=registry"],
-      ["outputs", "type=image,push=true"],
-      ["outputs", "type=image,push=1"],
-      ["outputs", "type=image,push=t"],
-      ["outputs", "type=image,push=TRUE"],
-      ["outputs", "type=Registry"],
-      ["cache-to", "type=gha,scope=application,mode=max,type=registry"],
-    ]) {
-      it(`rejects publication through ${name}: ${input}=${value}`, async () => {
-        const live = await readFile(CI_WORKFLOW_PATH, "utf8");
-        expect(
-          imagePublicationSites(parseWorkflow(withBuildInput(live, name, input!, value!))),
-        ).toHaveLength(1);
-      });
-    }
-
-    it(`accepts a literal non-publishing push input on ${name}`, async () => {
-      const live = await readFile(CI_WORKFLOW_PATH, "utf8");
-      expect(ciWiringProblems(withBuildInput(live, name, "push", "false"))).toEqual([]);
-    });
-
-    for (const [input, value] of [
-      ["load", "false"],
-      ["platforms", "linux/arm64"],
-      ["context", "elsewhere"],
-    ]) {
-      it(`rejects an unusable ${name}: ${input}=${value}`, async () => {
-        const live = await readFile(CI_WORKFLOW_PATH, "utf8");
-        expect(ciWiringProblems(withBuildInput(live, name, input!, value!)).length).toBeGreaterThan(
-          0,
-        );
-      });
-    }
-
     it(`rejects a duplicated ${name}`, async () => {
       expect(
         ciWiringProblems(withStepDuplicated(await readFile(CI_WORKFLOW_PATH, "utf8"), name)).length,
@@ -2466,7 +2376,11 @@ describe("CI: in-image restore guards are wired", () => {
 
   it("builds the application image once, in a named, unconditional step, and never pushes it", async () => {
     const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
-    const appBuilds = imageBuildCommands(workflow).filter((build) => !isWalgBuild(build.command));
+    const appBuilds = ciRunSteps(workflow).flatMap((step) =>
+      shellCommands(step.run)
+        .filter((command) => command.startsWith("docker build ") && !isWalgBuild(command))
+        .map((command) => ({ step, command })),
+    );
     expect(appBuilds.map((build) => build.command)).toEqual([
       "docker build --platform linux/amd64 -t jiangtang:ci .",
     ]);
@@ -2557,12 +2471,16 @@ describe("CI: in-image restore guards are wired", () => {
   });
 
   it("rejects a docker push added to the application build step", async () => {
-    const workflow = parseWorkflow(await readFile(CI_WORKFLOW_PATH, "utf8"));
-    const build = workflow.jobs?.checks?.steps?.find((step) => step.name === APP_BUILD_STEP);
-    expect(build).toBeDefined();
-    if (!build) throw new Error("application build is missing");
-    build.run = "docker push jiangtang:ci";
-    expect(imagePublicationSites(workflow)).toEqual(["checks: docker push jiangtang:ci"]);
+    const live = await readFile(CI_WORKFLOW_PATH, "utf8");
+    const fixture = withLineSuffix(
+      live,
+      "run: docker build --platform linux/amd64 -t jiangtang:ci .",
+      "&& docker push jiangtang:ci",
+    );
+    expect(fixture).toContain("docker push jiangtang:ci");
+    expect(imagePublicationSites(parseWorkflow(fixture))).toEqual([
+      "checks: docker push jiangtang:ci",
+    ]);
   });
 
   it("rejects an image publication in a job other than ci", async () => {

@@ -134,7 +134,8 @@ own, then the app in production mode until `/healthz` and `/login` answer 200. A
 typecheck, lint, Vitest and the production build. It also gates repository-wide Prettier formatting.
 In parallel, two Playwright shards each install Chromium and run `pnpm test:e2e --shard=N/2`
 against their own runner and isolated E2E database, with one worker per shard. Pull requests get
-no retries; pushes to `main` get one retry. Docker layers and the Chromium download are cached.
+no retries; pushes to `main` get one retry. The Chromium download is cached; both images use plain
+`docker build` without an external layer cache.
 The final required `ci` job succeeds only when `checks` and both browser shards succeed; a failed,
 cancelled or skipped dependency fails it. Superseded pull request runs are cancelled, but every
 push to `main` has a commit-specific concurrency group, so main runs never cancel or queue behind
