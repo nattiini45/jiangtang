@@ -107,6 +107,8 @@ const isoWeek = z
   });
 const timeOwner = z.object({ userId: id.optional() });
 const activityTypes = [
+  "timeEntry",
+  "user",
   "campus",
   "building",
   "room",
@@ -800,7 +802,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_activity",
       description:
-        "Requires audit.view. List workspace activity with resolved entity titles and actor display labels, using nextCursor pagination. Account-management, time-entry and notification activity is excluded; actor emails and raw audit data are omitted.",
+        "Requires audit.view. List workspace activity with resolved entity titles and actor display labels, using nextCursor pagination. Time-entry rows require ownership or time.viewOthers; grant, revoke and view accountability remains visible. Notifications, actor emails and raw audit data are omitted.",
       schema: z.object({
         actorId: id.optional(),
         entityTypes: z.array(z.enum(activityTypes)).min(1).max(activityTypes.length).optional(),

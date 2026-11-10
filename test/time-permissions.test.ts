@@ -137,13 +137,16 @@ it("records at most one view per viewer/person/Berlin day, including concurrent 
   });
   expect(logs).toHaveLength(2);
   expect(logs.every((row) => row.entityId === owner.id)).toBe(true);
-  for (const feed of [await listRecentActivity(), await listActivity(admin)]) {
-    expect(
-      feed.items.some((row) =>
-        ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"].includes(row.action),
-      ),
-    ).toBe(false);
-  }
+  expect(
+    (await listRecentActivity()).items.some((row) =>
+      ["TimesheetViewed", "UserPermissionGranted", "UserPermissionRevoked"].includes(row.action),
+    ),
+  ).toBe(false);
+  expect(
+    (await listActivity(admin, { actorId: viewer.id, entityTypes: ["user"] })).items.some(
+      (row) => row.action === "TimesheetViewed",
+    ),
+  ).toBe(true);
   await setTimePermission(admin, viewer.id, "time.viewOthers", false);
 });
 
