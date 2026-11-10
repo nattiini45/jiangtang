@@ -19,6 +19,13 @@ RUN pnpm db:generate && pnpm build
 # job (`prisma migrate deploy` needs the prisma CLI, a devDependency). The prod
 # server is the custom Express entry run via tsx (NOT react-router-serve).
 FROM base AS runtime
+ARG APP_VERSION=development
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.version=$APP_VERSION \
+      org.opencontainers.image.revision=$VCS_REF \
+      org.opencontainers.image.source="https://github.com/nattiini45/jiangtang" \
+      org.opencontainers.image.licenses="Apache-2.0"
+ENV APP_COMMIT=$VCS_REF
 ENV NODE_ENV=production
 ENV PORT=3000
 RUN groupadd -r app && useradd -r -g app -m app
