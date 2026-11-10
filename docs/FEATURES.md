@@ -1,8 +1,11 @@
-# Jiangtang — feature page
+# Jiangtang — features
 
-Jiangtang (讲堂, "lecture hall") is a self-hosted, all-in-one workspace for an AV or facilities
-team. One deployment covers the whole day: plan the work, book the rooms, log what broke, and
-see what happened — with an append-only audit history behind every change.
+Jiangtang (讲堂, "lecture hall") is a self-hosted workspace for an AV or facilities team. One
+installation covers rooms and equipment, stock, event bookings, tickets, projects, tasks and notes,
+with an append-only audit history behind every change.
+
+This page describes what the application does today. Where a feature stays off until the operator
+configures it, the text says so.
 
 The interface is English and German; `DEFAULT_LOCALE` picks the installation language and each
 visitor can switch with the language control. Times are stored as UTC and displayed in
@@ -30,7 +33,23 @@ visitor can switch with the language control. Times are stored as UTC and displa
   `EXCLUDE` constraint: **double-booking is impossible**, not just discouraged.
 - Pre-save conflict checks in the UI, plus an inbox notification to the affected organizer when a
   conflict is rejected.
-- Token-gated iCal feed for team calendars.
+
+## Calendar
+
+- `/events` opens a week view (Monday first). Month, day, rooms and list views are one click away;
+  the date, view and filters are part of the URL, so a view can be bookmarked or shared.
+- The rooms view shows each room's free and booked hours for a day. Choosing a free hour starts a
+  new booking for that room and time; in the other views, an empty slot starts a new event.
+- Filter by room, equipment and status, and optionally show task due dates next to the events.
+- Subscribe from a calendar app with the token-gated iCal feed at `/calendar/<token>/ics`. It is
+  off until `ICAL_FEED_TOKEN` is set; admins see the ready-made link on the calendar page. It
+  lists events from the past and the coming year, with an embedded `Europe/Berlin` time zone.
+- Optionally push events to a CalDAV server such as Nextcloud or Sciebo (`CALDAV_URL`,
+  `CALDAV_USERNAME`, `CALDAV_PASSWORD`). The push is one way: creating or editing an event writes
+  it to one calendar and cancelling it removes it, nothing is read back, and edits made in the
+  calendar are overwritten. It is off while those variables are empty. Admins can test the
+  connection and see the push status on `/admin/index`. Setup is in
+  [DEPLOY.md](DEPLOY.md#calendar-push-to-sciebo-or-nextcloud).
 
 ## Tasks, projects and board
 
@@ -55,28 +74,55 @@ visitor can switch with the language control. Times are stored as UTC and displa
   provider is configured. Without any provider, search stays lexical and `Ask` answers with
   cited results — nothing external is required to run.
 
-## Activity, timesheet and notifications
+## Activity and time tracking
 
 - An append-only activity feed with per-entity history.
-- A weekly timesheet with a running timer and interval-union totals, plus a capacity heatmap
-  (demand vs. configured weekly capacity per person).
-- An in-app notification center: assignment, due-soon, booking-conflict and warranty-expiry
-  notifications, with live updates over the realtime channel.
+- A weekly timesheet: start and stop a timer on a task, or add an entry by hand. Overlapping
+  entries count once in the day and week totals.
+- A capacity heatmap (demand vs. configured weekly capacity per person).
 
-## Mobile PWA
+## Notifications
 
-- The `/m` surface: capture (offline queue), rooms, locations, stock, events, projects, notes,
-  timesheet timer, tickets, board, search and the inbox — precached for offline use, with
-  install shortcuts from the manifest.
+- An in-app inbox for four kinds of notification: assigned to a task, task due soon, booking
+  conflict, and warranty about to expire. The unread count updates live over the realtime channel.
+- Notifications stay in the app. Jiangtang does not send e-mail.
+
+## Phone app
+
+- An installable web app at `/m`: add it to the home screen from the browser; there is no app
+  store listing and no native wrapper. See [MOBILE-PWA.md](MOBILE-PWA.md).
+- Capture tickets, tasks and notes from the phone. Without a connection, entries wait in an
+  offline queue on the device and are sent exactly once when it reconnects.
+- Also on the phone: rooms (with a day's bookings), locations, stock, events, projects, notes, the
+  timesheet timer, tickets, the board, search and the notification inbox.
 
 ## Accounts and privacy
 
-- Invitation-only accounts (the public sign-up endpoint is disabled); admin-managed users.
+- Invitation-only accounts (the public sign-up endpoint is disabled); admin-managed users. Admins
+  pass invitation and password-reset links on by hand, because there is no e-mail delivery.
+- Two-factor sign-in, optional per user: a TOTP code from an authenticator app, with one-time
+  backup codes. Users set it up, turn it off and create new backup codes on `/account`.
+  `REQUIRE_ADMIN_TWO_FACTOR=true` makes it mandatory for admins; an admin without it is held on the
+  account page until they enrol. An admin who lost both authenticator and backup codes is reset
+  with the operator command in [DEPLOY.md](DEPLOY.md#6-first-login).
 - GDPR tooling: pseudonymization ("erase") with audit trail, data inventory in
   [docs/GDPR.md](GDPR.md).
 - Signed-in pages are purged from the service-worker cache on sign-out.
 
+## MCP server
+
+- `/mcp` is a Streamable HTTP endpoint for external MCP clients such as Cursor or Claude Code.
+  Jiangtang has no built-in agent; the client and its model do the work.
+- Access uses personal access tokens. Each user creates and revokes their own on `/account`, as
+  read-only or read-write. A token acts as its owner and never exceeds the owner's role; revoking
+  or deactivating the account ends access.
+- It offers tools for rooms, equipment, stock, events and bookings, tickets, projects, tasks,
+  notes, time entries, notifications, activity and search, plus read-only resources and planning
+  prompts. Details, client setup and safety limits are in [MCP.md](MCP.md).
+
 ## Operations
 
-- See [DEPLOY.md](DEPLOY.md) for the Compose production stack and [BACKUP.md](BACKUP.md) for
-  WAL-G backups.
+- See [DEPLOY.md](DEPLOY.md) for the Compose production stack, including how to run it behind an
+  existing reverse proxy, and [BACKUP.md](BACKUP.md) for WAL-G backups.
+- Releases follow SemVer 0.y.z; the upgrade and image policy is in the
+  [README](../README.md#releases-and-upgrades).

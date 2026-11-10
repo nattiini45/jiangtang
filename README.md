@@ -10,7 +10,8 @@ language, see [Language](#language)). Timestamps are stored in UTC and displayed
 
 ## Features
 
-See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
+[docs/FEATURES.md](docs/FEATURES.md) describes each area in more detail. Features marked optional
+are off until the operator configures them.
 
 - **Tasks** — list and detail views, a kanban board with pointer and keyboard moves, CSV import,
   labels, per-assignee estimates, a dependency graph that refuses cycles, and ticket ⇄ task links.
@@ -18,21 +19,86 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
 - **Notes** — Markdown editor with autosave, pin/archive/tags, `.md` export and folder import.
 - **Locations, stock and equipment** — a location tree, stock items with serial/SKU uniqueness,
   CSV importers, warranties, and equipment linked to stock items.
-- **Tickets and events** — room and equipment tickets, event bookings with a database-level
-  no-double-booking constraint, and a token-gated iCal feed.
+- **Tickets and events** — room and equipment tickets, and event bookings with a database-level
+  no-double-booking constraint.
+- **Calendar** — `/events` opens a week view with month, day, rooms and list views. Rooms shows
+  free and booked hours per room; you can filter by room, equipment and status, and show task due
+  dates. Choosing a free slot starts a new event or booking.
+- **Calendar feeds** — a token-gated iCal feed for subscribing from a calendar app (set
+  `ICAL_FEED_TOKEN`; empty disables it). Optionally, events are also pushed one way to a CalDAV
+  calendar such as Nextcloud or Sciebo (`CALDAV_*`; empty means off). Nothing is read back from
+  either.
 - **Search and Ask** — `/search` combines lexical (trigram) retrieval with optional vector search
   and reranking; `Ask` streams a cited answer when a generation provider is configured.
 - **Activity** — an append-only, cursor-paginated feed with per-entity history.
-- **Timesheet and capacity** — a weekly grid with a running timer and interval-union totals, plus
+- **Time tracking** — a weekly timesheet with a running timer and interval-union totals, plus
   demand-versus-capacity per assignee.
-- **Mobile** — a `/m` capture view for tickets, tasks and notes with an offline queue that replays exactly
-  once, a read-only mobile board and mobile search.
-- **Accounts** — invitation-only. The public HTTP sign-up endpoint is disabled; admins create
-  one-time invitation links at `/admin/users`.
+- **Notifications** — an in-app inbox for task assignments, tasks due soon, booking conflicts and
+  warranties about to expire, updated live. There is no e-mail delivery.
+- **Phone app** — an installable web app at `/m` (no app store, no native wrapper). It captures
+  tickets, tasks and notes through an offline queue that replays exactly once, and also shows
+  rooms, events, stock, projects, the board, the timesheet timer, notifications and search.
+- **Accounts and two-factor sign-in** — invitation-only. The public HTTP sign-up endpoint is
+  disabled; admins create one-time invitation links at `/admin/users`. Every user can turn on
+  two-factor authentication on `/account`: a TOTP code from an authenticator app, with one-time
+  backup codes. `REQUIRE_ADMIN_TWO_FACTOR=true` makes it mandatory for admins; it is optional for
+  everyone otherwise.
+- **MCP server** — `/mcp` lets an external MCP client (Cursor, Claude Code or your own) read and,
+  with a read-write token, change workspace data. Access uses personal access tokens that each user
+  creates and revokes on `/account`, read-only or read-write, within the owner's own permissions.
+  No agent is built in. See [docs/MCP.md](docs/MCP.md).
 - **Import/export** — CSV, Markdown and a versioned `jiangtang-workspace` JSON transfer format for
   projects, tasks and notes, applied all-or-nothing.
 - **Uploads** — JPEG, PNG and WebP up to 15 MB, magic-byte checked, re-encoded with EXIF/GPS
   removed, stored encrypted, with a 400 px thumbnail.
+
+## Releases and upgrades
+
+- **Versions.** Releases follow SemVer 0.y.z. The minor version changes when an operator has to
+  act: a new required variable, a manual step, or a migration that removes something. Everything
+  else is a patch release.
+- **Upgrades.** An upgrade is supported from any release to the next minor release, so an
+  installation on 0.3 goes to 0.4 and then 0.5; it does not skip a minor version. Migrations run
+  automatically when the stack starts. Take a backup before you upgrade
+  ([docs/DEPLOY.md](docs/DEPLOY.md#updating), [docs/BACKUP.md](docs/BACKUP.md)).
+- **Images.** Each release publishes the application image as
+  `ghcr.io/nattiini45/jiangtang:<X.Y.Z>` and `ghcr.io/nattiini45/jiangtang:<X.Y>`, for
+  `linux/amd64`. There is no `latest` tag. The PostgreSQL image is still built from the tagged
+  source.
+- **Security fixes.** They land on `main` and ship in the next patch release. Only the latest
+  release is supported ([SECURITY.md](SECURITY.md)).
+
+Until the first release is tagged, the Compose stack builds from a checkout of this repository, as
+[docs/DEPLOY.md](docs/DEPLOY.md) describes.
+
+## Try it in five minutes
+
+This brings up a local instance with demo data. It needs Node 22.12+ or 24+, Docker with the
+Compose plugin, Git and `openssl`. Run it from a terminal, in this order:
+
+```bash
+git clone https://github.com/nattiini45/jiangtang.git
+cd jiangtang
+corepack enable                         # selects the pnpm version the project pins
+cp .env.example .env
+openssl rand -base64 48                 # paste the output into BETTER_AUTH_SECRET in .env
+docker compose -f docker-compose.dev.yml up -d   # PostgreSQL 18 + pgvector on 127.0.0.1:5432
+pnpm install --frozen-lockfile
+pnpm db:generate                        # Prisma client into app/generated/
+pnpm db:deploy                          # apply the migration chain
+pnpm db:seed                            # synthetic demo data
+pnpm dev                                # http://localhost:3000
+```
+
+Open <http://localhost:3000> and sign in as `admin@jiangtang.local` with the password
+`jiangtang-admin`. The first start of `pnpm dev` creates that development admin. The demo
+workspace has a room with equipment and an event, six projects with tasks, tickets, notes and
+stock. The demo language follows `DEFAULT_LOCALE` (`en` unless you change it in `.env`).
+
+Stop the server with Ctrl-C. `docker compose -f docker-compose.dev.yml down -v` removes the
+database and its data. The development admin and the database password are for your own machine
+only. [Quick start (development)](#quick-start-development) explains each variable, and
+[docs/DEPLOY.md](docs/DEPLOY.md) covers a production installation.
 
 ## Limitations
 
@@ -41,21 +107,21 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)); user-entered data is never translated.
 - **Europe/Berlin display.** The database stores UTC, but dates and times are rendered in the
   `Europe/Berlin` zone. There is no per-user time-zone setting.
-- **Fresh installations only.** There is no supported upgrade path from a pre-release database,
-  uploads directory or browser queue; such an installation has to start from an empty database.
+- **No e-mail.** Invitation and password-reset links are shared by an admin out of band, and
+  notifications stay in the app.
 - **Optional external AI.** Search and `Ask` work without any model provider, but then search stays
   lexical and `Ask` answers with cited results instead of generated prose. Vector search, reranking
   and generated answers need an OpenAI-compatible endpoint that the operator configures and pays
   for; no model is bundled or downloaded.
 - **Production target: Linux amd64.** The Compose stack builds a local PostgreSQL image that
-  carries an amd64 WAL-G binary. ARM hosts are not supported.
+  carries an amd64 WAL-G binary, and the release image is published for `linux/amd64` only. ARM
+  hosts are not supported.
 - **One team per installation.** One installation serves one team, and separate organisations run
   separate installations. Rooms (bookable spaces) and locations (any place where things are or
   happen) are separate concepts by design; see
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#rooms-and-locations).
-- **Self-hosted by default.** Nothing is published for you — no telemetry service, no container
-  image. The app ships an opt-in public landing page at `/welcome` (`LANDING_PAGE_ENABLED=1`).
-  This project does not operate a hosted demo.
+- **Self-hosted by default.** Nothing is published for you: no telemetry service and no hosted
+  demo. The app ships an opt-in public landing page at `/welcome` (`LANDING_PAGE_ENABLED=1`).
 
 ## Prerequisites
 
@@ -179,8 +245,9 @@ Additional checks: `pnpm typecheck`, `pnpm lint` and `bash scripts/guards.sh`.
 
 - [docs/MCP.md](docs/MCP.md) — connect external MCP clients with scoped personal access tokens;
   tools, resources, planning prompts and safety limits.
-- [docs/DEPLOY.md](docs/DEPLOY.md) — installing a fresh production stack, required variables,
-  migrations, readiness and upload checks.
+- [docs/DEPLOY.md](docs/DEPLOY.md) — installing and updating a production stack, required
+  variables, running behind an existing reverse proxy, migrations, readiness and upload checks.
+- [docs/MOBILE-PWA.md](docs/MOBILE-PWA.md) — installing the phone app and how it updates.
 - [docs/BACKUP.md](docs/BACKUP.md) — the recovery runbook: WAL-G database PITR, coherent
   database-plus-uploads recovery and their limits.
 - [docs/GDPR.md](docs/GDPR.md) — what data is stored, erasure and retention behaviour, operator

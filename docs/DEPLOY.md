@@ -1,11 +1,16 @@
 # Deploying Jiangtang
 
-This is the operator runbook for a fresh production installation. It assumes a Linux amd64 host
-with Docker and the Compose plugin, a DNS name you control, and nobody else's data on the machine.
+This is the operator runbook for a production installation: the first install, updates and the
+checks in between. It assumes a Linux amd64 host with Docker and the Compose plugin, and a DNS name
+you control.
 
-**Fresh installations only.** There is no supported upgrade path from a pre-release database,
-uploads directory, browser queue or export. Do not point this stack at an existing Jiangtang
-database, and do not replay the migrations against one.
+**Releases and upgrades.** Releases follow SemVer 0.y.z, an upgrade is supported from any release
+to the next minor release, and migrations run automatically when the stack starts. Take a backup
+first. The full policy, including the published image names, is in
+[README.md](../README.md#releases-and-upgrades). Until the first release is tagged, this runbook
+builds the stack from a checkout of this repository, and the guarantees above start with the first
+release. Never apply migrations to a database by hand with `prisma migrate dev` or
+`prisma db push`.
 
 ## Versions and support
 
@@ -104,10 +109,19 @@ with the details.
 
 Updates are a `git pull` and a rebuild; migrations run in the `migrate` job before the new app
 starts. Migrations only go forward, so the way back from a bad update is a restore of the backup
-you take in step 2.
+you take in step 2. When the update crosses a release, move one minor version at a time (for
+example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next minor release.
 
-1. Read what changes: `git fetch && git log --oneline HEAD..origin/main`, and look for new folders
-   under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)).
+1. Read what changes: `git fetch --tags && git log --oneline HEAD..origin/main`, and look for new
+   folders under `prisma/migrations/` ([§4](#4-migrations-and-the-invariant-gate)). To see which
+   releases lie between your checkout and `main`, list them:
+
+   ```bash
+   git tag --merged origin/main --no-merged HEAD --sort=version:refname
+   ```
+
+   If the list holds tags of more than one minor version (for example `v0.4.1` and `v0.5.0`),
+   you are more than one minor release behind and must use the release path in step 3.
 2. Take a fresh backup of both parts:
 
    ```bash
@@ -115,16 +129,32 @@ you take in step 2.
    docker compose exec -T backup bash /ops/uploads-backup.sh
    ```
 
-3. Update and rebuild:
+3. Update and rebuild. To follow `main`, when the update crosses at most one minor release:
 
    ```bash
    git pull --ff-only
    docker compose up -d --build
    ```
 
+   To stop at a release instead, or when the update crosses more than one minor release, fetch the
+   tags and check out a tag of the next minor version (release tags are named `vX.Y.Z`; `v0.4.0`
+   here only illustrates the form), then rebuild the same way:
+
+   ```bash
+   git fetch --tags
+   git checkout v0.4.0
+   docker compose up -d --build
+   ```
+
+   A tag checkout is detached, so `git pull --ff-only` fails on it. Before you follow `main`
+   again, run `git switch main`, then `git pull --ff-only`.
+
 4. Check: `docker compose ps` (`migrate` exited 0, `app` healthy), `docker compose logs migrate`,
    and `curl -fsS https://<APP_DOMAIN>/healthz`.
 5. Reclaim disk from old images: `docker image prune -f`.
+
+When the update crosses more than one minor release, repeat steps 2 to 4 for each one with the tag
+path, in order: back up, move to the next minor release, rebuild and check, then continue.
 
 ## 1. DNS and HTTPS
 
@@ -138,6 +168,143 @@ you take in step 2.
   invitation links; if it disagrees with `APP_DOMAIN`, sign-in breaks.
 - `APP_DOMAIN=:80` turns TLS off (plain HTTP on port 80). That is for the local rehearsal only,
   never for a reachable host.
+- A server that already has a reverse proxy on ports 80 and 443 does not use the bundled Caddy:
+  see [Behind an existing reverse proxy](#behind-an-existing-reverse-proxy).
+
+## Behind an existing reverse proxy
+
+Use this when the host already runs a proxy (nginx, Traefik, a second Caddy, a platform router)
+that owns ports 80 and 443 and the certificates. The bundled `caddy` service then has nothing to
+do and would fight for the ports. Everything else in the stack stays as described in this
+document.
+
+### Switch off the bundled Caddy
+
+`caddy` is the only service that publishes ports, and it is the only one to turn off. Put an
+override next to `docker-compose.yml`, for example `docker-compose.proxy.yml`:
+
+```yaml
+services:
+  caddy:
+    profiles: ["bundled-proxy"]
+  app:
+    ports:
+      - "127.0.0.1:3000:3000"
+```
+
+The profile keeps `caddy` from starting, and the `ports` entry makes the app reachable from the
+host's own proxy at `http://127.0.0.1:3000`. It binds to the loopback address on purpose: a port
+published on all interfaces would bypass your firewall rules (see the host checklist above). Change
+the left-hand port if 3000 is taken, and then point your proxy at that port as well: a changed
+mapping with a proxy still aimed at 3000 leaves the site unreachable. A proxy that runs in a container can instead join the Compose network
+and reach `app:3000`, in which case you need no `ports` entry.
+
+Name both files on every Compose command, or set `COMPOSE_FILE=docker-compose.yml:docker-compose.proxy.yml`
+in `.env`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.proxy.yml up -d --build
+```
+
+`postgres`, `migrate`, `app`, `backup` and `alerting` run as before. Compose still requires
+`APP_DOMAIN`, because it checks every service's variables even when a profile keeps the service
+from starting. Set it to your public hostname; nothing else in the stack reads it.
+
+### What the proxy must forward
+
+- **Target.** Plain HTTP to `127.0.0.1:3000`, or to the host port you chose in the override
+  instead of 3000, or to `app:3000` from a container on the Compose network. Terminate TLS at the
+  proxy.
+- **`Host` and `X-Forwarded-Host`.** The app takes the public host from the request. The MCP
+  endpoint at `/mcp` rejects any request whose host differs from the host in `BETTER_AUTH_URL`,
+  so the proxy must not rewrite the `Host` header to the upstream address.
+- **`X-Forwarded-Proto`.** The app trusts exactly one proxy hop and builds the request's scheme
+  from this header. The calendar page uses it for the iCal link it shows to admins.
+- **`X-Forwarded-For`.** The proxy must set it to the address it received the connection from. The
+  failed sign-in throttle keys on the right-most entry. When a second proxy or a CDN sits in front
+  of yours, that entry is the address of that CDN or proxy, not the visitor, and every visitor
+  then shares one throttle bucket.
+- **Other headers unchanged,** in particular `Authorization`, `Cookie`, `Origin` and the MCP
+  protocol headers. `/mcp` also rejects an `Origin` that differs from `BETTER_AUTH_URL`.
+- **Streamed responses.** See the next point.
+
+### The event stream must not be compressed or buffered
+
+Live updates travel over a Server-Sent Events stream: `GET /api/realtime` answers
+`text/event-stream` and stays open for as long as a page is open. The server writes a comment line
+every 15 seconds so that idle timeouts do not cut it, and it sets `Cache-Control: no-cache,
+no-transform` and `X-Accel-Buffering: no` itself. The proxy must therefore:
+
+- send each chunk to the browser as it arrives, with no response buffering for this path;
+- not compress it (gzip or zstd buffer until they have enough data, so events arrive late or in a
+  burst);
+- allow a read timeout longer than 15 seconds on it, and keep the connection open for hours.
+
+`/mcp` can answer with a stream as well, so the same rule keeps it working. The bundled Caddyfile
+compresses only `/assets/*` (the fingerprinted build files) and sets `flush_interval -1` on the
+upstream, which streams every response immediately. If you compress elsewhere, restrict it to
+`/assets/*` in the same way. In a browser's network panel, `/api/realtime` should stay pending and
+show the `: ping` lines arriving every 15 seconds.
+
+### Request body limit and security headers
+
+The bundled Caddy caps request bodies at **20 MB**: uploads are limited to 15 MB by the app, and
+the margin covers multipart overhead. Set at least that on your proxy; a lower default breaks photo
+uploads. The app itself caps JSON bodies for `/mcp` at 22 MB.
+
+The app sets none of the browser hardening headers; the bundled Caddy adds them to every response.
+Add the same ones at your proxy:
+
+| Header                      | Value                             |
+| --------------------------- | --------------------------------- |
+| `X-Content-Type-Options`    | `nosniff`                         |
+| `Referrer-Policy`           | `strict-origin-when-cross-origin` |
+| `X-Frame-Options`           | `DENY`                            |
+| `Strict-Transport-Security` | `max-age=31536000`                |
+
+None of them buffers or compresses a response, so the event stream is unaffected. Send
+`Strict-Transport-Security` only over HTTPS.
+
+For an existing Caddy, this site block is the bundled Caddyfile with the upstream changed:
+
+```caddyfile
+jiangtang.example.org {
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		Strict-Transport-Security "max-age=31536000"
+	}
+	request_body {
+		max_size 20MB
+	}
+	@assets path /assets/*
+	encode @assets zstd gzip
+	reverse_proxy 127.0.0.1:3000 {
+		flush_interval -1
+	}
+}
+```
+
+### Variables that must match the public address
+
+- `BETTER_AUTH_URL` is the public origin exactly as people type it:
+  `https://` plus the public hostname, no path. Sign-in cookies, invitation and
+  password-reset links, and the host and origin checks for `/mcp` all use it. If it disagrees with
+  the address in the browser, sign-in breaks.
+- `APP_DOMAIN` is only checked by Compose when the bundled Caddy is off, as described above. Keep
+  it equal to the hostname in `BETTER_AUTH_URL`.
+
+### Check it
+
+```bash
+curl -fsS https://<APP_DOMAIN>/healthz
+curl -s -o /dev/null -w '%{http_code}\n' https://<APP_DOMAIN>/api/realtime
+```
+
+The first answers `{"status":"ok","db":"up"}`. The second answers `401` while you are signed out,
+which shows that the stream path reaches the app. Then sign in, open a page in two browser windows
+and change something in one, to see the other update without a reload.
 
 ## 2. Environment
 
@@ -268,9 +435,11 @@ docker compose up -d --build
 
 This builds the application image from `Dockerfile` (Compose tags it once for `app` and once for
 the `migrate` job; the content is identical) and the PostgreSQL+WAL-G image from
-`ops/postgres/Dockerfile.walg` (shared by `postgres`, `backup` and `restore`). Jiangtang publishes
-no image of its own: all of these are built here. In this production stack only the `caddy` and
-`alerting` services run a prebuilt upstream image. The local rehearsal override adds two more:
+`ops/postgres/Dockerfile.walg` (shared by `postgres`, `backup` and `restore`). This runbook builds the
+application image from source. Releases also publish it as a prebuilt image (see
+[README.md](../README.md#releases-and-upgrades)), but the PostgreSQL+WAL-G image is always built
+here. In this production stack only the `caddy` and `alerting` services run a prebuilt upstream
+image. The local rehearsal override adds two more:
 `rustfs/rustfs` (the S3 stand-in behind `minio`) and `amazon/aws-cli` (the one-shot `minio-init`
 bucket setup) — four prebuilt images in the rehearsal.
 
