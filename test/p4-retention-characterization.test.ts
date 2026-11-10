@@ -66,6 +66,7 @@ afterAll(async () => {
     where: { OR: [{ identifier: { in: emails } }, { value: { in: userIds } }] },
   });
   await db.user.deleteMany({ where: { id: { in: userIds } } });
+  await db.invitation.deleteMany({ where: { email: { in: emails } } });
   await db.$disconnect();
 });
 
@@ -265,7 +266,7 @@ describe("P4 stage-one real-database characterization only", () => {
       { email, name: "Boundary", initials: "PFR", role: "MEMBER" },
       actor,
     );
-    await db.verification.updateMany({ where: { identifier: email }, data: { expiresAt: NOW } });
+    await db.invitation.updateMany({ where: { email }, data: { expiresAt: NOW } });
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(NOW.getTime() - 1));
     await expect(resolveInvite(invite)).resolves.toMatchObject({ email });
@@ -273,8 +274,8 @@ describe("P4 stage-one real-database characterization only", () => {
     await expect(resolveInvite(invite)).rejects.toThrow();
     vi.setSystemTime(new Date(NOW.getTime() + 1));
     await expect(resolveInvite(invite)).rejects.toThrow();
-    await db.verification.updateMany({
-      where: { identifier: email },
+    await db.invitation.updateMany({
+      where: { email },
       data: { expiresAt: new Date(NOW.getTime() + DAY) },
     });
     const member = await acceptInvite(await resolveInvite(invite), "synthetic-password-123");

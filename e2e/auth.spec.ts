@@ -134,11 +134,12 @@ test("a legitimate invitation is accepted and signs the invitee in", async ({
   await page.locator('input[name="initials"]').fill(INVITEE_INITIALS);
   await page.locator('select[name="role"]').selectOption("MEMBER");
   await page.getByRole("button", { name: "Einladung erzeugen" }).click();
-  await expect(page).toHaveURL(/\/admin\/users\?invited=/);
+  const linkField = page.getByRole("textbox", { name: "Einladungslink", exact: true });
+  await expect(linkField).toHaveValue(/\/accept-invite\/[a-f0-9]{48}$/);
+  await expect(page).toHaveURL(/\/admin\/users\/new$/);
+  expect(new URL(page.url()).search).toBe("");
 
-  const inviteLink = (
-    await page.locator("code").filter({ hasText: "/accept-invite/" }).first().innerText()
-  ).trim();
+  const inviteLink = await linkField.inputValue();
   const inviteUrl = new URL(inviteLink);
   expect(inviteUrl.origin).toBe(new URL(baseURL!).origin);
   expect(inviteUrl.pathname).toMatch(/^\/accept-invite\/[a-f0-9]{48}$/);

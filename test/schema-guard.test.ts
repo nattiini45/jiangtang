@@ -39,6 +39,7 @@ const NEW_BLOCKS = [
   "Vendor",
   "PersonalAccessToken",
   "UserPermission",
+  "Invitation",
 ] as const;
 
 /**

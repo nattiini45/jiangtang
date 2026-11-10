@@ -73,6 +73,9 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
     <div className="max-w-lg">
       <h1 className="text-xl font-bold">{user.name}</h1>
       <p className="text-muted-foreground mt-1 text-sm">{user.email}</p>
+      {!user.emailVerified ? (
+        <p className="text-muted-foreground mt-1 text-sm">{t("admin.users.unverified")}</p>
+      ) : null}
 
       <ZodForm className="mt-6" fieldErrors={fieldErrors}>
         <FormField name="initials" label={t("admin.user.initials")}>

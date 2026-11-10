@@ -19,16 +19,9 @@ import { useT } from "~/i18n/use-t";
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireRole(request, "ADMIN");
   const users = await listUsers();
-  const url = new URL(request.url);
-  // The invite token from a successful create; surfaced as a one-time magic
-  // link the admin shares out-of-band (no SMTP in v1).
-  const invitedToken = url.searchParams.get("invited");
-  const base = `${url.protocol}//${url.host}`;
-  const inviteLink = invitedToken ? `${base}/accept-invite/${invitedToken}` : null;
   return {
     users,
     canManage: can(user, "user.manage"),
-    inviteLink,
     adminTwoFactorRequired: adminTwoFactorRequired(),
   };
 }
@@ -50,19 +43,15 @@ export default function AdminUsersIndex({ loaderData }: Route.ComponentProps) {
             <p className="text-muted-foreground text-xs">{t("admin.users.twoFactorRequired")}</p>
           ) : null}
         </div>
-        <Button asChild>
-          <Link to="/admin/users/new">{t("admin.users.invite")}</Link>
-        </Button>
-      </div>
-      {loaderData.inviteLink ? (
-        <div className="bg-status-info/15 text-foreground rounded-lg p-4 text-sm">
-          <p className="font-semibold">{t("admin.users.invited.title")}</p>
-          <p className="text-muted-foreground mt-1">{t("admin.users.invited.hint")}</p>
-          <code className="bg-card mt-2 block rounded-md p-2 font-mono text-xs break-all">
-            {loaderData.inviteLink}
-          </code>
+        <div className="flex gap-2">
+          <Button asChild variant="secondary">
+            <Link to="/admin/invitations">{t("admin.invitations.title")}</Link>
+          </Button>
+          <Button asChild>
+            <Link to="/admin/users/new">{t("admin.users.invite")}</Link>
+          </Button>
         </div>
-      ) : null}
+      </div>
       <DataGrid
         columns={columns}
         data={loaderData.users}

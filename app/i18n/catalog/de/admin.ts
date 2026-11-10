@@ -12,6 +12,40 @@ export const adminDe = {
   "admin.user.time.saved": "Zugriff auf Zeiteinträge aktualisiert.",
 
   "admin.users.meta": "Benutzer · Jiangtang",
+  "admin.invitations.title": "Einladungen",
+  "admin.invitations.meta": "Einladungen · Jiangtang",
+  "admin.invitations.subtitle":
+    "Einladungslinks verwalten und vor der Kontoerstellung zurückziehen.",
+  "admin.invitations.lifecycle.pending": "Ausstehend, gültig bis {date}",
+  "admin.invitations.lifecycle.accepted": "Angenommen {date}",
+  "admin.invitations.lifecycle.expired": "Abgelaufen {date}",
+  "admin.invitations.lifecycle.revoked": "Widerrufen {date}",
+  "admin.invitations.by": "Eingeladen von",
+  "admin.invitations.unknown": "Nicht erfasst",
+  "admin.invitations.actions": "Aktionen",
+  "admin.invitations.reissue": "Link erneuern",
+  "admin.invitations.revoke": "Widerrufen",
+  "admin.invitations.revokeConfirm":
+    "Einladung für {email} widerrufen? Der Link wird ungültig. Um die Person erneut einzuladen, erstelle eine neue Einladung.",
+  "admin.invitations.empty": "Noch keine Einladungen. Lade jemanden über die Benutzerseite ein.",
+  "admin.invitations.changed":
+    "Diese Einladung wurde geändert. Lade die Seite neu und versuche es erneut.",
+  "admin.invitations.saving": "Einladung wird aktualisiert…",
+  "admin.invitations.saved": "Einladung aktualisiert.",
+  "admin.invitations.linkHint":
+    "Kopiere diesen Link jetzt und gib ihn an die eingeladene Person weiter. Er gilt 7 Tage und kann nicht erneut angezeigt werden. Frühere Links sind ungültig.",
+  "admin.invitations.link": "Einladungslink",
+  "admin.invitations.copy": "Link kopieren",
+  "admin.invitations.hide": "Link ausblenden",
+  "admin.invitations.copied": "Link kopiert.",
+  "admin.invitations.copyFailed":
+    "Der Link konnte nicht kopiert werden. Markiere und kopiere ihn manuell.",
+  "admin.invitations.invalid": "Diese Einladung ist nicht mehr gültig",
+  "admin.invitations.askAdmin":
+    "Bitte die Person mit Administrationsrechten, die dich eingeladen hat, um einen neuen Einladungslink.",
+  "admin.users.unverified": "E-Mail-Adresse nicht bestätigt",
+  "admin.users.verification": "E-Mail-Bestätigung",
+  "admin.users.verified": "Bestätigt",
   "admin.users.title": "Benutzer",
   "admin.users.subtitle": "Konten verwalten, einladen und deaktivieren.",
   "admin.users.invite": "Einladen",
