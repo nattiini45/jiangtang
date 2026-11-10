@@ -5,8 +5,8 @@ personal data is processed, who may access it and how long it is kept. This docu
 the code actually stores and transmits so that an operator can make those decisions. It is not legal
 advice and it does not certify compliance with the GDPR or any other law.
 
-The data model assumes a fresh installation. There is no upgrade path from an older installation's
-database or uploads. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
+Upgrades between releases keep the data. There is no upgrade path from a database or uploads
+directory from before the first release. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
 not an upgrade path.
 
 ## Who is responsible for what
