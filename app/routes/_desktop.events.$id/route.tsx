@@ -82,7 +82,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "");
   const id = params.id;
-  const obj = formDataToObject(form);
+  const obj = healthOverrideFromForm(formDataToObject(form));
 
   try {
     switch (intent) {
@@ -163,6 +163,16 @@ export async function action({ request, params }: Route.ActionArgs) {
         return null;
     }
   } catch (e) {
+    if (e instanceof TransitionError)
+      return data(
+        {
+          form: intent,
+          error: e.formErrors[0],
+          fieldErrors: e.fieldErrors,
+          transition: e.transition,
+        },
+        { status: 422 },
+      );
     if (e instanceof ValidationError)
       return { error: e.formErrors[0] ?? t(locale, "err.invalidInput") };
     // A stale tab can target a since-removed booking/window — Prisma P2025 → clean 404.
@@ -191,3 +201,6 @@ export default function EventDetailRoute({ loaderData, actionData }: Route.Compo
 }
 
 export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
+import { data } from "react-router";
+import { healthOverrideFromForm } from "~/domains/events/events.health-policy";
+import { TransitionError } from "~/lib/errors.server";

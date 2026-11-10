@@ -59,6 +59,8 @@ export function EventDetailView({
   const locale = useLocale();
   const { event, rooms, allocations, serviceWindows, tickets } = detail;
   const cancelled = event.status === "CANCELLED";
+  const [roomId, setRoomId] = useState("");
+  const [equipmentId, setEquipmentId] = useState("");
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -151,7 +153,11 @@ export function EventDetailView({
               >
                 <input type="hidden" name="_action" value="addRoom" />
                 <FormField name="roomId" label={t("events.detail.bookRoom")}>
-                  <Select name="roomId" defaultValue="">
+                  <Select
+                    name="roomId"
+                    value={roomId}
+                    onChange={(event) => setRoomId(event.currentTarget.value)}
+                  >
                     <option value="">{t("events.detail.pickRoom")}</option>
                     {targets.rooms.map((r) => (
                       <option key={r.id} value={r.id}>
@@ -169,6 +175,13 @@ export function EventDetailView({
                   </FormField>
                 </div>
                 <ConflictCheck kind="room" formId="add-room-form" />
+                <HealthOverrideFields
+                  key={`${roomId}:${rooms.length}`}
+                  entity="room"
+                  action={roomBookingAction(
+                    targets.rooms.find((room) => room.id === roomId)?.status ?? "ALL_GOOD",
+                  )}
+                />
                 <Button type="submit" size="compact" className="self-start">
                   {t("events.detail.bookRoom")}
                 </Button>
@@ -225,7 +238,11 @@ export function EventDetailView({
               >
                 <input type="hidden" name="_action" value="addAllocation" />
                 <FormField name="equipmentId" label={t("events.detail.allocateEquipment")}>
-                  <Select name="equipmentId" defaultValue="">
+                  <Select
+                    name="equipmentId"
+                    value={equipmentId}
+                    onChange={(event) => setEquipmentId(event.currentTarget.value)}
+                  >
                     <option value="">{t("events.detail.pickPooledEquipment")}</option>
                     {targets.pooledEquipment.map((e) => (
                       <option key={e.id} value={e.id}>
@@ -243,6 +260,15 @@ export function EventDetailView({
                   </FormField>
                 </div>
                 <ConflictCheck kind="equipment" formId="add-allocation-form" />
+                <HealthOverrideFields
+                  key={`${equipmentId}:${allocations.length}`}
+                  entity="equipment"
+                  action={equipmentAllocationAction(
+                    targets.pooledEquipment.find((equipment) => equipment.id === equipmentId)
+                      ?.status ?? "OPERATIONAL",
+                    "POOLED",
+                  )}
+                />
                 <Button type="submit" size="compact" className="self-start">
                   {t("events.detail.allocateEquipment")}
                 </Button>
@@ -439,3 +465,9 @@ export function EventDetailView({
     </div>
   );
 }
+import { useState } from "react";
+import { HealthOverrideFields } from "./health-override-fields";
+import {
+  roomBookingAction,
+  equipmentAllocationAction,
+} from "~/domains/events/events.health-policy";

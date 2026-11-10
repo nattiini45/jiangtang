@@ -63,8 +63,17 @@ export function registerResources(server: McpServer, context: McpContext): void 
     query: () => Promise<unknown[]>;
     tool: string;
   }> = [
-    { name: "rooms", query: () => listRooms({}, { limit: 51 }), tool: "list_rooms" },
-    { name: "equipment", query: () => listEquipment({}, { limit: 51 }), tool: "list_equipment" },
+    {
+      name: "rooms",
+      query: async () => (await listRooms({}, { limit: 51 })).map(withRoomBookingAction),
+      tool: "list_rooms",
+    },
+    {
+      name: "equipment",
+      query: async () =>
+        (await listEquipment({}, { limit: 51 })).map(withEquipmentAllocationAction),
+      tool: "list_equipment",
+    },
     { name: "events", query: () => listEvents({}, { limit: 51 }), tool: "list_events" },
     { name: "tickets", query: () => listTickets({}, { limit: 51 }), tool: "list_tickets" },
     { name: "projects", query: () => listProjects({}, { limit: 51 }), tool: "list_projects" },
@@ -101,13 +110,19 @@ export function registerResources(server: McpServer, context: McpContext): void 
       name: "rooms",
       variable: "id",
       description: "Room capabilities, status and building",
-      query: getRoom,
+      query: async (id) => {
+        const room = await getRoom(id);
+        return room ? withRoomBookingAction(room) : null;
+      },
     },
     {
       name: "equipment",
       variable: "id",
       description: "Equipment model, room and substitution links",
-      query: getEquipment,
+      query: async (id) => {
+        const equipment = await getEquipment(id);
+        return equipment ? withEquipmentAllocationAction(equipment) : null;
+      },
     },
     {
       name: "events",
@@ -165,3 +180,7 @@ export function registerResources(server: McpServer, context: McpContext): void 
     );
   }
 }
+import {
+  withRoomBookingAction,
+  withEquipmentAllocationAction,
+} from "~/domains/events/events.health-policy";

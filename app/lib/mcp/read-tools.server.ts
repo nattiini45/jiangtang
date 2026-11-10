@@ -278,7 +278,8 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         q,
       }),
     },
-    async (input) => page(await listRooms(input, queryPage(input)), input),
+    async (input) =>
+      page((await listRooms(input, queryPage(input))).map(withRoomBookingAction), input),
   );
   registerTool(
     server,
@@ -288,7 +289,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       description: "Get a bookable room by ID, including its capabilities, campus and building.",
       schema: byId,
     },
-    ({ id }) => found(getRoom(id)),
+    async ({ id }) => withRoomBookingAction(await found(getRoom(id))),
   );
   registerTool(
     server,
@@ -353,7 +354,11 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         q,
       }),
     },
-    async (input) => page(await listEquipment(input, queryPage(input)), input),
+    async (input) =>
+      page(
+        (await listEquipment(input, queryPage(input))).map(withEquipmentAllocationAction),
+        input,
+      ),
   );
   registerTool(
     server,
@@ -364,7 +369,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         "Get an equipment instance, its catalog model, room and spare/substitute links by ID.",
       schema: byId,
     },
-    ({ id }) => found(getEquipment(id)),
+    async ({ id }) => withEquipmentAllocationAction(await found(getEquipment(id))),
   );
   registerTool(
     server,
@@ -866,3 +871,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     (input) => searchWorkspace(input.q, { limit: input.limit, sourceTypes: input.sourceTypes }),
   );
 }
+import {
+  withRoomBookingAction,
+  withEquipmentAllocationAction,
+} from "~/domains/events/events.health-policy";

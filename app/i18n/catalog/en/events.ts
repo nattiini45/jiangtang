@@ -1,6 +1,15 @@
 import type { eventsDe } from "../de/events";
 
 export const eventsEn = {
+  "events.health.title": "Override asset health",
+  "events.health.roomWarning":
+    "This room is out of service. Book it only after deliberately checking that it can be used. Existing bookings stay unchanged.",
+  "events.health.equipmentWarning":
+    "This equipment is faulty or under maintenance. Allocate it only after deliberately checking that it can be used. Existing allocations stay unchanged.",
+  "events.health.reason": "Reason for the override",
+  "events.health.confirm": "I confirm use despite this condition.",
+  "events.health.overrideRequired":
+    "Explicitly confirm use despite the asset's condition and provide a nonblank reason.",
   "events.meta.list": "Events · Jiangtang",
   "events.meta.new": "New event · Jiangtang",
   "events.meta.detail": "{title} · Jiangtang",

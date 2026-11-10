@@ -269,11 +269,20 @@ describe("room booking reference semantics", () => {
       data: { name: `${run} ${status}`, slug: `${run}_${status}`, status },
     });
     const input = eventCreateSchema.parse({ title: `${run} ${status}`, ...interval });
-    const event = await createEventWithBooking(actor, input, { roomId: room.id, ...interval });
+    const healthOverride =
+      status === "OUT_OF_SERVICE"
+        ? { healthOverrideConfirmed: true, healthOverrideReason: "Synthetic reference check" }
+        : {};
+    const event = await createEventWithBooking(actor, input, {
+      roomId: room.id,
+      ...interval,
+      ...healthOverride,
+    });
     const later = await addRoomBooking(actor, event.id, {
       roomId: room.id,
       startsAt: interval.endsAt,
       endsAt: "2026-08-10T13:00",
+      ...healthOverride,
     });
 
     expect(await db.eventRoomBooking.findMany({ where: { eventId: event.id } })).toEqual(

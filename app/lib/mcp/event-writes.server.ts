@@ -145,7 +145,8 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     ctx,
     {
       name: "create_event_with_booking",
-      description: "Create an event and initial room booking atomically. A conflict saves neither.",
+      description:
+        "Create an event and initial room booking atomically. A conflict saves neither. OUT_OF_SERVICE rooms require booking.healthOverrideConfirmed:true and a nonblank booking.healthOverrideReason. Other room statuses need no override. Read get_room bookingAction first; health and overlap are checked again at save.",
       schema: z.object({ input: eventInput, booking: bookingInput }),
       write: true,
     },
@@ -208,7 +209,8 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     ctx,
     {
       name: "add_room_booking",
-      description: "Book a room for an event. The database rejects overlapping bookings.",
+      description:
+        "Book a room for an event. OUT_OF_SERVICE rooms require input.healthOverrideConfirmed:true and a nonblank input.healthOverrideReason. Other room statuses need no override. Read get_room bookingAction first. The database still rejects overlapping bookings, including confirmed overrides.",
       schema: z.object({ eventId: id, input: bookingInput }),
       write: true,
     },
@@ -246,7 +248,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "add_equipment_allocation",
       description:
-        "Allocate pooled equipment to an event. The database rejects overlapping allocations.",
+        "Allocate pooled equipment to an event. FAULTY/MAINTENANCE equipment requires input.healthOverrideConfirmed:true and a nonblank input.healthOverrideReason. OPERATIONAL equipment needs no override; RETIRED and non-POOLED equipment can never be overridden. Read get_equipment allocationAction first. The database still rejects overlaps, including confirmed overrides.",
       schema: z.object({ eventId: id, input: allocationInput }),
       write: true,
     },

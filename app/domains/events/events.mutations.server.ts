@@ -8,6 +8,8 @@ import { notifyBookingConflict } from "~/domains/notifications/notifications.mut
 import { enqueueEventCalendarOp } from "~/lib/calendar/event-publication.server";
 import { resolveEventTime } from "./events.time.server";
 import { EVENT_REOPEN_ACTION } from "./events.actions";
+import { equipmentAllocationAction } from "./events.health-policy";
+import { bookingHealthOverride, roomBookingHealthOverride } from "./events.health-policy.server";
 import type {
   EquipmentAllocation,
   Event,
@@ -138,7 +140,7 @@ export async function createEventWithBooking(
       data: { title: event.title },
     });
     await assertEventMutable(tx, event.id);
-    await assertRoomExists(tx, booking.roomId);
+    const healthAudit = await roomBookingHealthOverride(tx, booking.roomId, booking);
     const bookingRow = await insertOrConflict(
       () =>
         tx.eventRoomBooking.create({
@@ -155,7 +157,7 @@ export async function createEventWithBooking(
       action: "RoomBooked",
       entityType: "eventRoomBooking",
       entityId: bookingRow.id,
-      data: { roomId: booking.roomId },
+      data: { roomId: booking.roomId, ...healthAudit },
     });
     await enqueueEventCalendarOp(tx, event, "UPSERT");
     return event;
@@ -248,7 +250,7 @@ export async function addRoomBooking(
   try {
     return await txWithAudit(actor, async (tx, audit) => {
       await assertEventMutable(tx, eventId);
-      await assertRoomExists(tx, input.roomId);
+      const healthAudit = await roomBookingHealthOverride(tx, input.roomId, input);
       const booking = await insertOrConflict(
         () =>
           tx.eventRoomBooking.create({ data: { eventId, roomId: input.roomId, startsAt, endsAt } }),
@@ -258,7 +260,7 @@ export async function addRoomBooking(
         action: "RoomBooked",
         entityType: "eventRoomBooking",
         entityId: booking.id,
-        data: { roomId: input.roomId },
+        data: { roomId: input.roomId, ...healthAudit },
       });
       await reenqueueEvent(tx, eventId); // calendar location is derived from the room set
       return booking;
@@ -337,10 +339,12 @@ export async function addAllocation(
       // picker filters to POOLED (and out RETIRED) already, but that's client-side
       // only, so a crafted POST could otherwise attach FIXED (room-mounted) or
       // RETIRED (terminal "do not use") equipment.
-      const equipment = await tx.equipment.findUnique({
-        where: { id: input.equipmentId },
-        select: { mobility: true, status: true },
-      });
+      const [equipment] = await tx.$queryRaw<
+        {
+          mobility: EquipmentMobility;
+          status: EquipmentStatus;
+        }[]
+      >`SELECT "mobility", "status" FROM "Equipment" WHERE "id" = ${input.equipmentId} FOR UPDATE`;
       if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
       if (equipment.mobility !== EquipmentMobility.POOLED) {
         throw new ValidationError({
@@ -352,6 +356,12 @@ export async function addAllocation(
           equipmentId: [tr("work.err.event.retiredEquipment")],
         });
       }
+      const healthAudit = bookingHealthOverride(
+        "equipment",
+        equipment.status,
+        equipmentAllocationAction(equipment.status, equipment.mobility),
+        input,
+      );
       const allocation = await insertOrConflict(
         () =>
           tx.equipmentAllocation.create({
@@ -363,7 +373,7 @@ export async function addAllocation(
         action: "EquipmentAllocated",
         entityType: "equipmentAllocation",
         entityId: allocation.id,
-        data: { equipmentId: input.equipmentId },
+        data: { equipmentId: input.equipmentId, ...healthAudit },
       });
       return allocation;
     });

@@ -1,10 +1,17 @@
 import * as React from "react";
-import { Link, redirect, useFetcher, useNavigation } from "react-router";
+import { data, Link, redirect, useFetcher, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { resolveLocale } from "~/i18n/locale.server";
-import { BookingConflictError, toErrorResponse, ValidationError } from "~/lib/errors.server";
+import {
+  BookingConflictError,
+  toErrorResponse,
+  TransitionError,
+  ValidationError,
+} from "~/lib/errors.server";
+import { HealthOverrideFields } from "~/components/events/health-override-fields";
+import { healthOverrideFromForm, roomBookingAction } from "~/domains/events/events.health-policy";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { resolveEventTime } from "~/domains/events/events.time.server";
 import { eventCreateSchema, roomBookingCreateSchema } from "~/domains/events/events.schema";
@@ -56,7 +63,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
   const locale = resolveLocale(request);
-  const obj = formDataToObject(await request.formData());
+  const obj = healthOverrideFromForm(formDataToObject(await request.formData()));
   const startsAt = `${obj.date}T${obj.startTime}`;
   const endsAt = `${obj.date}T${obj.endTime}`;
 
@@ -116,6 +123,8 @@ export async function action({ request }: Route.ActionArgs) {
       throw e;
     }
   } catch (e) {
+    if (e instanceof TransitionError)
+      return data({ fieldErrors: e.fieldErrors, transition: e.transition }, { status: 422 });
     if (e instanceof ValidationError) {
       return { conflict: false, fieldErrors: e.fieldErrors };
     }
@@ -195,6 +204,11 @@ export default function MobileEventNew({ loaderData, actionData }: Route.Compone
             ))}
           </Select>
         </FormField>
+        <HealthOverrideFields
+          key={roomId}
+          entity="room"
+          action={roomBookingAction(rooms.find((room) => room.id === roomId)?.status ?? "ALL_GOOD")}
+        />
         <div className="grid grid-cols-2 items-end gap-3">
           <FormField name="date" label={t("mobile.eventsNew.date")} className="col-span-2 min-w-0">
             <Input
