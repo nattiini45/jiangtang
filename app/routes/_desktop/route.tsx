@@ -14,7 +14,7 @@ import { RouteErrorBoundary } from "~/components/route-error-boundary";
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
   // The header's running-timer indicator — one indexed lookup per load.
-  const running = await getRunningEntry(user.id);
+  const running = await getRunningEntry(user);
   // The header bell's unread badge — same deal.
   const unreadNotifications = await unreadNotificationCount(user.id);
   return {

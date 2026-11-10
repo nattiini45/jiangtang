@@ -402,15 +402,28 @@ describe("MCP work writes", () => {
     );
   });
 
-  it("preserves member time ownership while retaining admin authorization through mcpActor", async () => {
+  it("enforces explicit time authorization through mcpActor", async () => {
     const client = await connect();
     const adminClient = await connect(admin);
-    const own = await success(client, "create_time_entry", {
-      input: { ...instantInput, userId: admin.user.id },
-    });
+    expectStatus(
+      await call(client, "create_time_entry", {
+        input: { ...instantInput, userId: admin.user.id },
+      }),
+      403,
+    );
+    const own = await success(client, "create_time_entry", { input: instantInput });
     expect(own.userId).toBe(member.user.id);
     const other = await success(adminClient, "create_time_entry", {
       input: { ...instantInput, userId: admin.user.id },
+    });
+    expectStatus(
+      await call(adminClient, "create_time_entry", {
+        input: { ...instantInput, userId: member.user.id },
+      }),
+      403,
+    );
+    await db.userPermission.create({
+      data: { userId: admin.user.id, permission: "time.editOthers" },
     });
     const filed = await success(adminClient, "create_time_entry", {
       input: { ...instantInput, userId: member.user.id },
@@ -421,9 +434,9 @@ describe("MCP work writes", () => {
         id: other.id,
         input: { ...instantInput, comment: "Refused" },
       }),
-      422,
+      403,
     );
-    expectStatus(await call(client, "delete_time_entry", { id: other.id, confirm: true }), 422);
+    expectStatus(await call(client, "delete_time_entry", { id: other.id, confirm: true }), 403);
     await success(adminClient, "update_time_entry", {
       id: own.id,
       input: { ...instantInput, comment: "Admin edit" },

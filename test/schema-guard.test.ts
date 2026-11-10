@@ -38,6 +38,7 @@ const NEW_BLOCKS = [
   "InventoryItem",
   "Vendor",
   "PersonalAccessToken",
+  "UserPermission",
 ] as const;
 
 /**
@@ -342,8 +343,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(54);
-    expect(withAction).toBe(42);
+    expect(owning).toBe(55);
+    expect(withAction).toBe(43);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

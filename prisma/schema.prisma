@@ -251,7 +251,16 @@ model Equipment {
 // NOTE: Better Auth will manage its own auth tables (Session/Account/Verification)
 // and use this User model (with additionalFields role/initials) when auth is wired.
 
+model UserPermission {
+  userId     String
+  permission String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permission])
+}
+
 model User {
+  permissions UserPermission[]
   id       String   @id @default(cuid())
   email    String   @unique
   name     String

@@ -161,7 +161,7 @@ export function registerResources(server: McpServer, context: McpContext): void 
       variable: "id",
       description:
         "Connecting user's own time entry and private comment only, including for admins",
-      query: (id) => getTimeEntry(context.user.id, id),
+      query: (id) => getTimeEntry(context.user, id),
     },
   ];
   for (const detail of details) {

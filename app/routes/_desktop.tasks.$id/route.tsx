@@ -99,7 +99,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
       listLocationOptions(),
       listOpenTaskOptions(params.id),
       listEntityHistory("task", params.id),
-      getRunningEntry(actor.id),
+      getRunningEntry(actor),
     ],
   );
   // Merge this task's (possibly deactivated) assignees into the picker so an

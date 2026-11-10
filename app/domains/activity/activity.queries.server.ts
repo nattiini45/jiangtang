@@ -1,4 +1,6 @@
 import { Prisma } from "~/generated/prisma/client";
+import type { AuditActor } from "~/lib/audit.server";
+import { hasPermission, requirePermission } from "~/lib/rbac.server";
 import { db } from "~/lib/db.server";
 import { entityHref } from "~/lib/entity-links";
 
@@ -123,11 +125,21 @@ function titleFromData(data: Prisma.JsonValue): string | null {
   return null;
 }
 
-export async function listActivity(options: ActivityListOptions = {}) {
+export async function listActivity(actor: AuditActor, options: ActivityListOptions = {}) {
+  await requirePermission(actor, "audit.view");
+  return queryActivity(options, !(await hasPermission(actor, "time.viewOthers")));
+}
+
+export async function listRecentActivity() {
+  return queryActivity({ limit: 10 }, true);
+}
+
+async function queryActivity(options: ActivityListOptions, hideTime: boolean) {
   const limit = options.limit ?? 50;
   const cursor = decodeActivityCursor(options.cursor);
   const rows = await db.activityLog.findMany({
     where: {
+      ...(hideTime ? { NOT: { entityType: "timeEntry" } } : {}),
       ...(options.actorId ? { actorId: options.actorId } : {}),
       ...(options.entityTypes?.length ? { entityType: { in: options.entityTypes } } : {}),
       ...(cursor

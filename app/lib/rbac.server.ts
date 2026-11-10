@@ -1,4 +1,7 @@
+import { tr } from "~/i18n/request-locale.server";
 import type { AuthUser, AppRole } from "~/lib/auth.server";
+import { db, type Tx } from "~/lib/db.server";
+import type { AuditActor } from "~/lib/audit.server";
 
 /**
  * Role-based access control: a small permission matrix over the two roles
@@ -16,20 +19,57 @@ export type Permission =
   // Account management — admin only.
   | "user.invite"
   | "user.manage"
+  | "time.viewOthers"
+  | "time.editOthers"
+  | "audit.view"
   // Day-to-day work — any active member.
   | "room.edit"
   | "equipment.edit"
   | "ticket.edit"
   | "event.edit";
 
-const ADMIN_ONLY: ReadonlySet<Permission> = new Set<Permission>(["user.invite", "user.manage"]);
+const ADMIN_ONLY: ReadonlySet<Permission> = new Set<Permission>([
+  "user.invite",
+  "user.manage",
+  "audit.view",
+]);
 
 /** Does this user have `perm`? */
-export function can(user: AuthUser, perm: Permission): boolean {
+export function can(
+  user: Pick<AuthUser, "role" | "isActive"> & { permissions?: string[] },
+  perm: Permission,
+): boolean {
   // Deactivated users are blocked at requireUser; belt-and-braces here too.
   if (user.isActive === false) return false;
+  if (perm === "time.viewOthers")
+    return user.permissions?.some((p) => p === perm || p === "time.editOthers") ?? false;
+  if (perm === "time.editOthers") return user.permissions?.includes(perm) ?? false;
   if (ADMIN_ONLY.has(perm)) return user.role === "ADMIN";
   return true; // MEMBER + ADMIN both do day-to-day work
+}
+
+export async function hasPermission(
+  actor: AuditActor,
+  perm: Permission,
+  client: Tx = db,
+): Promise<boolean> {
+  if (!actor.id) return false;
+  const user = await client.user.findUnique({
+    where: { id: actor.id },
+    include: { permissions: true },
+  });
+  return user
+    ? can({ ...user, permissions: user.permissions.map((p) => p.permission) }, perm)
+    : false;
+}
+
+export async function requirePermission(
+  actor: AuditActor,
+  perm: Permission,
+  client: Tx = db,
+): Promise<void> {
+  if (!(await hasPermission(actor, perm, client)))
+    throw new Response(tr("err.permissionRequired"), { status: 403 });
 }
 
 /** Resolve the role required for a permission (for diagnostics/UI hints). */

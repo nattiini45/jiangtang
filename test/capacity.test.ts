@@ -75,7 +75,7 @@ const thisMonday = () => {
 
 describe("getCapacityOverview — user axis", () => {
   it("lists only active users; an inactive account never appears", async () => {
-    const overview = await getCapacityOverview();
+    const overview = await getCapacityOverview(member);
     const ids = overview.rows.map((r) => r.userId);
     expect(ids).toContain(member.id);
     expect(ids).toContain(admin.id);
@@ -83,7 +83,7 @@ describe("getCapacityOverview — user axis", () => {
   });
 
   it("returns 6 weeks starting with the current Berlin ISO week", async () => {
-    const overview = await getCapacityOverview();
+    const overview = await getCapacityOverview(member);
     expect(overview.weeks).toHaveLength(6);
     const today = berlinDayIndex(new Date());
     expect(isoWeekStart(today)).toBe(overview.weeks[0]!.startDay);
@@ -117,7 +117,7 @@ describe("getCapacityOverview — demand and logged minutes", () => {
     });
     taskIds.push(due.id, undated.id);
 
-    const overview = await getCapacityOverview();
+    const overview = await getCapacityOverview(member);
     const row = overview.rows.find((r) => r.userId === member.id);
     expect(row).toBeDefined();
     // Assignee estimate wins over the task estimate.
@@ -137,7 +137,7 @@ describe("getCapacityOverview — demand and logged minutes", () => {
       endsAt: berlinLocalToUtc(`${monday}T11:00`),
     });
 
-    const overview = await getCapacityOverview();
+    const overview = await getCapacityOverview(member);
     const row = overview.rows.find((r) => r.userId === member.id);
     // 08:00–10:00 ∪ 09:00–11:00 = 180 min, not 240.
     expect(row!.weeks[0]!.logged).toBe(180);
@@ -161,7 +161,7 @@ describe("updateUser — weekly capacity", () => {
     const found = await findUser(member.id!);
     expect(found.weeklyCapacityMinutes).toBe(1350);
 
-    const overview = await getCapacityOverview();
+    const overview = await getCapacityOverview(member);
     const row = overview.rows.find((r) => r.userId === member.id);
     expect(row!.capacityMinutes).toBe(1350);
   });
@@ -175,7 +175,7 @@ describe("updateUser — weekly capacity", () => {
     const found = await findUser(member.id!);
     expect(found.weeklyCapacityMinutes).toBeNull();
 
-    const overview = await getCapacityOverview();
+    const overview = await getCapacityOverview(member);
     const row = overview.rows.find((r) => r.userId === member.id);
     expect(row!.capacityMinutes).toBeNull();
     expect(row!.weeks.every((w) => !w.over)).toBe(true);
