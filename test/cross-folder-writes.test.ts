@@ -161,7 +161,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   // writes them itself where a credential, sessions or a second factor must
   // change in an audited transaction (invite acceptance, password reset, the
   // admin two-factor reset, erasure).
-  "app/domains/auth": ["User", "Verification", "Account", "Session", "TwoFactor"],
+  "app/domains/auth": ["User", "Verification", "Invitation", "Account", "Session", "TwoFactor"],
   "app/domains/board": [],
   "app/domains/catalog": ["EquipmentModel"],
   "app/domains/dashboard": [],

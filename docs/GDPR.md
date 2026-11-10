@@ -5,8 +5,8 @@ personal data is processed, who may access it and how long it is kept. This docu
 the code actually stores and transmits so that an operator can make those decisions. It is not legal
 advice and it does not certify compliance with the GDPR or any other law.
 
-The data model assumes a fresh installation. There is no upgrade path from an older installation's
-database or uploads. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
+Upgrades between releases keep the data. There is no upgrade path from a database or uploads
+directory from before the first release. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
 not an upgrade path.
 
 ## Who is responsible for what
@@ -27,7 +27,8 @@ not an upgrade path.
 | `User` | name, email, initials, role, active flag, weekly capacity, optional image URL | `prisma/schema.prisma` |
 | `Session` | IP address, user agent, expiry | `prisma/schema.prisma` |
 | `Account` | password hash; provider tokens if an external identity provider is configured | `prisma/schema.prisma` |
-| `Verification` | pending invitation: email, name and initials in the token payload, expires after 7 days; password reset link: user id and a hash of the token, expires after 1 day | `app/domains/auth/users.queries.server.ts`, `app/domains/auth/password-reset.server.ts` |
+| `Invitation` | invited email, name, initials, role, inviter reference, creation/expiry/acceptance/revocation timestamps, and only a SHA-256 token hash; links expire after 7 days | `app/domains/auth/users.queries.server.ts` |
+| `Verification` | password reset link: user id and a hash of the token, expires after 1 day; legacy invitation payloads are preserved during the invitation-management upgrade | `app/domains/auth/password-reset.server.ts`, `prisma/migrations/20261110203000_invitations/migration.sql` |
 | Tickets, tasks, notes, projects, time entries | free text written by users, plus reporter/assignee/author/lead references | `prisma/schema.prisma` |
 | Events | title, description, organiser and contact free-text fields, room names, times; service windows with a covering user | `prisma/schema.prisma` |
 | Vendors | contact name, email, phone, address | `prisma/schema.prisma` |
@@ -78,8 +79,9 @@ administrator. The operation runs in one transaction in `app/domains/auth/gdpr.s
    deleted.
 3. Attachment creator links are set to `null`; the attachment records and stored objects stay.
 4. The account's `Account` rows (the password hash and any provider tokens), its `Session` rows (IP
-   address and user agent), its password reset links and any invitation still pending for its email
-   are deleted.
+   address and user agent), its password reset links and all invitation records for its email
+   (regardless of state or letter case) are deleted. Its inviter references on other invitations
+   are cleared, while those other invitations remain.
 5. The `User` row is scrubbed and deactivated: name becomes `[pseudonymisiert]`, email becomes
    `erased-<id>@erased.local`, initials become `null`, and `isActive` becomes `false`. The rewritten
    email keeps the unique-email constraint satisfied without exposing the original address.
@@ -95,7 +97,7 @@ erased account stays valid and the account cannot sign in again; `requireUser`
 After the operation, the following data can still exist:
 
 - The `User` row itself: id, role, weekly capacity, image URL, email-verified flag and the rewritten
-  email. Its `Account`, `Session`, password reset link and pending invitation rows are deleted.
+  email. Its `Account`, `Session`, password reset link and invitation rows are deleted.
   Accounts erased by an older version kept their `Account` rows, including the password hash; an
   operator can remove those with
   `DELETE FROM "Account" WHERE "userId" IN (SELECT id FROM "User" WHERE email LIKE 'erased-%@erased.local');`.
@@ -133,8 +135,13 @@ at boot and then daily. It prunes `ActivityLog` rows whose `occurredAt` is older
 A separate lifecycle job, `app/lib/lifecycle-retention.boot.server.ts`, runs at boot and daily.
 It never changes the audit log. Each category is deleted independently:
 
-- Sessions and verifications (including invitation and reset tokens) are deleted when
+- Sessions and verifications (including legacy invitation and reset tokens) are deleted when
   `expiresAt` is at or before the sweep time.
+- Invitation history is not automatically pruned: accepted, expired, revoked and superseded
+  invitations remain visible to admins until account pseudonymization or operator deletion.
+  The seven-day link lifetime is not a data-retention period. For an invitee who never creates
+  an account, the operator must delete the invitation record according to their retention policy.
+  New invitation links are stored only as hashes, and acceptance does not verify the email address.
 - Read notifications are deleted when `readAt` is strictly older than 90 days. Unread
   notifications are not pruned.
 - Completed calendar outbox rows (`SENT` and `SUPERSEDED`) are deleted when `processedAt` is
