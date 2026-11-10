@@ -5,6 +5,9 @@ import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { findUser, updateUser } from "~/domains/auth/users.queries.server";
 import { editUserSchema } from "~/domains/auth/users.schema";
+import { listUserPermissions, setTimePermission } from "~/domains/auth/permissions.server";
+import { TIME_PERMISSIONS, timePermissionFormSchema } from "~/domains/auth/permissions.schema";
+import { emitChange } from "~/lib/realtime/emit.server";
 import { resetTwoFactor } from "~/domains/auth/two-factor.server";
 import { ZodForm, FormField } from "~/components/forms";
 import { Select } from "~/components/ui/select";
@@ -16,8 +19,11 @@ import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  await requireRole(request, "ADMIN");
-  return { user: await findUser(params.id!) };
+  const actor = await requireRole(request, "ADMIN");
+  return {
+    user: await findUser(params.id!),
+    permissions: await listUserPermissions(actor, params.id!),
+  };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -29,7 +35,16 @@ export async function action({ request, params }: Route.ActionArgs) {
     initials: actor.initials,
   };
   try {
-    if ((await request.clone().formData()).get("intent") === "resetTwoFactor") {
+    const intent = (await request.clone().formData()).get("intent");
+    if (intent === "timePermission") {
+      const result = await safeParseForm(request, timePermissionFormSchema);
+      if (!result.success)
+        return { fieldErrors: result.fieldErrors, formErrors: result.formErrors };
+      await setTimePermission(actor, params.id!, result.data.permission, result.data.enabled);
+      await emitChange({ entityType: "user", id: params.id!, op: "updated" });
+      return { permissionSaved: true as const };
+    }
+    if (intent === "resetTwoFactor") {
       await resetTwoFactor(params.id!, auditActor);
       return { twoFactorReset: true as const };
     }
@@ -93,6 +108,57 @@ export default function EditUser({ loaderData, actionData }: Route.ComponentProp
         </FormField>
         <Button type="submit">{t("common.save")}</Button>
       </ZodForm>
+
+      <section className="mt-6 border-t pt-5" aria-labelledby="time-access-title">
+        <h2 id="time-access-title" className="text-base font-semibold">
+          {t("admin.user.time.title")}
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">{t("admin.user.time.hint")}</p>
+        {actionData && "permissionSaved" in actionData ? (
+          <p role="status" className="text-status-info mt-2 text-sm">
+            {t("admin.user.time.saved")}
+          </p>
+        ) : null}
+        <div className="mt-3 divide-y">
+          {TIME_PERMISSIONS.map((permission) => {
+            const granted = loaderData.permissions.some((row) => row.permission === permission);
+            return (
+              <ZodForm
+                key={permission}
+                className="flex-row items-center justify-between gap-3 py-3"
+              >
+                <input type="hidden" name="intent" value="timePermission" />
+                <input type="hidden" name="permission" value={permission} />
+                <input type="hidden" name="enabled" value={String(!granted)} />
+                <span className="text-sm">
+                  {t(
+                    permission === "time.viewOthers"
+                      ? "admin.user.time.view"
+                      : "admin.user.time.edit",
+                  )}
+                </span>
+                <Button
+                  type="submit"
+                  size="compact"
+                  variant={granted ? "tertiary" : "secondary"}
+                  aria-label={t(
+                    granted ? "admin.user.time.revokeNamed" : "admin.user.time.grantNamed",
+                    {
+                      permission: t(
+                        permission === "time.viewOthers"
+                          ? "admin.user.time.view"
+                          : "admin.user.time.edit",
+                      ),
+                    },
+                  )}
+                >
+                  {t(granted ? "admin.user.time.revoke" : "admin.user.time.grant")}
+                </Button>
+              </ZodForm>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="bg-card shadow-surface-2 mt-6 rounded-lg p-4">
         <p className="text-sm font-semibold">{t("admin.user.twoFactor.title")}</p>

@@ -435,7 +435,7 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     {
       name: "create_time_entry",
       description:
-        "Create a time entry using ISO instants with offsets. Null endsAt creates a running timer whose startsAt must be at or before the server's mutation-time now. Use start_timer to start your own timer at server time. Finished intervals require endsAt after startsAt and may be in the future. Members log for themselves; only admins may choose userId.",
+        "Create a time entry using ISO instants with offsets. Null endsAt creates a running timer whose startsAt must be at or before the server's mutation-time now. Use start_timer to start your own timer at server time. Finished intervals require endsAt after startsAt and may be in the future. Another userId requires time.editOthers, including for admins.",
       schema: z.object({ input: timeInput }),
       write: true,
     },
@@ -458,7 +458,7 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     {
       name: "update_time_entry",
       description:
-        "Replace a time entry's times, task and comment using ISO instants with offsets. Changed running results (endsAt: null) require startsAt at or before the server's mutation-time now; identical updates remain unaudited no-write no-ops, including existing future-running entries. Finished intervals require endsAt after startsAt and may be in the future. Use start_timer to start your own timer at server time. Members edit only their own entries; admins may edit others. Ownership cannot be reassigned.",
+        "Replace a time entry's times, task and comment using ISO instants with offsets. Changed running results (endsAt: null) require startsAt at or before the server's mutation-time now; identical updates remain unaudited no-write no-ops, including existing future-running entries. Finished intervals require endsAt after startsAt and may be in the future. Use start_timer to start your own timer at server time. Editing others requires time.editOthers, including for admins. Ownership cannot be reassigned.",
       schema: byId.extend({ input: timeInput.omit({ userId: true }) }),
       write: true,
     },
@@ -482,7 +482,7 @@ export function registerWorkWrites(server: McpServer, context: McpContext): void
     {
       name: "delete_time_entry",
       description:
-        "Delete a time entry. Members delete only their own entries; admins may delete others. Requires confirm:true.",
+        "Delete a time entry. Deleting others requires time.editOthers, including for admins. Requires confirm:true.",
       schema: confirmed,
       write: true,
       destructive: true,

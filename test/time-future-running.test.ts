@@ -29,6 +29,7 @@ beforeAll(async () => {
   await db.user.createMany({
     data: members.map((user) => ({ ...user, email: `${user.id}@example.test` })),
   });
+  await db.userPermission.create({ data: { userId: admin.id, permission: "time.editOthers" } });
   taskId = (await db.task.create({ data: { title: `${prefix} task` } })).id;
 });
 
@@ -114,6 +115,12 @@ describe("future running time entry policy", () => {
     ["admin self", admin, undefined],
     ["admin for another user", admin, other.id],
   ] as const)("rejects future +1ms creation: %s", async (_label, actor, userId) => {
+    if (actor === owner && userId === other.id) {
+      await expect(
+        createTimeEntry(actor, running({ startsAt: future, userId })),
+      ).rejects.toMatchObject({ status: 403 });
+      return;
+    }
     await expectRefusal(
       () => createTimeEntry(actor, running({ startsAt: future, userId })),
       t("de", "work.err.time.futureRunning"),
@@ -184,8 +191,7 @@ describe("future running time entry policy", () => {
       NotFoundError,
     );
     await expect(updateTimeEntry(other, entry.id, input)).rejects.toMatchObject({
-      fieldErrors: {},
-      formErrors: [t("de", "work.err.time.onlyOwnEntries")],
+      status: 403,
     });
     await expect(updateTimeEntry(admin, entry.id, input)).rejects.toMatchObject({
       fieldErrors: { taskId: [t("de", "work.err.task.unknown")] },
@@ -200,7 +206,10 @@ describe("future running time entry policy", () => {
   });
 
   it("retains ownership selection and does not reassign an entry on edit", async () => {
-    const own = await createTimeEntry(owner, running({ endsAt: now, userId: other.id }));
+    await expect(
+      createTimeEntry(owner, running({ endsAt: now, userId: other.id })),
+    ).rejects.toMatchObject({ status: 403 });
+    const own = await createTimeEntry(owner, running({ endsAt: now }));
     expect(own.userId).toBe(owner.id);
     const filed = await createTimeEntry(admin, running({ userId: other.id }));
     expect(filed.userId).toBe(other.id);

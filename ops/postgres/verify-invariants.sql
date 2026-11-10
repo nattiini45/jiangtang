@@ -229,7 +229,7 @@ BEGIN
 
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 20 CREATE TYPE = 20 enum types, 57 FOREIGN KEY = 57 contype 'f',
+  -- row: 20 CREATE TYPE = 20 enum types, 58 FOREIGN KEY = 58 contype 'f',
   -- 2 EXCLUDE USING = 2 contype 'x', and the two named CHECKs.
   SELECT count(*) = 20 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
@@ -238,13 +238,13 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 20 enum types the migrations create');
   END IF;
 
-  SELECT count(*) = 57 INTO have
+  SELECT count(*) = 58 INTO have
     FROM pg_constraint c
     JOIN pg_class r ON r.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = r.relnamespace
     WHERE n.nspname = 'public' AND c.contype = 'f';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 57 foreign keys the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 58 foreign keys the migrations create');
   END IF;
 
   SELECT count(*) = 2 INTO have
@@ -282,6 +282,6 @@ BEGIN
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 20 enums / 57 foreign keys / 2 CHECKs, >=84 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 20 enums / 58 foreign keys / 2 CHECKs, >=84 public indexes';
 END
 $verify$;

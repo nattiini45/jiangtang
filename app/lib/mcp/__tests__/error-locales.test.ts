@@ -136,7 +136,7 @@ describe.each(["en", "de"] as const)("MCP runtime errors in %s", (locale) => {
             type: "text",
             text: JSON.stringify({
               status: 403,
-              detail: { message: t(locale, "err.mcp.adminRequired") },
+              detail: { message: t(locale, "err.permissionRequired") },
             }),
           },
         ]);

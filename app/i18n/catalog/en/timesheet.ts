@@ -1,6 +1,9 @@
 import type { timesheetDe } from "../de/timesheet";
 
 export const timesheetEn = {
+  "timesheet.visibility.onlyYou": "Only you can see your time entries.",
+  "timesheet.visibility.people": "Your time entries are visible to you and: {names}.",
+
   "timesheet.meta": "Time tracking · Jiangtang",
   "timesheet.tabs.aria": "Time tracking sections",
   "timesheet.userPickerAria": "Choose user for time tracking",

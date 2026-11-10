@@ -1,6 +1,8 @@
 import { db } from "~/lib/db.server";
 import type { Prisma } from "~/generated/prisma/client";
 import { ENTITY_TYPES, type EntityType } from "~/lib/realtime/events";
+import type { AuditActor } from "~/lib/audit.server";
+import { timeActivityVisibility } from "~/domains/time/time-access.server";
 
 /**
  * Per-entity activity history. Reads the append-only ActivityLog,
@@ -94,9 +96,12 @@ export async function listEntityHistory(
   entityType: string,
   entityId: string,
   limit = 50,
+  actor?: AuditActor,
 ): Promise<ActivityEntry[]> {
+  const isTime = entityType.toLowerCase() === "timeentry";
+  const visibility = isTime ? await timeActivityVisibility(actor ?? {}) : {};
   const rows = await db.activityLog.findMany({
-    where: { entityType, entityId },
+    where: { entityType, entityId, ...(isTime ? { AND: [visibility] } : {}) },
     orderBy: [{ occurredAt: "desc" }, { insertedAt: "desc" }],
     take: limit,
     select: {

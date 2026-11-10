@@ -15,7 +15,7 @@ const TEST_USER: AuthUser = {
   name: "Activity Tester",
   email: `${RUN}@test.local`,
   initials: "AT",
-  role: "MEMBER",
+  role: "ADMIN",
   isActive: true,
 } as AuthUser;
 
@@ -42,9 +42,12 @@ async function ensureActor() {
   if (!actor) {
     // `initials` is UNIQUE — derive them from the run tag instead of a constant.
     const initials = RUN.slice(-3).toUpperCase().padStart(3, "0");
-    const u = await db.user.create({ data: { email: `${RUN}@test.local`, name: RUN, initials } });
+    const u = await db.user.create({
+      data: { email: `${RUN}@test.local`, name: RUN, initials, role: "ADMIN" },
+    });
     userIds.push(u.id);
     actor = { id: u.id, name: u.name, email: u.email };
+    TEST_USER.id = u.id;
   }
   return actor;
 }
@@ -109,7 +112,10 @@ describe("listActivity", () => {
     const task = await createTask(me, { title: `${RUN} fresh`, status: "BACKLOG", labels: [] });
     taskIds.push(task.id);
 
-    const { items } = await listActivity({ actorId: me.id, entityTypes: ["task", "ticket"] });
+    const { items } = await listActivity(await ensureActor(), {
+      actorId: me.id,
+      entityTypes: ["task", "ticket"],
+    });
     const taskRow = items.find((i) => i.entityId === task.id)!;
     const ticketRow = items.find((i) => i.entityId === ticket.id)!;
     expect(ticketRow.occurredAt.getTime()).toBe(past.getTime());
@@ -127,11 +133,14 @@ describe("listActivity", () => {
     await logRow({ actorId: `${RUN}_a`, entityType: "ticket", entityId: `f-${RUN}-1` });
     await logRow({ actorId: `${RUN}_b`, entityType: "task", entityId: `f-${RUN}-2` });
 
-    const byActor = await listActivity({ actorId: `${RUN}_a` });
+    const byActor = await listActivity(await ensureActor(), { actorId: `${RUN}_a` });
     expect(byActor.items.length).toBe(1);
     expect(byActor.items[0].entityId).toBe(`f-${RUN}-1`);
 
-    const byType = await listActivity({ entityTypes: ["task"], actorId: `${RUN}_b` });
+    const byType = await listActivity(await ensureActor(), {
+      entityTypes: ["task"],
+      actorId: `${RUN}_b`,
+    });
     expect(byType.items.length).toBe(1);
     expect(byType.items[0].entityId).toBe(`f-${RUN}-2`);
   });
@@ -146,17 +155,24 @@ describe("listActivity", () => {
       entityId: `p-${RUN}-4`,
     });
 
-    const p1 = await listActivity({ actorId: `${RUN}_u`, limit: 2 });
+    const p1 = await listActivity(await ensureActor(), { actorId: `${RUN}_u`, limit: 2 });
     expect(p1.items).toHaveLength(2);
     expect(p1.nextCursor).not.toBeNull();
-    const p2 = await listActivity({ actorId: `${RUN}_u`, limit: 2, cursor: p1.nextCursor! });
+    const p2 = await listActivity(await ensureActor(), {
+      actorId: `${RUN}_u`,
+      limit: 2,
+      cursor: p1.nextCursor!,
+    });
     const all = [...p1.items, ...p2.items].map((i) => i.id);
     expect(new Set(all).size).toBe(all.length); // no dupes
     expect(all.sort()).toEqual([a.id, b.id, c.id, d.id].sort()); // no gaps
   });
 
   it("a garbage cursor degrades to the first page", async () => {
-    const res = await listActivity({ actorId: `${RUN}_u`, cursor: "!!!not-a-cursor" });
+    const res = await listActivity(await ensureActor(), {
+      actorId: `${RUN}_u`,
+      cursor: "!!!not-a-cursor",
+    });
     expect(res.items.length).toBeGreaterThanOrEqual(0);
   });
 
@@ -170,7 +186,10 @@ describe("listActivity", () => {
     });
     const id = ticket.id;
     await db.ticket.delete({ where: { id } }); // gone — no cleanup-tracking on purpose
-    const { items } = await listActivity({ actorId: me.id, entityTypes: ["ticket"] });
+    const { items } = await listActivity(await ensureActor(), {
+      actorId: me.id,
+      entityTypes: ["ticket"],
+    });
     const row = items.find((i) => i.entityId === id)!;
     expect(row.title).toBe(`${RUN} ghost`);
     expect(row.href).toBeNull();

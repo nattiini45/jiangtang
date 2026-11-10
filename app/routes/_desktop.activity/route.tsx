@@ -17,6 +17,7 @@ import {
   Warehouse,
   type LucideIcon,
 } from "lucide-react";
+import { requirePermission } from "~/lib/rbac.server";
 import { requireUser } from "~/lib/auth.server";
 import { EmptyState } from "~/components/states/empty-state";
 import { ENTITY_TYPES, type EntityType } from "~/lib/realtime/events";
@@ -73,7 +74,8 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const actor = await requireUser(request);
+  await requirePermission(actor, "audit.view");
   const url = new URL(request.url);
   const actorParam = url.searchParams.get("actor")?.trim() || undefined;
   // Garbage params degrade to unfiltered — the list-filter contract.
@@ -84,7 +86,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const users = await listUsers();
   const actorId = actorParam && users.some((u) => u.id === actorParam) ? actorParam : undefined;
 
-  const { items, nextCursor } = await listActivity({
+  const { items, nextCursor } = await listActivity(actor, {
     actorId,
     entityTypes: entityTypes.length ? entityTypes : undefined,
     cursor: url.searchParams.get("cursor") ?? undefined,

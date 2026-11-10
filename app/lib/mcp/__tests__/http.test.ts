@@ -141,7 +141,10 @@ describe("MCP Streamable HTTP authentication", () => {
       ];
       for (const [name, args] of reads) {
         const result = await client.callTool({ name, arguments: { ...args, limit: 1 } });
-        expect(result.isError, `${name}: ${JSON.stringify(result.content)}`).not.toBe(true);
+        if (name === "list_activity") {
+          expect(result.isError).toBe(true);
+          expect(JSON.stringify(result.content)).toContain("403");
+        } else expect(result.isError, `${name}: ${JSON.stringify(result.content)}`).not.toBe(true);
       }
     } finally {
       await client.close();

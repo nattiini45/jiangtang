@@ -107,6 +107,8 @@ const isoWeek = z
   });
 const timeOwner = z.object({ userId: id.optional() });
 const activityTypes = [
+  "timeEntry",
+  "user",
   "campus",
   "building",
   "room",
@@ -144,9 +146,6 @@ async function found<T>(result: Promise<T | null>) {
 }
 
 function timeUser(userId: string | undefined, context: McpContext) {
-  if (userId && userId !== context.user.id && context.user.role !== "ADMIN") {
-    throw new Response(tr("err.mcp.adminRequired"), { status: 403 });
-  }
   return userId ?? context.user.id;
 }
 
@@ -697,12 +696,17 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_time_entries",
       description:
-        "List entries overlapping an ISO week (YYYY-Www, Europe/Berlin). Defaults to your own entries; another userId requires ADMIN. Follow nextOffset.",
+        "List entries overlapping an ISO week (YYYY-Www, Europe/Berlin). Defaults to your own entries; another userId requires time.viewOthers. Follow nextOffset.",
       schema: timeOwner.extend({ ...pagination.shape, isoWeek }),
     },
     async (input, ctx) =>
       page(
-        await listWeekEntries(timeUser(input.userId, ctx), input.isoWeek, queryPage(input)),
+        await listWeekEntries(
+          ctx.user,
+          timeUser(input.userId, ctx),
+          input.isoWeek,
+          queryPage(input),
+        ),
         input,
       ),
   );
@@ -712,10 +716,10 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_time_entry",
       description:
-        "Get your time entry with its task label. Another userId requires ADMIN; missing or unowned entries return not found.",
+        "Get your time entry with its task label. Another userId requires time.viewOthers; missing or unowned entries return not found.",
       schema: timeOwner.extend({ id }),
     },
-    (input, ctx) => found(getTimeEntry(timeUser(input.userId, ctx), input.id)),
+    (input, ctx) => found(getTimeEntry(ctx.user, input.id, timeUser(input.userId, ctx))),
   );
   registerTool(
     server,
@@ -723,11 +727,12 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_timesheet",
       description:
-        "Get per-task/day totals for an ISO week in Europe/Berlin, with overlapping intervals counted once in daily/weekly totals. Defaults to your own timesheet; another userId requires ADMIN. Use list_time_entries for paginated source entries.",
+        "Get per-task/day totals for an ISO week in Europe/Berlin, with overlapping intervals counted once in daily/weekly totals. Defaults to your own timesheet; another userId requires time.viewOthers. Use list_time_entries for paginated source entries.",
       schema: timeOwner.extend({ isoWeek }),
     },
     async (input, ctx) => {
       const { entries: _entries, ...sheet } = await getWeekTimesheet(
+        ctx.user,
         timeUser(input.userId, ctx),
         input.isoWeek,
       );
@@ -739,10 +744,10 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     context,
     {
       name: "get_running_timer",
-      description: "Get your running timer, or null. Another userId requires ADMIN.",
+      description: "Get your running timer, or null. Another userId requires time.viewOthers.",
       schema: timeOwner,
     },
-    (input, ctx) => getRunningEntry(timeUser(input.userId, ctx)),
+    (input, ctx) => getRunningEntry(ctx.user, timeUser(input.userId, ctx)),
   );
   registerTool(
     server,
@@ -797,7 +802,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_activity",
       description:
-        "List workspace activity with resolved entity titles and actor display labels, using nextCursor pagination. Account-management, time-entry and notification activity is excluded; actor emails and raw audit data are omitted.",
+        "Requires audit.view. List workspace activity with resolved entity titles and actor display labels, using nextCursor pagination. Time-entry rows require ownership or time.viewOthers; grant, revoke and view accountability remains visible. Notifications, actor emails and raw audit data are omitted.",
       schema: z.object({
         actorId: id.optional(),
         entityTypes: z.array(z.enum(activityTypes)).min(1).max(activityTypes.length).optional(),
@@ -805,10 +810,11 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         limit: z.number().int().min(1).max(100).default(50),
       }),
     },
-    async (input) => {
-      const result = await listActivity({
+    async (input, ctx) => {
+      const result = await listActivity(ctx.user, {
         ...input,
         entityTypes: input.entityTypes ?? [...activityTypes],
+        userAccountabilityOnly: true,
       });
       return {
         ...result,

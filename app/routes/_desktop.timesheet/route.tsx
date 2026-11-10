@@ -1,5 +1,8 @@
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
+import { listTimeViewers } from "~/domains/time/time-access.server";
+import { TimeVisibility } from "~/components/timesheet/time-visibility";
+import { hasPermission } from "~/lib/rbac.server";
 import { requireUser } from "~/lib/auth.server";
 import { EmptyState } from "~/components/states/empty-state";
 import { Timer } from "lucide-react";
@@ -37,7 +40,7 @@ import { Select } from "~/components/ui/select";
 
 /**
  * `/timesheet` — the per-user week grid. `?week=2026-W41` (ISO, Berlin),
- * `?user=` is admin-only (members always see themselves). Cells show the raw
+ * `?user=` requires explicit access to others' time entries. Cells show the raw
  * per-task minutes; the day/week totals are interval UNIONs — overlapping
  * entries count once, which the column header says out loud.
  */
@@ -71,21 +74,20 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
 
-  const isAdmin = actor.role === "ADMIN";
-  const users = isAdmin ? await listUsers() : [];
+  const canViewOthers = await hasPermission(actor, "time.viewOthers");
+  const users = canViewOthers ? await listUsers() : [];
   const userParam = url.searchParams.get("user")?.trim();
-  const targetUserId =
-    isAdmin && userParam && users.some((u) => u.id === userParam) ? userParam : actor.id;
+  const targetUserId = userParam || actor.id;
 
   // The capacity heatmap moved here from `/capacity` — it is the `?tab=capacity`
   // tab of this page now, so its data loads only on that tab.
   const tab = url.searchParams.get("tab") === "capacity" ? "capacity" : "timesheet";
 
   const [sheet, running, taskOptions, capacity] = await Promise.all([
-    getWeekTimesheet(targetUserId, isoWeek),
-    getRunningEntry(targetUserId),
+    getWeekTimesheet(actor, targetUserId, isoWeek),
+    getRunningEntry(actor, targetUserId),
     listOpenTaskOptions(""),
-    tab === "capacity" ? getCapacityOverview() : null,
+    tab === "capacity" ? getCapacityOverview(actor) : null,
   ]);
 
   const { startDay } = isoWeekRange(isoWeek);
@@ -98,7 +100,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     isoWeek,
     prevWeek,
     nextWeek,
-    isAdmin,
+    canViewOthers,
+    canEdit: targetUserId === actor.id || (await hasPermission(actor, "time.editOthers")),
+    ownSheet: targetUserId === actor.id,
+    viewers: targetUserId === actor.id ? await listTimeViewers(actor) : null,
     users,
     targetUserId,
     taskOptions,
@@ -201,14 +206,14 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
     isoWeek,
     prevWeek,
     nextWeek,
-    isAdmin,
+    canViewOthers,
     users,
     targetUserId,
     running,
     tab,
     capacity,
   } = loaderData;
-  const userParam = isAdmin && targetUserId ? `&user=${targetUserId}` : "";
+  const userParam = canViewOthers && targetUserId ? `&user=${targetUserId}` : "";
 
   const tabLinkClass = (active: boolean) =>
     `-mb-px border-b-2 px-3 py-2 text-sm ${
@@ -238,6 +243,10 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
         </Link>
       </nav>
 
+      {tab === "timesheet" && loaderData.viewers ? (
+        <TimeVisibility viewers={loaderData.viewers} />
+      ) : null}
+
       {tab === "capacity" && capacity ? (
         <CapacityPanel overview={capacity} />
       ) : (
@@ -246,7 +255,9 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
           isoWeek={isoWeek}
           prevWeek={prevWeek}
           nextWeek={nextWeek}
-          isAdmin={isAdmin}
+          canEdit={loaderData.canEdit}
+          ownSheet={loaderData.ownSheet}
+          canViewOthers={canViewOthers}
           users={users}
           targetUserId={targetUserId}
           running={running}
@@ -261,11 +272,13 @@ export default function Timesheet({ loaderData, actionData }: Route.ComponentPro
 }
 
 function TimesheetWeek({
+  canEdit,
+  ownSheet,
   sheet,
   isoWeek,
   prevWeek,
   nextWeek,
-  isAdmin,
+  canViewOthers,
   users,
   targetUserId,
   running,
@@ -274,11 +287,13 @@ function TimesheetWeek({
   userParam,
   actionData,
 }: {
+  canEdit: boolean;
+  ownSheet: boolean;
   sheet: Route.ComponentProps["loaderData"]["sheet"];
   isoWeek: string;
   prevWeek: string;
   nextWeek: string;
-  isAdmin: boolean;
+  canViewOthers: boolean;
   users: Route.ComponentProps["loaderData"]["users"];
   targetUserId: string;
   running: Route.ComponentProps["loaderData"]["running"];
@@ -303,7 +318,7 @@ function TimesheetWeek({
         </div>
       </div>
 
-      {isAdmin ? (
+      {canViewOthers ? (
         <Form method="get" className="flex items-center gap-2">
           <input type="hidden" name="week" value={isoWeek} />
           <Select
@@ -324,7 +339,7 @@ function TimesheetWeek({
         </Form>
       ) : null}
 
-      {running ? (
+      {running && ownSheet ? (
         <section className="bg-card shadow-surface-2 flex flex-wrap items-center gap-3 rounded-lg p-4">
           <span className="bg-destructive inline-block size-2 animate-pulse rounded-full" />
           <span className="nums text-sm">
@@ -433,6 +448,7 @@ function TimesheetWeek({
                     <input type="hidden" name="taskId" value={e.taskId ?? ""} />
                     <input type="hidden" name="comment" value={e.comment ?? ""} />
                     <Input
+                      disabled={!canEdit}
                       type="date"
                       name="date"
                       defaultValue={date}
@@ -440,6 +456,7 @@ function TimesheetWeek({
                       aria-label={t("timesheet.date")}
                     />
                     <Input
+                      disabled={!canEdit}
                       type="time"
                       name="startTime"
                       defaultValue={start}
@@ -448,6 +465,7 @@ function TimesheetWeek({
                     />
                     <span className="text-muted-foreground">–</span>
                     <Input
+                      disabled={!canEdit}
                       type="time"
                       name="endTime"
                       defaultValue={end}
@@ -463,14 +481,14 @@ function TimesheetWeek({
                         ? `${formatHM(Math.round((e.endsAt.getTime() - e.startsAt.getTime()) / 60_000))} h`
                         : t("timesheet.running")}
                     </span>
-                    <Button type="submit" variant="secondary" size="compact">
+                    <Button type="submit" variant="secondary" size="compact" disabled={!canEdit}>
                       {t("common.save")}
                     </Button>
                   </Form>
                   <Form method="post">
                     <input type="hidden" name="_action" value="delete" />
                     <input type="hidden" name="id" value={e.id} />
-                    <Button type="submit" variant="ghost" size="compact">
+                    <Button type="submit" variant="ghost" size="compact" disabled={!canEdit}>
                       {t("common.delete")}
                     </Button>
                   </Form>
@@ -481,9 +499,10 @@ function TimesheetWeek({
         )}
       </section>
 
-      <section className="bg-card shadow-surface-2 rounded-lg p-4">
+      <section hidden={!canEdit} className="bg-card shadow-surface-2 rounded-lg p-4">
         <h2 className="text-base font-semibold">{t("timesheet.add.title")}</h2>
         <Form method="post" className="mt-2 flex flex-wrap items-center gap-2">
+          <input type="hidden" name="userId" value={targetUserId} />
           <input type="hidden" name="_action" value="add" />
           <Input
             type="date"

@@ -689,6 +689,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261108120000_two_factor",
       "20261109125000_personal_access_tokens",
       "20261109220000_calendar_publication_initialization",
+      "20261110200000_time_permissions",
       "20261110203000_invitations",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only

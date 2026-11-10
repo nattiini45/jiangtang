@@ -1,6 +1,7 @@
 import type { errorsDe } from "../de/errors";
 
 export const errorsEn = {
+  "err.permissionRequired": "You don't have permission to access this information.",
   "err.validationFailed": "Invalid input.",
   "err.notFound": "Not found.",
   "err.notFoundBody": "Not found",

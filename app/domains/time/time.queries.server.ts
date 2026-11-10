@@ -1,3 +1,5 @@
+import type { AuditActor } from "~/lib/audit.server";
+import { recordTimesheetView, requireTimeAccess } from "./time-access.server";
 import { db } from "~/lib/db.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { TimeEntry } from "~/generated/prisma/client";
@@ -35,20 +37,24 @@ export interface WeekTimesheet {
 const ENTRY_INCLUDE = { task: { select: { id: true, title: true } } } as const;
 
 /** The user's running timer, if any (at most one — the partial unique index). */
-export async function getRunningEntry(userId: string) {
+export async function getRunningEntry(actor: AuditActor, userId = actor.id!) {
+  await requireTimeAccess(actor, userId);
   return db.timeEntry.findFirst({ where: { userId, endsAt: null }, include: ENTRY_INCLUDE });
 }
 
-export function getTimeEntry(userId: string, id: string) {
+export async function getTimeEntry(actor: AuditActor, id: string, userId = actor.id!) {
+  await requireTimeAccess(actor, userId);
   return db.timeEntry.findFirst({ where: { id, userId }, include: ENTRY_INCLUDE });
 }
 
 /** Entries overlapping the week in either direction, oldest first. */
 export async function listWeekEntries(
+  actor: AuditActor,
   userId: string,
   isoWeek: string,
   page: { offset?: number; limit?: number } = {},
 ) {
+  await requireTimeAccess(actor, userId);
   const { startDay, endDay } = isoWeekRange(isoWeek);
   const from = new Date(berlinDayStartMs(startDay));
   const to = new Date(berlinDayStartMs(endDay + 1));
@@ -70,10 +76,13 @@ export async function listWeekEntries(
  * `now` is the effective end of a running timer and is injectable for tests.
  */
 export async function getWeekTimesheet(
+  actor: AuditActor,
   userId: string,
   isoWeek: string,
   now: Date = new Date(),
 ): Promise<WeekTimesheet> {
+  await requireTimeAccess(actor, userId);
+  await recordTimesheetView(actor, userId);
   const { startDay, endDay } = isoWeekRange(isoWeek);
   const weekStart = berlinDayStartMs(startDay);
   const weekEnd = berlinDayStartMs(endDay + 1);
@@ -83,7 +92,7 @@ export async function getWeekTimesheet(
     ),
   );
 
-  const entries = await listWeekEntries(userId, isoWeek);
+  const entries = await listWeekEntries(actor, userId, isoWeek);
   const effective = entries.map((e) => ({
     entry: e,
     start: e.startsAt.getTime(),

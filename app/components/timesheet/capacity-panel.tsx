@@ -42,20 +42,22 @@ export function CapacityPanel({
       </header>
 
       <section className="bg-card shadow-surface-2 overflow-x-auto rounded-lg">
-        <table className="w-full min-w-[64rem] text-sm">
+        <table className="w-full table-fixed text-sm">
           <thead>
             <tr className="text-muted-foreground text-left text-xs">
-              <th className="p-2">{t("capacity.col.person")}</th>
+              <th className="w-[20%] p-2">{t("capacity.col.person")}</th>
               {weeks.map((w) => (
                 <th
                   key={w.isoWeek}
-                  className={`w-[13%] p-2 text-right ${w.current ? "text-foreground" : ""}`}
+                  className={`w-[11.5%] p-2 text-right ${w.current ? "text-foreground" : ""}`}
                 >
                   {w.isoWeek.replace("-", " ")}
-                  <span className="nums ml-1 font-normal">{w.startKey.slice(5)}</span>
+                  <span className="nums block font-normal whitespace-nowrap">
+                    {w.startKey.slice(5)}
+                  </span>
                 </th>
               ))}
-              <th className="p-2 text-right">{t("capacity.col.noDue")}</th>
+              <th className="w-[11%] p-2 text-right">{t("capacity.col.noDue")}</th>
             </tr>
           </thead>
           <tbody>
@@ -76,7 +78,8 @@ export function CapacityPanel({
                   <td className="p-2">
                     <Link
                       to={`/tasks?assignee=${r.userId}`}
-                      className="font-semibold hover:underline"
+                      className="block truncate font-semibold hover:underline"
+                      title={r.name}
                       aria-label={t("capacity.tasksOf", { name: r.name })}
                     >
                       {r.name}

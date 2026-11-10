@@ -1,5 +1,16 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.user.time.title": "Zugriff auf fremde Zeiteinträge",
+  "admin.user.time.hint":
+    "Standardmäßig privat, auch für Admins. Bearbeiten schließt Lesen ein. Jede Änderung wird im Protokoll festgehalten.",
+  "admin.user.time.view": "Fremde Zeiteinträge ansehen",
+  "admin.user.time.edit": "Fremde Zeiteinträge bearbeiten",
+  "admin.user.time.grant": "Erteilen",
+  "admin.user.time.revoke": "Entziehen",
+  "admin.user.time.grantNamed": "Erteilen: {permission}",
+  "admin.user.time.revokeNamed": "Entziehen: {permission}",
+  "admin.user.time.saved": "Zugriff auf Zeiteinträge aktualisiert.",
+
   "admin.users.meta": "Benutzer · Jiangtang",
   "admin.invitations.title": "Einladungen",
   "admin.invitations.meta": "Einladungen · Jiangtang",
