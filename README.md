@@ -49,15 +49,13 @@ See [docs/FEATURES.md](docs/FEATURES.md) for the marketing-style feature page.
   for; no model is bundled or downloaded.
 - **Production target: Linux amd64.** The Compose stack builds a local PostgreSQL image that
   carries an amd64 WAL-G binary. ARM hosts are not supported.
-- **One workspace per deployment in this release.** Multi-tenancy is designed but not
-  implemented yet — see [docs/MULTI-TENANCY-DESIGN.md](docs/MULTI-TENANCY-DESIGN.md) for the
-  scoping strategy and rollout. Rooms (bookable spaces) and locations (any place where things are or
+- **One team per installation.** One installation serves one team, and separate organisations run
+  separate installations. Rooms (bookable spaces) and locations (any place where things are or
   happen) are separate concepts by design; see
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#rooms-and-locations).
 - **Self-hosted by default.** Nothing is published for you — no telemetry service, no container
-  image. The app ships an opt-in public landing page at `/welcome` (`LANDING_PAGE_ENABLED=1`), and
-  [docs/HOSTED-DEMO-SPEC.md](docs/HOSTED-DEMO-SPEC.md) is the runbook an operator follows to run
-  a hosted read-only demo; this project does not operate one.
+  image. The app ships an opt-in public landing page at `/welcome` (`LANDING_PAGE_ENABLED=1`).
+  This project does not operate a hosted demo.
 
 ## Prerequisites
 
@@ -193,6 +191,7 @@ Additional checks: `pnpm typecheck`, `pnpm lint` and `bash scripts/guards.sh`.
 - [AGENTS.md](AGENTS.md) — the guide for AI coding agents (also useful as a short contributor
   cheat sheet).
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to run the checks and propose changes.
+- [ROADMAP.md](ROADMAP.md) — what is being worked on now, next and later, and what is not planned.
 - [SECURITY.md](SECURITY.md) — how to report a vulnerability privately.
 - [LICENSE](LICENSE) — Apache License 2.0.
 - [NOTICE](NOTICE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) — attribution and
