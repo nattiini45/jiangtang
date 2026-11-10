@@ -278,6 +278,7 @@ model User {
   accounts        Account[]
   twoFactor       TwoFactor?
   personalAccessTokens PersonalAccessToken[]
+  invitations Invitation[]
 
   // Workspace-domain back-references. Named because several
   // models point at User from more than one field.
@@ -400,6 +401,23 @@ model Verification {
   updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([identifier])
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String
+  name        String
+  initials    String
+  role        UserRole
+  tokenHash   String?   @unique @db.Char(64)
+  invitedById String?
+  invitedBy   User?     @relation(fields: [invitedById], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt   DateTime  @db.Timestamptz(3)
+  acceptedAt  DateTime? @db.Timestamptz(3)
+  revokedAt   DateTime? @db.Timestamptz(3)
+
+  @@index([email])
 }
 
 // ── Tickets / work items ─────────────────────────────────────────────────────
