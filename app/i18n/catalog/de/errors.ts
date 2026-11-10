@@ -1,4 +1,5 @@
 export const errorsDe = {
+  "err.permissionRequired": "Du hast keine Berechtigung für den Zugriff auf diese Informationen.",
   "err.validationFailed": "Eingabe ungültig.",
   "err.notFound": "Nicht gefunden.",
   "err.notFoundBody": "Nicht gefunden",

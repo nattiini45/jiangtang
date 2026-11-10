@@ -1,3 +1,4 @@
+import { requireTimeAccess } from "./time-access.server";
 import { tr } from "~/i18n/request-locale.server";
 import { Prisma } from "~/generated/prisma/client";
 import type { TimeEntry } from "~/generated/prisma/client";
@@ -11,15 +12,12 @@ import type { TimeEntryInput } from "./time.schema";
  * `ActivityLog` row commits with the change or not at all — entityType
  * `"timeEntry"` throughout. A refused mutation writes nothing.
  *
- * Ownership rule: members touch only their own entries (`userId === actor.id`);
- * admins may create/edit/delete for anyone. `TimeEntry.userId` is NOT NULL +
+ * Ownership rule: others' entries require an explicit editing permission. `TimeEntry.userId` is NOT NULL +
  * Restrict — GDPR pseudonymizes rather than deletes, so no FK action ever
  * fires.
  */
 
 type TimeActor = AuditActor & { role?: string | null };
-
-const isAdmin = (actor: TimeActor) => actor.role === "ADMIN";
 
 async function requireEntry(tx: Tx, id: string): Promise<TimeEntry> {
   const entry = await tx.timeEntry.findUnique({ where: { id } });
@@ -30,12 +28,6 @@ async function requireEntry(tx: Tx, id: string): Promise<TimeEntry> {
 async function requireTask(tx: Tx, id: string): Promise<void> {
   const task = await tx.task.findUnique({ where: { id }, select: { id: true } });
   if (!task) throw new ValidationError({ taskId: [tr("work.err.task.unknown")] });
-}
-
-function assertCanTouch(actor: TimeActor, entry: { userId: string }): void {
-  if (actor.id !== entry.userId && !isAdmin(actor)) {
-    throw new ValidationError({}, [tr("work.err.time.onlyOwnEntries")]);
-  }
 }
 
 /** A P2002 on the one-running-timer partial index reads as a friendly refusal. */
@@ -120,9 +112,9 @@ export async function stopTimer(actor: TimeActor): Promise<TimeEntry> {
 
 export async function createTimeEntry(actor: TimeActor, input: TimeEntryInput): Promise<TimeEntry> {
   if (!actor.id) throw new ValidationError({}, [tr("work.err.time.entryAuthorRequired")]);
-  // Members log for themselves; only admins may file under someone else.
-  const userId = isAdmin(actor) && input.userId ? input.userId : actor.id;
+  const userId = input.userId ?? actor.id;
   return txWithAudit(actor, async (tx, audit) => {
+    await requireTimeAccess(actor, userId, true, tx);
     if (input.taskId) await requireTask(tx, input.taskId);
     if (userId !== actor.id) {
       const user = await tx.user.findUnique({ where: { id: userId }, select: { id: true } });
@@ -167,7 +159,7 @@ export async function updateTimeEntry(
 ): Promise<TimeEntry> {
   return txWithAudit(actor, async (tx, audit) => {
     const before = await requireEntry(tx, id);
-    assertCanTouch(actor, before);
+    await requireTimeAccess(actor, before.userId, true, tx);
     if (input.taskId) await requireTask(tx, input.taskId);
 
     const next = {
@@ -209,7 +201,7 @@ export async function updateTimeEntry(
 export async function deleteTimeEntry(actor: TimeActor, id: string): Promise<TimeEntry> {
   return txWithAudit(actor, async (tx, audit) => {
     const entry = await requireEntry(tx, id);
-    assertCanTouch(actor, entry);
+    await requireTimeAccess(actor, entry.userId, true, tx);
     await tx.timeEntry.delete({ where: { id } });
     await audit({
       action: "TimeEntryDeleted",

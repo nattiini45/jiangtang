@@ -1,6 +1,8 @@
 import { tr } from "~/i18n/request-locale.server";
 import { Prisma } from "~/generated/prisma/client";
 import type { Task, TaskStatus } from "~/generated/prisma/client";
+import { hasPermission } from "~/lib/rbac.server";
+import type { AuditActor } from "~/lib/audit.server";
 import { db } from "~/lib/db.server";
 import { NotFoundError } from "~/lib/errors.server";
 import { berlinLocalToUtc } from "~/lib/time.server";
@@ -358,7 +360,10 @@ export interface CapacityOverview {
  * share/over math. The current week's column also carries the unioned minutes
  * already logged (`TimeEntry`; overlaps count once).
  */
-export async function getCapacityOverview(now = new Date()): Promise<CapacityOverview> {
+export async function getCapacityOverview(
+  actor: AuditActor,
+  now = new Date(),
+): Promise<CapacityOverview> {
   const todayIndex = berlinDayIndex(now);
   const week0 = isoWeekStart(todayIndex);
   const weeks = Array.from({ length: 6 }, (_, i) => {
@@ -386,10 +391,12 @@ export async function getCapacityOverview(now = new Date()): Promise<CapacityOve
     }),
   ]);
 
+  const viewOthers = await hasPermission(actor, "time.viewOthers");
   const weekStartMs = berlinDayStartMs(week0);
   const weekEndMs = berlinDayStartMs(week0 + 7);
   const entries = await db.timeEntry.findMany({
     where: {
+      ...(!viewOthers ? { userId: actor.id ?? "" } : {}),
       startsAt: { lt: new Date(weekEndMs) },
       OR: [{ endsAt: null }, { endsAt: { gt: new Date(weekStartMs) } }],
     },
@@ -408,5 +415,9 @@ export async function getCapacityOverview(now = new Date()): Promise<CapacityOve
     [...byUser].map(([userId, iv]) => [userId, unionMinutes(iv)] as const),
   );
 
-  return { weeks, todayIndex, rows: computeCapacity({ users, tasks, weeks, loggedCurrentWeek }) };
+  const rows = computeCapacity({ users, tasks, weeks, loggedCurrentWeek });
+  for (const row of rows) {
+    if (!viewOthers && row.userId !== actor.id) for (const week of row.weeks) delete week.logged;
+  }
+  return { weeks, todayIndex, rows };
 }

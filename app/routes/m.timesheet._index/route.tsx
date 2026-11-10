@@ -45,8 +45,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
   }
   const [sheet, running, taskOptions] = await Promise.all([
-    getWeekTimesheet(user.id, isoWeek),
-    getRunningEntry(user.id),
+    getWeekTimesheet(user, user.id, isoWeek),
+    getRunningEntry(user),
     listOpenTaskOptions(""),
   ]);
   const { startDay } = isoWeekRange(isoWeek);

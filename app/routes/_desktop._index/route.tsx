@@ -17,7 +17,7 @@ import type { Route } from "./+types/route";
 import { requireRole, requireUser } from "~/lib/auth.server";
 import { getDueSummary, getMyWork, listBlockedTasks } from "~/domains/tasks/tasks.queries.server";
 import { listMyTickets } from "~/domains/tickets/tickets.queries.server";
-import { listActivity } from "~/domains/activity/activity.queries.server";
+import { listRecentActivity } from "~/domains/activity/activity.queries.server";
 import { getStorageStats } from "~/domains/attachments/attachments.queries.server";
 import { workspaceIsEmpty } from "~/domains/dashboard/dashboard.queries.server";
 import { getSearchHealth } from "~/lib/search/health.server";
@@ -56,7 +56,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       listBlockedTasks(5),
       getMyWork(userId),
       listMyTickets(userId),
-      listActivity({ limit: 10 }),
+      listRecentActivity(),
       getStorageStats(),
       workspaceIsEmpty(),
       getSearchHealth(),
@@ -348,9 +348,11 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
           title={t("dashboard.recent.title")}
           icon={History}
           footer={
-            <Link to="/activity" className="text-muted-foreground text-xs hover:underline">
-              {t("dashboard.recent.link")}
-            </Link>
+            loaderData.isAdmin ? (
+              <Link to="/activity" className="text-muted-foreground text-xs hover:underline">
+                {t("dashboard.recent.link")}
+              </Link>
+            ) : null
           }
         >
           {recent.length === 0 ? (

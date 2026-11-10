@@ -36,7 +36,7 @@ export const timeEntryFormSchema = z.object({
     (v) => (v == null ? null : String(v).trim() || null),
     z.string().max(2000).nullable(),
   ),
-  /** Admin-only target user; ignored for non-admins by the mutation. */
+  /** Admin-only target user; requires time.editOthers when different from the actor. */
   userId: optionalId,
 });
 export type TimeEntryFormInput = z.infer<typeof timeEntryFormSchema>;

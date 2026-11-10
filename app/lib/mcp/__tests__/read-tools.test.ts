@@ -137,6 +137,7 @@ const listInputs: [string, Record<string, unknown>][] = [
   ["list_time_entries", { isoWeek: "2026-W45" }],
   ["list_vendors", {}],
   ["list_attachments", { roomId: "room" }],
+
   ["list_activity", {}],
   ["list_notifications", {}],
 ];
@@ -209,9 +210,11 @@ describe("read-only MCP coverage", () => {
   });
 
   it.each(listInputs)("%s executes with a read-only MEMBER token", async (name, input) => {
-    expect(await result(name, input)).toMatchObject(
-      name === "list_activity" ? { items: [], nextCursor: null } : { items: [], nextOffset: null },
-    );
+    if (name === "list_activity") {
+      expect(await status(name, input)).toBe(403);
+      return;
+    }
+    expect(await result(name, input)).toMatchObject({ items: [], nextOffset: null });
   });
 
   it.each(entityReads)("get_%s maps a missing entity to not found", async (entity) => {
@@ -393,7 +396,14 @@ describe("read-only MCP coverage", () => {
     },
   );
 
-  it("allows ADMIN cross-user time reads while keeping notifications own-only", async () => {
+  it("requires explicit permission for ADMIN cross-user reads while keeping notifications own-only", async () => {
+    expect(await status("get_running_timer", { userId: "other" })).toBe(403);
+    db.user.findUnique.mockResolvedValue({
+      ...member.user,
+      role: "ADMIN",
+      isActive: true,
+      permissions: [{ permission: "time.viewOthers" }],
+    });
     register({ ...member, user: { ...member.user, role: "ADMIN" } });
     expect(await result("get_running_timer", { userId: "other" })).toBeNull();
     expect(db.timeEntry.findFirst).toHaveBeenCalledWith(
@@ -410,6 +420,12 @@ describe("read-only MCP coverage", () => {
   });
 
   it("redacts actor emails and excludes account/private activity types", async () => {
+    db.user.findUnique.mockResolvedValue({
+      ...member.user,
+      role: "ADMIN",
+      isActive: true,
+      permissions: [],
+    });
     db.activityLog.findMany.mockResolvedValue([
       {
         id: "log",
@@ -447,6 +463,7 @@ describe("read-only MCP coverage", () => {
     expect(db.activityLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
+          NOT: { entityType: "timeEntry" },
           entityType: { in: expect.not.arrayContaining(["user", "timeEntry", "notification"]) },
         },
       }),

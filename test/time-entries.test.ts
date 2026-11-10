@@ -116,14 +116,14 @@ describe("timer + entry mutations", () => {
     const e = await startTimer(member, taskId);
     entryIds.push(e.id);
     expect(e.endsAt).toBeNull();
-    expect(await getRunningEntry(member.id!)).not.toBeNull();
+    expect(await getRunningEntry(member)).not.toBeNull();
     await expect(startTimer(member)).rejects.toMatchObject({
       name: "ValidationError",
       formErrors: ["Es läuft bereits ein Timer — zuerst stoppen."],
     });
     const stopped = await stopTimer(member);
     expect(stopped.endsAt).not.toBeNull();
-    expect(await getRunningEntry(member.id!)).toBeNull();
+    expect(await getRunningEntry(member)).toBeNull();
     await expect(stopTimer(member)).rejects.toMatchObject({
       name: "ValidationError",
       formErrors: ["Es läuft kein Timer."],
@@ -136,18 +136,20 @@ describe("timer + entry mutations", () => {
     expect(audit.map((a) => a.action)).toEqual(["TimeEntryStarted", "TimeEntryStopped"]);
   });
 
-  it("create/update/delete are audited; members cannot touch others' entries, admins can", async () => {
+  it("create/update/delete are audited; only explicitly permitted users can touch others' entries", async () => {
     const e = await createTimeEntry(member, input());
     entryIds.push(e.id);
     expect(e.userId).toBe(member.id);
 
     await expect(updateTimeEntry(other, e.id, input({ comment: "fremd" }))).rejects.toMatchObject({
-      name: "ValidationError",
+      status: 403,
     });
     await expect(deleteTimeEntry(other, e.id)).rejects.toMatchObject({
-      name: "ValidationError",
+      status: 403,
     });
 
+    await expect(updateTimeEntry(admin, e.id, input())).rejects.toMatchObject({ status: 403 });
+    await db.userPermission.create({ data: { userId: admin.id!, permission: "time.editOthers" } });
     const updated = await updateTimeEntry(admin, e.id, input({ comment: "admin edit" }));
     expect(updated.comment).toBe("admin edit");
 
@@ -162,9 +164,9 @@ describe("timer + entry mutations", () => {
     expect(countAfter).toBe(countBefore);
 
     // Members cannot file under someone else; admins can.
-    const sneaky = await createTimeEntry(member, input({ userId: other.id! }));
-    entryIds.push(sneaky.id);
-    expect(sneaky.userId).toBe(member.id);
+    await expect(createTimeEntry(member, input({ userId: other.id! }))).rejects.toMatchObject({
+      status: 403,
+    });
     const filed = await createTimeEntry(admin, input({ userId: other.id! }));
     entryIds.push(filed.id);
     expect(filed.userId).toBe(other.id);
@@ -211,7 +213,7 @@ describe("getWeekTimesheet", () => {
     );
     entryIds.push(loose.id);
 
-    const sheet = await getWeekTimesheet(member.id!, week);
+    const sheet = await getWeekTimesheet(member, member.id!, week);
     const taskRow = sheet.rows.find((r) => r.taskId === taskId)!;
     // Tuesday = column 1 (Mo=0): raw per-task sum is 240 min.
     expect(taskRow.cells[1]).toBe(240);
@@ -220,7 +222,7 @@ describe("getWeekTimesheet", () => {
     const freeRow = sheet.rows.find((r) => r.taskId === null)!;
     expect(freeRow.cells[4]).toBe(60); // Friday
     expect(freeRow.taskTitle).toBe("Ohne Aufgabe");
-    const enSheet = await runWithLocale("en", () => getWeekTimesheet(member.id!, week));
+    const enSheet = await runWithLocale("en", () => getWeekTimesheet(member, member.id!, week));
     expect(enSheet.rows.find((r) => r.taskId === null)!.taskTitle).toBe("No task");
 
     // Totals merge overlaps: Tuesday union is 180, not 240.
@@ -239,7 +241,7 @@ describe("getWeekTimesheet", () => {
       comment: null,
     });
     entryIds.push(e.id);
-    const sheet = await getWeekTimesheet(member.id!, week, B("2026-10-08T10:00"));
+    const sheet = await getWeekTimesheet(member, member.id!, week, B("2026-10-08T10:00"));
     const row = sheet.rows.find((r) => r.taskId === taskId)!;
     // includes the earlier fixtures too; just assert the running part landed.
     expect(row.cells[3]).toBeGreaterThanOrEqual(120);
