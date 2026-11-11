@@ -487,7 +487,7 @@ describe("foreign source types", () => {
         expect(await db.searchIndexJob.count({ where: { sourceType: FOREIGN } })).toBe(0);
 
         // Re-embed sweeps are scoped to the known types too.
-        await db.$executeRaw`UPDATE "Chunk" SET "embeddingModel" = 'foreign-model' WHERE id = ${row.id}`;
+        await db.$executeRaw`UPDATE "Chunk" SET "embeddingModel" = 'foreign-model', "updatedAt" = '2000-01-01T00:00:00Z' WHERE id = ${row.id}`;
         await db.chunk.updateMany({
           where: { sourceType: "NOTE" },
           data: { updatedAt: new Date("2000-01-01T00:00:00Z") },
@@ -500,6 +500,11 @@ describe("foreign source types", () => {
         expect(
           await db.chunk.count({ where: { sourceType: "NOTE", embeddingModel: { not: null } } }),
         ).toBe(0);
+        await db.chunk.update({
+          where: { id: row.id },
+          data: { embeddingModel: null, updatedAt: new Date("2000-01-01T00:00:00Z") },
+        });
+        expect((await getIndexStats()).overdueEmbeddings).toBe(0);
       } finally {
         await db.chunk.deleteMany({ where: { sourceType: FOREIGN } });
         await db.searchIndexJob.deleteMany({ where: { sourceType: FOREIGN } });

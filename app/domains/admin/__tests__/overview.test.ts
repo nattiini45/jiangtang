@@ -117,7 +117,7 @@ it("reuses search stats for failed and retrying jobs without requiring an AI pro
   const chunk = await db.chunk.create({
     data: {
       sourceId: "overview-test",
-      sourceType: "note",
+      sourceType: "NOTE",
       sourceTitle: "Synthetic",
       ordinal: 0,
       headingPath: [],

@@ -301,7 +301,8 @@ export async function getIndexStats(): Promise<IndexStats> {
       count(*) AS chunks,
       count(*) FILTER (WHERE "embeddingModel" = ${active}) AS embedded,
       count(*) FILTER (WHERE "embeddingModel" IS DISTINCT FROM ${active}
-        AND "updatedAt" < ${embeddingCutoff}) AS overdue
+        AND "updatedAt" < ${embeddingCutoff}
+        AND "sourceType" IN (${Prisma.join(SOURCE_TYPES)})) AS overdue
     FROM "Chunk" GROUP BY "sourceType" ORDER BY "sourceType"`;
   const [pendingJobs, failedJobs, errors] = await Promise.all([
     db.searchIndexJob.count({ where: { nextAttemptAt: { gt: now } } }),
