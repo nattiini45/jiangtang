@@ -40,16 +40,53 @@ for (const locale of ["en", "de"])
         await page.goto("/");
         await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
         await page.locator('nav a[href="/admin"]').click();
-        await expect(page).toHaveURL(/\/admin\/users$/);
-        for (const slug of ["users", "invitations", "search-index", "about"]) {
-          await page.locator(`nav a[href="/admin/${slug}"]`).click();
-          await expect(page).toHaveURL(new RegExp(`/admin/${slug}$`));
+        await expect(page).toHaveURL(/\/admin$/);
+        for (const slug of ["", "users", "invitations", "search-index", "about"]) {
+          const path = slug ? `/admin/${slug}` : "/admin";
+          await page.locator(`nav a[href="${path}"]`).click();
+          await expect(page).toHaveURL(new RegExp(`${path}$`));
           await expect(page.locator("main h1")).toBeVisible();
-          await expect(page.locator(`nav a[href="/admin/${slug}"]`)).toHaveAttribute(
+          await expect(page.locator(`nav a[href="${path}"]`)).toHaveAttribute(
             "aria-current",
             "page",
           );
-          await expect(page.locator("nav a")).toHaveCount(5);
+          await expect(page.locator("nav a")).toHaveCount(6);
+          if (!slug) {
+            await expect(page.locator('main a[href="/admin/about"]')).toBeInViewport();
+            await expect(page.locator('main a[href="/admin/invitations"]')).toBeInViewport();
+            await expect(
+              page.getByRole("heading", {
+                name: locale === "en" ? "Detected problems" : "Erkannte Probleme",
+              }),
+            ).toBeVisible();
+            await expect(
+              page.getByText(locale === "en" ? "No problems detected" : "Keine Probleme erkannt", {
+                exact: true,
+              }),
+            ).toBeVisible();
+            await page.screenshot({
+              path: testInfo.outputPath(`overview-${locale}-${density}-${theme}-clear.png`),
+            });
+            const job = await db.searchIndexJob.create({
+              data: {
+                sourceType: "note",
+                sourceId: "admin-overview-test",
+                op: "embed",
+                nextAttemptAt: new Date("2099-01-01T00:00:00Z"),
+              },
+            });
+            try {
+              await page.reload();
+              await expect(
+                page.getByText(locale === "en" ? "Risk" : "Risiko", { exact: true }),
+              ).toBeVisible();
+              await page.screenshot({
+                path: testInfo.outputPath(`overview-${locale}-${density}-${theme}-problems.png`),
+              });
+            } finally {
+              await db.searchIndexJob.delete({ where: { id: job.id } });
+            }
+          }
           expect(
             await page.evaluate(
               () =>

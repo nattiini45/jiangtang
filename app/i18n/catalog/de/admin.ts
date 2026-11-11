@@ -1,5 +1,39 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.overview.title": "Übersicht",
+  "admin.overview.meta": "Administration · Jiangtang",
+  "admin.overview.subtitle": "Zustand der Installation und nächste Schritte.",
+  "admin.overview.problems": "Erkannte Probleme",
+  "admin.overview.clear": "Keine Probleme erkannt",
+  "admin.overview.broken": "Störung",
+  "admin.overview.risk": "Risiko",
+  "admin.overview.check.migrations": "Datenbankmigrationen",
+  "admin.overview.check.storage": "Dateispeicher",
+  "admin.overview.check.calendar": "Kalenderübertragung",
+  "admin.overview.check.search": "Suchindex",
+  "admin.overview.check.setup": "Teameinrichtung",
+  "admin.overview.unavailable":
+    "{check}: Die Prüfung konnte nicht ausgeführt werden, der Zustand ist daher unbekannt; öffne die Details und versuche es erneut.",
+  "admin.overview.problem.migrations":
+    "Datenbankmigrationen fehlen oder wurden nicht abgeschlossen, deshalb funktioniert diese Version möglicherweise nicht korrekt; prüfe die Bereitstellung und starte den Migrationsjob mit prisma migrate deploy erneut.",
+  "admin.overview.problem.storage":
+    "Der Dateispeicher ist nicht beschreibbar, deshalb können Uploads nicht gespeichert werden; prüfe STORAGE_DIR und die Zugriffsrechte.",
+  "admin.overview.problem.calendar":
+    "Kalenderübertragungen schlagen wiederholt fehl oder warten seit über 15 Minuten, deshalb ist der verbundene Kalender möglicherweise veraltet; prüfe die Warteschlange.",
+  "admin.overview.problem.search":
+    "Im Suchindex sind Aufträge fehlgeschlagen oder noch nicht abgeschlossen, deshalb können Ergebnisse fehlen; prüfe den Index und starte einen Abgleich.",
+  "admin.overview.setup": "Einrichtung",
+  "admin.overview.guidance":
+    "Diese Schritte helfen beim Start, sind aber keine Voraussetzung für die Nutzung.",
+  "admin.overview.step.team": "Team einladen",
+  "admin.overview.step.calendar": "Kalender verbinden",
+  "admin.overview.step.embedding": "Embedding-Anbieter einrichten",
+  "admin.overview.optional": "Optional",
+  "admin.overview.glance": "Auf einen Blick",
+  "admin.overview.build": "Version {version} · {commit}",
+  "admin.overview.unknownCommit": "Commit nicht angegeben",
+  "admin.overview.invitations": "Offene Einladungen: {count}",
+  "admin.overview.invitationsUnknown": "Offene Einladungen: unbekannt",
   "nav.administration": "Administration",
   "nav.backToWorkspace": "Zurück zum Workspace",
   "nav.about": "Über Jiangtang",

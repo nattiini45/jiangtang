@@ -323,7 +323,7 @@ export async function getIndexStats(): Promise<IndexStats> {
   };
 }
 
-/** The recent failed retry-ledger rows for `/admin/index`. */
+/** The recent failed retry-ledger rows for `/admin/search-index`. */
 export async function listFailedIndexJobs(limit = 10) {
   return db.searchIndexJob.findMany({
     where: { lastError: { not: null } },

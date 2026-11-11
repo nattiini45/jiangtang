@@ -41,6 +41,7 @@ export type NavGroup =
 export interface NavEntry {
   to: string;
   labelKey: MessageKey;
+  adminLabelKey?: MessageKey;
   icon: LucideIcon;
   end: boolean;
   group: NavGroup;
@@ -102,6 +103,7 @@ export const NAV: NavEntry[] = [
   {
     to: "/admin",
     labelKey: "nav.administration",
+    adminLabelKey: "admin.overview.title",
     icon: Settings,
     end: false,
     group: "admin",
@@ -146,9 +148,15 @@ export const NAV: NavEntry[] = [
 ];
 
 export function navigationFor(admin: boolean, pathname: string) {
-  const adminArea = pathname === "/admin" || pathname.startsWith("/admin/");
+  const adminArea = admin && (pathname === "/admin" || pathname.startsWith("/admin/"));
   const entries = NAV.filter(
-    (item) => (!item.adminOnly || admin) && Boolean(item.adminArea) === adminArea,
+    (item) =>
+      (!item.adminOnly || admin) &&
+      (Boolean(item.adminArea) === adminArea || (adminArea && !!item.adminLabelKey)),
+  ).map((item) =>
+    adminArea && item.adminLabelKey
+      ? { ...item, labelKey: item.adminLabelKey, group: "back" as const, end: true }
+      : item,
   );
   if (adminArea && admin)
     entries.unshift({

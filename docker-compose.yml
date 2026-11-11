@@ -312,7 +312,7 @@ services:
       # AI seams (OpenAI-compatible endpoints; all optional). Unset =
       # capability degrades cleanly: search stays lexical, Ask answers "kein
       # Antwortmodell", embeddings aren't produced. A *_BASE_URL without its
-      # *_MODEL is reported "misconfigured" on /admin/index, never a crash.
+      # *_MODEL is reported "misconfigured" on /admin/search-index, never a crash.
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}

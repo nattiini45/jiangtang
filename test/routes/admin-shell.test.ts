@@ -1,4 +1,5 @@
 import { createElement } from "react";
+import { readFileSync } from "node:fs";
 import { renderToString } from "react-dom/server";
 import { createStaticHandler, createStaticRouter, StaticRouterProvider } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -24,12 +25,12 @@ afterEach(() => {
 const args = (path: string) => ({ request: new Request(`http://localhost${path}`) }) as never;
 
 describe("administration shell", () => {
-  it.each([
-    [admin, "/admin/users"],
-    [legacy, "/admin/search-index"],
-  ])("redirects to the canonical page", async (route, target) => {
-    expect((await route.loader(args("/admin"))).headers.get("Location")).toBe(target);
-  });
+  it.each([[legacy, "/admin/search-index"]])(
+    "redirects to the canonical page",
+    async (route, target) => {
+      expect((await route.loader(args("/admin"))).headers.get("Location")).toBe(target);
+    },
+  );
 
   it.each([admin, legacy, about])("denies a member before returning admin data", async (route) => {
     access.role = "MEMBER";
@@ -44,7 +45,7 @@ describe("administration shell", () => {
     expect(workspace[workspace.indexOf("/activity") + 1]).toBe("/analytics");
     expect(NAV.find((e) => e.to === "/analytics")?.group).toBe("work");
     expect(navigationFor(false, "/").entries.every((e) => !e.adminOnly)).toBe(true);
-    expect(navigationFor(false, "/admin/users").entries).toEqual([]);
+    expect(navigationFor(false, "/admin/users")).toEqual(navigationFor(false, "/"));
     for (const path of [
       "/admin",
       "/admin/users/one",
@@ -56,17 +57,51 @@ describe("administration shell", () => {
       expect(nav.groups.map((g) => g.id)).toEqual(["back", "people", "data", "system"]);
       expect(nav.entries.map((e) => e.to)).toEqual([
         "/",
+        "/admin",
         "/admin/users",
         "/admin/invitations",
         "/admin/search-index",
         "/admin/about",
       ]);
     }
+    expect(navigationFor(true, "/admin").entries[1]).toMatchObject({
+      labelKey: "admin.overview.title",
+      end: true,
+    });
+    expect(
+      verbsFor({ admin: true, locale: "en" }).find((v) => v.id === "goto-admin")?.label,
+    ).toContain("Administration");
     for (const entry of NAV.filter((e) => e.adminArea)) {
       const id = `goto-${entry.to.replaceAll("/", "")}`;
       expect(verbsFor({ admin: true, locale: "en" }).some((v) => v.id === id)).toBe(true);
       expect(verbsFor({ admin: false, locale: "en" }).some((v) => v.id === id)).toBe(false);
     }
+  });
+
+  it("accounts for every documented environment variable", () => {
+    const excluded: Record<string, string> = {
+      TZ: "The application fixes display time to Berlin and database sessions to UTC",
+      ALERT_WEBHOOK: "Alerting sidecar, not application configuration",
+      WALG_S3_PREFIX: "Backup sidecar",
+      AWS_ACCESS_KEY_ID: "Backup sidecar",
+      AWS_SECRET_ACCESS_KEY: "Backup sidecar",
+      AWS_ENDPOINT: "Backup sidecar",
+      AWS_REGION: "Backup sidecar",
+      WALG_RETENTION_COUNT: "Backup sidecar",
+      RESTORE_DRILL_ENABLED: "Restore sidecar",
+      DATABASE_URL_TEST: "Vitest harness",
+      DATABASE_URL_E2E: "Playwright harness",
+      E2E_BASE_URL: "Playwright harness",
+      SHADOW_DATABASE_URL: "Migration authoring only",
+    };
+    const documented = [
+      ...readFileSync(".env.example", "utf8").matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]+)=/gm),
+    ].map((m) => m[1]);
+    const listed = new Set<string>(ENVIRONMENT_VARIABLES.map((v) => v.name));
+    expect(documented.filter((name) => !listed.has(name) && !excluded[name])).toEqual([]);
+    expect(
+      Object.keys(excluded).every((name) => documented.includes(name) && !listed.has(name)),
+    ).toBe(true);
   });
 
   it.each(["en", "de"])(
