@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useFetcher } from "react-router";
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Trash2 } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Button } from "~/components/ui/button";
@@ -30,16 +30,19 @@ export function PortFields({
   value,
   onChange,
   device = false,
+  row = false,
 }: {
   value: PortDraft;
   onChange: (value: PortDraft) => void;
   device?: boolean;
+  row?: boolean;
 }) {
   const t = useT();
+  const fieldClass = row ? "grid min-w-0 gap-1 text-sm lg:contents" : "grid min-w-0 gap-1 text-sm";
   return (
-    <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-      <label className="grid min-w-0 gap-1 text-sm">
-        {t("ports.label")}
+    <div className={row ? "contents" : "grid min-w-0 gap-3 sm:grid-cols-2"}>
+      <label className={fieldClass}>
+        <span className={row ? "lg:sr-only" : undefined}>{t("ports.label")}</span>
         <Input
           required
           maxLength={120}
@@ -47,8 +50,8 @@ export function PortFields({
           onChange={(e) => onChange({ ...value, label: e.target.value })}
         />
       </label>
-      <label className="grid min-w-0 gap-1 text-sm">
-        {t("ports.connector")}
+      <label className={fieldClass}>
+        <span className={row ? "lg:sr-only" : undefined}>{t("ports.connector")}</span>
         <Select
           value={value.connector}
           onChange={(e) =>
@@ -62,8 +65,8 @@ export function PortFields({
           ))}
         </Select>
       </label>
-      <label className="grid min-w-0 gap-1 text-sm">
-        {t("ports.direction")}
+      <label className={fieldClass}>
+        <span className={row ? "lg:sr-only" : undefined}>{t("ports.direction")}</span>
         <Select
           value={value.direction}
           onChange={(e) =>
@@ -77,8 +80,8 @@ export function PortFields({
           ))}
         </Select>
       </label>
-      <label className="grid min-w-0 gap-1 text-sm">
-        {t("ports.signal")}
+      <label className={fieldClass}>
+        <span className={row ? "lg:sr-only" : undefined}>{t("ports.signal")}</span>
         <Select
           value={value.signal}
           onChange={(e) => onChange({ ...value, signal: e.target.value as PortInput["signal"] })}
@@ -137,6 +140,24 @@ export function ModelPortsEditor({ ports }: { ports: PortRow[] }) {
   const [rows, setRows] = useState(ports.map((port) => ({ ...port, key: port.id })));
   const [announcement, setAnnouncement] = useState("");
   const busy = fetcher.state !== "idle";
+  const columns =
+    "grid grid-cols-2 items-center gap-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]";
+  function duplicate(index: number) {
+    const original = rows[index];
+    const match = original.label.trim().match(/^(.*?)(\d+)$/);
+    const base = match ? match[1] : `${original.label.trim()} `;
+    let number = match ? BigInt(match[2]) : 1n;
+    let label = "";
+    do {
+      const suffix = String(++number);
+      label = `${base.slice(0, 120 - suffix.length)}${suffix}`;
+    } while (rows.some((row) => row.label === label));
+    setRows([
+      ...rows.slice(0, index + 1),
+      { ...original, label, id: "", key: crypto.randomUUID() },
+      ...rows.slice(index + 1),
+    ]);
+  }
   function move(index: number, step: number) {
     const next = [...rows];
     [next[index], next[index + step]] = [next[index + step], next[index]];
@@ -152,7 +173,7 @@ export function ModelPortsEditor({ ports }: { ports: PortRow[] }) {
         <h2 className="text-base font-semibold">{t("ports.heading")}</h2>
         <p className="text-muted-foreground mt-1 text-sm">{t("ports.templateHint")}</p>
       </div>
-      <fetcher.Form method="post" className="grid gap-4" aria-busy={busy}>
+      <fetcher.Form method="post" className="grid gap-2" aria-busy={busy}>
         <input type="hidden" name="_action" value="modelPorts" />
         <input type="hidden" name="ports" value={JSON.stringify(rows)} />
         <PortResult data={fetcher.data} />
@@ -162,18 +183,29 @@ export function ModelPortsEditor({ ports }: { ports: PortRow[] }) {
         {rows.length === 0 ? (
           <p className="text-muted-foreground text-sm">{t("ports.empty")}</p>
         ) : null}
+        {rows.length ? (
+          <div
+            className={`${columns} text-muted-foreground hidden text-sm lg:grid`}
+            aria-hidden="true"
+          >
+            <span>{t("ports.label")}</span>
+            <span>{t("ports.connector")}</span>
+            <span>{t("ports.direction")}</span>
+            <span>{t("ports.signal")}</span>
+            <span className="w-36" />
+          </div>
+        ) : null}
         {rows.map((row, index) => (
-          <fieldset key={row.key} className="grid min-w-0 gap-2 border-b pb-4">
-            <legend className="mb-2 max-w-full truncate text-sm font-semibold">
-              {row.label || t("ports.add")}
-            </legend>
+          <fieldset key={row.key} className={`${columns} min-w-0`}>
+            <legend className="sr-only">{row.label || t("ports.add")}</legend>
             <PortFields
+              row
               value={row}
               onChange={(value) =>
                 setRows(rows.map((p, i) => (i === index ? { ...row, ...value } : p)))
               }
             />
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="col-span-2 flex justify-end lg:col-span-1">
               <Button
                 type="button"
                 variant="ghost"
@@ -197,10 +229,23 @@ export function ModelPortsEditor({ ports }: { ports: PortRow[] }) {
               <Button
                 type="button"
                 variant="ghost"
+                size="icon"
+                aria-label={t("ports.duplicatePort", { label: row.label })}
+                title={t("ports.duplicatePort", { label: row.label })}
+                disabled={busy || !row.label.trim() || rows.length >= 200}
+                onClick={() => duplicate(index)}
+              >
+                <Copy />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("ports.removePort", { label: row.label })}
+                title={t("ports.removePort", { label: row.label })}
                 onClick={() => setRows(rows.filter((_, i) => i !== index))}
               >
                 <Trash2 />
-                {t("ports.remove")}
               </Button>
             </div>
           </fieldset>
@@ -256,6 +301,7 @@ function DevicePortEditor({ port, position }: { port?: PortRow; position: number
 export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel: boolean }) {
   const t = useT();
   const fetcher = useFetcher<{ portError?: string; portsSaved?: boolean }>();
+  const [editingId, setEditingId] = useState<string | null>(null);
   return (
     <section
       className="bg-card shadow-surface-2 grid gap-4 rounded-lg p-4"
@@ -278,8 +324,8 @@ export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel
       ) : null}
       <ul className="divide-y">
         {ports.map((port) => (
-          <li key={port.id} className="grid gap-2 py-row">
-            <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+          <li key={port.id} className="py-row">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm font-semibold" title={port.label}>
                   {port.label}
@@ -291,34 +337,43 @@ export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel
                 {port.note ? <p className="mt-1 text-sm wrap-anywhere">{port.note}</p> : null}
               </div>
               <span className="text-muted-foreground text-sm">{t("ports.free")}</span>
-              <fetcher.Form
-                method="post"
-                onSubmit={(event) => {
-                  if (!confirm(t("ports.confirmRemove", { label: port.label })))
-                    event.preventDefault();
-                }}
-              >
-                <input type="hidden" name="_action" value="portRemove" />
-                <input type="hidden" name="portId" value={port.id} />
+              <div className="flex items-center gap-1">
                 <Button
+                  type="button"
                   variant="ghost"
                   size="compact"
-                  aria-label={t("ports.removePort", { label: port.label })}
-                  disabled={fetcher.state !== "idle"}
+                  aria-label={t("ports.editPort", { label: port.label })}
+                  aria-expanded={editingId === port.id}
+                  aria-controls={`edit-${port.id}`}
+                  onClick={() => setEditingId(editingId === port.id ? null : port.id)}
                 >
-                  {t("ports.remove")}
+                  {t("ports.edit")}
                 </Button>
-              </fetcher.Form>
+                <fetcher.Form
+                  method="post"
+                  onSubmit={(event) => {
+                    if (!confirm(t("ports.confirmRemove", { label: port.label })))
+                      event.preventDefault();
+                  }}
+                >
+                  <input type="hidden" name="_action" value="portRemove" />
+                  <input type="hidden" name="portId" value={port.id} />
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    aria-label={t("ports.removePort", { label: port.label })}
+                    disabled={fetcher.state !== "idle"}
+                  >
+                    {t("ports.remove")}
+                  </Button>
+                </fetcher.Form>
+              </div>
             </div>
-            <details>
-              <summary
-                className="cursor-pointer text-sm"
-                aria-label={t("ports.editPort", { label: port.label })}
-              >
-                {t("ports.edit")}
-              </summary>
-              <DevicePortEditor key={port.id} port={port} position={port.position} />
-            </details>
+            {editingId === port.id ? (
+              <div id={`edit-${port.id}`}>
+                <DevicePortEditor key={port.id} port={port} position={port.position} />
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

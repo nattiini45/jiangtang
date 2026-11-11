@@ -5,6 +5,60 @@ import { runPrefix } from "./run";
 
 const modelIds: string[] = [];
 const equipmentIds: string[] = [];
+test("a 24-port device remains scannable at 1280 by 800", async ({ page, baseURL }) => {
+  await page.context().addCookies([
+    { name: "locale", value: "de", url: baseURL! },
+    { name: "density", value: "comfortable", url: baseURL! },
+  ]);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const templates = Array.from({ length: 24 }, (_, index) => ({
+    label: `HDMI IN ${index + 1}`,
+    connector: "HDMI",
+    direction: "INPUT" as const,
+    signal: "AUDIO_VIDEO" as const,
+    position: index,
+  }));
+  const model = await db.equipmentModel.create({
+    data: { name: `${runPrefix()}Matrix 24`, category: "SWITCHER", ports: { create: templates } },
+  });
+  modelIds.push(model.id);
+  const unit = await db.equipment.create({
+    data: {
+      name: `${runPrefix()}Synthetic matrix`,
+      category: "SWITCHER",
+      mobility: "POOLED",
+      modelId: model.id,
+      ports: { create: templates },
+    },
+  });
+  equipmentIds.push(unit.id);
+  await page.goto(`/inventory/models/${model.id}`);
+  const editor = page.getByRole("region", { name: "Anschlüsse" });
+  await expect(editor.locator("fieldset")).toHaveCount(24);
+  const firstRow = editor.locator("fieldset").first();
+  const controls = await firstRow
+    .locator("input,select")
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().y));
+  expect(new Set(controls).size).toBe(1);
+  await editor
+    .getByRole("button", { name: "Anschluss HDMI IN 1 duplizieren", exact: true })
+    .click();
+  await expect(
+    editor.getByRole("textbox", { name: "Bezeichnung", exact: true }).nth(1),
+  ).toHaveValue("HDMI IN 25");
+  await page.goto(`/inventory/${unit.id}`);
+  const rows = page.getByRole("region", { name: "Anschlüsse" }).locator("li");
+  await expect(rows).toHaveCount(24);
+  const visible = await rows.evaluateAll(
+    (elements) =>
+      elements.filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.top >= 0 && rect.bottom <= innerHeight;
+      }).length,
+  );
+  expect(visible).toBeGreaterThanOrEqual(11);
+  await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 1280);
+});
 test.afterAll(async () => {
   await db.equipment.deleteMany({ where: { id: { in: equipmentIds } } });
   await db.equipmentModel.deleteMany({ where: { id: { in: modelIds } } });
@@ -31,6 +85,19 @@ for (const locale of ["de", "en"] as const) {
       await expect(
         editor.getByRole("status").filter({ hasText: t(locale, "ports.saved") }),
       ).toBeVisible();
+      await editor
+        .getByRole("button", {
+          name: t(locale, "ports.duplicatePort", { label: "HDMI OUT" }),
+          exact: true,
+        })
+        .click();
+      await expect(
+        editor.getByRole("textbox", { name: t(locale, "ports.label"), exact: true }).nth(1),
+      ).toHaveValue("HDMI OUT 2");
+      await editor.getByRole("button", { name: t(locale, "ports.save"), exact: true }).click();
+      await expect
+        .poll(async () => db.equipmentModelPort.count({ where: { modelId: model.id } }))
+        .toBe(2);
       await page.goto("/inventory/new");
       await page.locator('select[name="mobility"]').selectOption("POOLED");
       await page.locator('select[name="modelId"]').selectOption(model.id);

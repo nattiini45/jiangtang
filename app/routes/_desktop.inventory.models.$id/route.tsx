@@ -74,7 +74,7 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
   const busy = nav.state !== "idle";
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-xl font-bold">
           {model.manufacturer ? `${model.manufacturer} ` : ""}
