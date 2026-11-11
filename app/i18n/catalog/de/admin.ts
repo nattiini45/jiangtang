@@ -11,6 +11,12 @@ export const adminDe = {
   "admin.overview.check.storage": "Dateispeicher",
   "admin.overview.check.calendar": "Kalenderübertragung",
   "admin.overview.check.search": "Suchindex",
+  "admin.overview.check.adminTwoFactor": "Admin-Anmeldung",
+  "admin.overview.check.bootstrap": "Ersten Admin einrichten",
+  "admin.overview.problem.adminTwoFactor":
+    "Mindestens ein aktives Administrationskonto hat keinen zweiten Anmeldefaktor, deshalb reicht ein gestohlenes Passwort für den Adminzugang aus; prüfe die Konten und richte die Zwei-Faktor-Authentifizierung ein.",
+  "admin.overview.problem.bootstrap":
+    "Die Variablen für den ersten Admin sind noch gesetzt, obwohl es bereits ein aktives Administrationskonto gibt, deshalb steht das Startpasswort möglicherweise weiter lesbar in der Umgebung; entferne ADMIN_EMAIL, ADMIN_PASSWORD und ADMIN_INITIALS.",
   "admin.overview.check.setup": "Teameinrichtung",
   "admin.overview.unavailable":
     "{check}: Die Prüfung konnte nicht ausgeführt werden, der Zustand ist daher unbekannt; öffne die Details und versuche es erneut.",

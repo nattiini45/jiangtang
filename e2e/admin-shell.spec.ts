@@ -3,7 +3,18 @@ import { db } from "~/lib/db.server";
 
 const longName = "Alexandra-Maria Beispiel mit langem Familiennamen";
 let invitationId: string;
+let adminsWithoutTwoFactor: string[] = [];
 test.beforeAll(async () => {
+  adminsWithoutTwoFactor = (
+    await db.user.findMany({
+      where: { role: "ADMIN", isActive: true, twoFactorEnabled: false },
+      select: { id: true },
+    })
+  ).map((user) => user.id);
+  await db.user.updateMany({
+    where: { id: { in: adminsWithoutTwoFactor } },
+    data: { twoFactorEnabled: true },
+  });
   invitationId = (
     await db.invitation.create({
       data: {
@@ -17,6 +28,10 @@ test.beforeAll(async () => {
   ).id;
 });
 test.afterAll(async () => {
+  await db.user.updateMany({
+    where: { id: { in: adminsWithoutTwoFactor } },
+    data: { twoFactorEnabled: false },
+  });
   if (invitationId) await db.invitation.delete({ where: { id: invitationId } });
   await db.$disconnect();
 });
