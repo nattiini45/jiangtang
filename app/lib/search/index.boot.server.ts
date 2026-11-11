@@ -1,4 +1,3 @@
-import { readConfig } from "~/lib/config.server";
 /**
  * Search index worker. Auto-loaded boot module —
  * never throws, never blocks startup, and stays out of tests entirely.
@@ -12,6 +11,7 @@ import { readConfig } from "~/lib/config.server";
  *    `reindexSource` → `embedPending`.
  */
 import type { Express } from "express";
+import { readConfig } from "~/lib/config.server";
 import type { BootContext } from "~/server/boot";
 import { logger } from "~/lib/observability/logger.server";
 import { broker } from "~/lib/realtime/listener.server";

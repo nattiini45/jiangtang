@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import type { Route } from "./+types/route";
+import { readConfig } from "~/lib/config.server";
 import { db } from "~/lib/db.server";
 import { logger } from "~/lib/observability/logger.server";
 

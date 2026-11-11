@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import type { Express } from "express";
+import { readConfig } from "~/lib/config.server";
 import type { BootContext } from "~/server/boot";
 import { pruneActivityLog } from "~/domains/auth/gdpr.server";
 

@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import { generatePath, matchRoutes, redirect, type MiddlewareFunction } from "react-router";
+import { readConfig } from "~/lib/config.server";
 import { sanitizeNext } from "~/lib/auth.server";
 
 export type View = "desktop" | "mobile";

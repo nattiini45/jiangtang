@@ -81,6 +81,15 @@ describe("administration shell", () => {
 
   it("accounts for every documented environment variable", () => {
     const excluded: Record<string, string> = {
+      TZ: "The application fixes display time to Berlin and database sessions to UTC",
+      ALERT_WEBHOOK: "Alerting sidecar, not application configuration",
+      WALG_S3_PREFIX: "Backup sidecar",
+      AWS_ACCESS_KEY_ID: "Backup sidecar",
+      AWS_SECRET_ACCESS_KEY: "Backup sidecar",
+      AWS_ENDPOINT: "Backup sidecar",
+      AWS_REGION: "Backup sidecar",
+      WALG_RETENTION_COUNT: "Backup sidecar",
+      RESTORE_DRILL_ENABLED: "Restore sidecar",
       DATABASE_URL_TEST: "Vitest harness",
       DATABASE_URL_E2E: "Playwright harness",
       E2E_BASE_URL: "Playwright harness",

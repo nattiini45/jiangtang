@@ -1,9 +1,9 @@
-import { readConfig } from "~/lib/config.server";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins";
 import { redirect } from "react-router";
+import { readConfig } from "~/lib/config.server";
 import { db } from "~/lib/db.server";
 import {
   clientIpFromHeaders,

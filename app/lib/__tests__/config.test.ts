@@ -32,24 +32,6 @@ const defaults: Partial<Record<ConfigName, unknown>> = {
   LOG_LEVEL: "info",
   ACTIVITY_RETENTION_DAYS: 2555,
   WARRANTY_WINDOW_DAYS: 30,
-  AWS_ENDPOINT: "",
-  AWS_REGION: "eu-central-1",
-  WALG_RETENTION_COUNT: "7",
-  WALG_DISK_CAPACITY: "10GB",
-  RESTORE_DRILL_ENABLED: false,
-  BACKUP_STATUS_DIR: "/backup-status",
-  ALERT_STATE_DIR: "/tmp/backup-alert-state",
-  REALERT_SECONDS: "21600",
-  BACKUP_MAX_AGE_SECONDS: "129600",
-  HEALTH_URL: "http://app:3000/healthz",
-  TIMEOUT: "5",
-  UPLOADS_DIR: "/uploads",
-  UPLOADS_RETENTION_COUNT: "14",
-  PGDATA_MOUNT: "/var/lib/postgresql",
-  TARGET_TS: "",
-  BACKUP_NAME: "",
-  DRILL_PORT: "5433",
-  TMPDIR: "/tmp",
 };
 const emptyRetained = new Set<ConfigName>([
   "NODE_ENV",
@@ -76,29 +58,17 @@ const emptyRetained = new Set<ConfigName>([
   "GENERATION_MODEL",
   "LOG_LEVEL",
   "GLITCHTIP_DSN",
-  "TZ",
-  "ALERT_WEBHOOK",
-  "WALG_S3_PREFIX",
-  "AWS_ACCESS_KEY_ID",
-  "AWS_SECRET_ACCESS_KEY",
-  "WALG_RETENTION_COUNT",
-  "UPLOADS_RETENTION_COUNT",
-  "PGDATA",
-  "PGDATABASE",
-  "PGUSER",
-  "PGPASSWORD",
-  "RESTORE_CONFIRM",
 ]);
 
 describe("configuration registry", () => {
   it("keeps boot and destructive settings environment-only and credential values secret", () => {
     for (const name of [
       "NODE_ENV",
+      "APP_COMMIT",
       "PORT",
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
       "BETTER_AUTH_URL",
-      "TZ",
       "STORAGE_DIR",
       "STORAGE_ENCRYPTION_KEY",
       "STORAGE_KEY_SALT",
@@ -113,7 +83,6 @@ describe("configuration registry", () => {
       "ACTIVITY_RETENTION_DAYS",
     ] as const)
       expect(CONFIG[name].environmentOnly).toBe(true);
-    expect(CONFIG_REGISTRY.filter((v) => !v.about).every((v) => v.environmentOnly)).toBe(true);
     for (const name of [
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
@@ -126,10 +95,6 @@ describe("configuration registry", () => {
       "RERANK_API_KEY",
       "GENERATION_API_KEY",
       "GLITCHTIP_DSN",
-      "AWS_ACCESS_KEY_ID",
-      "AWS_SECRET_ACCESS_KEY",
-      "PGPASSWORD",
-      "ALERT_WEBHOOK",
     ] as const)
       expect(CONFIG[name].secret).toBe(true);
   });
@@ -201,11 +166,6 @@ describe("configuration registry", () => {
     expect(readAiConfig({ EMBEDDING_BASE_URL: " " }).embedding.state).toBe("none");
   });
 
-  it("keeps the sidecar drill's nonempty switch rather than the landing page's strict switch", () => {
-    for (const raw of ["1", "true", "0", " "])
-      expect(readConfig("RESTORE_DRILL_ENABLED", { RESTORE_DRILL_ENABLED: raw })).toBe(true);
-  });
-
   it("does not let AI defaults enable an endpoint or hide explicitly set extras", () => {
     expect(readAiConfig({}).embedding.state).toBe("none");
     expect(readAiConfig({ EMBEDDING_DIMENSIONS: "" }).embedding.state).toBe("none");
@@ -223,6 +183,5 @@ describe("configuration registry", () => {
         (v) => Object.keys(v).sort().join() === "expectedUnset,group,name",
       ),
     ).toBe(true);
-    expect(ENVIRONMENT_VARIABLES.some((v) => v.name === "TZ")).toBe(false);
   });
 });

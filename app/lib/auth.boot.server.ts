@@ -1,6 +1,6 @@
-import { readConfig, readRawConfig } from "~/lib/config.server";
 import type { Express } from "express";
 import { toNodeHandler } from "better-auth/node";
+import { readConfig, readRawConfig } from "~/lib/config.server";
 import { auth, MIN_PASSWORD_LENGTH } from "~/lib/auth.server";
 import { bootstrapFirstAdmin } from "~/lib/auth-bootstrap.server";
 import { db } from "~/lib/db.server";

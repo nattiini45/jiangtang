@@ -1,8 +1,8 @@
-import { readConfig } from "~/lib/config.server";
 import express from "express";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import { hostHeaderValidation, toNodeHandler } from "@modelcontextprotocol/node";
+import { readConfig } from "~/lib/config.server";
 import { authenticatePersonalAccessToken } from "~/domains/api-tokens/api-tokens.server";
 import { createMcpServer } from "./server.server";
 import type { McpContext } from "./types.server";

@@ -7,8 +7,8 @@
  * `vector(1024)` for the life of the database, so `EMBEDDING_DIMENSIONS` has a
  * default and exactly one other legal value: none.
  */
-import { tr } from "~/i18n/request-locale.server";
 import { CONFIG, readConfig, readRawConfig, type ConfigName } from "~/lib/config.server";
+import { tr } from "~/i18n/request-locale.server";
 import type { CapabilityStatus } from "./types";
 
 export const EMBEDDING_DIMENSIONS = CONFIG.EMBEDDING_DIMENSIONS.default;

@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import pino from "pino";
+import { readConfig } from "~/lib/config.server";
 
 /**
  * Structured logger. Pino with JSON output, Europe/Berlin

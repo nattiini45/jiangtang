@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import { Client } from "pg";
+import { readConfig } from "~/lib/config.server";
 import { REALTIME_CHANNEL, decodeRealtimeEvent, type RealtimeEvent } from "~/lib/realtime/events";
 
 /**

@@ -1,4 +1,3 @@
-import { readConfig } from "~/lib/config.server";
 /**
  * Theme persistence (default: follow the system). A `theme` cookie drives the
  * `.dark` class applied to <html> in root.tsx; `system`, or no cookie, leaves the
@@ -6,6 +5,8 @@ import { readConfig } from "~/lib/config.server";
  * script in root.tsx. Readable by the client so the toggle can update
  * immediately.
  */
+
+import { readConfig } from "~/lib/config.server";
 
 export type Theme = "light" | "dark" | "system";
 

@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import { LOCALE_COOKIE, isLocale, matchLocale, type Locale } from "./locales";
+import { readConfig } from "~/lib/config.server";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 const SECURE = readConfig("NODE_ENV") === "production" ? "; Secure" : "";

@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import { z } from "zod";
+import { readConfig } from "~/lib/config.server";
 import { localizeMessage } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
 import { currentLocale, tr } from "~/i18n/request-locale.server";

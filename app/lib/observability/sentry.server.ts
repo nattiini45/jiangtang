@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import * as Sentry from "@sentry/node";
+import { readConfig } from "~/lib/config.server";
 import { redactTokenSegments } from "~/lib/observability/logger.server";
 
 /**

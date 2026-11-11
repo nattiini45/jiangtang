@@ -1,5 +1,5 @@
-import { readConfig } from "~/lib/config.server";
 import { timingSafeEqual } from "node:crypto";
+import { readConfig } from "~/lib/config.server";
 
 /**
  * Token gate for the self-hosted iCal feed ("token-gated"). The token
