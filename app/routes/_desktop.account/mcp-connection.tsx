@@ -1,6 +1,14 @@
 import * as React from "react";
 import { Button } from "~/components/ui/button";
+import type { Translate } from "~/i18n";
 import { useT } from "~/i18n/use-t";
+
+export function mcpAgentPrompt(t: Translate, url: string) {
+  return t("account.tokens.connection.promptBody", {
+    url,
+    bridgeHeader: "Authorization:${JIANGTANG_MCP_HEADER}",
+  });
+}
 
 export function mcpClientConfigs(url: string) {
   return {
@@ -52,7 +60,7 @@ function Copyable({ label, value }: { label: string; value: string }) {
           {t("account.tokens.connection.copy")}
         </Button>
       </div>
-      <pre className="bg-card shadow-surface-2 mt-1 rounded-lg p-3 text-xs whitespace-pre-wrap break-all">
+      <pre className="bg-card shadow-surface-2 mt-1 rounded-lg p-3 text-xs wrap-anywhere whitespace-pre-wrap">
         <code>{value}</code>
       </pre>
       <p aria-live="polite" aria-atomic="true" className="mt-1 text-sm">
@@ -76,6 +84,10 @@ export function McpConnection({ url }: { url: string }) {
         <summary className="cursor-pointer text-sm font-semibold">
           {t("account.tokens.connection.heading")}
         </summary>
+        <Copyable
+          label={t("account.tokens.connection.promptLabel")}
+          value={mcpAgentPrompt(t, url)}
+        />
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
           <li>{t("account.tokens.connection.stepCreate")}</li>
           <li>{t("account.tokens.connection.stepEnvironment")}</li>

@@ -22,6 +22,17 @@ test("MCP connection help copies safe configuration with the keyboard", async ({
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`${baseURL}/mcp`);
   await details.locator("summary").focus();
   await page.keyboard.press("Enter");
+  const promptButton = details.getByRole("button", { name: "Prompt für deinen Agenten kopieren" });
+  await promptButton.focus();
+  await page.keyboard.press("Space");
+  await expect(promptButton.locator("../..").locator('[aria-live="polite"]')).toHaveText(
+    "Kopiert.",
+  );
+  const prompt = await page.evaluate(() => navigator.clipboard.readText());
+  expect(prompt).toBe(await details.locator("pre").first().textContent());
+  expect(prompt).toContain(`${baseURL}/mcp`);
+  expect(prompt).toContain("JIANGTANG_MCP_TOKEN");
+  expect(prompt).not.toContain("jtg_");
   for (const client of ["Claude Code · .mcp.json", "Cursor · mcp.json"]) {
     const button = details.getByRole("button", { name: `${client} kopieren` });
     await button.focus();
