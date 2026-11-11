@@ -1,6 +1,38 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "nav.administration": "Administration",
+  "nav.backToWorkspace": "Back to workspace",
+  "nav.about": "About",
+  "nav.group.people": "People",
+  "nav.group.data": "Data",
+  "nav.group.system": "System",
+  "admin.about.meta": "About · Jiangtang",
+  "admin.about.subtitle": "Running build and application configuration.",
+  "admin.about.version": "Version",
+  "admin.about.commit": "Commit",
+  "admin.about.commitMissing": "The deployment has not supplied a commit.",
+  "admin.about.environment": "Environment variables",
+  "admin.about.presenceOnly":
+    "Only whether a variable is set is shown, never its value. Not set may be normal for optional features or defaults.",
+  "admin.about.variable": "Variable",
+  "admin.about.status": "Status",
+  "admin.about.set": "Set",
+  "admin.about.notSet": "Not set",
+  "admin.about.removeBootstrap":
+    "Remove after setup: these variables are only needed to create the first admin.",
+  "admin.about.group.runtime": "Application",
+  "admin.about.group.database": "Database",
+  "admin.about.group.auth": "Sign-in and security",
+  "admin.about.group.bootstrap": "First admin setup",
+  "admin.about.group.development": "Development account",
+  "admin.about.group.storage": "File storage",
+  "admin.about.group.calendar": "Calendar",
+  "admin.about.group.search": "Search index",
+  "admin.about.group.embedding": "Embeddings",
+  "admin.about.group.rerank": "Reranking",
+  "admin.about.group.generation": "Answer generation",
+  "admin.about.group.operations": "Logging and background jobs",
   "admin.user.time.title": "Access to other people’s time entries",
   "admin.user.time.hint":
     "Private by default, including for admins. Editing includes viewing. Every change is recorded in the activity log.",

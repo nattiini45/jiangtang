@@ -1,5 +1,6 @@
 import {
   ArrowDownUp,
+  ArrowLeft,
   BarChart3,
   Boxes,
   Building2,
@@ -7,15 +8,18 @@ import {
   Database,
   FolderKanban,
   History,
+  Info,
   KanbanSquare,
   LayoutDashboard,
   ListTodo,
   MapPin,
   NotebookPen,
   Search,
+  Settings,
   Ticket,
   Timer,
   Users,
+  UserPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { MessageKey } from "~/i18n";
@@ -31,7 +35,8 @@ import type { MessageKey } from "~/i18n";
  * for non-admins (their loaders enforce requireRole regardless — nav is UX,
  * not the guard).
  */
-export type NavGroup = "work" | "places" | "service" | "admin";
+export type NavGroup =
+  "work" | "places" | "service" | "admin" | "back" | "people" | "data" | "system";
 
 export interface NavEntry {
   to: string;
@@ -40,6 +45,7 @@ export interface NavEntry {
   end: boolean;
   group: NavGroup;
   adminOnly?: boolean;
+  adminArea?: boolean;
 }
 
 export const NAV_GROUPS: { id: NavGroup; labelKey: MessageKey }[] = [
@@ -47,6 +53,13 @@ export const NAV_GROUPS: { id: NavGroup; labelKey: MessageKey }[] = [
   { id: "places", labelKey: "nav.group.places" },
   { id: "service", labelKey: "nav.group.service" },
   { id: "admin", labelKey: "nav.group.admin" },
+];
+
+const ADMIN_GROUPS: { id: NavGroup; labelKey?: MessageKey }[] = [
+  { id: "back" },
+  { id: "people", labelKey: "nav.group.people" },
+  { id: "data", labelKey: "nav.group.data" },
+  { id: "system", labelKey: "nav.group.system" },
 ];
 
 export const NAV: NavEntry[] = [
@@ -60,6 +73,14 @@ export const NAV: NavEntry[] = [
     to: "/activity",
     labelKey: "nav.activity",
     icon: History,
+    end: false,
+    group: "work",
+    adminOnly: true,
+  },
+  {
+    to: "/analytics",
+    labelKey: "nav.analytics",
+    icon: BarChart3,
     end: false,
     group: "work",
     adminOnly: true,
@@ -79,9 +100,9 @@ export const NAV: NavEntry[] = [
     adminOnly: true,
   },
   {
-    to: "/analytics",
-    labelKey: "nav.analytics",
-    icon: BarChart3,
+    to: "/admin",
+    labelKey: "nav.administration",
+    icon: Settings,
     end: false,
     group: "admin",
     adminOnly: true,
@@ -91,15 +112,51 @@ export const NAV: NavEntry[] = [
     labelKey: "nav.users",
     icon: Users,
     end: false,
-    group: "admin",
+    group: "people",
     adminOnly: true,
+    adminArea: true,
   },
   {
-    to: "/admin/index",
+    to: "/admin/invitations",
+    labelKey: "admin.invitations.title",
+    icon: UserPlus,
+    end: false,
+    group: "people",
+    adminOnly: true,
+    adminArea: true,
+  },
+  {
+    to: "/admin/search-index",
     labelKey: "nav.searchIndex",
     icon: Database,
     end: false,
-    group: "admin",
+    group: "data",
     adminOnly: true,
+    adminArea: true,
+  },
+  {
+    to: "/admin/about",
+    labelKey: "nav.about",
+    icon: Info,
+    end: false,
+    group: "system",
+    adminOnly: true,
+    adminArea: true,
   },
 ];
+
+export function navigationFor(admin: boolean, pathname: string) {
+  const adminArea = pathname === "/admin" || pathname.startsWith("/admin/");
+  const entries = NAV.filter(
+    (item) => (!item.adminOnly || admin) && Boolean(item.adminArea) === adminArea,
+  );
+  if (adminArea && admin)
+    entries.unshift({
+      to: "/",
+      labelKey: "nav.backToWorkspace",
+      icon: ArrowLeft,
+      end: true,
+      group: "back",
+    });
+  return { groups: adminArea ? ADMIN_GROUPS : NAV_GROUPS, entries };
+}

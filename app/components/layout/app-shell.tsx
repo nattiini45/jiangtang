@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Form, Link, NavLink } from "react-router";
+import { Form, Link, NavLink, useLocation } from "react-router";
 import { motion } from "motion/react";
 import { Bell, LogOut, Monitor, Moon, Plus, Rows3, Rows4, Search, Square, Sun } from "lucide-react";
 import { cn } from "~/lib/utils";
@@ -11,7 +11,7 @@ import { WeightLabel } from "~/components/ui/weight-label";
 import { CommandPalette, OPEN_PALETTE_EVENT } from "~/components/command/command-palette";
 import { useLiveRefetch } from "~/lib/realtime/use-live-refetch";
 import { NavPendingIndicator } from "~/components/states/nav-pending";
-import { NAV, NAV_GROUPS, type NavEntry } from "~/components/layout/nav";
+import { navigationFor, type NavEntry } from "~/components/layout/nav";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import { roleLabel } from "~/components/auth/labels";
@@ -67,7 +67,8 @@ export function AppShell({
     document.documentElement.dataset.hydrated = "true";
   }, []);
 
-  const visible = NAV.filter((item) => !item.adminOnly || user.role === "ADMIN");
+  const { pathname } = useLocation();
+  const { groups, entries } = navigationFor(user.role === "ADMIN", pathname);
 
   return (
     <div className="bg-background text-foreground min-h-screen">
@@ -88,10 +89,16 @@ export function AppShell({
             </span>
           </div>
           <nav className="flex-1 overflow-y-auto px-2 pb-4">
-            {NAV_GROUPS.map((group) => {
-              const items = visible.filter((item) => item.group === group.id);
+            {groups.map((group) => {
+              const items = entries.filter((item) => item.group === group.id);
               if (items.length === 0) return null;
-              return <NavSection key={group.id} label={t(group.labelKey)} items={items} />;
+              return (
+                <NavSection
+                  key={group.id}
+                  label={group.labelKey ? t(group.labelKey) : undefined}
+                  items={items}
+                />
+              );
             })}
           </nav>
           <ViewSwitch
@@ -201,12 +208,12 @@ export function AppShell({
  * group label. The selected background is shared across groups through
  * `layoutId` and glides to the new row on navigation.
  */
-function NavSection({ label, items }: { label: string; items: NavEntry[] }) {
+function NavSection({ label, items }: { label?: string; items: NavEntry[] }) {
   const t = useT();
   const hover = useFluidHover<HTMLDivElement>();
   return (
     <div className="pt-4 first:pt-1">
-      <p className="text-muted-foreground px-2 pb-1 text-xs">{label}</p>
+      {label ? <p className="text-muted-foreground px-2 pb-1 text-xs">{label}</p> : null}
       <div ref={hover.containerRef} {...hover.handlers} className="relative">
         <FluidHoverHighlight hover={hover} />
         <ul className="flex flex-col">

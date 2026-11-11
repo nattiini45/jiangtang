@@ -16,7 +16,7 @@ import type { Locale } from "~/i18n/locales";
  * - `navigate` — client-side navigation.
  * - `submit` — posts `fields` as a form body to `action` via `useFetcher`
  *   (task-context verbs hit the task route's `_action` dispatch; the admin
- *   verb hits `/admin/index`'s `intent` dispatch).
+ *   verb hits `/admin/search-index`'s `intent` dispatch).
  * - `taskId` — set when the current route declares `handle = { palette: "task" }`.
  * - `close` — dismisses the palette; every verb closes first so a fetcher
  *   revalidation never fights the overlay.
@@ -192,7 +192,7 @@ function buildVerbs(locale: Locale): Verb[] {
       adminOnly: true,
       run: (ctx) => {
         ctx.close();
-        ctx.submit({ intent: "reconcile" }, "/admin/index");
+        ctx.submit({ intent: "reconcile" }, "/admin/search-index");
       },
     },
 

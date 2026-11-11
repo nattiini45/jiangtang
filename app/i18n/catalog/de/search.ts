@@ -62,7 +62,7 @@ export const searchDe = {
     "Semantische Suche ist nicht konfiguriert (EMBEDDING_BASE_URL fehlt) — Treffer kommen aus der Stichwort- und unscharfen Suche.",
   "search.page.noResults": "Keine Treffer für „{q}“.",
   "search.page.noResultsHint":
-    "Kennung, Seriennummer oder Stichwort probieren — oder den Index unter /admin/index abgleichen.",
+    "Kennung, Seriennummer oder Stichwort probieren — oder den Index unter /admin/search-index abgleichen.",
 
   "search.ask.title": "Frage stellen",
   "search.ask.subtitle": "Antwortet nur aus dem Arbeitsbereich — jede Aussage mit Quellenangabe.",

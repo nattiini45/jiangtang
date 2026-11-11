@@ -301,7 +301,7 @@ iCal `SEQUENCE`, unique in the database), so calendar downtime never blocks a wr
 sequence order through a `CalendarPublisher`. A failed push is retried with exponential backoff
 (capped at an hour) for 72 hours before it is parked as `FAILED`; a later change of the same event
 supersedes a failed op, since every row carries the event's full state, so one bad push never holds
-back the next. `/admin/index` lists retrying and parked pushes, the last success and the last
+back the next. `/admin/search-index` lists retrying and parked pushes, the last success and the last
 error, and offers a connection check. The real publisher writes an event with `PUT` and removes a
 cancelled one with `DELETE`. It is a zero-dependency CalDAV client (`app/lib/calendar/caldav.server.ts`) configured with
 `CALDAV_URL`, `CALDAV_USERNAME` and `CALDAV_PASSWORD`; without them a no-op publisher is used and

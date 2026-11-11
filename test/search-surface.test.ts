@@ -6,7 +6,7 @@ import { reconcileAll, reindexSource } from "~/lib/search/indexer.server";
 import type { SearchHit } from "~/lib/search/query.server";
 
 /**
- * The /search + api.search + /admin/index surface over the seeded dev
+ * The /search + api.search + /admin/search-index surface over the seeded dev
  * corpus. `reconcileAll()` in beforeAll indexes whatever is seeded; the
  * exit assertions are that every hybrid hit resolves to a real row with a
  * real href, an exact serial reaches api.search, and /search serves lexical
@@ -32,7 +32,7 @@ vi.mock("~/lib/auth.server", async (importOriginal) => {
 
 const apiSearch = await import("~/routes/api.search/route");
 const searchPage = await import("~/routes/_desktop.search/route");
-const adminIndex = await import("~/routes/_desktop.admin.index/route");
+const adminIndex = await import("~/routes/_desktop.admin.search-index/route");
 const { runSearch } = await import("~/routes/api.search/search.server");
 const { hybridSearch } = await import("~/lib/search/query.server");
 
@@ -136,18 +136,18 @@ describe("/search page (exit 4)", () => {
   });
 });
 
-describe("/admin/index", () => {
+describe("/admin/search-index", () => {
   it("is refused for non-admins", async () => {
     role = "MEMBER";
     await expect(
-      adminIndex.loader({ request: new Request("http://localhost/admin/index") } as never),
+      adminIndex.loader({ request: new Request("http://localhost/admin/search-index") } as never),
     ).rejects.toMatchObject({ status: 403 });
   });
 
   it("loads provider statuses and index stats for an admin", async () => {
     role = "ADMIN";
     const data = (await adminIndex.loader({
-      request: new Request("http://localhost/admin/index"),
+      request: new Request("http://localhost/admin/search-index"),
     } as never)) as {
       statuses: { capability: string; state: string }[];
       stats: { types: { sourceType: string }[]; activeModel: string | null };
