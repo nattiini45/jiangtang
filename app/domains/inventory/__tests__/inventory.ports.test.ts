@@ -130,4 +130,20 @@ describe("equipment ports", () => {
     equipment.push(result.items[0].id);
     expect((await getEquipment(result.items[0].id))!.ports).toHaveLength(1);
   });
+
+  it("refuses inheritance before it can create an uneditable position", async () => {
+    const { model, unit } = await fixture();
+    const original = (await getEquipment(unit.id))!.ports[0];
+    await mutateEquipmentPort(actor, unit.id, "update", { ...port, position: 10000 }, original.id);
+    await setEquipmentModelPorts(actor, model.id, [port, { ...port, label: "Extra" }]);
+    await expect(mutateEquipmentPort(actor, unit.id, "inherit")).rejects.toMatchObject({
+      name: "ValidationError",
+    });
+    expect((await getEquipment(unit.id))!.ports).toHaveLength(1);
+    expect(
+      await db.activityLog.count({
+        where: { entityId: unit.id, action: "EquipmentPortInherited" },
+      }),
+    ).toBe(0);
+  });
 });

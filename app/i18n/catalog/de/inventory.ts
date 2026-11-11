@@ -293,4 +293,6 @@ export const inventoryDe = {
   "ports.confirmRemove": "Anschluss „{label}“ entfernen?",
   "ports.moved": "{label} steht jetzt an Position {position}.",
   "ports.duplicatePort": "Anschluss {label} duplizieren",
+  "ports.positionFull":
+    "Die Reihenfolge ist ausgeschöpft. Bitte eine kleinere Position am Gerät wählen und erneut übernehmen.",
 };

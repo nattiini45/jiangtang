@@ -9,6 +9,7 @@ import {
   PORT_CONNECTORS,
   PORT_DIRECTIONS,
   PORT_SIGNALS,
+  MAX_PORT_POSITION,
   type PortInput,
 } from "~/domains/inventory/inventory.ports.schema";
 
@@ -24,6 +25,18 @@ type PortDraft = Omit<PortInput, "connector"> & { connector: string };
 export type PortRow = PortDraft & { id: string };
 export function connectorKey(connector: string) {
   return PORT_CONNECTORS.find((key) => key === connector) ?? "OTHER";
+}
+
+export function duplicatePortLabel(original: string, existing: ReadonlySet<string>) {
+  const match = original.trim().match(/^(.*?)(\d+)$/);
+  const base = match ? match[1] : `${original.trim()} `;
+  let number = match ? BigInt(match[2]) : 1n;
+  let label: string;
+  do {
+    const suffix = String(++number).slice(-120);
+    label = `${base.slice(0, 120 - suffix.length)}${suffix}`;
+  } while (existing.has(label));
+  return label;
 }
 
 export function PortFields({
@@ -100,7 +113,7 @@ export function PortFields({
             <Input
               type="number"
               min={0}
-              max={10000}
+              max={MAX_PORT_POSITION}
               required
               value={value.position}
               onChange={(e) => onChange({ ...value, position: Number(e.target.value) })}
@@ -144,14 +157,7 @@ export function ModelPortsEditor({ ports }: { ports: PortRow[] }) {
     "grid grid-cols-2 items-center gap-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]";
   function duplicate(index: number) {
     const original = rows[index];
-    const match = original.label.trim().match(/^(.*?)(\d+)$/);
-    const base = match ? match[1] : `${original.label.trim()} `;
-    let number = match ? BigInt(match[2]) : 1n;
-    let label = "";
-    do {
-      const suffix = String(++number);
-      label = `${base.slice(0, 120 - suffix.length)}${suffix}`;
-    } while (rows.some((row) => row.label === label));
+    const label = duplicatePortLabel(original.label, new Set(rows.map((row) => row.label)));
     setRows([
       ...rows.slice(0, index + 1),
       { ...original, label, id: "", key: crypto.randomUUID() },

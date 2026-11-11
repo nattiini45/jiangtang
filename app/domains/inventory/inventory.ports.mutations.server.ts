@@ -3,7 +3,7 @@ import type { Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError, hasSqlState } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { tr } from "~/i18n/request-locale.server";
-import { equipmentPortSchema, type PortInput } from "./inventory.ports.schema";
+import { equipmentPortSchema, MAX_PORT_POSITION, type PortInput } from "./inventory.ports.schema";
 
 export async function copyModelPortsInTx(tx: Tx, equipmentId: string, modelId: string | null) {
   if (!modelId) return [];
@@ -29,6 +29,8 @@ export async function copyModelPortsInTx(tx: Tx, equipmentId: string, modelId: s
       signal: port.signal,
       position: start + index,
     }));
+  if (copies.some((port) => port.position > MAX_PORT_POSITION))
+    throw new ValidationError({}, [tr("ports.positionFull")]);
   await tx.equipmentPort.createMany({ data: copies });
   return copies;
 }

@@ -34,6 +34,7 @@ export const PORT_CONNECTORS = [
   "OTHER",
 ] as const;
 export const PORT_DIRECTIONS = ["INPUT", "OUTPUT", "BIDIRECTIONAL"] as const;
+export const MAX_PORT_POSITION = 10000;
 export const PORT_SIGNALS = [
   "VIDEO",
   "AUDIO",
@@ -52,7 +53,7 @@ export const modelPortSchema = z.object({
   signal: z.enum(PORT_SIGNALS),
 });
 export const equipmentPortSchema = modelPortSchema.extend({
-  position: z.coerce.number().int().min(0).max(10000),
+  position: z.coerce.number().int().min(0).max(MAX_PORT_POSITION),
   note: z.string().trim().max(2000).nullable().optional(),
 });
 export const modelPortsSchema = z

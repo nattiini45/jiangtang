@@ -289,4 +289,6 @@ export const inventoryEn = {
   "ports.confirmRemove": "Remove port “{label}”?",
   "ports.moved": "{label} is now at position {position}.",
   "ports.duplicatePort": "Duplicate port {label}",
+  "ports.positionFull":
+    "The port order is full. Choose a smaller position on the device, then add the model ports again.",
 } satisfies Record<keyof typeof inventoryDe, string>;
