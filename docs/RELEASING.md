@@ -2,7 +2,7 @@
 
 A release is a deliberate checkpoint, not an automatic consequence of merging.
 Only a release maintainer starts a publishing run of `.github/workflows/release.yml`, by
-hand, from `main`. This machinery change does not prepare or cut a release.
+hand, from `main`. The steps below prepare, soak and publish a release.
 
 ## Prepare, soak, publish
 
@@ -64,7 +64,7 @@ this workflow; build it locally from the corresponding tagged source.
 
 Check out the release tag so Compose, operational scripts and the locally built
 PostgreSQL image match. Keep your existing `.env` and override file. Set this in
-`.env` (the version below is an example, not an already published release):
+`.env`, with the version you deploy (`0.1.0` is the first release):
 
 ```dotenv
 JIANGTANG_IMAGE=ghcr.io/nattiini45/jiangtang:0.1.0

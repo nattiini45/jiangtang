@@ -60,10 +60,10 @@ registry under its own license.
 
 | License | Packages (resolved version) |
 | --- | --- |
-| Apache-2.0 | `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
+| Apache-2.0 | `@modelcontextprotocol/node` 2.1.2, `@modelcontextprotocol/server` 2.4.0, `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
 | ISC | `lucide-react` 1.66.0, `yaml` 2.9.1 |
 | OFL-1.1 | `@fontsource-variable/inter` 5.3.0 (the Inter typeface by Rasmus Andersson, self-hosted and bundled into the client build; the package ships the license text) |
-| MIT | `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@react-router/serve` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 7.0.3, `express` 4.22.2, `ical-generator` 11.1.3, `motion` 12.42.0, `pg` 8.23.1, `pino` 9.14.0, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 4.6.7 |
+| MIT | `@date-fns/tz` 1.5.0, `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 10.1.0, `express` 5.3.0, `ical-generator` 11.1.3, `motion` 14.10.1, `pg` 8.23.1, `pino` 9.14.0, `qrcode` 1.5.4, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 4.6.7 |
 
 ### Feather icons inside lucide-react
 
@@ -108,8 +108,8 @@ see "Components shipped in the runtime image" below.
 
 | License | Packages (resolved version) |
 | --- | --- |
-| Apache-2.0 | `@playwright/test` 1.64.1, `prisma` 7.10.1, `typescript` 5.9.3 |
-| MIT | `@eslint/js` 10.0.1, `@react-router/dev` 7.18.2, `@tailwindcss/vite` 4.3.3, `@types/express` 4.17.25, `@types/node` 22.20.0, `@types/pg` 8.23.1, `@types/react` 19.3.0, `@types/react-dom` 19.3.0, `eslint` 9.39.4, `eslint-config-prettier` 10.1.8, `eslint-plugin-react-hooks` 6.1.1, `prettier` 3.9.10, `typescript-eslint` 8.72.1, `vite` 8.3.5, `vite-tsconfig-paths` 6.1.1, `vitest` 4.1.12 |
+| Apache-2.0 | `@modelcontextprotocol/client` 2.4.0, `@playwright/test` 1.64.1, `prisma` 7.10.1, `typescript` 5.9.3 |
+| MIT | `@eslint/js` 10.0.1, `@react-router/dev` 7.18.2, `@tailwindcss/vite` 4.3.3, `@types/express` 5.0.6, `@types/node` 22.20.0, `@types/pg` 8.23.1, `@types/qrcode` 1.5.6, `@types/react` 19.3.0, `@types/react-dom` 19.3.0, `eslint` 9.39.4, `eslint-config-prettier` 10.1.8, `eslint-plugin-react-hooks` 6.1.1, `prettier` 3.9.10, `typescript-eslint` 8.72.1, `vite` 8.3.5, `vite-tsconfig-paths` 6.1.1, `vitest` 4.1.12 |
 | MPL-2.0 | `@axe-core/playwright` 4.14.0 |
 
 ## Lockfile-resolved transitive licenses
@@ -126,13 +126,13 @@ docker run --rm -v "<scratch-dir>:/w" -w /w node:22-bookworm-slim sh -c "corepac
 ```
 
 The export lists each package with its versions; the table counts package and version pairs. The
-result is 697 entries, the number of package/version pairs pnpm installs for this platform:
+result is 751 entries, the number of package/version pairs pnpm installs for this platform:
 
 | License | Entries |
 | --- | --- |
-| MIT | 572 |
-| Apache-2.0 | 45 |
-| ISC | 39 |
+| MIT | 613 |
+| Apache-2.0 | 49 |
+| ISC | 48 |
 | BSD-2-Clause | 7 |
 | BSD-3-Clause | 7 |
 | MPL-2.0 | 8 |
