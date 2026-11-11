@@ -12,6 +12,12 @@ export const adminEn = {
   "admin.overview.check.storage": "File storage",
   "admin.overview.check.calendar": "Calendar push",
   "admin.overview.check.search": "Search index",
+  "admin.overview.check.adminTwoFactor": "Administrator sign-in",
+  "admin.overview.check.bootstrap": "First-admin variables",
+  "admin.overview.problem.adminTwoFactor":
+    "An active admin has no second sign-in factor, so a stolen password alone can grant administrative access; review the accounts and set up two-factor authentication.",
+  "admin.overview.problem.bootstrap":
+    "First-admin variables remain set although an active admin exists, so bootstrap data is retained unnecessarily; remove ADMIN_EMAIL, ADMIN_PASSWORD and ADMIN_INITIALS from the environment.",
   "admin.overview.check.setup": "Team setup",
   "admin.overview.unavailable":
     "{check}: this check couldn't run, so its state is unknown; open the details and try again.",

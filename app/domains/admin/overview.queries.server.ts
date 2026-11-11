@@ -7,6 +7,8 @@ import { getCalDavConfig } from "~/lib/calendar/caldav.server";
 import { calendarSyncHealth } from "~/lib/calendar/outbox.server";
 import { getIndexStats } from "~/lib/search/indexer.server";
 import { buildInfo } from "~/lib/version.server";
+import { storageRoot } from "~/lib/storage/config.server";
+import { environmentStatus } from "~/lib/environment.server";
 import type { MessageKey } from "~/i18n";
 
 export async function migrationsBehind(directory = resolve("prisma/migrations")) {
@@ -24,9 +26,7 @@ export async function migrationsBehind(directory = resolve("prisma/migrations"))
   );
 }
 
-export async function storageWritable(
-  root = resolve(process.env.STORAGE_DIR ?? "./data/attachments"),
-) {
+export async function storageWritable(root = storageRoot()) {
   const path = join(root, `.health-${randomUUID()}`);
   try {
     await mkdir(root, { recursive: true });
@@ -90,11 +90,28 @@ export const overviewChecks: Check[] = [
     severity: "warning",
     run: async () => {
       const stats = await getIndexStats();
-      return (
-        stats.failedJobs + stats.pendingJobs > 0 ||
-        (!!stats.activeModel && stats.types.some((row) => row.embedded < row.chunks))
-      );
+      return stats.failedJobs + stats.pendingJobs > 0 || stats.overdueEmbeddings > 0;
     },
+  },
+  {
+    id: "adminTwoFactor",
+    href: "/admin/users",
+    label: "admin.overview.check.adminTwoFactor",
+    message: "admin.overview.problem.adminTwoFactor",
+    severity: "warning",
+    run: async () =>
+      (await db.user.count({ where: { role: "ADMIN", isActive: true, twoFactorEnabled: false } })) >
+      0,
+  },
+  {
+    id: "bootstrap",
+    href: "/admin/about",
+    label: "admin.overview.check.bootstrap",
+    message: "admin.overview.problem.bootstrap",
+    severity: "warning",
+    run: async () =>
+      environmentStatus().some((variable) => variable.expectedUnset && variable.set) &&
+      (await db.user.count({ where: { role: "ADMIN", isActive: true } })) > 0,
   },
 ];
 

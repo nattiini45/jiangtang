@@ -488,7 +488,12 @@ describe("foreign source types", () => {
 
         // Re-embed sweeps are scoped to the known types too.
         await db.$executeRaw`UPDATE "Chunk" SET "embeddingModel" = 'foreign-model' WHERE id = ${row.id}`;
+        await db.chunk.updateMany({
+          where: { sourceType: "NOTE" },
+          data: { updatedAt: new Date("2000-01-01T00:00:00Z") },
+        });
         await clearEmbeddingModels();
+        expect((await getIndexStats()).overdueEmbeddings).toBe(0);
         expect((await db.chunk.findUniqueOrThrow({ where: { id: row.id } })).embeddingModel).toBe(
           "foreign-model",
         );
