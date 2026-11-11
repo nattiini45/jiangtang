@@ -86,6 +86,16 @@ const ALLOWED_EXTERNAL_LINKS: ReadonlyArray<ExternalDeclaration> = [
     why: "the documented clone URL for the approved public repository",
   },
   {
+    from: "README.md",
+    target: "https://github.com/nattiini45/jiangtang/releases",
+    why: "the public Releases page, where the released image versions are listed",
+  },
+  {
+    from: "docs/DEPLOY.md",
+    target: "https://github.com/nattiini45/jiangtang/releases",
+    why: "the public Releases page, where the released image versions are listed",
+  },
+  {
     from: "SECURITY.md",
     target: "https://github.com/nattiini45/jiangtang/security/advisories/new",
     why: "the repository's private advisory form, named as the reporting target",

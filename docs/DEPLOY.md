@@ -7,10 +7,10 @@ you control.
 **Releases and upgrades.** Releases follow SemVer 0.y.z, an upgrade is supported from any release
 to the next minor release, and migrations run automatically when the stack starts. Take a backup
 first. The full policy, including the published image names, is in
-[README.md](../README.md#releases-and-upgrades). Until the first release is tagged, this runbook
-builds the stack from a checkout of this repository, and the guarantees above start with the first
-release. Never apply migrations to a database by hand with `prisma migrate dev` or
-`prisma db push`.
+[README.md](../README.md#releases-and-upgrades). This runbook builds the stack from a checkout of
+this repository unless you run a released image, as [Updating](#updating) describes, and the
+guarantees above apply from the first release, 0.1.0, onward. Never apply migrations to a database
+by hand with `prisma migrate dev` or `prisma db push`.
 
 ## Versions and support
 
@@ -155,6 +155,12 @@ example 0.3 to 0.4, then 0.5), because an upgrade is supported only to the next 
 
 When the update crosses more than one minor release, repeat steps 2 to 4 for each one with the tag
 path, in order: back up, move to the next minor release, rebuild and check, then continue.
+
+To run a released image instead of building from a checkout, pick a version on the
+[Releases page](https://github.com/nattiini45/jiangtang/releases), set
+`JIANGTANG_IMAGE=ghcr.io/nattiini45/jiangtang:<X.Y.Z>` in `.env`, then run `docker compose pull app`
+and `docker compose up -d`. [RELEASING.md](RELEASING.md#run-a-released-image-with-compose) has the
+full steps, including how to verify the image before you run it.
 
 ## 1. DNS and HTTPS
 

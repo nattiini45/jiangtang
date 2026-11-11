@@ -68,8 +68,12 @@ are off until the operator configures them.
 - **Security fixes.** They land on `main` and ship in the next patch release. Only the latest
   release is supported ([SECURITY.md](SECURITY.md)).
 
-Until the first release is tagged, the Compose stack builds from a checkout of this repository, as
-[docs/DEPLOY.md](docs/DEPLOY.md) describes.
+A source checkout builds the Compose stack as [docs/DEPLOY.md](docs/DEPLOY.md) describes. To run a
+released image instead, pick a version on the
+[Releases page](https://github.com/nattiini45/jiangtang/releases), set
+`JIANGTANG_IMAGE=ghcr.io/nattiini45/jiangtang:<X.Y.Z>` in `.env`, then run `docker compose pull app`
+and `docker compose up -d`. [docs/RELEASING.md](docs/RELEASING.md#run-a-released-image-with-compose)
+has the full steps.
 
 ## Try it in five minutes
 
