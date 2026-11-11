@@ -7,6 +7,7 @@ import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { formatDateTime } from "~/i18n/format";
 import { useLocale, useT } from "~/i18n/use-t";
+import { tRich } from "~/i18n/rich";
 import { cn } from "~/lib/utils";
 import { McpConnection } from "~/routes/_desktop.account/mcp-connection";
 
@@ -59,6 +60,25 @@ function CreatedToken({ token, onHide }: { token: string; onHide: () => void }) 
       </h3>
       <p className="mt-2 text-sm font-semibold">{t("account.tokens.warning")}</p>
       <p className="mt-1 text-sm">{t("account.tokens.securityHint")}</p>
+      <p className="mt-2 text-sm">
+        {tRich(t, "account.tokens.connection.next", {
+          help: (
+            <a
+              href="#mcp-connection"
+              className="underline underline-offset-4"
+              onClick={() => {
+                const help = document.getElementById("mcp-connection");
+                if (help instanceof HTMLDetailsElement) {
+                  help.open = true;
+                  help.querySelector("summary")?.focus();
+                }
+              }}
+            >
+              {t("account.tokens.connection.heading")}
+            </a>
+          ),
+        })}
+      </p>
       <div className="mt-4">
         <FormField name="created-token" label={t("account.tokens.secret")}>
           <Input
@@ -232,6 +252,7 @@ export function PersonalAccessTokens({
         {t("account.tokens.heading")}
       </h2>
       <p className="text-muted-foreground mt-1 text-sm">{t("account.tokens.intro")}</p>
+      <McpConnection url={mcpUrl} />
       {tokenResult?.formErrors?.length ? (
         <p ref={errorRef} tabIndex={-1} role="alert" className="text-destructive mt-4 text-sm">
           {tokenResult.formErrors.join(" ")}
@@ -287,7 +308,6 @@ export function PersonalAccessTokens({
         {result?.intent === "tokenRevoke" && result.changed ? t("account.tokens.revoked") : ""}
       </p>
       <TokenList tokens={tokens.filter((token) => token.userId === userId)} busy={busy} />
-      <McpConnection url={mcpUrl} />
       {isAdmin ? (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm font-semibold">

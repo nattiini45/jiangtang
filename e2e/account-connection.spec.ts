@@ -11,6 +11,11 @@ test("MCP connection help copies safe configuration with the keyboard", async ({
   const details = section.locator("details").filter({ hasText: "Client verbinden" });
   await expect(details).not.toHaveAttribute("open", "");
   const address = section.getByRole("button", { name: "MCP-Adresse kopieren" });
+  const addressBox = await address.boundingBox();
+  const formBox = await section
+    .getByRole("textbox", { name: "Tokenname", exact: true })
+    .boundingBox();
+  expect(addressBox!.y).toBeLessThan(formBox!.y);
   await address.focus();
   await page.keyboard.press("Enter");
   await expect(section.getByText("Kopiert.", { exact: true })).toBeVisible();
@@ -50,7 +55,8 @@ test("creating a token never inserts its secret into connection help", async ({ 
   const secret = section.getByRole("textbox", { name: "Dein neuer Token" });
   await expect(secret).toHaveValue(/^jtg_/);
   const value = await secret.inputValue();
-  await section.getByText("Client verbinden", { exact: true }).click();
+  await section.getByRole("link", { name: "Client verbinden", exact: true }).click();
+  await expect(section.locator("#mcp-connection")).toHaveAttribute("open", "");
   for (const snippet of await section.locator("pre").allTextContents()) {
     expect(snippet).not.toContain(value);
   }

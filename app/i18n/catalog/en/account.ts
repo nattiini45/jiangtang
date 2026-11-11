@@ -55,13 +55,19 @@ export const accountEn = {
   "account.tokens.connection.copyNamed": "Copy {name}",
   "account.tokens.connection.copied": "Copied.",
   "account.tokens.connection.copyFailed": "Couldn't copy. Select the text and copy it manually.",
-  "account.tokens.connection.environment":
-    "Create a token above, then save it on your computer as the environment variable JIANGTANG_MCP_TOKEN. Start the client with that variable available; an app opened from the desktop may not inherit your terminal's environment. Connect only clients you trust and keep tool approvals enabled.",
+  "account.tokens.connection.stepCreate": "Create a token below and copy it.",
+  "account.tokens.connection.stepEnvironment":
+    "Save it on your computer as the environment variable JIANGTANG_MCP_TOKEN, then restart the client with that variable available.",
+  "account.tokens.connection.stepConfigure": "Add the matching configuration below to your client.",
+  "account.tokens.connection.trust":
+    "Connect only clients you trust and keep tool approvals enabled.",
+  "account.tokens.connection.next":
+    "Next, save this token as JIANGTANG_MCP_TOKEN and follow {help} above.",
   "account.tokens.connection.header": "Authentication header:",
   "account.tokens.connection.claudeLabel": "Claude Code · .mcp.json",
   "account.tokens.connection.cursorLabel": "Cursor · mcp.json",
   "account.tokens.connection.claude":
-    "Claude Code: merge this into .mcp.json in your project folder, then open /mcp in Claude Code to check the connection. This is JSON, not a shell command; it works on Windows too.",
+    "Claude Code: merge this into .mcp.json in your project folder, then open /mcp in Claude Code to check the connection.",
   "account.tokens.connection.cursor":
     "Cursor: merge this into .cursor/mcp.json in your home folder (%USERPROFILE% on Windows), then reconnect the server in Cursor. Keep existing server entries.",
   "account.tokens.connection.oauth":

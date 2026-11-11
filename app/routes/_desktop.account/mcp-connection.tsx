@@ -72,11 +72,16 @@ export function McpConnection({ url }: { url: string }) {
   return (
     <div className="mt-6">
       <Copyable label={t("account.tokens.connection.address")} value={url} />
-      <details className="mt-3">
+      <details id="mcp-connection" className="mt-3 scroll-mt-20">
         <summary className="cursor-pointer text-sm font-semibold">
           {t("account.tokens.connection.heading")}
         </summary>
-        <p className="mt-3 text-sm">{t("account.tokens.connection.environment")}</p>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
+          <li>{t("account.tokens.connection.stepCreate")}</li>
+          <li>{t("account.tokens.connection.stepEnvironment")}</li>
+          <li>{t("account.tokens.connection.stepConfigure")}</li>
+        </ol>
+        <p className="mt-3 text-sm">{t("account.tokens.connection.trust")}</p>
         <p className="mt-2 text-sm">
           {t("account.tokens.connection.header")} <code>Authorization: Bearer &lt;token&gt;</code>
         </p>

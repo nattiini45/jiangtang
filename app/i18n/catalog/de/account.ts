@@ -57,13 +57,20 @@ export const accountDe = {
   "account.tokens.connection.copied": "Kopiert.",
   "account.tokens.connection.copyFailed":
     "Kopieren hat nicht geklappt. Markiere den Text und kopiere ihn von Hand.",
-  "account.tokens.connection.environment":
-    "Erstelle oben einen Token und speichere ihn auf deinem Computer als Umgebungsvariable JIANGTANG_MCP_TOKEN. Starte den Client so, dass ihm diese Variable zur Verfügung steht; eine vom Desktop gestartete App übernimmt die Terminal-Umgebung möglicherweise nicht. Verbinde nur Clients, denen du vertraust, und lass Werkzeugaufrufe weiterhin bestätigen.",
+  "account.tokens.connection.stepCreate": "Erstelle unten einen Token und kopiere ihn.",
+  "account.tokens.connection.stepEnvironment":
+    "Speichere ihn auf deinem Computer als Umgebungsvariable JIANGTANG_MCP_TOKEN. Starte den Client danach mit dieser Variable neu.",
+  "account.tokens.connection.stepConfigure":
+    "Füge die passende Konfiguration unten in deinen Client ein.",
+  "account.tokens.connection.trust":
+    "Verbinde nur Clients, denen du vertraust, und lass Werkzeugaufrufe weiterhin bestätigen.",
+  "account.tokens.connection.next":
+    "Speichere diesen Token als Nächstes als JIANGTANG_MCP_TOKEN und folge oben {help}.",
   "account.tokens.connection.header": "Header zur Authentifizierung:",
   "account.tokens.connection.claudeLabel": "Claude Code · .mcp.json",
   "account.tokens.connection.cursorLabel": "Cursor · mcp.json",
   "account.tokens.connection.claude":
-    "Claude Code: Füge dies in die .mcp.json in deinem Projektordner ein. Öffne dann /mcp in Claude Code, um die Verbindung zu prüfen. Das ist JSON, kein Terminalbefehl, und funktioniert auch unter Windows.",
+    "Claude Code: Füge dies in die .mcp.json in deinem Projektordner ein. Öffne dann /mcp in Claude Code, um die Verbindung zu prüfen.",
   "account.tokens.connection.cursor":
     "Cursor: Ergänze damit die .cursor/mcp.json in deinem Benutzerordner (%USERPROFILE% unter Windows). Verbinde den Server dann in Cursor neu. Behalte vorhandene Servereinträge bei.",
   "account.tokens.connection.oauth":
