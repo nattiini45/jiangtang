@@ -51,7 +51,7 @@ const modules = import.meta.glob<BootModule>("/app/**/*.boot.server.ts", {
  *
  * Order: ascending `order` (default 0), ties broken by filename. This lets
  * middleware-registering modules (observability's request logger, etc.) run
- * before route-registering modules (auth's `/api/auth/*`), so every route
+ * before route-registering modules (auth's `/api/auth/{*splat}`), so every route
  * sees the middleware regardless of alphabetical filename order.
  */
 export async function runBootModules(app: Express, ctx: BootContext): Promise<void> {

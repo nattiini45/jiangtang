@@ -57,10 +57,10 @@ export async function register(app: Express, ctx: BootContext): Promise<void> {
         CHECK_TIMEOUT_MS,
       );
     } catch (err) {
-      // A database outage must not leave the request unanswered: Express 4 does
-      // not catch the rejection. An empty 200 stream that ends with a retry hint
-      // lets the browser reconnect once the database is back. A non-200 answer
-      // would make EventSource give up for good.
+      // A database outage must not leave the request unanswered. A 500 from the
+      // error handler would make EventSource give up for good, so the stream
+      // answers 200 with a retry hint and the browser reconnects once the
+      // database is back.
       console.error("[realtime] session lookup failed:", (err as Error).message);
       if (closed) return;
       res.writeHead(200, {

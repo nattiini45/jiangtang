@@ -105,7 +105,7 @@ function runOfflineScript(html: string, env: OfflineEnv) {
 }
 
 function scriptOf(html: string) {
-  const source = /<script>([\s\S]*?)<\/script>/i.exec(html)?.[1];
+  const source = /<script\b[^>]*>([\s\S]*?)<\/script\s*>/i.exec(html)?.[1];
   if (!source) throw new Error("the placeholder has no inline script");
   return source;
 }

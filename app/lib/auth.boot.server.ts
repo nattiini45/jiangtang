@@ -6,7 +6,7 @@ import { db } from "~/lib/db.server";
 import type { BootContext } from "~/server/boot";
 
 /**
- * Mounts Better Auth's HTTP handler at /api/auth/* (discovered by the boot-loader,
+ * Mounts Better Auth's HTTP handler at /api/auth/{*splat} (discovered by the boot-loader,
  * runs before the React Router catch-all). MUST NOT sit behind a JSON body parser
  * (server.ts adds none). In development, seeds one admin so you can sign in.
  * The development defaults are unsafe for any public exposure.

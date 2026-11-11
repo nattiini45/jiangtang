@@ -1550,7 +1550,7 @@ function joinContinuedLines(script: string): string {
  * build-push action. A publishing tool outside this list needs its own pattern.
  */
 const IMAGE_PUBLISH =
-  /\bdocker\s+(push|image\s+push|manifest\s+push)\b|\bdocker\s+buildx\s+imagetools\s+create\b|\bbuildx\s+(build|bake)\b.*(\s--push(=\S+)?(\s|$)|(--output|\s-o)[= ]?\S*(type=registry|push=true))|\bcompose\b(?:\s+(?:-[fp]|--(?:file|project-name|profile|env-file|project-directory|ansi|parallel|progress))(?:=|\s+)\S+|\s+--(?!(?:file|project-name|profile|env-file|project-directory|ansi|parallel|progress)\b)\S+)*\s+(?:build\b.*\s--push(\s|$)|push\b)|\b(crane|oras)\s+(push|copy|tag)\b|\bskopeo\s+copy\b|\b(podman|buildah)\s+((image|manifest)\s+)?push\b/;
+  /\bdocker\s+(push|image\s+push|manifest\s+push)\b|\bdocker\s+buildx\s+imagetools\s+create\b|\bbuildx\s+(build|bake)\b.*(\s--push(=\S+)?(\s|$)|(--output|\s-o)[= ]?\S*(type=registry|push=true))|\bcompose\b(?:\s+(?:-[fp]|--(?:file|project-name|profile|env-file|project-directory|ansi|parallel|progress))(?:=|\s+)\S+|\s+--(?!(?:file|project-name|profile|env-file|project-directory|ansi|parallel|progress)(?:=|\s))\S+)*\s+(?:build\b.*\s--push(\s|$)|push\b)|\b(crane|oras)\s+(push|copy|tag)\b|\bskopeo\s+copy\b|\b(podman|buildah)\s+((image|manifest)\s+)?push\b/;
 
 /**
  * Every image publication in the workflow that IMAGE_PUBLISH recognises, in any job, plus every
