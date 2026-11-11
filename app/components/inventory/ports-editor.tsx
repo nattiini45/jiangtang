@@ -153,7 +153,7 @@ export function PortFields({
 export function PortResult({ data }: { data?: { portError?: string; portsSaved?: boolean } }) {
   const t = useT();
   return (
-    <div>
+    <div hidden={!data?.portError && !data?.portsSaved}>
       <p role="alert" className="text-destructive text-sm">
         {data?.portError}
       </p>
@@ -356,7 +356,7 @@ export function EquipmentPorts({
       ) : null}
       <ul className="divide-y">
         {ports.map((port) => (
-          <li key={port.id} className="py-row">
+          <li key={port.id} id={`port-${port.id}`} className="py-row">
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm font-semibold" title={port.label}>
@@ -371,17 +371,23 @@ export function EquipmentPorts({
               <div className="min-w-0 text-sm">
                 {port.connection ? (
                   <>
-                    <Link
-                      to={`/inventory/${port.connection.other.equipment.id}`}
-                      className="flex min-w-0 items-center gap-1 underline underline-offset-4"
-                      title={`${portDeviceLabel(port.connection.other.equipment)} · ${port.connection.other.label}`}
-                    >
-                      <span className="min-w-0 flex-1 truncate">
+                    <span className="flex min-w-0 items-baseline gap-1">
+                      <Link
+                        to={`/inventory/${port.connection.other.equipment.id}`}
+                        className="min-w-0 truncate underline underline-offset-4"
+                        title={portDeviceLabel(port.connection.other.equipment)}
+                      >
                         {portDeviceLabel(port.connection.other.equipment)}
-                      </span>
+                      </Link>
                       <span className="shrink-0"> · </span>
-                      <span className="max-w-1/2 truncate">{port.connection.other.label}</span>
-                    </Link>
+                      <Link
+                        to={`/inventory/${port.connection.other.equipment.id}#port-${port.connection.other.id}`}
+                        className="max-w-1/2 shrink-0 truncate underline underline-offset-4"
+                        title={port.connection.other.label}
+                      >
+                        {port.connection.other.label}
+                      </Link>
+                    </span>
                     {port.connection.other.equipment.status === "RETIRED" ? (
                       <p className="text-muted-foreground text-xs">{t("ports.retired")}</p>
                     ) : null}

@@ -90,9 +90,7 @@ for (const locale of ["de", "en"] as const) {
         .getByRole("textbox", { name: t(locale, "ports.connectionNote"), exact: true })
         .fill("Synthetic cable route A");
       await picker.getByRole("button", { name: t(locale, "ports.connect"), exact: true }).click();
-      await expect(
-        ports.getByRole("link", { name: `${target.name} · HDMI 1`, exact: true }),
-      ).toBeVisible();
+      await expect(ports.getByRole("link", { name: target.name!, exact: true })).toBeVisible();
       page.once("dialog", (dialog) => dialog.accept());
       await ports
         .getByRole("button", {
@@ -101,10 +99,12 @@ for (const locale of ["de", "en"] as const) {
         })
         .click();
       await expect(ports.getByRole("alert")).toContainText(target.name!);
-      await ports.getByRole("link", { name: `${target.name} · HDMI 1`, exact: true }).click();
-      await expect(
-        page.getByRole("link", { name: `${source.name} · HDMI OUT`, exact: true }),
-      ).toBeVisible();
+      await expect(ports.getByRole("link", { name: "HDMI 1", exact: true })).toHaveAttribute(
+        "href",
+        `/inventory/${target.id}#port-${target.ports[0].id}`,
+      );
+      await ports.getByRole("link", { name: "HDMI 1", exact: true }).click();
+      await expect(page.getByRole("link", { name: source.name!, exact: true })).toBeVisible();
       await db.equipment.update({ where: { id: target.id }, data: { status: "RETIRED" } });
       await page.goto(`/inventory/${source.id}`);
       await expect(ports.getByText(t(locale, "ports.retired"), { exact: true })).toBeVisible();
@@ -137,14 +137,10 @@ for (const locale of ["de", "en"] as const) {
         .getByRole("textbox", { name: t(locale, "ports.label"), exact: true })
         .fill("HDMI IN");
       await picker.getByRole("button", { name: t(locale, "ports.connect"), exact: true }).click();
-      await expect(
-        ports.getByRole("link", { name: `${empty.name} · HDMI IN`, exact: true }),
-      ).toBeVisible();
+      await expect(ports.getByRole("link", { name: empty.name!, exact: true })).toBeVisible();
       await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 1280);
-      await ports.getByRole("link", { name: `${empty.name} · HDMI IN`, exact: true }).click();
-      await expect(
-        page.getByRole("link", { name: `${source.name} · HDMI OUT`, exact: true }),
-      ).toBeVisible();
+      await ports.getByRole("link", { name: empty.name!, exact: true }).click();
+      await expect(page.getByRole("link", { name: source.name!, exact: true })).toBeVisible();
     });
   }
 }
