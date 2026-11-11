@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import { z } from "zod";
 import { localizeMessage } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
@@ -195,7 +196,7 @@ export function toErrorResponse(error: unknown): Response {
  * non-production the detailed message is kept for DX.
  */
 function internalErrorBody(error: unknown): ErrorBody {
-  if (process.env.NODE_ENV === "production") {
+  if (readConfig("NODE_ENV") === "production") {
     const correlationId = crypto.randomUUID();
     logger.error({ err: error, correlationId }, "Unhandled error mapped to a generic response");
     return {

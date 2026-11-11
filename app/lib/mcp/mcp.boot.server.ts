@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import express from "express";
 import type { Express, Request, Response, NextFunction } from "express";
 import { createMcpHandler } from "@modelcontextprotocol/server";
@@ -35,10 +36,10 @@ export function register(app: Express): void {
   const contexts = new WeakMap<Request, McpContext>();
   const json = express.json({ limit: "22mb" });
   const admit = createMcpAdmissionGate();
-  const publicUrl = new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000");
+  const publicUrl = new URL(readConfig("BETTER_AUTH_URL") ?? "http://localhost:3000");
   const validateHost = hostHeaderValidation([
     publicUrl.hostname,
-    ...(process.env.NODE_ENV !== "production" ? ["localhost", "127.0.0.1", "[::1]"] : []),
+    ...(readConfig("NODE_ENV") !== "production" ? ["localhost", "127.0.0.1", "[::1]"] : []),
   ]);
 
   app.use("/mcp", (req, res, next) => {

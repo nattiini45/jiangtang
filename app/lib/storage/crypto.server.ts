@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
 
 /**
@@ -15,22 +16,20 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:
 const ALGO = "aes-256-gcm";
 const IV_LEN = 12;
 const TAG_LEN = 16;
-const DEFAULT_SALT = "jiangtang-storage-v1";
 
 function resolveSalt(): string {
-  const override = process.env.STORAGE_KEY_SALT;
-  return override && override.trim().length > 0 ? override : DEFAULT_SALT;
+  return readConfig("STORAGE_KEY_SALT");
 }
 
 function resolveKey(): Buffer {
-  const raw = process.env.STORAGE_ENCRYPTION_KEY;
+  const raw = readConfig("STORAGE_ENCRYPTION_KEY");
   if (raw && raw.trim().length > 0) {
     if (/^[0-9a-fA-F]{64}$/.test(raw)) return Buffer.from(raw, "hex");
     // A passphrase (not the recommended 64-hex-char key) is scrypt-stretched into
     // a 32-byte key. This still works, but scrypt's cost factor is a mitigation,
     // not a substitute for real key entropy — a weak/short passphrase is brute-
     // forceable. Warn so operators move to a generated 64-hex STORAGE_ENCRYPTION_KEY.
-    if (process.env.NODE_ENV !== "test") {
+    if (readConfig("NODE_ENV") !== "test") {
       console.warn(
         "[storage] STORAGE_ENCRYPTION_KEY is not a 64-character hex string — deriving a key from it as a " +
           "passphrase via scrypt. For production, prefer a generated 64-hex-char key " +
@@ -39,13 +38,13 @@ function resolveKey(): Buffer {
     }
     return scryptSync(raw, resolveSalt(), 32);
   }
-  const devOrTest = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
+  const devOrTest = readConfig("NODE_ENV") === "development" || readConfig("NODE_ENV") === "test";
   if (!devOrTest) {
     throw new Error(
       "STORAGE_ENCRYPTION_KEY is required in production (object storage is encrypted at rest).",
     );
   }
-  if (process.env.NODE_ENV !== "test") {
+  if (readConfig("NODE_ENV") !== "test") {
     console.warn(
       "[storage] STORAGE_ENCRYPTION_KEY not set — using an INSECURE dev key. Do not use in production.",
     );

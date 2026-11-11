@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import * as Sentry from "@sentry/node";
 import { redactTokenSegments } from "~/lib/observability/logger.server";
 
@@ -109,12 +110,12 @@ function redactBreadcrumb(breadcrumb: Sentry.Breadcrumb): void {
 }
 
 export function initSentry(): void {
-  const dsn = process.env.GLITCHTIP_DSN;
+  const dsn = readConfig("GLITCHTIP_DSN");
   if (!dsn || initialized) return;
   initialized = true;
   Sentry.init({
     dsn,
-    environment: process.env.NODE_ENV ?? "development",
+    environment: readConfig("NODE_ENV") ?? "development",
     // Sampling: capture all errors; traces are light (internal tool, low traffic).
     tracesSampleRate: 0.2,
     // GlitchTip stores transactions but ignores the streamed span envelopes that

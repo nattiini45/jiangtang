@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NAV, navigationFor } from "~/components/layout/nav";
 import { verbsFor } from "~/components/command/verbs";
 import { ENVIRONMENT_VARIABLES } from "~/lib/environment.server";
+import { CONFIG_REGISTRY } from "~/lib/config.server";
 import { buildInfo } from "~/lib/version.server";
 import * as about from "~/routes/_desktop.admin.about/route";
 import * as admin from "~/routes/_desktop.admin._index/route";
@@ -80,15 +81,6 @@ describe("administration shell", () => {
 
   it("accounts for every documented environment variable", () => {
     const excluded: Record<string, string> = {
-      TZ: "The application fixes display time to Berlin and database sessions to UTC",
-      ALERT_WEBHOOK: "Alerting sidecar, not application configuration",
-      WALG_S3_PREFIX: "Backup sidecar",
-      AWS_ACCESS_KEY_ID: "Backup sidecar",
-      AWS_SECRET_ACCESS_KEY: "Backup sidecar",
-      AWS_ENDPOINT: "Backup sidecar",
-      AWS_REGION: "Backup sidecar",
-      WALG_RETENTION_COUNT: "Backup sidecar",
-      RESTORE_DRILL_ENABLED: "Restore sidecar",
       DATABASE_URL_TEST: "Vitest harness",
       DATABASE_URL_E2E: "Playwright harness",
       E2E_BASE_URL: "Playwright harness",
@@ -97,7 +89,7 @@ describe("administration shell", () => {
     const documented = [
       ...readFileSync(".env.example", "utf8").matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]+)=/gm),
     ].map((m) => m[1]);
-    const listed = new Set<string>(ENVIRONMENT_VARIABLES.map((v) => v.name));
+    const listed = new Set<string>(CONFIG_REGISTRY.map((v) => v.name));
     expect(documented.filter((name) => !listed.has(name) && !excluded[name])).toEqual([]);
     expect(
       Object.keys(excluded).every((name) => documented.includes(name) && !listed.has(name)),

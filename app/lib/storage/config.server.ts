@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
+import { readConfig } from "~/lib/config.server";
 
 export function storageRoot() {
-  return resolve(process.env.STORAGE_DIR ?? "./data/attachments");
+  return resolve(readConfig("STORAGE_DIR"));
 }

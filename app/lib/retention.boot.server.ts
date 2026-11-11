@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import type { Express } from "express";
 import type { BootContext } from "~/server/boot";
 import { pruneActivityLog } from "~/domains/auth/gdpr.server";
@@ -16,16 +17,13 @@ import { pruneActivityLog } from "~/domains/auth/gdpr.server";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const DEFAULT_RETENTION_DAYS = 2555; // ~7 years
-
 /** Retention window in days, from `ACTIVITY_RETENTION_DAYS` (default ~7 years). */
 export function getRetentionDays(): number {
   // Guard against a malformed value (e.g. "thirty" → NaN, or a non-positive
   // number): an Invalid Date cutoff would make prune_activity_log throw on every
   // tick (caught + logged), silently disabling retention. Fall back to the
   // default rather than fail silently.
-  const raw = Number(process.env.ACTIVITY_RETENTION_DAYS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_RETENTION_DAYS;
+  return readConfig("ACTIVITY_RETENTION_DAYS");
 }
 
 /**

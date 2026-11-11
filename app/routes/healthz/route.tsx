@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import type { Route } from "./+types/route";
 import { db } from "~/lib/db.server";
 import { logger } from "~/lib/observability/logger.server";
@@ -16,7 +17,7 @@ export async function loader(_: Route.LoaderArgs) {
     await db.$queryRaw`SELECT 1`;
     return Response.json({ status: "ok", db: "up" });
   } catch (e) {
-    if (process.env.NODE_ENV !== "development") {
+    if (readConfig("NODE_ENV") !== "development") {
       logger.error({ err: e }, "healthz: DB check failed");
       return Response.json({ status: "degraded", db: "down" }, { status: 503 });
     }

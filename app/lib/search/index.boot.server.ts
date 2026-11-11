@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 /**
  * Search index worker. Auto-loaded boot module —
  * never throws, never blocks startup, and stays out of tests entirely.
@@ -31,7 +32,7 @@ async function drainEmbeds(): Promise<void> {
 }
 
 export function register(_app: Express, ctx: BootContext): void {
-  if (process.env.NODE_ENV === "test" || process.env.SEARCH_INDEXER === "off") return;
+  if (readConfig("NODE_ENV") === "test" || readConfig("SEARCH_INDEXER") === "off") return;
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 

@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import * as React from "react";
 import { Form, Link, redirect, useLocation, useNavigation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -76,7 +77,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         }),
     view === "list" ? listEvents({ status }) : Promise.resolve([]),
   ]);
-  const feedToken = process.env.ICAL_FEED_TOKEN;
+  const feedToken = readConfig("ICAL_FEED_TOKEN");
   const feedUrl =
     user.role === "ADMIN" && feedToken
       ? `${url.protocol}//${url.host}/calendar/${feedToken}/ics`

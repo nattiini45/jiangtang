@@ -8,15 +8,15 @@
  * default and exactly one other legal value: none.
  */
 import { tr } from "~/i18n/request-locale.server";
+import { CONFIG, readConfig, readRawConfig, type ConfigName } from "~/lib/config.server";
 import type { CapabilityStatus } from "./types";
 
-export const EMBEDDING_DIMENSIONS = 1024;
-export const DEFAULT_QUERY_TEMPLATE = "Instruct: {instruction}\nQuery:{text}";
+export const EMBEDDING_DIMENSIONS = CONFIG.EMBEDDING_DIMENSIONS.default;
+export const DEFAULT_QUERY_TEMPLATE = CONFIG.EMBEDDING_QUERY_TEMPLATE.default;
 /** Deploy-time constant; English on purpose. */
-export const DEFAULT_QUERY_INSTRUCTION =
-  "Given a search query in an AV and facility management workspace, retrieve the records that answer the query";
-export const DEFAULT_PASSAGE_TEMPLATE = "{text}";
-export const DEFAULT_GENERATION_MAX_TOKENS = 800;
+export const DEFAULT_QUERY_INSTRUCTION = CONFIG.EMBEDDING_QUERY_INSTRUCTION.default;
+export const DEFAULT_PASSAGE_TEMPLATE = CONFIG.EMBEDDING_PASSAGE_TEMPLATE.default;
+export const DEFAULT_GENERATION_MAX_TOKENS = CONFIG.GENERATION_MAX_TOKENS.default;
 
 type Env = Record<string, string | undefined>;
 
@@ -58,12 +58,6 @@ export interface AiConfig {
   statuses: CapabilityStatus[];
 }
 
-/** Env booleans: unset → default; "0"/"false"/"off"/"no" (any case) → false. */
-function envBool(raw: string | undefined, fallback: boolean): boolean {
-  if (raw === undefined || raw.trim() === "") return fallback;
-  return !["0", "false", "off", "no"].includes(raw.trim().toLowerCase());
-}
-
 /** Host only — a base URL may carry credentials the logs must never print. */
 function hostOf(baseUrl: string): string {
   try {
@@ -91,15 +85,15 @@ function normalizeBaseUrl(raw: string): string | null {
  * capability); nothing set → none.
  */
 function resolveEndpoint<T>(
-  env: Env,
-  prefix: string,
-  extraKeys: string[],
+  env: Env | undefined,
+  prefix: "EMBEDDING" | "RERANK" | "GENERATION",
+  extraKeys: ConfigName[],
   build: (base: { model: string; baseUrl: string; apiKey?: string }) => T | string,
 ): CapabilityResolution<T> {
-  const rawBase = env[`${prefix}_BASE_URL`]?.trim();
-  const model = env[`${prefix}_MODEL`]?.trim();
-  const apiKey = env[`${prefix}_API_KEY`]?.trim() || undefined;
-  const anySet = rawBase || model || apiKey || extraKeys.some((k) => env[k]?.trim());
+  const rawBase = readConfig(`${prefix}_BASE_URL`, env);
+  const model = readConfig(`${prefix}_MODEL`, env);
+  const apiKey = readConfig(`${prefix}_API_KEY`, env);
+  const anySet = rawBase || model || apiKey || extraKeys.some((k) => readRawConfig(k, env)?.trim());
   if (!anySet) return { state: "none" };
   if (!rawBase)
     return { state: "misconfigured", detail: tr("places.err.ai.baseUrlMissing", { prefix }) };
@@ -113,22 +107,18 @@ function resolveEndpoint<T>(
   return { state: "api", config: built };
 }
 
-function resolveEmbedding(env: Env): CapabilityResolution<EmbeddingConfig> {
+function resolveEmbedding(env?: Env): CapabilityResolution<EmbeddingConfig> {
   return resolveEndpoint(
     env,
     "EMBEDDING",
     ["EMBEDDING_DIMENSIONS", "EMBEDDING_SEND_DIMENSIONS"],
     (base) => {
-      const rawDimensions = env.EMBEDDING_DIMENSIONS?.trim();
-      const dimensions =
-        rawDimensions === undefined || rawDimensions === ""
-          ? EMBEDDING_DIMENSIONS
-          : Number(rawDimensions);
+      const dimensions = readConfig("EMBEDDING_DIMENSIONS", env);
       if (dimensions !== EMBEDDING_DIMENSIONS) {
         return tr("places.err.ai.dimensionsMismatch", { dimensions: EMBEDDING_DIMENSIONS });
       }
-      const queryTemplate = env.EMBEDDING_QUERY_TEMPLATE?.trim() || DEFAULT_QUERY_TEMPLATE;
-      const passageTemplate = env.EMBEDDING_PASSAGE_TEMPLATE?.trim() || DEFAULT_PASSAGE_TEMPLATE;
+      const queryTemplate = readConfig("EMBEDDING_QUERY_TEMPLATE", env);
+      const passageTemplate = readConfig("EMBEDDING_PASSAGE_TEMPLATE", env);
       for (const [name, tpl] of [
         ["EMBEDDING_QUERY_TEMPLATE", queryTemplate],
         ["EMBEDDING_PASSAGE_TEMPLATE", passageTemplate],
@@ -138,32 +128,30 @@ function resolveEmbedding(env: Env): CapabilityResolution<EmbeddingConfig> {
       return {
         ...base,
         dimensions,
-        sendDimensions: envBool(env.EMBEDDING_SEND_DIMENSIONS, true),
+        sendDimensions: readConfig("EMBEDDING_SEND_DIMENSIONS", env),
         queryTemplate,
-        queryInstruction: env.EMBEDDING_QUERY_INSTRUCTION?.trim() || DEFAULT_QUERY_INSTRUCTION,
+        queryInstruction: readConfig("EMBEDDING_QUERY_INSTRUCTION", env),
         passageTemplate,
       } satisfies EmbeddingConfig;
     },
   );
 }
 
-function resolveReranker(env: Env): CapabilityResolution<RerankerConfig> {
+function resolveReranker(env?: Env): CapabilityResolution<RerankerConfig> {
   return resolveEndpoint(env, "RERANK", [], (base) => base);
 }
 
-function resolveGeneration(env: Env): CapabilityResolution<GenerationConfig> {
+function resolveGeneration(env?: Env): CapabilityResolution<GenerationConfig> {
   return resolveEndpoint(
     env,
     "GENERATION",
     ["GENERATION_MAX_TOKENS", "GENERATION_SYSTEM_ROLE"],
     (base) => {
-      const rawMax = env.GENERATION_MAX_TOKENS?.trim();
-      const maxTokens =
-        rawMax === undefined || rawMax === "" ? DEFAULT_GENERATION_MAX_TOKENS : Number(rawMax);
+      const maxTokens = readConfig("GENERATION_MAX_TOKENS", env);
       if (!Number.isInteger(maxTokens) || maxTokens <= 0) {
         return "GENERATION_MAX_TOKENS ist keine positive Ganzzahl";
       }
-      const rawRole = env.GENERATION_SYSTEM_ROLE?.trim().toLowerCase() || "system";
+      const rawRole = readConfig("GENERATION_SYSTEM_ROLE", env);
       if (rawRole !== "system" && rawRole !== "merge") {
         return tr("places.err.ai.systemRole");
       }
@@ -186,7 +174,7 @@ function statusOf<T>(
   return { capability, state: "api", model: c.model, host: hostOf(c.baseUrl) };
 }
 
-export function readAiConfig(env: Env): AiConfig {
+export function readAiConfig(env?: Env): AiConfig {
   const embedding = resolveEmbedding(env);
   const reranker = resolveReranker(env);
   const generation = resolveGeneration(env);

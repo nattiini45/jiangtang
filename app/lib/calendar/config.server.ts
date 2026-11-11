@@ -1,3 +1,5 @@
+import { readConfig } from "~/lib/config.server";
+
 export interface CalDavConfig {
   url: string;
   username: string;
@@ -5,9 +7,9 @@ export interface CalDavConfig {
 }
 
 export function getCalDavConfig(): CalDavConfig | null {
-  const url = process.env.CALDAV_URL?.trim();
-  const username = process.env.CALDAV_USERNAME?.trim();
-  const password = process.env.CALDAV_PASSWORD;
+  const url = readConfig("CALDAV_URL");
+  const username = readConfig("CALDAV_USERNAME");
+  const password = readConfig("CALDAV_PASSWORD");
   if (!url || !username || !password) return null;
   return { url, username, password };
 }

@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import { timingSafeEqual } from "node:crypto";
 
 /**
@@ -9,7 +10,7 @@ import { timingSafeEqual } from "node:crypto";
 
 /** Read the configured feed token; throws clearly if unset when actually used. */
 export function getFeedToken(): string {
-  const token = process.env.ICAL_FEED_TOKEN;
+  const token = readConfig("ICAL_FEED_TOKEN");
   if (!token) {
     throw new Error(
       "ICAL_FEED_TOKEN is not set — generate a long random token and set it before subscribing calendar clients.",

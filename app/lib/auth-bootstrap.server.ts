@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import { verifyPassword } from "better-auth/crypto";
 import { auth } from "~/lib/auth.server";
 import { txWithAudit } from "~/lib/audit.server";
@@ -36,11 +37,11 @@ const databaseDeps: FirstAdminBootstrapDeps = {
 export async function bootstrapFirstAdmin(
   deps: FirstAdminBootstrapDeps = databaseDeps,
 ): Promise<void> {
-  const email = process.env.ADMIN_EMAIL?.trim();
-  const password = process.env.ADMIN_PASSWORD;
+  const email = readConfig("ADMIN_EMAIL");
+  const password = readConfig("ADMIN_PASSWORD");
 
   if (!email || !password) {
-    if (process.env.NODE_ENV === "production") {
+    if (readConfig("NODE_ENV") === "production") {
       console.log("[auth] ADMIN_EMAIL/ADMIN_PASSWORD not set — first-admin bootstrap skipped");
     }
     return;
@@ -52,7 +53,7 @@ export async function bootstrapFirstAdmin(
       return;
     }
 
-    const initials = resolveInitials(process.env.ADMIN_INITIALS, email);
+    const initials = resolveInitials(readConfig("ADMIN_INITIALS"), email);
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
