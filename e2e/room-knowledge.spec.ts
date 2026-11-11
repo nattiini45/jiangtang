@@ -135,6 +135,41 @@ for (const locale of ["de", "en"] as const) {
       await page.goto("/rooms");
       await expect(page.locator(`a[href='/rooms/${room.slug}']`)).toBeVisible();
       await page.screenshot({ path: `${renders}/${locale}-${density}-list.png` });
+      const issuesHeader = page
+        .getByRole("button", { name: t(locale, "rooms.knownIssues"), exact: true })
+        .locator("..");
+      const issuesCell = page.getByText(problem, { exact: true }).locator("..");
+      const headers = issuesHeader.locator("..").locator(":scope > div");
+      const narrowWidths = await headers.evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().width),
+      );
+      const narrowIssuesWidth = (await issuesHeader.boundingBox())!.width;
+      expect(narrowIssuesWidth).toBeGreaterThanOrEqual(176);
+      await page.setViewportSize({ width: 1600, height: 800 });
+      await expect
+        .poll(async () => (await issuesHeader.boundingBox())!.width)
+        .toBeCloseTo(narrowIssuesWidth + 320, 0);
+      const wideWidths = await headers.evaluateAll((elements) =>
+        elements.map((element) => element.getBoundingClientRect().width),
+      );
+      expect(wideWidths.filter((_, index) => index !== 6)).toEqual(
+        narrowWidths.filter((_, index) => index !== 6),
+      );
+      expect((await issuesCell.boundingBox())!.width).toBeCloseTo(
+        (await issuesHeader.boundingBox())!.width,
+        1,
+      );
+      expect((await issuesCell.boundingBox())!.x).toBeCloseTo(
+        (await issuesHeader.boundingBox())!.x,
+        1,
+      );
+      if (
+        (locale === "de" && density === "comfortable") ||
+        (locale === "en" && density === "compact")
+      ) {
+        await page.screenshot({ path: `${renders}/${locale}-${density}-list-1600.png` });
+      }
+      await page.setViewportSize({ width: 1280, height: 800 });
       expect(
         await page
           .locator("main")

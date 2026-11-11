@@ -191,6 +191,7 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
 
       <DataGrid
         columns={columns}
+        growColumn="knownIssues"
         data={rooms}
         getRowId={(r) => r.id}
         emptyMessage={t("rooms.list.empty")}
