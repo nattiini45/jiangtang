@@ -25,6 +25,8 @@ import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
 const RESET_TTL_MS = 1000 * 60 * 60 * 24; // 1 day
 export const RESET_IDENTIFIER_PREFIX = "password-reset:";
 
+// The token is 256 random bits, so a fast digest only has to keep a database copy from revealing it.
+// A user's password is never hashed here: completePasswordReset stores it with Better Auth's scrypt hashPassword.
 function identifierFor(token: string): string {
   return RESET_IDENTIFIER_PREFIX + createHash("sha256").update(token).digest("hex");
 }

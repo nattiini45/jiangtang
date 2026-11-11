@@ -17,6 +17,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # @tanstack/react-table 9 replaces useReactTable and the row-model helpers
+    # with the feature-based useTable API. Deferred until DataGrid and the column
+    # definitions in the routes and components move to it in one change.
+    ignore:
+      - dependency-name: "@tanstack/react-table"
+        update-types:
+          - version-update:semver-major
     groups:
       npm-minor-patch:
         update-types:

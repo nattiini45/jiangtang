@@ -3,7 +3,7 @@ import { afterAll, describe, expect, it } from "vitest";
 /**
  * Public HTTP signup must be closed while trusted server-side registration
  * stays open. The reproduction goes through `auth.handler(new Request(...))` —
- * the same HTTP router Express mounts at /api/auth/* — not through `auth.api`,
+ * the same HTTP router Express mounts at /api/auth/{*splat} — not through `auth.api`,
  * because `disabledPaths` is applied in the router's onRequest hook and does not
  * affect the programmatic API used by bootstrap, dev-seed and invite acceptance.
  *
