@@ -229,6 +229,10 @@ test, and weakening one needs a deliberate review.
 - **One running timer per user, positive intervals.** Enforced by the time tracking migration.
 - **Unique stock identifiers.** `InventoryItem.sku` and `serial` are unique in the database; both
   are nullable, so items with neither coexist.
+- **Exclusive, two-ended equipment connections.** An endpoint's primary key is its port ID.
+  A composite foreign key preserves its device ownership, and a unique connection/device pair
+  requires different devices. Deferred constraint triggers require exactly two endpoints at
+  commit. Connected ports cannot be deleted; retiring equipment leaves its connections intact.
 
 `ops/postgres/verify-invariants.sql` checks these catalog objects after every deploy; the migrate
 job fails, and the app never starts, if one is missing.

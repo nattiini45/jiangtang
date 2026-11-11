@@ -365,7 +365,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_equipment",
       description:
-        "Get an equipment instance, its catalog model, room and spare/substitute links by ID.",
+        "Get an equipment instance, model, room, ordered ports, both-ended connections and port action legality, plus spare/substitute links by ID. Write permission still requires a write token.",
       schema: byId,
     },
     async ({ id }) => withEquipmentAllocationAction(await found(getEquipment(id))),

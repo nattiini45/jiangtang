@@ -692,6 +692,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261110200000_time_permissions",
       "20261110203000_invitations",
       "20261112090000_equipment_ports",
+      "20261112090100_equipment_connections",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only
     // new symbol is a function.

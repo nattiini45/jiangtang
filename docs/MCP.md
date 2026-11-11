@@ -104,7 +104,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **46 read tools and 74 write tools**. Their published schemas are
+Discovery currently returns **46 read tools and 76 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -136,6 +136,18 @@ Connectors use the published enum-like list in the tool schema, backed by a text
 direction is `INPUT`, `OUTPUT` or `BIDIRECTIONAL`, and signal is `VIDEO`, `AUDIO`,
 `AUDIO_VIDEO`, `CONTROL`, `NETWORK`, `USB`, `POWER` or `OTHER`.
 Hostname, IP address and MAC address are editable on equipment in every category.
+
+`get_equipment` includes each port's `connection` (or null) with the other device,
+port, device status and optional cable/route note. Its port `allowedActions` report
+state legality for connecting, disconnecting and removal; a write token is still required.
+`connect_equipment_ports` takes the source `equipmentId` and `portId`, a
+`targetEquipmentId`, exactly one of `targetPortId` or `newPort` (the device port input
+above), and an optional `note`. Creating the other port and connecting it is atomic.
+`disconnect_equipment_ports({ equipmentId, connectionId, confirm: true })` removes
+only the connection, keeping both ports. Both devices' audit histories record the change.
+The database permits one connection per port, exactly two ends and two distinct devices.
+Direction and signal do not restrict a connection. Disconnect a connected port before
+removing it; retirement keeps connections and their visible retired-device marker.
 
 Most lists return `items` and `nextOffset`; repeat with that offset until it is null. Lists
 default to 50, accept up to 100 per page, and expose domain filters. `list_activity` uses

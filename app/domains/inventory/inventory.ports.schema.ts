@@ -53,7 +53,7 @@ export const modelPortSchema = z.object({
   signal: z.enum(PORT_SIGNALS),
 });
 export const equipmentPortSchema = modelPortSchema.extend({
-  position: z.coerce.number().int().min(0).max(MAX_PORT_POSITION),
+  position: z.coerce.number().int().min(0).max(MAX_PORT_POSITION, msgKey("ports.positionFull")),
   note: z.string().trim().max(2000).nullable().optional(),
 });
 export const modelPortsSchema = z
@@ -65,3 +65,18 @@ export const modelPortsSchema = z
     }
   });
 export type PortInput = z.output<typeof equipmentPortSchema>;
+
+const portId = z.string().trim().min(1);
+export const connectPortsSchema = z
+  .object({
+    equipmentId: portId,
+    portId,
+    targetEquipmentId: portId,
+    targetPortId: portId.optional(),
+    newPort: equipmentPortSchema.optional(),
+    note: z.string().trim().max(2000).nullable().optional(),
+  })
+  .superRefine((input, ctx) => {
+    if (Boolean(input.targetPortId) === Boolean(input.newPort))
+      ctx.addIssue({ code: "custom", message: msgKey("ports.chooseTarget") });
+  });

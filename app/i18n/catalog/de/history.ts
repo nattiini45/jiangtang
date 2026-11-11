@@ -121,4 +121,6 @@ export const historyDe = {
   "history.action.EquipmentPortUpdated": "Anschluss aktualisiert",
   "history.action.EquipmentPortRemoved": "Anschluss entfernt",
   "history.action.EquipmentPortInherited": "Modellanschlüsse übernommen",
+  "history.action.EquipmentPortsConnected": "Anschlüsse verbunden",
+  "history.action.EquipmentPortsDisconnected": "Verbindung getrennt",
 };

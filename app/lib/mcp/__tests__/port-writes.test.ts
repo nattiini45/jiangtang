@@ -7,9 +7,12 @@ import type { McpContext } from "~/lib/mcp/types.server";
 const mutations = vi.hoisted(() => ({
   setEquipmentModelPorts: vi.fn(),
   mutateEquipmentPort: vi.fn(),
+  connectEquipmentPorts: vi.fn(),
+  disconnectEquipmentPorts: vi.fn(),
 }));
 vi.mock("~/domains/catalog/catalog.ports.mutations.server", () => mutations);
 vi.mock("~/domains/inventory/inventory.ports.mutations.server", () => mutations);
+vi.mock("~/domains/inventory/inventory.connections.mutations.server", () => mutations);
 const context: McpContext = {
   user: {
     id: "member",
@@ -48,6 +51,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mutations.setEquipmentModelPorts.mockResolvedValue([]);
   mutations.mutateEquipmentPort.mockResolvedValue({ id: "port" });
+  mutations.connectEquipmentPorts.mockResolvedValue({ id: "connection" });
+  mutations.disconnectEquipmentPorts.mockResolvedValue({ id: "connection" });
 });
 describe("port write tools", () => {
   for (const [name, args] of [
@@ -56,17 +61,29 @@ describe("port write tools", () => {
     ["update_equipment_port", { equipmentId: "unit", portId: "port", input }],
     ["remove_equipment_port", { equipmentId: "unit", portId: "port", confirm: true }],
     ["inherit_equipment_model_ports", { equipmentId: "unit" }],
+    [
+      "connect_equipment_ports",
+      { equipmentId: "unit", portId: "source", targetEquipmentId: "other", targetPortId: "target" },
+    ],
+    [
+      "connect_equipment_ports",
+      { equipmentId: "unit", portId: "source", targetEquipmentId: "other", newPort: input },
+    ],
+    [
+      "disconnect_equipment_ports",
+      { equipmentId: "unit", connectionId: "connection", confirm: true },
+    ],
   ] as const) {
     it(`${name} accepts a member writer and rejects read-only`, async () => {
       expect((await call(name, args)).isError).not.toBe(true);
-      const calls =
-        mutations.mutateEquipmentPort.mock.calls.length +
-        mutations.setEquipmentModelPorts.mock.calls.length;
+      const calls = Object.values(mutations).reduce(
+        (sum, mutation) => sum + mutation.mock.calls.length,
+        0,
+      );
       expect(calls).toBe(1);
       expect((await call(name, args, "READ_ONLY")).isError).toBe(true);
       expect(
-        mutations.mutateEquipmentPort.mock.calls.length +
-          mutations.setEquipmentModelPorts.mock.calls.length,
+        Object.values(mutations).reduce((sum, mutation) => sum + mutation.mock.calls.length, 0),
       ).toBe(calls);
     });
   }
@@ -83,5 +100,37 @@ describe("port write tools", () => {
       ).isError,
     ).toBe(true);
     expect(mutations.mutateEquipmentPort).not.toHaveBeenCalled();
+  });
+  it("requires disconnect confirmation and exactly one target-port choice", async () => {
+    expect(
+      (
+        await call("disconnect_equipment_ports", {
+          equipmentId: "unit",
+          connectionId: "connection",
+        })
+      ).isError,
+    ).toBe(true);
+    expect(
+      (
+        await call("connect_equipment_ports", {
+          equipmentId: "unit",
+          portId: "source",
+          targetEquipmentId: "other",
+        })
+      ).isError,
+    ).toBe(true);
+    expect(
+      (
+        await call("connect_equipment_ports", {
+          equipmentId: "unit",
+          portId: "source",
+          targetEquipmentId: "other",
+          targetPortId: "target",
+          newPort: input,
+        })
+      ).isError,
+    ).toBe(true);
+    expect(mutations.connectEquipmentPorts).not.toHaveBeenCalled();
+    expect(mutations.disconnectEquipmentPorts).not.toHaveBeenCalled();
   });
 });
