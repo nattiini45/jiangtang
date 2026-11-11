@@ -10,6 +10,7 @@ import { buildInfo } from "~/lib/version.server";
 import { storageRoot } from "~/lib/storage/config.server";
 import { environmentStatus } from "~/lib/environment.server";
 import type { MessageKey } from "~/i18n";
+import { encryptBuffer } from "~/lib/storage/crypto.server";
 
 export async function migrationsBehind(directory = resolve("prisma/migrations")) {
   const [files, rows] = await Promise.all([
@@ -29,10 +30,15 @@ export async function migrationsBehind(directory = resolve("prisma/migrations"))
 export async function storageWritable(root = storageRoot()) {
   const path = join(root, `.health-${randomUUID()}`);
   try {
+    const probe = encryptBuffer(Buffer.alloc(0));
     await mkdir(root, { recursive: true });
     const file = await open(path, "wx");
-    await file.close();
-    await unlink(path);
+    try {
+      await file.writeFile(probe);
+    } finally {
+      await file.close();
+      await unlink(path);
+    }
     return true;
   } catch {
     return false;

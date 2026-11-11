@@ -51,6 +51,17 @@ it("probes real storage without leaving a file and reports an unwritable path", 
   expect(await overviewChecks[1].run()).toBe(true);
 });
 
+it("requires a usable encryption key for production storage", async () => {
+  vi.resetModules();
+  const { storageWritable: freshStorageWritable } = await import("../overview.queries.server");
+  vi.stubEnv("NODE_ENV", "production");
+  vi.stubEnv("STORAGE_ENCRYPTION_KEY", "");
+  expect(await freshStorageWritable(root)).toBe(false);
+  vi.stubEnv("STORAGE_ENCRYPTION_KEY", "ab".repeat(32));
+  expect(await freshStorageWritable(root)).toBe(true);
+  expect(await readdir(root)).toEqual([]);
+});
+
 it("ignores unconfigured calendar output, but detects failure, retries and old pending pushes", async () => {
   vi.stubEnv("CALDAV_URL", "");
   const row = await db.calendarOutbox.create({
