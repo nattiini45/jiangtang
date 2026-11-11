@@ -1,9 +1,11 @@
 import { mkdtemp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { db } from "~/lib/db.server";
 import { resetAi, setAiForTests } from "~/lib/ai/registry.server";
+import { storageRoot } from "~/lib/storage/config.server";
+import { getIndexStats } from "~/lib/search/indexer.server";
 import {
   getAdminOverview,
   migrationsBehind,
@@ -39,10 +41,13 @@ it("finds missing and failed migrations, but ignores rolled-back attempts", asyn
 });
 
 it("probes real storage without leaving a file and reports an unwritable path", async () => {
+  vi.stubEnv("STORAGE_DIR", undefined);
+  expect(storageRoot()).toBe(resolve("data/attachments"));
   expect(await storageWritable(root)).toBe(true);
   expect(await readdir(root)).toEqual([]);
   await writeFile(join(root, "file"), "synthetic");
   vi.stubEnv("STORAGE_DIR", join(root, "file"));
+  expect(storageRoot()).toBe(join(root, "file"));
   expect(await overviewChecks[1].run()).toBe(true);
 });
 
@@ -89,6 +94,7 @@ it("ignores unconfigured calendar output, but detects failure, retries and old p
 });
 
 it("reuses search stats for failed and retrying jobs without requiring an AI provider", async () => {
+  vi.setSystemTime(new Date("2030-01-01T12:00:00Z"));
   setAiForTests({ embedding: null });
   expect(await overviewChecks[3].run()).toBe(false);
   const row = await db.searchIndexJob.create({
@@ -106,10 +112,12 @@ it("reuses search stats for failed and retrying jobs without requiring an AI pro
   });
   expect(await overviewChecks[3].run()).toBe(true);
   await db.searchIndexJob.delete({ where: { id: row.id } });
-  await db.chunk.create({
+  setAiForTests({ embedding: { id: "overview-test", dimensions: 1024, embed: vi.fn() } });
+  const baseline = (await getIndexStats()).overdueEmbeddings;
+  const chunk = await db.chunk.create({
     data: {
       sourceId: "overview-test",
-      sourceType: "note",
+      sourceType: "NOTE",
       sourceTitle: "Synthetic",
       ordinal: 0,
       headingPath: [],
@@ -117,12 +125,75 @@ it("reuses search stats for failed and retrying jobs without requiring an AI pro
       tokenCount: 1,
       contentHash: "synthetic",
       sourceUpdatedAt: new Date("2000-01-01T00:00:00Z"),
+      updatedAt: new Date("2030-01-01T11:46:00Z"),
     },
   });
-  setAiForTests({ embedding: { id: "overview-test", dimensions: 1024, embed: vi.fn() } });
+  expect((await getIndexStats()).overdueEmbeddings).toBe(baseline);
+  await db.chunk.update({
+    where: { id: chunk.id },
+    data: { updatedAt: new Date("2030-01-01T11:44:00Z"), embeddingModel: "previous-model" },
+  });
+  expect((await getIndexStats()).overdueEmbeddings).toBe(baseline + 1);
   expect(await overviewChecks[3].run()).toBe(true);
+  await db.chunk.update({
+    where: { id: chunk.id },
+    data: { embeddingModel: "overview-test", updatedAt: new Date("2000-01-01T00:00:00Z") },
+  });
+  expect((await getIndexStats()).overdueEmbeddings).toBe(baseline);
   setAiForTests({ embedding: null });
   expect(await overviewChecks[3].run()).toBe(false);
+});
+
+it("reports security risks only for active admins and never exposes bootstrap values", async () => {
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN", isActive: true },
+    select: { id: true },
+  });
+  const ids = admins.map((admin) => admin.id);
+  const twoFactor = overviewChecks.find((check) => check.id === "adminTwoFactor")!;
+  const bootstrap = overviewChecks.find((check) => check.id === "bootstrap")!;
+  const sentinel = "synthetic-bootstrap-value-never-serialize";
+  for (const name of ["ADMIN_EMAIL", "ADMIN_PASSWORD", "ADMIN_INITIALS"]) vi.stubEnv(name, "");
+  try {
+    await db.user.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
+    const user = await db.user.create({
+      data: {
+        id: "overview-security-test",
+        email: "overview-security@example.test",
+        name: "Synthetic",
+        role: "ADMIN",
+        isActive: false,
+      },
+    });
+    expect(await twoFactor.run()).toBe(false);
+    vi.stubEnv("ADMIN_PASSWORD", sentinel);
+    expect(await bootstrap.run()).toBe(false);
+    vi.stubEnv("ADMIN_PASSWORD", "");
+    await db.user.update({ where: { id: user.id }, data: { isActive: true } });
+    expect(await twoFactor.run()).toBe(true);
+    await db.user.update({ where: { id: user.id }, data: { twoFactorEnabled: true } });
+    expect(await twoFactor.run()).toBe(false);
+    expect(await bootstrap.run()).toBe(false);
+    for (const name of ["ADMIN_EMAIL", "ADMIN_PASSWORD", "ADMIN_INITIALS"]) {
+      vi.stubEnv(name, sentinel);
+      const problems = await runOverviewChecks([bootstrap]);
+      expect(problems).toMatchObject([
+        { id: "bootstrap", href: "/admin/about", severity: "warning" },
+      ]);
+      expect(JSON.stringify(problems)).not.toContain(sentinel);
+      vi.stubEnv(name, "");
+    }
+    await db.user.update({
+      where: { id: user.id },
+      data: { role: "MEMBER", twoFactorEnabled: false },
+    });
+    vi.stubEnv("ADMIN_EMAIL", sentinel);
+    expect(await twoFactor.run()).toBe(false);
+    expect(await bootstrap.run()).toBe(false);
+  } finally {
+    await db.user.deleteMany({ where: { id: "overview-security-test" } });
+    await db.user.updateMany({ where: { id: { in: ids } }, data: { isActive: true } });
+  }
 });
 
 it("isolates exceptions and timeouts while starting every check in parallel", async () => {

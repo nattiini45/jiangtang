@@ -91,7 +91,7 @@ export default defineConfig({
     // developer's exported variables would reach the run unless they are set here.
     // The server also loads `.env` for names the environment does not set, and it
     // never overrides a name that is already set. The blanks below therefore switch
-    // off the outbound endpoints, their credentials and models for the run; the
+    // off bootstrap configuration and outbound endpoints, credentials and models; the
     // database, base URL and locale are pinned as well.
     env: {
       NODE_ENV: "development",
@@ -99,6 +99,9 @@ export default defineConfig({
       BETTER_AUTH_URL: E2E_BASE_URL,
       DATABASE_URL: e2eDbUrl,
       DEFAULT_LOCALE: "de",
+      ADMIN_EMAIL: "",
+      ADMIN_PASSWORD: "",
+      ADMIN_INITIALS: "",
       EMBEDDING_BASE_URL: "",
       EMBEDDING_MODEL: "",
       EMBEDDING_API_KEY: "",

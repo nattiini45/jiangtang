@@ -282,6 +282,7 @@ export interface SourceTypeStats {
 
 export interface IndexStats {
   activeModel: string | null;
+  overdueEmbeddings: number;
   types: SourceTypeStats[];
   pendingJobs: number;
   failedJobs: number;
@@ -291,14 +292,18 @@ export interface IndexStats {
 /** Index health for the dashboard card. */
 export async function getIndexStats(): Promise<IndexStats> {
   const active = getAi().embedding?.id ?? null;
+  const now = new Date();
+  const embeddingCutoff = new Date(now.getTime() - 15 * 60_000);
   const rows = await db.$queryRaw<
-    { sourceType: string; sources: bigint; chunks: bigint; embedded: bigint }[]
+    { sourceType: string; sources: bigint; chunks: bigint; embedded: bigint; overdue: bigint }[]
   >`SELECT "sourceType",
       count(DISTINCT "sourceId") AS sources,
       count(*) AS chunks,
-      count(*) FILTER (WHERE "embeddingModel" = ${active}) AS embedded
+      count(*) FILTER (WHERE "embeddingModel" = ${active}) AS embedded,
+      count(*) FILTER (WHERE "embeddingModel" IS DISTINCT FROM ${active}
+        AND "updatedAt" < ${embeddingCutoff}
+        AND "sourceType" IN (${Prisma.join(SOURCE_TYPES)})) AS overdue
     FROM "Chunk" GROUP BY "sourceType" ORDER BY "sourceType"`;
-  const now = new Date();
   const [pendingJobs, failedJobs, errors] = await Promise.all([
     db.searchIndexJob.count({ where: { nextAttemptAt: { gt: now } } }),
     db.searchIndexJob.count({ where: { nextAttemptAt: { lte: now } } }),
@@ -311,6 +316,7 @@ export async function getIndexStats(): Promise<IndexStats> {
   ]);
   return {
     activeModel: active,
+    overdueEmbeddings: active ? rows.reduce((sum, row) => sum + Number(row.overdue), 0) : 0,
     types: rows.map((r) => ({
       sourceType: r.sourceType,
       sources: Number(r.sources),
@@ -347,6 +353,6 @@ export async function listFailedIndexJobs(limit = 10) {
  * known source types; the dense arm only serves the active model meanwhile.
  */
 export async function clearEmbeddingModels(): Promise<void> {
-  await db.$executeRaw`UPDATE "Chunk" SET embedding = NULL, "embeddingModel" = NULL
+  await db.$executeRaw`UPDATE "Chunk" SET embedding = NULL, "embeddingModel" = NULL, "updatedAt" = now()
     WHERE "sourceType" IN (${Prisma.join(SOURCE_TYPES)})`;
 }
