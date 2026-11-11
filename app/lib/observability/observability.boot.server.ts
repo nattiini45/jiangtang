@@ -16,7 +16,7 @@ import { buildInfo } from "~/lib/version.server";
 
 // this module registers Express *middleware* (the request logger below),
 // which must be attached before any other boot module registers *routes*
-// (e.g. auth's `app.all("/api/auth/*", …)`) — otherwise Express never routes
+// (e.g. auth's `app.all("/api/auth/{*splat}", …)`) — otherwise Express never routes
 // that earlier-mounted traffic through this middleware. Negative order runs
 // before the default (0).
 export const order = -10;

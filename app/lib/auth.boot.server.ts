@@ -67,7 +67,7 @@ export function assertProductionSecrets(env: NodeJS.ProcessEnv = process.env): v
 export async function register(app: Express, ctx: BootContext): Promise<void> {
   if (ctx.env === "production") assertProductionSecrets();
 
-  app.all("/api/auth/*", toNodeHandler(auth));
+  app.all("/api/auth/{*splat}", toNodeHandler(auth));
 
   // The first-admin bootstrap runs before the dev seed, because an admin created
   // by the seed would make the bootstrap skip. Both admins are created on a fresh

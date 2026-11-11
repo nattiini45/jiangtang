@@ -39,7 +39,7 @@ async function renderOffline() {
 }
 
 const routeScript = async () => {
-  const scripts = [...(await renderOffline()).matchAll(/<script>([\s\S]*?)<\/script>/g)];
+  const scripts = [...(await renderOffline()).matchAll(/<script>([\s\S]*?)<\/script>/gi)];
   return scripts.map((m) => m[1]!).filter((s) => s.includes("online"));
 };
 

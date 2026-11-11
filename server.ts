@@ -72,7 +72,7 @@ await build.entry.module.runBootModules(app, {
 });
 
 app.all(
-  "*",
+  "/{*splat}",
   createRequestHandler({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     build: loadBuild as any,
