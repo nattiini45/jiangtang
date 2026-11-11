@@ -17,7 +17,7 @@ export const adminEn = {
   "admin.overview.problem.adminTwoFactor":
     "An active admin has no second sign-in factor, so a stolen password alone can grant administrative access; review the accounts and set up two-factor authentication.",
   "admin.overview.problem.bootstrap":
-    "First-admin variables remain set although an active admin exists, so bootstrap data is retained unnecessarily; remove ADMIN_EMAIL, ADMIN_PASSWORD and ADMIN_INITIALS from the environment.",
+    "The first-admin variables are still set although an admin exists, so the initial admin password may still be readable in the environment; remove ADMIN_EMAIL, ADMIN_PASSWORD and ADMIN_INITIALS.",
   "admin.overview.check.setup": "Team setup",
   "admin.overview.unavailable":
     "{check}: this check couldn't run, so its state is unknown; open the details and try again.",
