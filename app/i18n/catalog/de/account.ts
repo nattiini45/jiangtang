@@ -50,6 +50,24 @@ export const accountDe = {
   "account.twoFactor.err.alreadyEnabled": "Die Zwei-Faktor-Authentifizierung ist bereits aktiv.",
   "account.twoFactor.err.enrolmentExpired": "Die Einrichtung ist abgelaufen. Bitte starte sie neu.",
   "account.tokens.heading": "Persönliche Zugriffstokens",
+  "account.tokens.connection.address": "MCP-Adresse",
+  "account.tokens.connection.heading": "Client verbinden",
+  "account.tokens.connection.copy": "Kopieren",
+  "account.tokens.connection.copyNamed": "{name} kopieren",
+  "account.tokens.connection.copied": "Kopiert.",
+  "account.tokens.connection.copyFailed":
+    "Kopieren hat nicht geklappt. Markiere den Text und kopiere ihn von Hand.",
+  "account.tokens.connection.environment":
+    "Erstelle oben einen Token und speichere ihn auf deinem Computer als Umgebungsvariable JIANGTANG_MCP_TOKEN. Starte den Client so, dass ihm diese Variable zur Verfügung steht; eine vom Desktop gestartete App übernimmt die Terminal-Umgebung möglicherweise nicht. Verbinde nur Clients, denen du vertraust, und lass Werkzeugaufrufe weiterhin bestätigen.",
+  "account.tokens.connection.header": "Header zur Authentifizierung:",
+  "account.tokens.connection.claudeLabel": "Claude Code · .mcp.json",
+  "account.tokens.connection.cursorLabel": "Cursor · mcp.json",
+  "account.tokens.connection.claude":
+    "Claude Code: Füge dies in die .mcp.json in deinem Projektordner ein. Öffne dann /mcp in Claude Code, um die Verbindung zu prüfen. Das ist JSON, kein Terminalbefehl, und funktioniert auch unter Windows.",
+  "account.tokens.connection.cursor":
+    "Cursor: Ergänze damit die .cursor/mcp.json in deinem Benutzerordner (%USERPROFILE% unter Windows). Verbinde den Server dann in Cursor neu. Behalte vorhandene Servereinträge bei.",
+  "account.tokens.connection.oauth":
+    "Clients, die nur eine OAuth-Anmeldung unterstützen, etwa ChatGPT-Connectors, können sich noch nicht verbinden.",
   "account.tokens.inactive": "Für ein inaktives Konto können keine Zugriffstoken erstellt werden.",
   "account.tokens.intro":
     "Verbinde einen KI-Client über MCP mit Jiangtang. Jeder Token nutzt die Berechtigungen deines Kontos.",

@@ -8,6 +8,7 @@ import { Select } from "~/components/ui/select";
 import { formatDateTime } from "~/i18n/format";
 import { useLocale, useT } from "~/i18n/use-t";
 import { cn } from "~/lib/utils";
+import { McpConnection } from "~/routes/_desktop.account/mcp-connection";
 
 interface TokenRecord {
   id: string;
@@ -182,11 +183,13 @@ function TokenList({
 }
 
 export function PersonalAccessTokens({
+  mcpUrl,
   tokens,
   userId,
   isAdmin,
   result,
 }: {
+  mcpUrl: string;
   tokens: TokenRecord[];
   userId: string;
   isAdmin: boolean;
@@ -284,6 +287,7 @@ export function PersonalAccessTokens({
         {result?.intent === "tokenRevoke" && result.changed ? t("account.tokens.revoked") : ""}
       </p>
       <TokenList tokens={tokens.filter((token) => token.userId === userId)} busy={busy} />
+      <McpConnection url={mcpUrl} />
       {isAdmin ? (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm font-semibold">

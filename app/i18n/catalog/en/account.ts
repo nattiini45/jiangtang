@@ -49,6 +49,23 @@ export const accountEn = {
   "account.twoFactor.err.alreadyEnabled": "Two-factor authentication is already on.",
   "account.twoFactor.err.enrolmentExpired": "The setup has expired. Please start again.",
   "account.tokens.heading": "Personal access tokens",
+  "account.tokens.connection.address": "MCP address",
+  "account.tokens.connection.heading": "Connect a client",
+  "account.tokens.connection.copy": "Copy",
+  "account.tokens.connection.copyNamed": "Copy {name}",
+  "account.tokens.connection.copied": "Copied.",
+  "account.tokens.connection.copyFailed": "Couldn't copy. Select the text and copy it manually.",
+  "account.tokens.connection.environment":
+    "Create a token above, then save it on your computer as the environment variable JIANGTANG_MCP_TOKEN. Start the client with that variable available; an app opened from the desktop may not inherit your terminal's environment. Connect only clients you trust and keep tool approvals enabled.",
+  "account.tokens.connection.header": "Authentication header:",
+  "account.tokens.connection.claudeLabel": "Claude Code · .mcp.json",
+  "account.tokens.connection.cursorLabel": "Cursor · mcp.json",
+  "account.tokens.connection.claude":
+    "Claude Code: merge this into .mcp.json in your project folder, then open /mcp in Claude Code to check the connection. This is JSON, not a shell command; it works on Windows too.",
+  "account.tokens.connection.cursor":
+    "Cursor: merge this into .cursor/mcp.json in your home folder (%USERPROFILE% on Windows), then reconnect the server in Cursor. Keep existing server entries.",
+  "account.tokens.connection.oauth":
+    "Clients that only support OAuth sign-in, such as ChatGPT connectors, can't connect yet.",
   "account.tokens.inactive": "Personal access tokens cannot be created for an inactive account.",
   "account.tokens.intro":
     "Connect an AI client to Jiangtang through MCP. Each token acts with your account's permissions.",

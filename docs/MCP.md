@@ -10,6 +10,7 @@ to its provider: connect only clients you trust.
 In **My account → Personal access tokens**, create a named personal access token (PAT), choosing
 **Read-only** (`READ_ONLY`) or **Read-write** (`READ_WRITE`). Copy the secret when it is shown;
 only its hash is stored.
+The same page shows this installation's MCP address and copy-ready client configurations.
 Use a separate, recognizable name for each client, start with read-only, and revoke unused or
 exposed tokens on the same page. Admins can also revoke other users' tokens there, subject to the
 installation's admin two-factor requirement.
@@ -30,7 +31,7 @@ commit so open token lists can refetch. Calls with no live PATs do not emit this
 ### Cursor
 
 The [official Cursor MCP guide](https://cursor.com/docs/mcp) documents remote `url` and `headers`
-configuration and environment interpolation (checked 2026-11-09). In your personal
+configuration and environment interpolation (checked 2026-11-11). In your personal
 `~/.cursor/mcp.json`, use:
 
 ```json
@@ -53,16 +54,27 @@ Keep tool approvals enabled, especially for writes.
 ### Claude Code
 
 The [official Claude Code guide](https://code.claude.com/docs/en/mcp) documents HTTP connections
-with a Bearer header (checked 2026-11-09):
+and environment expansion in `.mcp.json` headers (checked 2026-11-11). Merge this into
+`.mcp.json` in your project folder, keeping any existing server entries:
 
-```sh
-claude mcp add --transport http --scope user jiangtang https://YOUR_INSTALLATION/mcp \
-  --header "Authorization: Bearer ${JIANGTANG_MCP_TOKEN}"
+```json
+{
+  "mcpServers": {
+    "jiangtang": {
+      "type": "http",
+      "url": "https://YOUR_INSTALLATION/mcp",
+      "headers": {
+        "Authorization": "Bearer ${JIANGTANG_MCP_TOKEN}"
+      }
+    }
+  }
+}
 ```
 
-Run this only in a trusted local shell with the variable already supplied securely. The expanded
-credential is stored in the client's local configuration and can be visible to local process
-inspection; protect that configuration. Use `/mcp` to inspect the connection. This example is for
+This is JSON, not a shell command: Claude Code expands the variable, so the same configuration
+works on Windows, macOS and Linux. Supply `JIANGTANG_MCP_TOKEN` securely to the Claude Code
+process before starting it. Do not replace the reference with a secret in the file.
+Use `/mcp` to inspect and approve the project connection. This is for
 **Claude Code**, not a claim that every Claude web/desktop connector accepts PAT headers.
 
 ### Official TypeScript SDK
