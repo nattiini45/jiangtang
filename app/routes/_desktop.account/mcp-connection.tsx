@@ -6,7 +6,6 @@ import { useT } from "~/i18n/use-t";
 export function mcpAgentPrompt(t: Translate, url: string) {
   return t("account.tokens.connection.promptBody", {
     url,
-    bridgeHeader: "Authorization:${JIANGTANG_MCP_HEADER}",
   });
 }
 

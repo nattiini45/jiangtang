@@ -21,11 +21,10 @@ describe("MCP client configurations", () => {
       const prompt = mcpAgentPrompt((key, params) => t(locale, key, params), url);
       expect(prompt).toContain(url);
       expect(prompt).toContain("JIANGTANG_MCP_TOKEN");
-      expect(prompt).toContain("Authorization:${JIANGTANG_MCP_HEADER}");
       expect(prompt).toContain("Streamable HTTP");
       expect(prompt).toContain("jiangtang");
       expect(prompt).not.toContain("jtg_");
-      expect(prompt).not.toMatch(/\{(?:url|bridgeHeader)\}/);
+      expect(prompt).not.toContain("{url}");
     },
   );
 
