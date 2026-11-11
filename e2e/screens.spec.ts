@@ -89,7 +89,7 @@ async function gotoAndAssertMarker(
  *
  * The main surfaces, plus task detail, project gantt/burndown,
  * the note editor (seed_note_06 carries headings + table + checklist), a
- * "Mischpult" search, the ask box in its results-only state, /admin/index,
+ * "Mischpult" search, the ask box in its results-only state, /admin/search-index,
  * and the mobile board/search/capture routes.
  *
  * Markers: the third tuple column is the <h1> text the route component
@@ -160,7 +160,7 @@ const ROUTES = [
     "app/components/timesheet/capacity-panel.tsx (h1 via nav.capacity; /capacity redirects to /timesheet?tab=capacity)",
   ],
   ["import", "/import", "Import / Export", "_desktop.import/route.tsx:87"],
-  ["admin-index", "/admin/index", "Suchindex", "_desktop.admin.index/route.tsx:88"],
+  ["admin-index", "/admin/search-index", "Suchindex", "_desktop.admin.search-index/route.tsx:88"],
   ["m", "/m", "Eintrag erfassen", "m._index/route.tsx:141"],
   ["m-board", "/m/board", "Board", "m.board/route.tsx:42"],
   ["m-search", "/m/search?q=Lager", "Suche", "m.search/route.tsx:31"],

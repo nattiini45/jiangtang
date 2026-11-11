@@ -64,7 +64,16 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
         </span>
       ),
     },
-    { accessorKey: "name", header: t("admin.users.col.name"), size: 110 },
+    {
+      accessorKey: "name",
+      header: t("admin.users.col.name"),
+      size: 130,
+      cell: ({ row }) => (
+        <span className="truncate" title={row.original.name}>
+          {row.original.name}
+        </span>
+      ),
+    },
     {
       accessorKey: "role",
       header: t("admin.users.col.role"),
@@ -74,7 +83,7 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     {
       accessorKey: "state",
       header: t("admin.users.col.status"),
-      size: 260,
+      size: 240,
       cell: ({ row }) => {
         const invitation = row.original;
         const date = invitation.acceptedAt ?? invitation.revokedAt ?? invitation.expiresAt;

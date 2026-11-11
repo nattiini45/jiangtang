@@ -400,7 +400,10 @@ export default function Dashboard({ loaderData }: Route.ComponentProps) {
               <>
                 <dt className="text-muted-foreground"> </dt>
                 <dd>
-                  <Link to="/admin/index" className="text-muted-foreground text-xs hover:underline">
+                  <Link
+                    to="/admin/search-index"
+                    className="text-muted-foreground text-xs hover:underline"
+                  >
                     {t("dashboard.storage.indexLink")}
                   </Link>
                 </dd>
