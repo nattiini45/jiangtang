@@ -28,7 +28,7 @@ export interface BootModule {
    * Optional ordering hint. Boot modules run in ascending `order`, ties broken
    * by filename. Default is 0 ("middle"). Modules that register Express
    * *middleware* (e.g. request logging, error tracking) must run before
-   * modules that register *routes* (e.g. `app.all("/api/auth/*", …)`) —
+   * modules that register *routes* (e.g. `app.all("/api/auth/{*splat}", …)`) —
    * otherwise Express never routes the earlier-mounted route's traffic through
    * middleware added later. Use a negative order (e.g. -10) for
    * middleware-registering modules; leave route-registering modules at the
@@ -51,7 +51,7 @@ const modules = import.meta.glob<BootModule>("/app/**/*.boot.server.ts", {
  *
  * Order: ascending `order` (default 0), ties broken by filename. This lets
  * middleware-registering modules (observability's request logger, etc.) run
- * before route-registering modules (auth's `/api/auth/*`), so every route
+ * before route-registering modules (auth's `/api/auth/{*splat}`), so every route
  * sees the middleware regardless of alphabetical filename order.
  */
 export async function runBootModules(app: Express, ctx: BootContext): Promise<void> {
