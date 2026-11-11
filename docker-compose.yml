@@ -198,7 +198,7 @@ services:
   # busybox sh, so we apk-add bash once at startup and invoke the script via bash
   # (not its shebang). Idempotent + cached, so restarts are cheap.
   alerting:
-    image: ${ALERTING_IMAGE:-alpine/curl:latest}
+    image: ${ALERTING_IMAGE:-alpine/curl:8.23.0}
     environment:
       HEALTH_URL: ${HEALTH_URL:-http://app:3000/healthz}
       ALERT_WEBHOOK: ${ALERT_WEBHOOK:-}
@@ -349,7 +349,7 @@ services:
     restart: unless-stopped
 
   caddy:
-    image: caddy:2
+    image: caddy:2.11.9
     ports:
       - "80:80"
       - "443:443"

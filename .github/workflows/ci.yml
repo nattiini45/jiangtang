@@ -13,16 +13,13 @@ permissions:
 # A newer push cancels an older run of the same pull request. Runs on main are
 # never cancelled, so every merged commit keeps its own result.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.sha || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  ci:
+  checks:
     runs-on: ubuntu-latest
-    # The browser gate can wait on the dev server and the database for minutes;
-    # a hung run must not hold the required check open for the GitHub default
-    # of six hours.
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     # Postgres 18 + pgvector — must match dev and production. No volume mount,
     # so the PG18 data-dir guard never trips. On stock `postgres:18` `vector` is
@@ -46,7 +43,7 @@ jobs:
     env:
       # Main database. `pnpm test` does not write here: test/global-setup.ts
       # derives and provisions the isolated `jiangtang_test` sibling from this
-      # URL. The browser gate provisions `jiangtang_e2e` below.
+      # URL. Each browser shard provisions `jiangtang_e2e` on its own runner.
       DATABASE_URL: postgresql://jiangtang:jiangtang@localhost:5432/jiangtang?schema=public
       TZ: Europe/Berlin
 
@@ -65,6 +62,8 @@ jobs:
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+
+      - run: pnpm format
 
       # Golden-rule guards (import bans, mutation funnel, EXCLUDE-column drop).
       - run: bash scripts/guards.sh
@@ -217,7 +216,6 @@ jobs:
 
       - run: pnpm typecheck
 
-      # Correctness lint (floating promises, hook deps); formatting is not gated.
       - run: pnpm lint
 
       # Load-bearing CI guard: EXCLUDE rejects overlaps (23P01); ActivityLog immutable.
@@ -225,6 +223,50 @@ jobs:
 
       # Catch build-only breakage (e.g. client/server import mixups) before deploy.
       - run: pnpm build
+
+  e2e:
+    name: Playwright (${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.7-pg18-trixie
+        env:
+          POSTGRES_USER: jiangtang
+          POSTGRES_PASSWORD: jiangtang
+          POSTGRES_DB: jiangtang
+          TZ: Europe/Berlin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jiangtang -d jiangtang"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TZ: Europe/Berlin
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm db:generate
 
       # ── Browser gate ─────────────────────────────────────────────────────
       # A database of its own (`jiangtang_e2e`, required suffix by
@@ -270,6 +312,11 @@ jobs:
           pnpm db:deploy
           pnpm db:seed
 
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Chromium with system dependencies
         run: pnpm exec playwright install --with-deps chromium
 
@@ -312,7 +359,7 @@ jobs:
         # `pnpm test:e2e` exits non-zero on any test failure, a global-setup
         # failure (login/route priming) or an incomplete teardown — a browser
         # failure fails the job.
-        run: pnpm test:e2e
+        run: pnpm test:e2e --shard=${{ matrix.shard }}/2 --retries=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 1 || 0 }}
 
       # Failure diagnostics only. The paths contain Playwright's HTML report and
       # per-test traces/screenshots from synthetic data; `e2e/.auth` (session
@@ -321,9 +368,25 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-failure-diagnostics
+          name: playwright-failure-diagnostics-${{ matrix.shard }}
           path: |
             playwright-report/
             test-results/
           retention-days: 3
           if-no-files-found: ignore
+
+  ci:
+    name: ci
+    if: always()
+    needs: [checks, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every job to succeed
+        shell: bash
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          echo "checks=$CHECKS_RESULT, e2e=$E2E_RESULT"
+          [[ "$CHECKS_RESULT" == success && "$E2E_RESULT" == success ]]
