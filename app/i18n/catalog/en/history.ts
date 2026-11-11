@@ -118,4 +118,9 @@ export const historyEn = {
   "history.action.VendorCreated": "Vendor created",
   "history.action.VendorUpdated": "Vendor updated",
   "history.action.VendorDeleted": "Vendor deleted",
+  "history.action.EquipmentModelPortsSet": "Model ports saved",
+  "history.action.EquipmentPortAdded": "Port added",
+  "history.action.EquipmentPortUpdated": "Port updated",
+  "history.action.EquipmentPortRemoved": "Port removed",
+  "history.action.EquipmentPortInherited": "Model ports added",
 } satisfies Record<keyof typeof historyDe, string>;

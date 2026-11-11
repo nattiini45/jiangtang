@@ -181,6 +181,7 @@ model Room {
 // ── Equipment ────────────────────────────────────────────────────────────────
 
 model EquipmentModel {
+  ports        EquipmentModelPort[]
   id           String            @id @default(cuid())
   manufacturer String?
   name         String
@@ -195,6 +196,7 @@ model EquipmentModel {
 }
 
 model Equipment {
+  ports    EquipmentPort[]
   id       String            @id @default(cuid())
   roomId   String? // null => part of the movable pool
   room     Room?             @relation(fields: [roomId], references: [id])
@@ -245,6 +247,54 @@ model Equipment {
   @@index([modelId])
   @@index([category])
   @@index([status])
+}
+
+enum PortDirection {
+  INPUT
+  OUTPUT
+  BIDIRECTIONAL
+}
+
+enum PortSignal {
+  VIDEO
+  AUDIO
+  AUDIO_VIDEO
+  CONTROL
+  NETWORK
+  USB
+  POWER
+  OTHER
+}
+
+model EquipmentModelPort {
+  id        String          @id @default(cuid())
+  modelId   String
+  model     EquipmentModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  label     String
+  connector String
+  direction PortDirection
+  signal    PortSignal
+  position  Int
+  copies    EquipmentPort[]
+
+  @@unique([modelId, label])
+}
+
+model EquipmentPort {
+  id          String              @id @default(cuid())
+  equipmentId String
+  equipment   Equipment           @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  label       String
+  connector   String
+  direction   PortDirection
+  signal      PortSignal
+  position    Int
+  note        String?
+  modelPortId String?
+  modelPort   EquipmentModelPort? @relation(fields: [modelPortId], references: [id], onDelete: SetNull)
+
+  @@unique([equipmentId, label])
+  @@index([modelPortId])
 }
 
 // ── People ───────────────────────────────────────────────────────────────────

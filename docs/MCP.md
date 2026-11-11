@@ -104,7 +104,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **46 read tools and 69 write tools**. Their published schemas are
+Discovery currently returns **46 read tools and 74 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -119,6 +119,23 @@ calls are denied before executing domain mutations.
 | Notes                        | `list_notes`, `get_note`, `list_note_tags`                                                                                                                                  | `create_note`, `update_note`, `set_note_pinned`, `archive_note`, `unarchive_note`, `delete_note`                                                                                                                                 |
 | Personal work and history    | `list_time_entries`, `get_time_entry`, `get_timesheet`, `get_running_timer`, `list_notifications`, `get_notification`, `list_activity`, `search_workspace`                  | `start_timer`, `stop_timer`, `create_time_entry`, `update_time_entry`, `delete_time_entry`, `mark_notification_read`, `mark_all_notifications_read`                                                                              |
 | Images                       | `list_attachments`, `get_attachment` (metadata only)                                                                                                                        | `upload_attachment`, `delete_attachment`                                                                                                                                                                                         |
+
+`get_equipment_model` and `get_equipment` include ordered `ports`.
+Use `set_equipment_model_ports({ modelId, ports })` to replace and reorder templates;
+each port has `label`, `connector`, `direction` and `signal`. New devices copy templates
+in their creation transaction. Template edits never overwrite existing device ports.
+`inherit_equipment_model_ports({ equipmentId })` adds only labels that are missing.
+Renaming a template counts as removing one label and adding another: existing copies
+keep their label and values, and a later inherit can add the newly named port alongside them.
+Room cloning starts new devices from their model templates, not from customised device ports.
+Use `add_equipment_port` or `update_equipment_port` with `equipmentId` and `input`
+(`label`, `connector`, `direction`, `signal`, zero-based `position`, optional `note`);
+updates also require `portId`. `remove_equipment_port` takes `equipmentId`, `portId`
+and `confirm: true`. All five tools require a write token and permit team members.
+Connectors use the published enum-like list in the tool schema, backed by a text column;
+direction is `INPUT`, `OUTPUT` or `BIDIRECTIONAL`, and signal is `VIDEO`, `AUDIO`,
+`AUDIO_VIDEO`, `CONTROL`, `NETWORK`, `USB`, `POWER` or `OTHER`.
+Hostname, IP address and MAC address are editable on equipment in every category.
 
 Most lists return `items` and `nextOffset`; repeat with that offset until it is null. Lists
 default to 50, accept up to 100 per page, and expose domain filters. `list_activity` uses
