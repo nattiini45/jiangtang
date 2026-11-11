@@ -420,7 +420,7 @@ Sciebo runs Nextcloud, so the steps are the same for both:
    CALDAV_PASSWORD=<app password>
    ```
 
-5. As an admin, open `/admin/index` and choose **Test connection** under **Calendar sync**. It
+5. As an admin, open `/admin/search-index` and choose **Test connection** under **Calendar sync**. It
    reports a wrong login or app password, a URL that is not a calendar, and a calendar the account
    may only read. The same section shows the last successful push, the last error and the number of
    pending, retrying and failed (parked) pushes.
@@ -654,7 +654,7 @@ curl -fsS https://<APP_DOMAIN>/healthz
 ```
 
 The application logs `[calendar] CALDAV_* not set — outbox drain idle` when calendar push is
-unconfigured, and `/admin/index` shows the resolved status of each AI capability. The alerting
+unconfigured, and `/admin/search-index` shows the resolved status of each AI capability. The alerting
 sidecar logs `alerting disabled; idling` when `ALERT_WEBHOOK` is empty. The bootstrap log lines
 record that an admin was created, never the password. Still, treat logs as sensitive and redact
 request paths, e-mail addresses and IDs before sharing them. `docker compose config` renders every

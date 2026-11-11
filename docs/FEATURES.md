@@ -48,7 +48,7 @@ visitor can switch with the language control. Times are stored as UTC and displa
   `CALDAV_USERNAME`, `CALDAV_PASSWORD`). The push is one way: creating or editing an event writes
   it to one calendar and cancelling it removes it, nothing is read back, and edits made in the
   calendar are overwritten. It is off while those variables are empty. Admins can test the
-  connection and see the push status on `/admin/index`. Setup is in
+  connection and see the push status on `/admin/search-index`. Setup is in
   [DEPLOY.md](DEPLOY.md#calendar-push-to-sciebo-or-nextcloud).
 
 ## Tasks, projects and board

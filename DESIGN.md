@@ -365,6 +365,10 @@ Smaller 4px and 6px steps exist for keycaps and badges. Do not flatten the whole
   high (20px compact) with 6px corners, not controls.
 - **Navigation:** desktop groups links as Work, Rooms & equipment, Operations and Data & admin
   (`work`, `places`, `service`, `admin` in `app/components/layout/nav.ts`).
+  Administration replaces Users and Search index in the workspace's last group; Analytics
+  follows Activity in Work. On `/admin` paths the same sidebar instead shows Back to workspace,
+  People (Users, Invitations), Data (Search index) and System (About), for admins only. There
+  is no second navigation column or tab bar, so the content keeps its width at 1280 px.
   Hover and selected overlays share the global tokens; Lucide supplies navigation icons. The
   mobile shell uses a distinct bottom navigation and overflow menu.
 - **States:** `app/components/states/empty-state.tsx` is the shared empty-state pattern. Existing routes

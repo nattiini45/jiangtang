@@ -10,9 +10,13 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     accessorKey: "name",
     header: t("admin.users.col.name"),
-    size: 200,
+    size: 180,
     cell: ({ row }) => (
-      <Link to={`/admin/users/${row.original.id}`} className="hover:underline">
+      <Link
+        to={`/admin/users/${row.original.id}`}
+        className="truncate hover:underline"
+        title={row.original.name}
+      >
         {row.original.name}
       </Link>
     ),
@@ -20,13 +24,17 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     accessorKey: "email",
     header: t("admin.users.col.email"),
-    size: 240,
-    cell: ({ row }) => row.original.email,
+    size: 210,
+    cell: ({ row }) => (
+      <span className="truncate" title={row.original.email}>
+        {row.original.email}
+      </span>
+    ),
   },
   {
     accessorKey: "emailVerified",
     header: t("admin.users.verification"),
-    size: 180,
+    size: 230,
     cell: ({ row }) => (
       <span className="text-muted-foreground text-xs">
         {t(row.original.emailVerified ? "admin.users.verified" : "admin.users.unverified")}
@@ -36,14 +44,14 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     accessorKey: "initials",
     header: t("admin.users.col.initials"),
-    size: 100,
+    size: 75,
     cell: ({ row }) =>
       row.original.initials ? <MonoCell>{row.original.initials}</MonoCell> : dash,
   },
   {
     accessorKey: "role",
     header: t("admin.users.col.role"),
-    size: 110,
+    size: 100,
     cell: ({ row }) => (
       <span className="text-muted-foreground">
         <RoleText role={row.original.role} />
@@ -53,7 +61,7 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     id: "isActive",
     header: t("admin.users.col.status"),
-    size: 120,
+    size: 110,
     cell: ({ row }) =>
       row.original.isActive ? (
         <span className="text-status-operational text-xs">{t("admin.users.active")}</span>
@@ -64,7 +72,7 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     id: "twoFactorEnabled",
     header: t("admin.users.col.twoFactor"),
-    size: 90,
+    size: 75,
     cell: ({ row }) =>
       row.original.twoFactorEnabled ? (
         <span className="text-status-operational text-xs">{t("admin.users.twoFactorOn")}</span>

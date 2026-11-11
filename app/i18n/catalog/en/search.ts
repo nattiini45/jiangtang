@@ -63,7 +63,7 @@ export const searchEn = {
     "Semantic search is not configured (EMBEDDING_BASE_URL is missing) — results come from keyword and fuzzy search.",
   "search.page.noResults": "No results for “{q}”.",
   "search.page.noResultsHint":
-    "Try an identifier, serial number or keyword — or reconcile the index under /admin/index.",
+    "Try an identifier, serial number or keyword — or reconcile the index under /admin/search-index.",
 
   "search.ask.title": "Ask a question",
   "search.ask.subtitle": "Answers only from the workspace — every statement with its source.",

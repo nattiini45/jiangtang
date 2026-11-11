@@ -387,7 +387,7 @@ const DESKTOP: [string, () => string][] = [
   ["admin users new", () => "/admin/users/new"],
   ["admin user detail", () => `/admin/users/${ids.memberId}`],
   ["admin user erase", () => `/admin/users/${ids.memberId}/erase`],
-  ["admin index", () => "/admin/index"],
+  ["admin index", () => "/admin/search-index"],
   ["not found", () => "/no-such-page"],
 ];
 
