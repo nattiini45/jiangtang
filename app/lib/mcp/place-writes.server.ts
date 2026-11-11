@@ -71,6 +71,9 @@ const byId = z.object({ id });
 const confirmedId = byId.extend({ confirm: z.literal(true) });
 const instant = z.iso.datetime({ offset: true });
 const roomInstants = {
+  lastCheckedAt: instant
+    .optional()
+    .transform((value) => roomCreateSchema.shape.lastCheckedAt.parse(value)),
   renewalFrom: instant
     .optional()
     .transform((value) => roomCreateSchema.shape.renewalFrom.parse(value)),
@@ -160,7 +163,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "create_room",
       description:
-        "Create a bookable room. Renewal instants require an ISO timestamp with an offset.",
+        "Create a bookable room with optional knownIssues and lastCheckedAt. Check and renewal instants require an ISO timestamp with an offset.",
       schema: roomCreateSchema.safeExtend(roomInstants),
       entityType: "room",
       op: "created",
@@ -171,7 +174,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_room",
       description:
-        "Replace a room's editable fields by ID, not slug. Omitted optional fields are cleared; renewal instants require an ISO timestamp with an offset.",
+        "Replace a room's editable fields by ID, not slug, including knownIssues and lastCheckedAt. Omitted optional fields are cleared; check and renewal instants require an ISO timestamp with an offset.",
       schema: z.object({ id, input: roomEditSchema.safeExtend(roomInstants) }),
       entityType: "room",
       op: "updated",

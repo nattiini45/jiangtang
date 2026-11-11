@@ -270,7 +270,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_rooms",
       description:
-        "List bookable rooms with campus/building labels, status and capacity. Rooms are separate from storage locations. Follow nextOffset.",
+        "List bookable rooms with campus/building labels, status, capacity, knownIssues and lastCheckedAt. Rooms are separate from storage locations. Follow nextOffset.",
       schema: pagination.extend({
         campusId: id.optional(),
         status: z.enum(RoomStatus).optional(),
