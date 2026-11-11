@@ -18,7 +18,7 @@ export const adminEn = {
   "admin.overview.problem.migrations":
     "Database migrations are missing or unfinished, so this build may not work correctly; check the deployment and rerun the migration job with prisma migrate deploy.",
   "admin.overview.problem.storage":
-    "File storage isn't writable, so uploads cannot be saved; check STORAGE_DIR and its permissions.",
+    "File storage isn't ready, so uploads cannot be saved; check STORAGE_DIR, its permissions and STORAGE_ENCRYPTION_KEY.",
   "admin.overview.problem.calendar":
     "Calendar pushes are failing repeatedly or have waited over 15 minutes, so the connected calendar may be out of date; inspect the retry queue.",
   "admin.overview.problem.search":

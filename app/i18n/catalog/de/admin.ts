@@ -17,7 +17,7 @@ export const adminDe = {
   "admin.overview.problem.migrations":
     "Datenbankmigrationen fehlen oder wurden nicht abgeschlossen, deshalb funktioniert diese Version möglicherweise nicht korrekt; prüfe die Bereitstellung und starte den Migrationsjob mit prisma migrate deploy erneut.",
   "admin.overview.problem.storage":
-    "Der Dateispeicher ist nicht beschreibbar, deshalb können Uploads nicht gespeichert werden; prüfe STORAGE_DIR und die Zugriffsrechte.",
+    "Der Dateispeicher ist nicht bereit, deshalb können Uploads nicht gespeichert werden; prüfe STORAGE_DIR, die Zugriffsrechte und STORAGE_ENCRYPTION_KEY.",
   "admin.overview.problem.calendar":
     "Kalenderübertragungen schlagen wiederholt fehl oder warten seit über 15 Minuten, deshalb ist der verbundene Kalender möglicherweise veraltet; prüfe die Warteschlange.",
   "admin.overview.problem.search":
