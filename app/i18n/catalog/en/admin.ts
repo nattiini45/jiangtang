@@ -1,6 +1,40 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.overview.title": "Overview",
+  "admin.overview.meta": "Administration · Jiangtang",
+  "admin.overview.subtitle": "Installation health and next steps.",
+  "admin.overview.problems": "Detected problems",
+  "admin.overview.clear": "No problems detected",
+  "admin.overview.broken": "Broken",
+  "admin.overview.risk": "Risk",
+  "admin.overview.check.migrations": "Database migrations",
+  "admin.overview.check.storage": "File storage",
+  "admin.overview.check.calendar": "Calendar push",
+  "admin.overview.check.search": "Search index",
+  "admin.overview.check.setup": "Team setup",
+  "admin.overview.unavailable":
+    "{check}: this check couldn't run, so its state is unknown; open the details and try again.",
+  "admin.overview.problem.migrations":
+    "Database migrations are missing or unfinished, so this build may not work correctly; check the deployment and rerun the migration job with prisma migrate deploy.",
+  "admin.overview.problem.storage":
+    "File storage isn't ready, so uploads cannot be saved; check STORAGE_DIR, its permissions and STORAGE_ENCRYPTION_KEY.",
+  "admin.overview.problem.calendar":
+    "Calendar pushes are failing repeatedly or have waited over 15 minutes, so the connected calendar may be out of date; inspect the retry queue.",
+  "admin.overview.problem.search":
+    "Search has failed jobs or unfinished indexing, so results may be incomplete; inspect the index and start a reconciliation.",
+  "admin.overview.setup": "Setup steps",
+  "admin.overview.guidance":
+    "Suggestions for a new installation, not requirements for using the workspace.",
+  "admin.overview.step.team": "Invite the team",
+  "admin.overview.step.calendar": "Connect a calendar",
+  "admin.overview.step.embedding": "Configure an embedding provider",
+  "admin.overview.optional": "Optional",
+  "admin.overview.glance": "At a glance",
+  "admin.overview.build": "Version {version} · {commit}",
+  "admin.overview.unknownCommit": "commit not supplied",
+  "admin.overview.invitations": "Pending invitations: {count}",
+  "admin.overview.invitationsUnknown": "Pending invitations: unknown",
   "nav.administration": "Administration",
   "nav.backToWorkspace": "Back to workspace",
   "nav.about": "About",
