@@ -6,7 +6,7 @@ export const adminDe = {
   "nav.group.people": "Personen",
   "nav.group.data": "Daten",
   "nav.group.system": "System",
-  "admin.about.meta": "Über Jiangtang · Jiangtang",
+  "admin.about.meta": "Über · Jiangtang",
   "admin.about.subtitle": "Laufende Version und Anwendungskonfiguration.",
   "admin.about.version": "Version",
   "admin.about.commit": "Commit",

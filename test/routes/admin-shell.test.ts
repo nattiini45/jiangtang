@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NAV, navigationFor } from "~/components/layout/nav";
 import { verbsFor } from "~/components/command/verbs";
 import { ENVIRONMENT_VARIABLES } from "~/lib/environment.server";
+import { buildInfo } from "~/lib/version.server";
 import * as about from "~/routes/_desktop.admin.about/route";
 import * as admin from "~/routes/_desktop.admin._index/route";
 import * as legacy from "~/routes/_desktop.admin.index/route";
@@ -109,7 +110,11 @@ describe("administration shell", () => {
         locale === "en" ? "Remove after setup" : "Nach der Einrichtung entfernen",
       );
       expect(html).toContain(
-        locale === "en" ? "has not supplied a commit" : "keinen Commit übergeben",
+        buildInfo.commit === "unknown"
+          ? locale === "en"
+            ? "has not supplied a commit"
+            : "keinen Commit übergeben"
+          : buildInfo.commit,
       );
     },
   );

@@ -59,10 +59,10 @@ export default function About({ loaderData: { build, variables } }: Route.Compon
                 .filter((v) => v.group === group)
                 .map((variable) => (
                   <tr key={variable.name} className="border-b last:border-b-0">
-                    <th scope="row" className="px-4 py-(--row-py) font-normal">
+                    <th scope="row" className="py-row px-4 font-normal">
                       <code className="break-all text-xs">{variable.name}</code>
                     </th>
-                    <td className="px-4 py-(--row-py)">
+                    <td className="py-row px-4">
                       {t(variable.set ? "admin.about.set" : "admin.about.notSet")}
                       {variable.set && variable.expectedUnset ? (
                         <p className="text-destructive text-xs">
