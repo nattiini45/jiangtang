@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useFetcher } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { ArrowDown, ArrowUp, Copy, Trash2 } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
@@ -22,9 +22,26 @@ export const blankPort: PortInput = {
   note: "",
 };
 type PortDraft = Omit<PortInput, "connector"> & { connector: string };
-export type PortRow = PortDraft & { id: string };
+export type PortRow = PortDraft & {
+  id: string;
+  connection?: {
+    id: string;
+    note: string | null;
+    other: {
+      id: string;
+      label: string;
+      equipment: { id: string; name: string | null; assetTag: string | null; status: string };
+    };
+  } | null;
+};
 export function connectorKey(connector: string) {
   return PORT_CONNECTORS.find((key) => key === connector) ?? "OTHER";
+}
+
+function portDeviceLabel(device: { id: string; name: string | null; assetTag: string | null }) {
+  return device.name
+    ? `${device.name}${device.assetTag ? ` (${device.assetTag})` : ""}`
+    : (device.assetTag ?? device.id);
 }
 
 export function duplicatePortLabel(original: string, existing: ReadonlySet<string>) {
@@ -136,7 +153,7 @@ export function PortFields({
 export function PortResult({ data }: { data?: { portError?: string; portsSaved?: boolean } }) {
   const t = useT();
   return (
-    <div>
+    <div hidden={!data?.portError && !data?.portsSaved}>
       <p role="alert" className="text-destructive text-sm">
         {data?.portError}
       </p>
@@ -304,10 +321,19 @@ function DevicePortEditor({ port, position }: { port?: PortRow; position: number
   );
 }
 
-export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel: boolean }) {
+export function EquipmentPorts({
+  equipmentId,
+  ports,
+  hasModel,
+}: {
+  equipmentId: string;
+  ports: PortRow[];
+  hasModel: boolean;
+}) {
   const t = useT();
   const fetcher = useFetcher<{ portError?: string; portsSaved?: boolean }>();
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
   return (
     <section
       className="bg-card shadow-surface-2 grid gap-4 rounded-lg p-4"
@@ -330,7 +356,7 @@ export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel
       ) : null}
       <ul className="divide-y">
         {ports.map((port) => (
-          <li key={port.id} className="py-row">
+          <li key={port.id} id={`port-${port.id}`} className="py-row">
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-3">
               <div className="min-w-0 flex-1">
                 <h3 className="truncate text-sm font-semibold" title={port.label}>
@@ -342,8 +368,86 @@ export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel
                 </p>
                 {port.note ? <p className="mt-1 text-sm wrap-anywhere">{port.note}</p> : null}
               </div>
-              <span className="text-muted-foreground text-sm">{t("ports.free")}</span>
+              <div className="min-w-0 text-sm">
+                {port.connection ? (
+                  <>
+                    <span className="flex min-w-0 items-baseline gap-1">
+                      <Link
+                        to={`/inventory/${port.connection.other.equipment.id}`}
+                        className="min-w-0 truncate underline underline-offset-4"
+                        title={portDeviceLabel(port.connection.other.equipment)}
+                      >
+                        {portDeviceLabel(port.connection.other.equipment)}
+                      </Link>
+                      <span className="shrink-0"> · </span>
+                      <Link
+                        to={`/inventory/${port.connection.other.equipment.id}#port-${port.connection.other.id}`}
+                        className="max-w-1/2 shrink-0 truncate underline underline-offset-4"
+                        title={port.connection.other.label}
+                      >
+                        {port.connection.other.label}
+                      </Link>
+                    </span>
+                    {port.connection.other.equipment.status === "RETIRED" ? (
+                      <p className="text-muted-foreground text-xs">{t("ports.retired")}</p>
+                    ) : null}
+                    {port.connection.note ? (
+                      <p
+                        className="text-muted-foreground truncate text-xs"
+                        title={port.connection.note}
+                      >
+                        {port.connection.note}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">{t("ports.free")}</span>
+                )}
+              </div>
               <div className="flex items-center gap-1">
+                {port.connection ? (
+                  <fetcher.Form
+                    method="post"
+                    onSubmit={(event) => {
+                      if (
+                        !confirm(
+                          t("ports.confirmDisconnect", {
+                            label: port.label,
+                            device:
+                              port.connection!.other.equipment.name ??
+                              port.connection!.other.equipment.assetTag ??
+                              port.connection!.other.equipment.id,
+                            port: port.connection!.other.label,
+                          }),
+                        )
+                      )
+                        event.preventDefault();
+                    }}
+                  >
+                    <input type="hidden" name="_action" value="portDisconnect" />
+                    <input type="hidden" name="connectionId" value={port.connection.id} />
+                    <Button
+                      variant="ghost"
+                      size="compact"
+                      disabled={fetcher.state !== "idle"}
+                      aria-label={t("ports.disconnectPort", { label: port.label })}
+                    >
+                      {t("ports.disconnect")}
+                    </Button>
+                  </fetcher.Form>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="compact"
+                    aria-expanded={connectingId === port.id}
+                    aria-controls={`connect-${port.id}`}
+                    aria-label={t("ports.connectPort", { label: port.label })}
+                    onClick={() => setConnectingId(connectingId === port.id ? null : port.id)}
+                  >
+                    {t("ports.connect")}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -380,6 +484,11 @@ export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel
                 <DevicePortEditor key={port.id} port={port} position={port.position} />
               </div>
             ) : null}
+            {connectingId === port.id && !port.connection ? (
+              <div id={`connect-${port.id}`}>
+                <ConnectPort equipmentId={equipmentId} port={port} />
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -390,5 +499,201 @@ export function EquipmentPorts({ ports, hasModel }: { ports: PortRow[]; hasModel
         />
       </details>
     </section>
+  );
+}
+
+function usePortLookup<T>(url: string | null) {
+  const [revision, setRevision] = useState(0);
+  const [state, setState] = useState<{
+    url: string | null;
+    data?: T;
+    loading: boolean;
+    failed: boolean;
+  }>({ url: null, loading: false, failed: false });
+  useEffect(() => {
+    if (!url) return;
+    const controller = new AbortController();
+    setState({ url, loading: true, failed: false });
+    void (async () => {
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error(String(response.status));
+        const data = (await response.json()) as T;
+        if (!controller.signal.aborted) setState({ url, data, loading: false, failed: false });
+      } catch {
+        if (!controller.signal.aborted) setState({ url, loading: false, failed: true });
+      }
+    })();
+    return () => controller.abort();
+  }, [url, revision]);
+  return {
+    data: state.url === url ? state.data : undefined,
+    loading: !!url && (state.url !== url || state.loading),
+    failed: state.url === url && state.failed,
+    reload: () => setRevision((value) => value + 1),
+  };
+}
+
+function ConnectPort({ equipmentId, port }: { equipmentId: string; port: PortRow }) {
+  const t = useT();
+  const [query, setQuery] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [targetId, setTargetId] = useState("");
+  const lookup = `/api/equipment/connection-targets?equipmentId=${encodeURIComponent(equipmentId)}`;
+  const devices = usePortLookup<{
+    devices: {
+      id: string;
+      name: string | null;
+      assetTag: string | null;
+      status: string;
+      room: { name: string } | null;
+    }[];
+  }>(`${lookup}&q=${encodeURIComponent(query)}`);
+  const targetPorts = usePortLookup<{ ports: PortRow[]; nextPosition: number }>(
+    targetId ? `${lookup}&target=${encodeURIComponent(targetId)}` : null,
+  );
+  const mutation = useFetcher<{ portsSaved?: boolean; portError?: string }>();
+  const [targetPortId, setTargetPortId] = useState("");
+  const [create, setCreate] = useState(false);
+  const [draft, setDraft] = useState<PortDraft>({
+    ...blankPort,
+    connector: port.connector,
+    signal: port.signal,
+    direction: port.direction === "OUTPUT" ? "INPUT" : "OUTPUT",
+  });
+  const [note, setNote] = useState("");
+  const ready = !!targetId && !targetPorts.loading && !!targetPorts.data;
+  return (
+    <div className="my-3 grid gap-3 rounded-md bg-muted/40 p-3">
+      <h4 className="text-sm font-semibold">{t("ports.connectPort", { label: port.label })}</h4>
+      <form
+        className="flex items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setQuery(searchText.trim());
+          devices.reload();
+          setTargetId("");
+          setTargetPortId("");
+        }}
+      >
+        <label className="grid min-w-0 flex-1 gap-1 text-sm">
+          {t("ports.searchDevices")}
+          <Input
+            type="search"
+            name="q"
+            maxLength={120}
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+          />
+        </label>
+        <Button variant="secondary" disabled={devices.loading}>
+          {t("ports.search")}
+        </Button>
+      </form>
+      <p className="text-muted-foreground text-xs">{t("ports.sameRoomFirst")}</p>
+      {devices.failed || targetPorts.failed ? (
+        <p role="alert" className="text-destructive text-sm">
+          {t("ports.lookupError")}
+        </p>
+      ) : null}
+      {devices.loading ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t("ports.loading")}
+        </p>
+      ) : devices.data?.devices.length === 0 ? (
+        <p className="text-muted-foreground text-sm">{t("ports.noDevices")}</p>
+      ) : null}
+      <mutation.Form method="post" className="grid gap-3">
+        <input type="hidden" name="_action" value="portConnect" />
+        <input
+          type="hidden"
+          name="connection"
+          value={JSON.stringify({
+            portId: port.id,
+            targetEquipmentId: targetId,
+            note,
+            ...(create
+              ? { newPort: { ...draft, position: targetPorts.data?.nextPosition ?? 0 } }
+              : { targetPortId }),
+          })}
+        />
+        <label className="grid min-w-0 gap-1 text-sm">
+          {t("ports.targetDevice")}
+          <Select
+            required
+            value={targetId}
+            onChange={(event) => {
+              const id = event.target.value;
+              setTargetId(id);
+              setTargetPortId("");
+            }}
+          >
+            <option value="">{t("ports.chooseDevice")}</option>
+            {devices.data?.devices.map((device) => (
+              <option key={device.id} value={device.id}>
+                {portDeviceLabel(device)}
+                {device.room ? ` · ${device.room.name}` : ""}
+                {device.status === "RETIRED" ? ` · ${t("ports.retired")}` : ""}
+              </option>
+            ))}
+          </Select>
+        </label>
+        {targetId && targetPorts.loading ? (
+          <p role="status" className="text-muted-foreground text-sm">
+            {t("ports.loading")}
+          </p>
+        ) : null}
+        {ready ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className="justify-self-start"
+              onClick={() => setCreate(!create)}
+            >
+              {t(create ? "ports.useExisting" : "ports.createThere")}
+            </Button>
+            {create ? (
+              <PortFields value={draft} onChange={setDraft} />
+            ) : (
+              <label className="grid min-w-0 gap-1 text-sm">
+                {t("ports.targetPort")}
+                <Select
+                  required
+                  value={targetPortId}
+                  onChange={(event) => setTargetPortId(event.target.value)}
+                >
+                  <option value="">{t("ports.choosePort")}</option>
+                  {targetPorts.data?.ports.map((target) => (
+                    <option key={target.id} value={target.id}>
+                      {target.label} · {t(`ports.connector.${connectorKey(target.connector)}`)}
+                    </option>
+                  ))}
+                </Select>
+                {targetPorts.data?.ports.length === 0 ? (
+                  <span className="text-muted-foreground text-xs">{t("ports.noFree")}</span>
+                ) : null}
+              </label>
+            )}
+            <label className="grid min-w-0 gap-1 text-sm">
+              {t("ports.connectionNote")}
+              <Input
+                maxLength={2000}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
+        <PortResult data={mutation.data} />
+        <Button
+          type="submit"
+          className="justify-self-start"
+          disabled={!ready || mutation.state !== "idle" || (!create && !targetPortId)}
+        >
+          {t("ports.connect")}
+        </Button>
+      </mutation.Form>
+    </div>
   );
 }

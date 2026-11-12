@@ -1,4 +1,5 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
+import { z } from "zod";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
@@ -43,6 +44,10 @@ import { qrSvg } from "~/lib/qr.server";
 import { useLocale, useT } from "~/i18n/use-t";
 import { mutateEquipmentPort } from "~/domains/inventory/inventory.ports.mutations.server";
 import { EquipmentPorts } from "~/components/inventory/ports-editor";
+import {
+  connectEquipmentPorts,
+  disconnectEquipmentPorts,
+} from "~/domains/inventory/inventory.connections.mutations.server";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -114,17 +119,35 @@ export async function action({ request, params }: Route.ActionArgs) {
     portRemove: "remove",
     portInherit: "inherit",
   } as const;
-  if (Object.hasOwn(portActions, intent)) {
+  if (
+    Object.hasOwn(portActions, intent) ||
+    intent === "portConnect" ||
+    intent === "portDisconnect"
+  ) {
     try {
-      await mutateEquipmentPort(
-        actor,
-        id,
-        portActions[intent as keyof typeof portActions],
-        form.has("port") ? JSON.parse(String(form.get("port"))) : undefined,
-        String(form.get("portId") ?? ""),
-      );
+      if (intent === "portConnect") {
+        await connectEquipmentPorts(actor, {
+          ...JSON.parse(String(form.get("connection"))),
+          equipmentId: id,
+        });
+      } else if (intent === "portDisconnect") {
+        await disconnectEquipmentPorts(actor, id, String(form.get("connectionId") ?? ""));
+      } else
+        await mutateEquipmentPort(
+          actor,
+          id,
+          portActions[intent as keyof typeof portActions],
+          form.has("port") ? JSON.parse(String(form.get("port"))) : undefined,
+          String(form.get("portId") ?? ""),
+        );
       return { portsSaved: true };
     } catch (error) {
+      if (error instanceof NotFoundError) return { portError: tr("ports.changed") };
+      if (
+        error instanceof z.ZodError &&
+        error.issues.some((issue) => issue.message === "ports.positionFull")
+      )
+        return { portError: tr("ports.positionFull") };
       if (error instanceof ValidationError)
         return {
           portError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
@@ -221,6 +244,7 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
       </div>
 
       <EquipmentPorts
+        equipmentId={eq.id}
         ports={eq.ports}
         hasModel={
           !!eq.model?.ports.some(

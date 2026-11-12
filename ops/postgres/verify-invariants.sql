@@ -227,9 +227,22 @@ BEGIN
     missing := array_append(missing, 'pseudonymize_actor / prune_activity_log are not both SECURITY DEFINER with a search_path pinned to pg_catalog (no writable schema)');
   END IF;
 
+  SELECT count(*) = 2 AND bool_and(t.tgdeferrable AND t.tginitdeferred AND t.tgenabled = 'O')
+    INTO have FROM pg_trigger t
+    JOIN pg_class r ON r.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = r.relnamespace
+    JOIN pg_proc p ON p.oid = t.tgfoid
+    WHERE n.nspname = 'public' AND NOT t.tgisinternal
+      AND p.proname = 'enforce_equipment_connection_pair'
+      AND ((r.relname = 'EquipmentConnection' AND t.tgname = 'equipment_connection_two_ends')
+        OR (r.relname = 'EquipmentConnectionEnd' AND t.tgname = 'equipment_connection_end_two_ends'));
+  IF NOT have THEN
+    missing := array_append(missing, 'equipment connection pair constraint triggers are missing, disabled or not initially deferred');
+  END IF;
+
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 22 CREATE TYPE = 22 enum types, 61 FOREIGN KEY = 61 contype 'f',
+  -- row: 22 CREATE TYPE = 22 enum types, 63 FOREIGN KEY = 63 contype 'f',
   -- 2 EXCLUDE USING = 2 contype 'x', and the two named CHECKs.
   SELECT count(*) = 22 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
@@ -238,13 +251,13 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 22 enum types the migrations create');
   END IF;
 
-  SELECT count(*) = 61 INTO have
+  SELECT count(*) = 63 INTO have
     FROM pg_constraint c
     JOIN pg_class r ON r.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = r.relnamespace
     WHERE n.nspname = 'public' AND c.contype = 'f';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 61 foreign keys the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 63 foreign keys the migrations create');
   END IF;
 
   SELECT count(*) = 2 INTO have
@@ -264,16 +277,16 @@ BEGIN
     missing := array_append(missing, 'CHECK constraints room_renewal_order / time_entry_interval_positive are missing');
   END IF;
 
-  -- Index floor, deliberately a floor: the 87 CREATE INDEX statements are only
+  -- Index floor, deliberately a floor: the 90 CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 87 is the number the
+  -- catalog total is NOT derivable from the migration text. 90 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 87 INTO have
+  SELECT count(*) >= 90 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 87 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 90 explicitly created indexes (pg_indexes count)');
   END IF;
 
   IF array_length(missing, 1) IS NOT NULL THEN
@@ -282,6 +295,6 @@ BEGIN
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 22 enums / 61 foreign keys / 2 CHECKs, >=87 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, 22 enums / 63 foreign keys / 2 CHECKs, >=90 public indexes';
 END
 $verify$;
