@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { DataGrid, type DataGridProps } from "~/components/data-grid/data-grid";
 
-vi.mock("~/i18n/use-t", () => ({ useT: () => (key: string) => key }));
+vi.mock("~/i18n/use-t", () => ({ useT: () => (key: string) => key, useLocale: () => "de" }));
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
     getTotalSize: () => count * 36,

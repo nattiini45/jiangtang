@@ -40,6 +40,7 @@ export function roomColumns(t: Translate): ColumnDef<RoomListRow>[] {
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => t(`status.room.${row.status}`) },
       header: t("rooms.col.status"),
       size: 174,
       cell: ({ row }) => <StatusCell kind="room" value={row.original.status} />,

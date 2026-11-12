@@ -56,12 +56,16 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => t(`status.task.${row.status}`) },
       header: t("tasks.col.status"),
       size: 120,
       cell: ({ row }) => <StatusCell kind="task" value={row.original.status} />,
     },
     {
       accessorKey: "priority",
+      meta: {
+        searchText: (row) => (row.priority ? t(`status.taskPriority.${row.priority}`) : null),
+      },
       header: t("tasks.col.priority"),
       size: 100,
       cell: ({ row }) =>
@@ -75,6 +79,9 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "assignees",
+      meta: {
+        searchText: (row) => row.assignees.map((a) => a.user.initials ?? a.user.name).join(" "),
+      },
       header: t("tasks.col.assignees"),
       size: 120,
       cell: ({ row }) =>
@@ -96,6 +103,7 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "project",
+      meta: { searchText: (row) => row.project?.name },
       header: t("tasks.col.project"),
       size: 180,
       cell: ({ row }) =>
@@ -135,6 +143,7 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "labels",
+      meta: { searchText: (row) => row.labels.join(", ") },
       header: t("tasks.col.labels"),
       size: 160,
       cell: ({ row }) =>
