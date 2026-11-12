@@ -120,6 +120,8 @@ export async function applyCatalogModelInTx(
   const fields = (await getFieldSchema("EQUIPMENT", {}, tx)).filter(
     (field) => field.libraryKey && field.level === "MODEL",
   );
+  if (Object.keys(record.values).some((key) => !fields.some((field) => field.libraryKey === key)))
+    throw new ValidationError({ customValues: [tr("fields.error.unknown")] });
   const own = valueObject(model.customValues);
   const current: Record<string, unknown> = {};
   for (const field of fields) {

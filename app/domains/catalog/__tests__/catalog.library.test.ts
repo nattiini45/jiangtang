@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "~/lib/db.server";
 import { txWithAudit } from "~/lib/audit.server";
@@ -28,6 +28,7 @@ const ids: string[] = [],
   devices: string[] = [],
   kindIds: string[] = [];
 let admin: { id: string; name: string };
+let originalFieldIds: string[];
 const port = {
   label: "HDMI IN",
   connector: "HDMI",
@@ -78,6 +79,14 @@ async function apply(record: CatalogRecord, version: number, modelId?: string) {
 async function values(modelId: string) {
   return (await getModel(modelId))!.customValues as Record<string, unknown>;
 }
+beforeAll(async () => {
+  originalFieldIds = (await db.customField.findMany({ select: { id: true } })).map(
+    (field) => field.id,
+  );
+});
+afterAll(async () => {
+  await db.customField.deleteMany({ where: { id: { notIn: originalFieldIds } } });
+});
 beforeEach(async () => {
   await initializeEquipmentKinds();
   await reconcileLibrary();
@@ -94,6 +103,30 @@ afterEach(async () => {
 });
 
 describe("shipped model catalog", () => {
+  it("leaves the catalog version behind until missing library fields can be installed", async () => {
+    const record = synthetic();
+    const existing = await model(record);
+    await db.customField.deleteMany({ where: { systemKey: "projector.brightness" } });
+    await db.libraryState.update({ where: { key: "library" }, data: { version: 2 } });
+    const catalog = { version: 1, records: [record] };
+
+    await expect(reconcileModelCatalog(catalog)).rejects.toBeInstanceOf(ValidationError);
+    expect(await getModel(existing.id)).toMatchObject({
+      catalogKey: null,
+      catalogVersion: null,
+      customValues: {},
+      ports: [],
+    });
+
+    await reconcileLibrary();
+    expect((await reconcileModelCatalog(catalog)).changed).toEqual([existing.id]);
+    const brightness = (await getFieldSchema("EQUIPMENT")).find(
+      (field) => field.libraryKey === "projector.brightness",
+    )!;
+    expect(await values(existing.id)).toHaveProperty(brightness.id, 15000);
+    expect((await getModel(existing.id))!.catalogVersion).toBe(1);
+  });
+
   it("skips a linked model moved to another kind without blocking other models", async () => {
     const record = synthetic(),
       pendingRecord = synthetic();
