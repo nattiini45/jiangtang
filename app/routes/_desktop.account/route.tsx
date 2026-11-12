@@ -64,6 +64,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         role: user.role,
       },
       twoFactorEnabled: user.twoFactorEnabled,
+      mcpUrl: `${new URL(request.url).origin}/mcp`,
       twoFactorRequired:
         user.role === "ADMIN" && adminTwoFactorRequired() && !user.twoFactorEnabled,
       tokens: await listPersonalAccessTokens(user, { all: canManageAllPersonalAccessTokens(user) }),
@@ -359,6 +360,7 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
       </ZodForm>
 
       <PersonalAccessTokens
+        mcpUrl={loaderData.mcpUrl}
         tokens={loaderData.tokens}
         userId={user.id}
         isAdmin={user.role === "ADMIN" && !loaderData.twoFactorRequired}
