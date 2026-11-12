@@ -267,6 +267,24 @@ describe("kind-aware domain and MCP boundaries", () => {
       kindId,
     ]);
     expect(active.some((group) => group.id === `${run}_archived_group`)).toBe(false);
+    const selected = await listDeviceKinds(false, `${run}_archived`);
+    expect(selected.find((group) => group.id === groupId)?.kinds.map((kind) => kind.id)).toContain(
+      `${run}_archived`,
+    );
+    await db.equipmentKind.create({
+      data: {
+        id: `${run}_archived_group_kind`,
+        name: `${run}_hidden`,
+        groupId: `${run}_archived_group`,
+        position: 1,
+      },
+    });
+    const selectedGroup = await listDeviceKinds(false, `${run}_archived_group_kind`);
+    expect(
+      selectedGroup
+        .find((group) => group.id === `${run}_archived_group`)
+        ?.kinds.map((kind) => kind.id),
+    ).toEqual([`${run}_archived_group_kind`]);
     const all = await listDeviceKinds(true);
     expect(all.some((group) => group.id === `${run}_archived_group`)).toBe(true);
     expect(all.find((group) => group.id === groupId)?.kinds.map((kind) => kind.id)).toContain(

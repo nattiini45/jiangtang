@@ -35,7 +35,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   await requireUser(request);
   const detail = await getModelDetail(params.id);
   if (!detail) throw toErrorResponse(new NotFoundError(tr("err.model.notFound")));
-  return { ...detail, kinds: await listDeviceKinds() };
+  return { ...detail, kinds: await listDeviceKinds(false, detail.model.kind.id) };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {

@@ -18,6 +18,105 @@ test.afterEach(async () => {
 
 test.afterAll(() => db.$disconnect());
 
+test("edits preserve an archived kind or group and its category-specific fields", async ({
+  page,
+  baseURL,
+}) => {
+  test.setTimeout(120_000);
+  const computer = await db.equipmentKind.findUniqueOrThrow({ where: { systemKey: "computer" } });
+  const room = await db.room.create({
+    data: { name: `${runPrefix()}Archived kind hall`, slug: `${runPrefix()}archived-kind` },
+  });
+  rooms.push(room.id);
+  const model = await db.equipmentModel.create({
+    data: { name: `${runPrefix()}Archived kind model`, category: "PC", kindId: computer.id },
+  });
+  models.push(model.id);
+  const device = await db.equipment.create({
+    data: {
+      roomId: room.id,
+      modelId: model.id,
+      name: `${runPrefix()}Archived kind device`,
+      category: "PC",
+      kindId: computer.id,
+      dellServiceTag: "DEMO123",
+      dellExpressTag: "123456",
+    },
+  });
+  await page.context().addCookies([
+    { name: "locale", value: "de", url: baseURL! },
+    { name: "view", value: "desktop", url: baseURL! },
+  ]);
+  for (const target of ["kind", "group"]) {
+    try {
+      if (target === "kind")
+        await db.equipmentKind.update({
+          where: { id: computer.id },
+          data: { archivedAt: new Date("2040-01-01T00:00:00Z") },
+        });
+      else
+        await db.equipmentFunctionGroup.update({
+          where: { id: computer.groupId },
+          data: { archivedAt: new Date("2040-01-01T00:00:00Z") },
+        });
+      await page.goto(`/inventory/${device.id}`);
+      await expect(page.getByLabel(t("de", "inventory.kind"), { exact: true })).toHaveValue(
+        computer.id,
+      );
+      await expect(page.locator("[name='dellServiceTag']")).toHaveValue("DEMO123");
+      const updatedName = `${runPrefix()}Preserved archived ${target}`;
+      await page.getByLabel(t("de", "inventory.form.name"), { exact: true }).fill(updatedName);
+      await page
+        .getByRole("button", { name: t("de", "inventory.detail.submit"), exact: true })
+        .click();
+      await expect(page.locator("[name='dellServiceTag']")).toHaveValue("DEMO123");
+      await expect
+        .poll(async () => (await db.equipment.findUniqueOrThrow({ where: { id: device.id } })).name)
+        .toBe(updatedName);
+      expect(await db.equipment.findUniqueOrThrow({ where: { id: device.id } })).toMatchObject({
+        kindId: computer.id,
+        category: "PC",
+        dellServiceTag: "DEMO123",
+        dellExpressTag: "123456",
+      });
+      await page.goto(`/inventory/models/${model.id}`);
+      await page.getByText(t("de", "inventory.models.editSummary"), { exact: true }).click();
+      await expect(page.getByLabel(t("de", "inventory.kind"), { exact: true })).toHaveValue(
+        computer.id,
+      );
+      await page
+        .getByLabel(t("de", "inventory.models.specNotes"), { exact: true })
+        .fill(`Synthetic ${target} edit`);
+      await page
+        .getByRole("button", { name: t("de", "inventory.models.submit"), exact: true })
+        .click();
+      await expect(
+        page.getByText(t("de", "inventory.models.saved"), { exact: true }),
+      ).toBeVisible();
+      expect(await db.equipmentModel.findUniqueOrThrow({ where: { id: model.id } })).toMatchObject({
+        kindId: computer.id,
+        category: "PC",
+        specNotes: `Synthetic ${target} edit`,
+      });
+      for (const path of ["/inventory/new", "/inventory/models/new", "/inventory"]) {
+        await page.goto(path);
+        await expect(
+          page.locator(`select[name='kindId'] option[value='${computer.id}']`),
+        ).toHaveCount(0);
+      }
+    } finally {
+      await db.equipmentKind.update({
+        where: { id: computer.id },
+        data: { archivedAt: computer.archivedAt },
+      });
+      await db.equipmentFunctionGroup.update({
+        where: { id: computer.groupId },
+        data: { archivedAt: null },
+      });
+    }
+  }
+});
+
 async function checkWidth(page: Page) {
   expect(
     await page

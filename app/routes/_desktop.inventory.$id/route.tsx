@@ -84,7 +84,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     listSubstitutionTargets(params.id),
     listAttachments({ equipmentId: params.id }),
     listEntityHistory(ENTITY_TYPE.equipment, params.id, 20),
-    listDeviceKinds(),
+    listDeviceKinds(false, e.kind.id),
   ]);
   // Decimal → string so the loader payload is JSON-serializable.
   const equipment = { ...e, frequencyMhz: e.frequencyMhz ? e.frequencyMhz.toString() : null };

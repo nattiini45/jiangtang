@@ -74,16 +74,30 @@ function categoryForKind(key: string | null): EquipmentCategory {
     "OTHER") as EquipmentCategory;
 }
 
-export function listDeviceKinds(includeArchived = false) {
+export function listDeviceKinds(includeArchived = false, currentKindId?: string) {
   return db.equipmentFunctionGroup.findMany({
-    where: includeArchived ? {} : { archivedAt: null },
+    where: includeArchived
+      ? {}
+      : {
+          OR: [
+            { archivedAt: null },
+            ...(currentKindId ? [{ kinds: { some: { id: currentKindId } } }] : []),
+          ],
+        },
     orderBy: [{ position: "asc" }, { name: "asc" }, { id: "asc" }],
     select: {
       id: true,
       name: true,
       position: true,
       kinds: {
-        where: includeArchived ? {} : { archivedAt: null },
+        where: includeArchived
+          ? {}
+          : {
+              OR: [
+                { archivedAt: null, group: { archivedAt: null } },
+                ...(currentKindId ? [{ id: currentKindId }] : []),
+              ],
+            },
         orderBy: [{ name: "asc" }, { id: "asc" }],
         select: { id: true, name: true, systemKey: true },
       },
