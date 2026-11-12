@@ -1,0 +1,605 @@
+{
+  "institutionTypes": [
+    {
+      "key": "university",
+      "de": "Hochschule / Universität",
+      "en": "University or college"
+    },
+    {
+      "key": "event_hall",
+      "de": "Stadthalle / Kongress- und Veranstaltungszentrum",
+      "en": "City, event or congress hall"
+    },
+    {
+      "key": "council",
+      "de": "Rathaus / Ratssaal",
+      "en": "Town hall / council chamber"
+    },
+    {
+      "key": "theatre",
+      "de": "Theater",
+      "en": "Theatre"
+    },
+    {
+      "key": "trade_fair",
+      "de": "Messe",
+      "en": "Trade fair hall"
+    }
+  ],
+  "functionGroups": [
+    {
+      "key": "display",
+      "de": "Anzeige",
+      "en": "Display",
+      "position": 1
+    },
+    {
+      "key": "source",
+      "de": "Quellen und Eingänge",
+      "en": "Sources and inputs",
+      "position": 2
+    },
+    {
+      "key": "transport",
+      "de": "Übertragung",
+      "en": "Transport",
+      "position": 3
+    },
+    {
+      "key": "switching",
+      "de": "Schaltung",
+      "en": "Switching",
+      "position": 4
+    },
+    {
+      "key": "audio",
+      "de": "Audio",
+      "en": "Audio",
+      "position": 5
+    },
+    {
+      "key": "control",
+      "de": "Steuerung",
+      "en": "Control",
+      "position": 6
+    },
+    {
+      "key": "capture",
+      "de": "Aufnahme und Regie",
+      "en": "Capture and production",
+      "position": 7
+    },
+    {
+      "key": "conferencing",
+      "de": "Konferenz und Streaming",
+      "en": "Conferencing and streaming",
+      "position": 8
+    },
+    {
+      "key": "lighting",
+      "de": "Licht",
+      "en": "Lighting",
+      "position": 9
+    },
+    {
+      "key": "stage",
+      "de": "Bühne und Rigging",
+      "en": "Stage and rigging",
+      "position": 10
+    },
+    {
+      "key": "interp",
+      "de": "Dolmetschen und Diskussion",
+      "en": "Interpretation and discussion",
+      "position": 11
+    },
+    {
+      "key": "assistive",
+      "de": "Hörunterstützung und Barrierefreiheit",
+      "en": "Assistive listening and accessibility",
+      "position": 12
+    },
+    {
+      "key": "signage",
+      "de": "Beschilderung und Raumanzeigen",
+      "en": "Signage and booking panels",
+      "position": 13
+    },
+    {
+      "key": "network",
+      "de": "Netzwerk",
+      "en": "Network",
+      "position": 14
+    },
+    {
+      "key": "power",
+      "de": "Strom",
+      "en": "Power",
+      "position": 15
+    },
+    {
+      "key": "safety",
+      "de": "Sicherheit",
+      "en": "Safety",
+      "position": 16
+    },
+    {
+      "key": "fittings",
+      "de": "Raumausstattung und Einbauten",
+      "en": "Room fittings and built-in items",
+      "position": 17
+    },
+    {
+      "key": "other",
+      "de": "Sonstiges",
+      "en": "Other",
+      "position": 18
+    }
+  ],
+  "kinds": [
+    {
+      "key": "projector",
+      "de": "Projektor",
+      "en": "Projector",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "display",
+      "de": "Display (Monitor)",
+      "en": "Display (monitor)",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "interactive_display",
+      "de": "Interaktives Display (Smartboard)",
+      "en": "Interactive display",
+      "group": "display",
+      "institution_types": ["university"],
+      "tier": "common"
+    },
+    {
+      "key": "led_wall",
+      "de": "LED-Wand",
+      "en": "LED wall",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "screen",
+      "de": "Leinwand",
+      "en": "Projection screen",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "computer",
+      "de": "Rechner (PC)",
+      "en": "Computer",
+      "group": "source",
+      "institution_types": ["university", "council"],
+      "tier": "core"
+    },
+    {
+      "key": "doc_camera",
+      "de": "Dokumentenkamera (Visualizer)",
+      "en": "Document camera (visualiser)",
+      "group": "source",
+      "institution_types": ["university", "council"],
+      "tier": "common"
+    },
+    {
+      "key": "presentation_receiver",
+      "de": "Drahtlos-Präsentationssystem (Empfänger)",
+      "en": "Wireless presentation system (receiver)",
+      "group": "source",
+      "institution_types": ["university", "event_hall", "council"],
+      "tier": "core"
+    },
+    {
+      "key": "extender",
+      "de": "Extender",
+      "en": "Extender",
+      "group": "transport",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "avoip_encoder",
+      "de": "AVoIP-Encoder",
+      "en": "AV-over-IP encoder",
+      "group": "transport",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "avoip_decoder",
+      "de": "AVoIP-Decoder",
+      "en": "AV-over-IP decoder",
+      "group": "transport",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "converter",
+      "de": "Wandler / Scaler",
+      "en": "Converter / scaler",
+      "group": "transport",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "matrix",
+      "de": "Matrix (Kreuzschiene)",
+      "en": "Matrix switcher",
+      "group": "switching",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "presentation_switcher",
+      "de": "Medienumschalter",
+      "en": "Presentation switcher",
+      "group": "switching",
+      "institution_types": ["university", "council"],
+      "tier": "common"
+    },
+    {
+      "key": "dsp",
+      "de": "Audio-DSP (Audioprozessor)",
+      "en": "Audio DSP",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "core"
+    },
+    {
+      "key": "amplifier",
+      "de": "Verstärker (Endstufe)",
+      "en": "Amplifier",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "core"
+    },
+    {
+      "key": "loudspeaker",
+      "de": "Lautsprecher",
+      "en": "Loudspeaker",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "microphone",
+      "de": "Mikrofon",
+      "en": "Microphone",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "wireless_receiver",
+      "de": "Funkempfänger",
+      "en": "Wireless receiver",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "mixer",
+      "de": "Mischpult",
+      "en": "Mixing console",
+      "group": "audio",
+      "institution_types": ["event_hall", "theatre", "council", "university"],
+      "tier": "common"
+    },
+    {
+      "key": "intercom",
+      "de": "Kommunikationsanlage (Intercom)",
+      "en": "Intercom system",
+      "group": "audio",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special"
+    },
+    {
+      "key": "control_processor",
+      "de": "Steuerung (Controller)",
+      "en": "Control processor",
+      "group": "control",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "core"
+    },
+    {
+      "key": "touch_panel",
+      "de": "Bedienfeld (Touchpanel / Tastenfeld)",
+      "en": "Control panel (touch panel / keypad)",
+      "group": "control",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "remote",
+      "de": "Fernbedienung",
+      "en": "Remote control",
+      "group": "control",
+      "institution_types": ["university", "event_hall"],
+      "tier": "common"
+    },
+    {
+      "key": "presence_sensor",
+      "de": "Präsenzmelder",
+      "en": "Presence sensor",
+      "group": "control",
+      "institution_types": ["university"],
+      "tier": "common"
+    },
+    {
+      "key": "camera",
+      "de": "Kamera",
+      "en": "Camera",
+      "group": "capture",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "core"
+    },
+    {
+      "key": "video_mixer",
+      "de": "Bildmischer / Regiepult",
+      "en": "Video mixer / production desk",
+      "group": "capture",
+      "institution_types": ["university", "event_hall", "theatre"],
+      "tier": "special"
+    },
+    {
+      "key": "recorder",
+      "de": "Aufzeichnung (Lecture Capture)",
+      "en": "Recording (lecture capture)",
+      "group": "capture",
+      "institution_types": ["university", "council"],
+      "tier": "core"
+    },
+    {
+      "key": "conferencing_system",
+      "de": "Konferenzsystem (Raumsystem)",
+      "en": "Conferencing system (room system)",
+      "group": "conferencing",
+      "institution_types": ["university", "council"],
+      "tier": "core"
+    },
+    {
+      "key": "streaming_encoder",
+      "de": "Streaming-Encoder",
+      "en": "Streaming encoder",
+      "group": "conferencing",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "common"
+    },
+    {
+      "key": "lighting_fixture",
+      "de": "Scheinwerfer",
+      "en": "Lighting fixture",
+      "group": "lighting",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "lighting_console",
+      "de": "Lichtstellpult",
+      "en": "Lighting console",
+      "group": "lighting",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "dimmer",
+      "de": "Dimmer / Dimmerrack",
+      "en": "Dimmer / dimmer rack",
+      "group": "lighting",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "room_lighting",
+      "de": "Raumlichtsteuerung",
+      "en": "Room lighting control",
+      "group": "lighting",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "common"
+    },
+    {
+      "key": "fly",
+      "de": "Zug / Laststange",
+      "en": "Hoist / fly bar",
+      "group": "stage",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special"
+    },
+    {
+      "key": "rigging_point",
+      "de": "Hängepunkt / Traverse",
+      "en": "Rigging point / truss",
+      "group": "stage",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special"
+    },
+    {
+      "key": "curtain",
+      "de": "Vorhang (Bühne / Saal)",
+      "en": "Curtain (stage / hall)",
+      "group": "stage",
+      "institution_types": ["event_hall", "theatre"],
+      "tier": "special"
+    },
+    {
+      "key": "stage_lift",
+      "de": "Hubpodium / Untermaschinerie",
+      "en": "Stage lift / stage machinery",
+      "group": "stage",
+      "institution_types": ["theatre"],
+      "tier": "special"
+    },
+    {
+      "key": "interpreter_booth",
+      "de": "Dolmetscherkabine",
+      "en": "Interpreter booth",
+      "group": "interp",
+      "institution_types": ["event_hall", "council"],
+      "tier": "special"
+    },
+    {
+      "key": "interpretation_system",
+      "de": "Simultananlage",
+      "en": "Simultaneous interpretation system",
+      "group": "interp",
+      "institution_types": ["event_hall", "council"],
+      "tier": "special"
+    },
+    {
+      "key": "discussion_system",
+      "de": "Diskussions- und Abstimmungsanlage",
+      "en": "Discussion and voting system",
+      "group": "interp",
+      "institution_types": ["council", "university", "event_hall"],
+      "tier": "core"
+    },
+    {
+      "key": "assistive_listening",
+      "de": "Höranlage",
+      "en": "Assistive listening system",
+      "group": "assistive",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "room_panel",
+      "de": "Raumschild (Belegungsanzeige)",
+      "en": "Room booking panel",
+      "group": "signage",
+      "institution_types": ["university", "council", "event_hall"],
+      "tier": "common"
+    },
+    {
+      "key": "signage",
+      "de": "Digital-Signage-Display",
+      "en": "Digital signage display",
+      "group": "signage",
+      "institution_types": ["university", "event_hall", "council", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "network_switch",
+      "de": "Netzwerk-Switch",
+      "en": "Network switch",
+      "group": "network",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "wifi_ap",
+      "de": "WLAN-Access-Point",
+      "en": "Wi-Fi access point",
+      "group": "network",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "switched_pdu",
+      "de": "Schaltbare Steckdosenleiste",
+      "en": "Switched power strip",
+      "group": "power",
+      "institution_types": ["university", "event_hall", "council"],
+      "tier": "common"
+    },
+    {
+      "key": "ups",
+      "de": "USV",
+      "en": "Uninterruptible power supply",
+      "group": "power",
+      "institution_types": ["university", "event_hall", "council"],
+      "tier": "special"
+    },
+    {
+      "key": "power_distribution",
+      "de": "Stromverteiler",
+      "en": "Power distribution",
+      "group": "power",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "pa_alarm",
+      "de": "Durchsage- und Alarmierungsanlage",
+      "en": "Public address and alarm system",
+      "group": "safety",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special"
+    },
+    {
+      "key": "safety_system",
+      "de": "Sicherheitstechnische Anlage",
+      "en": "Safety system",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre", "trade_fair", "council"],
+      "tier": "special"
+    },
+    {
+      "key": "effects",
+      "de": "Effektgerät (Nebel, Laser, Pyro)",
+      "en": "Effects device (fog, laser, pyro)",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special"
+    },
+    {
+      "key": "media_desk",
+      "de": "Medienpult / Medientisch",
+      "en": "Media desk / lectern",
+      "group": "fittings",
+      "institution_types": ["university", "council", "event_hall"],
+      "tier": "core"
+    },
+    {
+      "key": "chalkboard",
+      "de": "Tafelanlage",
+      "en": "Board system",
+      "group": "fittings",
+      "institution_types": ["university"],
+      "tier": "common"
+    },
+    {
+      "key": "av_rack",
+      "de": "AV-Rack / Medienschrank",
+      "en": "AV rack / media cabinet",
+      "group": "fittings",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "connection_panel",
+      "de": "Anschlussfeld",
+      "en": "Connection panel",
+      "group": "fittings",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    },
+    {
+      "key": "blackout",
+      "de": "Verdunkelung / Blendschutz",
+      "en": "Blackout / glare protection",
+      "group": "fittings",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "common"
+    },
+    {
+      "key": "other",
+      "de": "Sonstiges",
+      "en": "Other",
+      "group": "other",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "core"
+    }
+  ]
+}

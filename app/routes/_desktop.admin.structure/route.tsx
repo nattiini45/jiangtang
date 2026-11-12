@@ -22,12 +22,19 @@ import {
   updateFunctionGroup,
 } from "~/lib/equipment-kinds/structure.server";
 import { StructurePage } from "~/components/structure/structure-page";
+import { KindLibrary } from "~/components/structure/kind-library";
+import {
+  installLibraryKinds,
+  libraryInstallSchema,
+  listKindLibrary,
+} from "~/lib/equipment-kinds/library.server";
 export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireRole(request, "ADMIN");
   try {
-    return { groups: await listStructure() };
+    const [groups, library] = await Promise.all([listStructure(), listKindLibrary()]);
+    return { groups, library };
   } catch (error) {
     throw toErrorResponse(error);
   }
@@ -38,8 +45,22 @@ export async function action({ request }: Route.ActionArgs) {
   if (request.headers.get("origin") !== new URL(request.url).origin)
     throw new Response(null, { status: 403 });
   try {
-    const input = await parseForm(request, structureActionSchema);
-    if (input.intent === "create") {
+    const input = await parseForm(
+      request,
+      z.union([
+        structureActionSchema,
+        z.object({
+          intent: z.literal("install"),
+          keys: z.preprocess(
+            (value) => (typeof value === "string" ? [value] : value),
+            libraryInstallSchema.shape.keys,
+          ),
+        }),
+      ]),
+    );
+    if (input.intent === "install") {
+      await installLibraryKinds(actor, { keys: input.keys });
+    } else if (input.intent === "create") {
       if (input.entity === "kind")
         await createDeviceKind(actor, { name: input.name!, groupId: input.groupId! });
       else await createFunctionGroup(actor, { name: input.name! });
@@ -82,5 +103,10 @@ export function meta({ matches }: Route.MetaArgs) {
   return [{ title: `${t(metaLocale(matches), "admin.structure.title")} · Jiangtang` }];
 }
 export default function Structure({ loaderData }: Route.ComponentProps) {
-  return <StructurePage groups={loaderData.groups} />;
+  return (
+    <StructurePage
+      groups={loaderData.groups}
+      libraryAction={<KindLibrary library={loaderData.library} />}
+    />
+  );
 }
