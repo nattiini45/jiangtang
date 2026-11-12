@@ -301,8 +301,24 @@ export function deleteStructureEntry(actor: AuditActor, entity: "kind" | "group"
       });
       if (kind.systemKey && protectedKindKeys.includes(kind.systemKey))
         structureError("admin.structure.protected");
-      if (!kind.archivedAt || kind._count.equipment || kind._count.models)
-        structureError("admin.structure.referenced");
+      if (!kind.archivedAt) structureError("admin.structure.archiveBeforeDelete");
+      const fields = await tx.customFieldKind.findMany({
+        where: { kindId: id },
+        select: { field: { select: { name: true } } },
+      });
+      if (fields.length)
+        throw new ValidationError({}, [
+          tr("admin.structure.fieldReferences", {
+            names: fields.map(({ field }) => field.name).join(", "),
+          }),
+        ]);
+      if (kind._count.equipment || kind._count.models)
+        throw new ValidationError({}, [
+          tr("admin.structure.recordReferences", {
+            devices: kind._count.equipment,
+            models: kind._count.models,
+          }),
+        ]);
       await tx.equipmentKind.delete({ where: { id } });
       await audit({
         action: "EquipmentKindDeleted",

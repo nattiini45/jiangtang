@@ -33,6 +33,7 @@ export const ENTITY_TYPE = {
   equipmentModel: "equipmentModel",
   equipmentKind: "equipmentKind",
   equipmentFunctionGroup: "equipmentFunctionGroup",
+  customField: "customField",
   equipment: "equipment",
   ticket: "ticket",
   event: "event",

@@ -72,7 +72,7 @@ function StructureRow({
     void fetcher.submit({ entity, id: entry.id, intent, ...extra }, { method: "post" });
   };
   return (
-    <li className="border-border border-b last:border-0" data-entry-id={entry.id}>
+    <li className="border-border border-b last:border-0" data-entry-id={entry.id} aria-busy={busy}>
       <div className="flex min-h-control flex-wrap items-center gap-3 px-4 py-row">
         {editing ? (
           <fetcher.Form method="post" className="flex min-w-0 flex-1 flex-wrap items-end gap-2">
@@ -93,7 +93,11 @@ function StructureRow({
             {entity === "kind" ? (
               <label className="min-w-40 flex-1 text-sm">
                 {t("admin.structure.group")}
-                <Select name="groupId" defaultValue={entry.groupId}>
+                <Select
+                  name="groupId"
+                  defaultValue={entry.groupId}
+                  aria-label={t("admin.structure.group")}
+                >
                   <GroupOptions groups={groups} />
                   {groups
                     .filter((group) => group.archivedAt && group.id === entry.groupId)
@@ -226,7 +230,12 @@ function StructureRow({
           <input type="hidden" name="intent" value="archive" />
           <label className="text-sm">
             {t("admin.structure.moveTo")}
-            <Select name="moveDevicesTo" required defaultValue="">
+            <Select
+              name="moveDevicesTo"
+              required
+              defaultValue=""
+              aria-label={t("admin.structure.moveTo")}
+            >
               <option value="" disabled>
                 {t("admin.structure.chooseKind")}
               </option>
@@ -343,7 +352,7 @@ export function StructurePage({
           {entity === "kind" ? (
             <label className="min-w-48 flex-1 text-sm">
               {t("admin.structure.group")}
-              <Select name="groupId" required>
+              <Select name="groupId" required aria-label={t("admin.structure.group")}>
                 <GroupOptions groups={groups} />
               </Select>
             </label>

@@ -43,6 +43,9 @@ const NEW_BLOCKS = [
   "EquipmentFunctionGroup",
   "EquipmentKind",
   "EquipmentKindsInitialization",
+  "CustomField",
+  "CustomFieldKind",
+  "CustomFieldOption",
 ] as const;
 
 /**
@@ -349,8 +352,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(64);
-    expect(withAction).toBe(52);
+    expect(owning).toBe(67);
+    expect(withAction).toBe(55);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

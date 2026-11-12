@@ -70,7 +70,10 @@ test("add a kind, see it in a device form, rename it on the hall page, then arch
   expect((await db.equipmentModel.findUniqueOrThrow({ where: { id: model.id } })).kindId).toBe(
     target.id,
   );
-  await page.getByLabel(t("de", "admin.structure.showArchived"), { exact: true }).check();
+  await page.locator('label[for="show-archived"]').click();
+  await expect(
+    page.getByLabel(t("de", "admin.structure.showArchived"), { exact: true }),
+  ).toBeChecked();
   await row.getByRole("button", { name: t("de", "admin.structure.restore"), exact: true }).click();
   await expect(row.getByText(t("de", "admin.structure.archived"), { exact: true })).toHaveCount(0);
 });
@@ -113,7 +116,10 @@ test("structure states fit both widths, languages and densities", async ({ page,
             path: `${renders}/${tab}-${width}-${locale}-${density}.png`,
             fullPage: true,
           });
-          await page.getByLabel(t(locale, "admin.structure.showArchived"), { exact: true }).check();
+          await page.locator('label[for="show-archived"]').click();
+          await expect(
+            page.getByLabel(t(locale, "admin.structure.showArchived"), { exact: true }),
+          ).toBeChecked();
           if (tab === "kinds")
             await expect(page.locator(`[data-entry-id='${archived.id}']`)).toBeVisible();
           await page.screenshot({

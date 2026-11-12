@@ -242,22 +242,22 @@ BEGIN
 
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 22 CREATE TYPE = 22 enum types, 66 FOREIGN KEY = 66 contype 'f',
-  -- 2 EXCLUDE USING = 2 contype 'x', and the four named CHECKs.
-  SELECT count(*) = 22 INTO have
+  -- row: 24 CREATE TYPE = 24 enum types, 69 FOREIGN KEY = 69 contype 'f',
+  -- 2 EXCLUDE USING = 2 contype 'x', and the ten named CHECKs.
+  SELECT count(*) = 24 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 22 enum types the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 24 enum types the migrations create');
   END IF;
 
-  SELECT count(*) = 66 INTO have
+  SELECT count(*) = 69 INTO have
     FROM pg_constraint c
     JOIN pg_class r ON r.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = r.relnamespace
     WHERE n.nspname = 'public' AND c.contype = 'f';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 66 foreign keys the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 69 foreign keys the migrations create');
   END IF;
 
   SELECT count(*) = 2 INTO have
@@ -269,24 +269,24 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 2 EXCLUDE constraints the baseline creates');
   END IF;
 
-  SELECT count(*) = 4 INTO have
+  SELECT count(*) = 10 INTO have
     FROM pg_constraint
-    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name')
+    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label')
       AND contype = 'c';
   IF NOT have THEN
-    missing := array_append(missing, 'room, timer or equipment kind/group name CHECK constraints are missing');
+    missing := array_append(missing, 'room, timer, equipment kind/group or custom field CHECK constraints are missing');
   END IF;
 
-  -- Index floor, deliberately a floor: the 97 CREATE INDEX statements are only
+  -- Index floor, deliberately a floor: the 102 CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 97 is the number the
+  -- catalog total is NOT derivable from the migration text. 102 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 97 INTO have
+  SELECT count(*) >= 102 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 97 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 102 explicitly created indexes (pg_indexes count)');
   END IF;
 
   SELECT count(*) = 2 INTO have FROM pg_index i
@@ -306,12 +306,30 @@ BEGIN
     missing := array_append(missing, 'equipment kind/group RESTRICT foreign keys are missing');
   END IF;
 
+  SELECT count(*) = 3 INTO have FROM pg_constraint
+    WHERE conname IN ('CustomFieldKind_fieldId_fkey', 'CustomFieldKind_kindId_fkey', 'CustomFieldOption_fieldId_fkey')
+      AND contype = 'f' AND ((conname = 'CustomFieldKind_kindId_fkey' AND confdeltype = 'r')
+        OR (conname <> 'CustomFieldKind_kindId_fkey' AND confdeltype = 'c'));
+  IF NOT have THEN
+    missing := array_append(missing, 'custom field option/kind foreign keys are missing or have wrong deletion actions');
+  END IF;
+
+  SELECT count(*) = 3 INTO have FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE i.indisunique AND i.indisvalid AND (
+      (idx.relname = 'CustomField_scope_key_key' AND pg_get_indexdef(i.indexrelid) LIKE '%(scope, key)')
+      OR (idx.relname = 'custom_field_scope_name' AND pg_get_expr(i.indexprs, i.indrelid) = 'lower(name)' AND i.indpred IS NULL)
+      OR (idx.relname = 'custom_field_option_active_label' AND pg_get_expr(i.indexprs, i.indrelid) = 'lower(label)'
+        AND pg_get_expr(i.indpred, i.indrelid) = '("archivedAt" IS NULL)'));
+  IF NOT have THEN
+    missing := array_append(missing, 'custom field key/name and active option label unique indexes are missing or invalid');
+  END IF;
+
   IF array_length(missing, 1) IS NOT NULL THEN
     RAISE EXCEPTION 'Jiangtang invariant check FAILED — % missing invariant(s): %',
       array_length(missing, 1), array_to_string(missing, '; ')
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, 22 enums / 66 foreign keys / 4 CHECKs, >=97 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, 24 enums / 69 foreign keys / 10 CHECKs, >=102 public indexes';
 END
 $verify$;

@@ -1,6 +1,11 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.structure.archiveBeforeDelete": "Archive the device kind before deleting it.",
+  "admin.structure.fieldReferences":
+    "These fields still refer to the kind: {names}. Change the fields’ kind assignments first.",
+  "admin.structure.recordReferences":
+    "This kind is still used by {devices} devices and {models} models. Move them first.",
   "admin.structure.title": "Structure",
   "admin.structure.subtitle": "Manage the device kinds and function groups your team uses.",
   "admin.structure.tabs": "Structure sections",

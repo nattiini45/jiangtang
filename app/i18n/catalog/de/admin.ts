@@ -1,5 +1,10 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.structure.archiveBeforeDelete": "Archivieren Sie die Geräteart, bevor Sie sie löschen.",
+  "admin.structure.fieldReferences":
+    "Diese Felder verwenden die Geräteart noch: {names}. Ändern Sie zuerst die Zuordnung der Felder.",
+  "admin.structure.recordReferences":
+    "Die Geräteart wird noch von {devices} Geräten und {models} Modellen verwendet. Verschieben Sie diese zuerst.",
   "admin.structure.title": "Struktur",
   "admin.structure.subtitle": "Gerätearten und Funktionsgruppen für Ihr Haus verwalten.",
   "admin.structure.tabs": "Strukturbereiche",

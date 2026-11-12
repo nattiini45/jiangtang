@@ -80,8 +80,8 @@ describe.each(["en", "de"] as const)("ticket MCP actions in %s", (locale) => {
       const client = await connect(scope);
       await runWithLocale(locale, async () => {
         const tools = (await client.listTools()).tools;
-        expect(tools.filter((tool) => tool.annotations?.readOnlyHint)).toHaveLength(47);
-        expect(tools.filter((tool) => !tool.annotations?.readOnlyHint)).toHaveLength(76);
+        expect(tools.filter((tool) => tool.annotations?.readOnlyHint)).toHaveLength(48);
+        expect(tools.filter((tool) => !tool.annotations?.readOnlyHint)).toHaveLength(84);
         const definition = tools.find((tool) => tool.name === "get_allowed_actions");
         expect(definition?.annotations?.readOnlyHint).toBe(true);
         const allowed = success(

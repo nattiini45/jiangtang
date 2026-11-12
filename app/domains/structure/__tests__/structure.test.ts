@@ -48,6 +48,38 @@ async function fixture() {
 }
 
 describe("structure rules against PostgreSQL", () => {
+  it("keeps field applicability on archive and names every field that blocks deletion", async () => {
+    const { group, kind } = await fixture();
+    const target = await createDeviceKind(actor, { name: `${prefix}Target`, groupId: group.id });
+    const field = await db.customField.create({
+      data: {
+        scope: "EQUIPMENT",
+        key: `structure_${randomUUID().slice(0, 8)}`,
+        name: `${prefix}Lens`,
+        type: "TEXT",
+        kinds: { create: { kindId: kind.id } },
+      },
+    });
+    try {
+      await createEquipment(actor, {
+        name: `${prefix}Device`,
+        kindId: kind.id,
+        mobility: "POOLED",
+        status: "OPERATIONAL",
+      });
+      await updateDeviceKind(actor, kind.id, { archived: true, moveDevicesTo: target.id });
+      expect(
+        await db.customFieldKind.count({ where: { fieldId: field.id, kindId: kind.id } }),
+      ).toBe(1);
+      await expect(deleteStructureEntry(actor, "kind", kind.id)).rejects.toMatchObject({
+        formErrors: [expect.stringContaining(field.name)],
+      });
+      expect(await db.customFieldKind.count({ where: { fieldId: field.id } })).toBe(1);
+    } finally {
+      await db.customField.delete({ where: { id: field.id } });
+    }
+    await deleteStructureEntry(actor, "kind", kind.id);
+  });
   it("validates names, translates active case-insensitive conflicts and refuses occupied restores", async () => {
     const { group, kind } = await fixture();
     expect(kind.tracksFrequency).toBe(false);
