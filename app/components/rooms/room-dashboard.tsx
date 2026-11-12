@@ -1,4 +1,6 @@
 import { Link, useFetcher } from "react-router";
+import { useState } from "react";
+import { FieldValues } from "~/components/fields/field-values";
 import { ExternalLink } from "lucide-react";
 import { DateCell } from "~/components/data-grid";
 import { StatusBadge } from "~/components/ui/status-badge";
@@ -26,6 +28,9 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
   const locale = useLocale();
   const check = useFetcher();
   const { room, equipment, openTickets, recentTickets, attachments, history } = data;
+  const [opened, setOpened] = useState<string[]>([]);
+  const withValues = equipment.filter((device) => device.fields.length);
+  const allOpen = withValues.length > 0 && withValues.every((device) => opened.includes(device.id));
   const photoRedirect = `/rooms/${room.slug}`;
 
   const byGroup = new Map<
@@ -120,8 +125,19 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
             </Link>
           ) : null}
           <section className="bg-card shadow-surface-2 rounded-lg">
-            <header className="border-border flex min-h-12 items-center justify-between gap-2 border-b px-4">
+            <header className="border-border flex min-h-12 flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
               <h2 className="text-base font-semibold">{t("rooms.dashboard.installed")}</h2>
+              {withValues.length ? (
+                <Button
+                  type="button"
+                  size="compact"
+                  variant="ghost"
+                  aria-expanded={allOpen}
+                  onClick={() => setOpened(allOpen ? [] : withValues.map((device) => device.id))}
+                >
+                  {t(allOpen ? "fields.values.closeAll" : "fields.values.openAll")}
+                </Button>
+              ) : null}
               <Button asChild size="compact" variant="ghost">
                 <Link to={`/inventory/new?roomId=${room.id}`}>
                   {t("rooms.dashboard.addDevice")}
@@ -155,6 +171,41 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
                               {u.kind.name}
                             </p>
                             <DeviceDetails device={u} />
+                            {u.fields.length ? (
+                              <>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="compact"
+                                  className="mt-1"
+                                  aria-expanded={opened.includes(u.id)}
+                                  aria-label={t("fields.values.forDevice", {
+                                    name: u.name ?? u.modelName ?? u.kind.name,
+                                  })}
+                                  aria-controls={`values-${u.id}`}
+                                  onClick={() =>
+                                    setOpened((ids) =>
+                                      ids.includes(u.id)
+                                        ? ids.filter((id) => id !== u.id)
+                                        : [...ids, u.id],
+                                    )
+                                  }
+                                >
+                                  {t(
+                                    opened.includes(u.id)
+                                      ? "fields.values.hide"
+                                      : "fields.values.show",
+                                  )}
+                                </Button>
+                                <div
+                                  id={`values-${u.id}`}
+                                  hidden={!opened.includes(u.id)}
+                                  className="py-3"
+                                >
+                                  {opened.includes(u.id) ? <FieldValues fields={u.fields} /> : null}
+                                </div>
+                              </>
+                            ) : null}
                           </div>
                           <span className="shrink-0">
                             <StatusBadge kind="equipment" value={u.status} />
@@ -215,6 +266,11 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
         </div>
 
         <div className="flex flex-col gap-4">
+          {room.fields.length ? (
+            <section className="bg-card shadow-surface-2 rounded-lg p-4">
+              <FieldValues fields={room.fields} foldAfter={8} />
+            </section>
+          ) : null}
           <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4">
             <p className="text-sm font-semibold">{t("rooms.dashboard.photos")}</p>
             <AttachmentGallery attachments={attachments} redirectTo={photoRedirect} />

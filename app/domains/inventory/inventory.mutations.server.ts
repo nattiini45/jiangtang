@@ -19,7 +19,10 @@ type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKin
  */
 
 function equipmentFields(
-  input: EquipmentCreateInput & { category: Equipment["category"] },
+  input: EquipmentCreateInput & {
+    category: Equipment["category"];
+    copiedValues?: Prisma.InputJsonObject;
+  },
 ): Prisma.EquipmentUncheckedCreateInput {
   return {
     category: input.category,
@@ -43,6 +46,7 @@ function equipmentFields(
     lampType: input.lampType ?? null,
     lastLampChangeAt: input.lastLampChangeAt ?? null,
     color: input.color ?? null,
+    customValues: input.copiedValues,
     attributes: input.attributes
       ? (JSON.parse(input.attributes) as Prisma.InputJsonValue)
       : undefined,
@@ -112,9 +116,10 @@ export async function createEquipment(
 export async function createEquipmentInTx(
   tx: Tx,
   audit: AuditFn,
-  source: EquipmentWriteInput,
+  source: EquipmentWriteInput & { copiedValues?: Prisma.InputJsonObject },
 ): Promise<Equipment> {
-  if (source.customValues !== undefined) await lockDefinitions(tx);
+  if (source.customValues !== undefined || source.copiedValues !== undefined)
+    await lockDefinitions(tx);
   const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
   let eq = await tx.equipment.create({ data: equipmentFields(input) });
   const custom =

@@ -2,7 +2,8 @@ import { Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
-import { safeParseForm } from "~/lib/validation.server";
+import { safeParse, formDataToObject } from "~/lib/validation.server";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { listModels } from "~/domains/catalog/catalog.queries.server";
@@ -25,19 +26,22 @@ export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const roomId = url.searchParams.get("roomId") || undefined;
   const [models, rooms, kinds] = await Promise.all([listModels(), listRooms(), listDeviceKinds()]);
-  return { models, rooms, roomId, kinds };
+  return { models, rooms, roomId, kinds, fields: await getFormFields("EQUIPMENT") };
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
-  const result = await safeParseForm(request, equipmentCreateSchema);
+  const form = await request.formData();
+  const result = safeParse(equipmentCreateSchema, formDataToObject(form));
   if (!result.success) return { fieldErrors: result.fieldErrors };
   try {
-    const eq = await createEquipment(actor, result.data);
+    const customValues = await parseFieldForm("EQUIPMENT", form, {}, result.data.kindId);
+    const eq = await createEquipment(actor, { ...result.data, customValues });
     await emitChange({ entityType: "equipment", id: eq.id, op: "created" });
     return redirect(`/inventory/${eq.id}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("EQUIPMENT", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -56,6 +60,7 @@ export default function NewEquipment({ loaderData, actionData }: Route.Component
       </div>
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <EquipmentFormFields
+          fields={loaderData.fields}
           kinds={loaderData.kinds}
           models={loaderData.models}
           rooms={loaderData.rooms}

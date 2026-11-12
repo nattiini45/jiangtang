@@ -1,4 +1,6 @@
 import { db } from "~/lib/db.server";
+import { withFieldValues } from "~/lib/custom-fields/display.server";
+import type { FilledField } from "~/lib/custom-fields/fields";
 import {
   kindSelect,
   withEquipmentKinds,
@@ -65,9 +67,11 @@ export interface DashboardEquipment extends Pick<
   assetTag: string | null;
   modelName: string | null;
   frequencyMhz: number | null;
+  fields: FilledField[];
 }
 
 export interface DashboardRoom {
+  fields: FilledField[];
   id: string;
   slug: string;
   name: string;
@@ -127,7 +131,10 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   const attachments = await listAttachments({ roomId: room.id });
   const history = await listEntityHistory(ENTITY_TYPE.room, room.id, 20);
 
-  const equipment: DashboardEquipment[] = (await withEquipmentKinds(room.equipment)).map((e) => ({
+  const equipment: DashboardEquipment[] = (
+    await withFieldValues("EQUIPMENT", await withEquipmentKinds(room.equipment))
+  ).map((e) => ({
+    fields: e.fields,
     id: e.id,
     name: e.name,
     category: e.category,
@@ -151,6 +158,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   }));
 
   const dashboardRoom: DashboardRoom = {
+    fields: (await withFieldValues("ROOM", [room]))[0].fields,
     id: room.id,
     slug: room.slug,
     name: room.name,
