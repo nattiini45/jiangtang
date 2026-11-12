@@ -1,5 +1,12 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.structure.library.installOne": "1 Geräteart hinzufügen",
+  "admin.structure.fieldMoveLimit":
+    "Beim Verschieben nach „{target}“ würden mehr als 40 aktive Felder gelten: {names}. Archivieren Sie zuerst Felder oder ändern Sie deren Gerätearten.",
+  "admin.structure.fieldMoveName":
+    "Felder namens „{name}“ für „{source}“ und „{target}“ würden sich überschneiden. Benennen Sie vor dem Verschieben eines der Felder um oder ändern Sie seine Gerätearten.",
+  "admin.structure.fieldsMove":
+    "Diese Felder gelten danach auch für die Zielart. Ihre Verknüpfungen zu dieser Art bleiben bestehen:",
   "admin.structure.library.willInstallAs": "Wird angelegt als „{name}“",
   "admin.structure.library.invalidInstitution":
     "Wählen Sie eine Art des Hauses aus der Bibliothek.",
@@ -32,7 +39,8 @@ export const adminDe = {
   "admin.structure.library.groupConflict":
     "Nichts wurde hinzugefügt. Der Gruppenname „{name}“ ist belegt; betroffen: {kinds}. Benennen Sie die vorhandene Gruppe um.",
   "admin.structure.title": "Struktur",
-  "admin.structure.subtitle": "Gerätearten und Funktionsgruppen für Ihr Haus verwalten.",
+  "admin.structure.subtitle": "Gerätearten, Funktionsgruppen und Felder für Ihr Haus verwalten.",
+  "admin.structure.fields": "Felder",
   "admin.structure.tabs": "Strukturbereiche",
   "admin.structure.kinds": "Gerätearten",
   "admin.structure.groups": "Funktionsgruppen",
@@ -55,7 +63,7 @@ export const adminDe = {
   "admin.structure.archiveTitle": "„{name}“ archivieren",
   "admin.structure.archiveAndMove": "Verschieben und archivieren",
   "admin.structure.moveHelp":
-    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten bleiben erhalten. Artspezifische Felder können am Ziel ausgeblendet sein; ihre Zuordnungen bleiben unverändert.",
+    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten und Feldwerte bleiben erhalten.",
   "admin.structure.moveTo": "Geräte und Modelle verschieben nach",
   "admin.structure.chooseKind": "Geräteart wählen",
   "admin.structure.deleteConfirm": "„{name}“ endgültig löschen?",
