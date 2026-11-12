@@ -10,6 +10,7 @@ import {
 } from "~/domains/tickets/tickets.history.server";
 import type {
   EquipmentCategory,
+  Equipment,
   EquipmentStatus,
   RoomStatus,
   TicketStatus,
@@ -36,13 +37,28 @@ export interface TicketSummary {
   resolvedAt: Date | null;
 }
 
-export interface DashboardEquipment {
+export interface DashboardEquipment extends Pick<
+  Equipment,
+  | "serial"
+  | "hostname"
+  | "ipAddress"
+  | "macAddress"
+  | "dellServiceTag"
+  | "dellExpressTag"
+  | "micKind"
+  | "band"
+  | "channelLabel"
+  | "lampType"
+  | "lastLampChangeAt"
+  | "color"
+> {
   id: string;
   name: string | null;
   category: EquipmentCategory;
   status: EquipmentStatus;
   assetTag: string | null;
   modelName: string | null;
+  frequencyMhz: number | null;
 }
 
 export interface DashboardRoom {
@@ -67,6 +83,7 @@ export interface DashboardRoom {
   manualUrl: string | null;
   virtualTourUrl: string | null;
   tipsNotes: string | null;
+  knownIssues: string | null;
   renewalStatus: string | null;
   lastCheckedAt: Date | null;
 }
@@ -111,6 +128,19 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
     status: e.status,
     assetTag: e.assetTag,
     modelName: e.model?.name ?? null,
+    serial: e.serial,
+    hostname: e.hostname,
+    ipAddress: e.ipAddress,
+    macAddress: e.macAddress,
+    dellServiceTag: e.dellServiceTag,
+    dellExpressTag: e.dellExpressTag,
+    micKind: e.micKind,
+    frequencyMhz: e.frequencyMhz?.toNumber() ?? null,
+    band: e.band,
+    channelLabel: e.channelLabel,
+    lampType: e.lampType,
+    lastLampChangeAt: e.lastLampChangeAt,
+    color: e.color,
   }));
 
   const dashboardRoom: DashboardRoom = {
@@ -135,6 +165,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
     manualUrl: room.manualUrl,
     virtualTourUrl: room.virtualTourUrl,
     tipsNotes: room.tipsNotes,
+    knownIssues: room.knownIssues,
     renewalStatus: room.renewalStatus,
     lastCheckedAt: room.lastCheckedAt,
   };

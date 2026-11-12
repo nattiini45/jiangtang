@@ -74,6 +74,8 @@ export const roomCreateSchema = z
     manualUrl: optionalUrl,
     virtualTourUrl: optionalUrl,
     tipsNotes: optionalText,
+    knownIssues: optionalText,
+    lastCheckedAt: optionalDate,
     renewalStatus: optionalText,
     renewalFrom: optionalDate,
     renewalTo: optionalDate,
@@ -169,6 +171,14 @@ export const roomCsvRowSchema = z
     medienschluessel: csvBool,
     videoeingaenge: csvList,
     tonausgaenge: csvList,
+    knownIssues: optionalText,
+    lastCheckedAt: z.preprocess(
+      emptyToUndefined,
+      z.iso
+        .datetime({ offset: true })
+        .transform((value) => new Date(value))
+        .optional(),
+    ),
   })
   .transform((r) => ({
     name: r.name,
@@ -186,6 +196,11 @@ export const roomCsvRowSchema = z
     mediaKeyRequired: r.medienschluessel,
     videoInputs: r.videoeingaenge,
     audioOutputs: r.tonausgaenge,
+    knownIssues: r.knownIssues,
+    lastCheckedAt: r.lastCheckedAt,
   }));
 
-export type RoomCsvRow = z.infer<typeof roomCsvRowSchema>;
+export type RoomCsvRow = Omit<z.infer<typeof roomCsvRowSchema>, "knownIssues" | "lastCheckedAt"> & {
+  knownIssues?: string;
+  lastCheckedAt?: Date;
+};

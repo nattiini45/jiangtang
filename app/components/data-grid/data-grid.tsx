@@ -37,6 +37,7 @@ export interface DataGridProps<TData> {
   emptyMessage?: React.ReactNode;
   maxHeight?: number | string;
   className?: string;
+  growColumn?: string;
   getRowId?: (row: TData, index: number) => string;
 }
 
@@ -48,6 +49,7 @@ export function DataGrid<TData>({
   emptyMessage,
   maxHeight = 600,
   className,
+  growColumn,
   getRowId,
 }: DataGridProps<TData>) {
   const t = useT();
@@ -118,7 +120,10 @@ export function DataGrid<TData>({
                   <div
                     key={header.id}
                     className="text-muted-foreground flex h-control shrink-0 items-center px-3 text-xs font-semibold"
-                    style={{ width: header.getSize() }}
+                    style={{
+                      width: header.getSize(),
+                      flexGrow: header.column.id === growColumn ? 1 : 0,
+                    }}
                   >
                     {header.isPlaceholder ? null : (
                       <button
@@ -169,7 +174,10 @@ export function DataGrid<TData>({
                     <div
                       key={cell.id}
                       className="flex shrink-0 items-center truncate px-3"
-                      style={{ width: cell.column.getSize() }}
+                      style={{
+                        width: cell.column.getSize(),
+                        flexGrow: cell.column.id === growColumn ? 1 : 0,
+                      }}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </div>

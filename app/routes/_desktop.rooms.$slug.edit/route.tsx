@@ -52,6 +52,9 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
     const result = safeParse(roomEditSchema, formDataToObject(form), locale);
     if (!result.success) return { fieldErrors: result.fieldErrors };
+    if (form.get("lastCheckedAt") === form.get("_lastCheckedOriginal")) {
+      result.data.lastCheckedAt = room.lastCheckedAt ?? undefined;
+    }
     const updated = await updateRoom(actor, room.id, result.data);
     await emitChange({ entityType: "room", id: updated.id, op: "updated" });
     return redirect(`/rooms/${updated.slug}`);
@@ -87,6 +90,8 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
     manualUrl: room.manualUrl,
     virtualTourUrl: room.virtualTourUrl,
     tipsNotes: room.tipsNotes,
+    knownIssues: room.knownIssues,
+    lastCheckedAt: berlinDateInput(room.lastCheckedAt),
     renewalStatus: room.renewalStatus,
     renewalFrom: berlinDateInput(room.renewalFrom),
     renewalTo: berlinDateInput(room.renewalTo),
@@ -102,6 +107,11 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
       </div>
 
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
+        <input
+          type="hidden"
+          name="_lastCheckedOriginal"
+          value={berlinDateInput(room.lastCheckedAt)}
+        />
         <RoomFormFields campuses={campuses} defaults={defaults} />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>

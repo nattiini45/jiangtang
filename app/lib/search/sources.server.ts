@@ -286,7 +286,7 @@ export async function loadSource(type: SourceType, id: string): Promise<SourceDo
         f("search.meta.building", room.building?.name),
         f("search.meta.status", statusLabel(locale, "room", room.status)),
       ]);
-      return doc(roomText(room) || room.name, meta, null, room.updatedAt);
+      return doc(roomText(room) || room.name, meta, room.knownIssues, room.updatedAt);
     }
     case "VENDOR": {
       const v = await db.vendor.findUnique({ where: { id } });

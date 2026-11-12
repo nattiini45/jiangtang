@@ -283,6 +283,12 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
 
 ### Asset-health booking overrides
 
+`create_room`, `update_room` and `bulk_create_rooms` accept `knownIssues` (optional plain text)
+and `lastCheckedAt` (optional ISO timestamp with an offset). `get_room`, `list_rooms` and room
+resources return both fields, using null for unset values. Room search matches known problems.
+`update_room` replaces editable fields, so omitted optional values are cleared. Cloning a room
+never copies known problems or the last-check date.
+
 `get_room`, `list_rooms` and their resources expose `bookingAction`; equipment reads expose
 `allocationAction`. These shared descriptors separate action legality from required inputs and
 confirmation: only OUT_OF_SERVICE rooms and FAULTY/MAINTENANCE pooled equipment require
