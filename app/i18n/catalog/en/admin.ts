@@ -35,9 +35,9 @@ export const adminEn = {
   "admin.structure.chooseKind": "Choose a device kind",
   "admin.structure.deleteConfirm": "Permanently delete “{name}”?",
   "admin.structure.emptyKinds": "No device kinds in this group yet.",
-  "admin.structure.legacy": "Legacy category · cannot archive",
+  "admin.structure.legacy": "Standard kind · cannot archive",
   "admin.structure.protected":
-    "This kind backs a legacy category. It cannot be archived or deleted while the category is in use.",
+    "This is one of the standard kinds. You can rename and move it, but not archive or delete it.",
   "admin.structure.nameInvalid": "The name must be 1 to 60 characters long.",
   "admin.structure.nameTaken":
     "This name is already active. Choose another name or archive the existing entry.",
