@@ -11,6 +11,7 @@ import { buildInfo } from "~/lib/version.server";
 import * as about from "~/routes/_desktop.admin.about/route";
 import * as admin from "~/routes/_desktop.admin._index/route";
 import * as legacy from "~/routes/_desktop.admin.index/route";
+import * as structure from "~/routes/_desktop.admin.structure/route";
 
 const access = vi.hoisted(() => ({ role: "ADMIN" }));
 vi.mock("~/lib/auth.server", () => ({
@@ -33,10 +34,13 @@ describe("administration shell", () => {
     },
   );
 
-  it.each([admin, legacy, about])("denies a member before returning admin data", async (route) => {
-    access.role = "MEMBER";
-    await expect(route.loader(args("/admin"))).rejects.toMatchObject({ status: 403 });
-  });
+  it.each([admin, legacy, about, structure])(
+    "denies a member before returning admin data",
+    async (route) => {
+      access.role = "MEMBER";
+      await expect(route.loader(args("/admin"))).rejects.toMatchObject({ status: 403 });
+    },
+  );
 
   it("keeps workspace and admin navigation separate for both roles", () => {
     const workspace = navigationFor(true, "/").entries.map((e) => e.to);
@@ -51,6 +55,7 @@ describe("administration shell", () => {
       "/admin",
       "/admin/users/one",
       "/admin/invitations",
+      "/admin/structure",
       "/admin/search-index",
       "/admin/about",
     ]) {
@@ -61,6 +66,7 @@ describe("administration shell", () => {
         "/admin",
         "/admin/users",
         "/admin/invitations",
+        "/admin/structure",
         "/admin/search-index",
         "/admin/about",
       ]);

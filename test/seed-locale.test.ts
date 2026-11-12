@@ -77,15 +77,25 @@ describe("workspace locale selection", () => {
     const tx = new Proxy(
       {},
       {
-        get: (_t, model: string) => ({
-          findUnique: async ({ where }: { where: { systemKey?: string } }) =>
-            model === "equipmentKind" ? { id: "kind", systemKey: where.systemKey } : null,
-          findUniqueOrThrow: async () => ({ startsAt: new Date(), endsAt: new Date() }),
-          create: async ({ data }: { data: { name?: string } }) => {
-            if (model === "project" && data.name) names.push(data.name);
-            return { id: "x" };
-          },
-        }),
+        get: (_t, model: string) =>
+          model === "$executeRaw"
+            ? async () => 0
+            : {
+                findUnique: async ({ where }: { where: { systemKey?: string } }) =>
+                  model === "equipmentKind"
+                    ? {
+                        id: "kind",
+                        systemKey: where.systemKey,
+                        archivedAt: null,
+                        group: { archivedAt: null },
+                      }
+                    : null,
+                findUniqueOrThrow: async () => ({ startsAt: new Date(), endsAt: new Date() }),
+                create: async ({ data }: { data: { name?: string } }) => {
+                  if (model === "project" && data.name) names.push(data.name);
+                  return { id: "x" };
+                },
+              },
       },
     );
     await seedWorkspace(tx as never, (async () => undefined) as never);

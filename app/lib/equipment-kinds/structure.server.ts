@@ -159,12 +159,13 @@ export async function updateFunctionGroup(
       await reorder(tx, "group", id, data.position);
       group = await tx.equipmentFunctionGroup.findUniqueOrThrow({ where: { id } });
     }
-    await queueKindDevices(
-      tx,
-      (await tx.equipmentKind.findMany({ where: { groupId: id }, select: { id: true } })).map(
-        (kind) => kind.id,
-      ),
-    );
+    if (group.name !== current.name)
+      await queueKindDevices(
+        tx,
+        (await tx.equipmentKind.findMany({ where: { groupId: id }, select: { id: true } })).map(
+          (kind) => kind.id,
+        ),
+      );
     await audit({
       action:
         data.archived === undefined
@@ -213,7 +214,7 @@ export async function updateDeviceKind(
     if (data.archived && current.systemKey && protectedKindKeys.includes(current.systemKey))
       structureError("admin.structure.protected");
     const groupId = data.groupId ?? current.groupId;
-    if (data.groupId !== undefined || data.archived === false) await activeGroup(tx, groupId);
+    if (groupId !== current.groupId || data.archived === false) await activeGroup(tx, groupId);
     if (data.archived === false && current.archivedAt) await checkStructureLimit(tx, "kind");
     let deviceCount = 0;
     let modelCount = 0;
@@ -256,7 +257,8 @@ export async function updateDeviceKind(
       await reorder(tx, "kind", id, data.position, groupId);
       kind = await tx.equipmentKind.findUniqueOrThrow({ where: { id } });
     }
-    await queueKindDevices(tx, [id]);
+    if (kind.name !== current.name || kind.groupId !== current.groupId)
+      await queueKindDevices(tx, [id]);
     await audit({
       action:
         data.archived === undefined
