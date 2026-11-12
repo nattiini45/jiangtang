@@ -69,7 +69,7 @@ jobs:
           test "$(docker image inspect release-candidate:local --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')" = "$COMMIT"
           echo "id=$(docker image inspect release-candidate:local --format '{{.Id}}')" >> "$GITHUB_OUTPUT"
       - name: Scan all image vulnerabilities
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: release-candidate:local
           scanners: vuln
@@ -83,7 +83,7 @@ jobs:
       - name: Refuse critical vulnerabilities with an available fix
         run: jq -e '(.Results | type == "array") and ([.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL" and (.FixedVersion // "") != "")] | length == 0)' "$RUNNER_TEMP/release/scan.json"
       - name: Generate the CycloneDX SBOM
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: release-candidate:local
           format: cyclonedx
