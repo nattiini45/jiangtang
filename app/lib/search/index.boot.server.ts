@@ -17,7 +17,7 @@ import { logger } from "~/lib/observability/logger.server";
 import { broker } from "~/lib/realtime/listener.server";
 import type { RealtimeEvent } from "~/lib/realtime/events";
 import { ENTITY_TO_SOURCE, type SourceType } from "./sources.server";
-import { embedPending, reconcileAll, reindexSource } from "./indexer.server";
+import { drainReindexJobs, embedPending, reconcileAll, reindexSource } from "./indexer.server";
 
 const RECONCILE_INTERVAL_MS = 60_000;
 const DEBOUNCE_MS = 500;
@@ -58,8 +58,27 @@ export function register(_app: Express, ctx: BootContext): void {
   };
 
   const onEvent = (ev: RealtimeEvent) => {
+    if (ev.entityType === "equipmentKind" || ev.entityType === "equipmentFunctionGroup") {
+      kickStructure();
+      return;
+    }
     const type = ENTITY_TO_SOURCE[ev.entityType];
     if (type) kick(type, ev.id);
+  };
+
+  const kickStructure = () => {
+    const previous = timers.get("structure");
+    if (previous) clearTimeout(previous);
+    const timer = setTimeout(() => {
+      timers.delete("structure");
+      void drainReindexJobs()
+        .then(() => drainEmbeds())
+        .catch((error) =>
+          logger.warn({ err: (error as Error).message }, "[search] structure refresh failed"),
+        );
+    }, DEBOUNCE_MS);
+    timer.unref();
+    timers.set("structure", timer);
   };
 
   // Boot catch-up, fire-and-forget: a slow first sweep must not delay startup.

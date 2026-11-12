@@ -1,5 +1,59 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.structure.archiveBeforeDelete": "Archivieren Sie die Geräteart, bevor Sie sie löschen.",
+  "admin.structure.fieldReferences":
+    "Diese Felder verwenden die Geräteart noch: {names}. Ändern Sie zuerst die Zuordnung der Felder.",
+  "admin.structure.recordReferences":
+    "Die Geräteart wird noch von {devices} Geräten und {models} Modellen verwendet. Verschieben Sie diese zuerst.",
+  "admin.structure.title": "Struktur",
+  "admin.structure.subtitle": "Gerätearten und Funktionsgruppen für Ihr Haus verwalten.",
+  "admin.structure.tabs": "Strukturbereiche",
+  "admin.structure.kinds": "Gerätearten",
+  "admin.structure.groups": "Funktionsgruppen",
+  "admin.structure.name": "Name",
+  "admin.structure.group": "Funktionsgruppe",
+  "admin.structure.addKind": "Geräteart hinzufügen",
+  "admin.structure.addGroup": "Funktionsgruppe hinzufügen",
+  "admin.structure.showArchived": "Archivierte anzeigen",
+  "admin.structure.archived": "Archiviert",
+  "admin.structure.counts": "{devices} · {models}",
+  "admin.structure.deviceOne": "{count} Gerät",
+  "admin.structure.deviceMany": "{count} Geräte",
+  "admin.structure.modelOne": "{count} Modell",
+  "admin.structure.modelMany": "{count} Modelle",
+  "admin.structure.up": "Nach oben",
+  "admin.structure.down": "Nach unten",
+  "admin.structure.edit": "Umbenennen oder verschieben",
+  "admin.structure.restore": "Wiederherstellen",
+  "admin.structure.archive": "Archivieren",
+  "admin.structure.archiveTitle": "„{name}“ archivieren",
+  "admin.structure.archiveAndMove": "Verschieben und archivieren",
+  "admin.structure.moveHelp":
+    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten bleiben erhalten. Artspezifische Felder können am Ziel ausgeblendet sein; ihre Zuordnungen bleiben unverändert.",
+  "admin.structure.moveTo": "Geräte und Modelle verschieben nach",
+  "admin.structure.chooseKind": "Geräteart wählen",
+  "admin.structure.deleteConfirm": "„{name}“ endgültig löschen?",
+  "admin.structure.emptyKinds": "Noch keine Gerätearten in dieser Gruppe.",
+  "admin.structure.legacy": "Standard-Geräteart · nicht archivierbar",
+  "admin.structure.protected":
+    "Diese Geräteart gehört zu den Standard-Gerätearten. Sie lässt sich umbenennen und verschieben, aber nicht archivieren oder löschen.",
+  "admin.structure.nameInvalid": "Der Name muss 1 bis 60 Zeichen lang sein.",
+  "admin.structure.nameTaken":
+    "Dieser Name ist bereits aktiv. Wählen Sie einen anderen Namen oder archivieren Sie den vorhandenen Eintrag.",
+  "admin.structure.kindLimit":
+    "Maximal 80 aktive Gerätearten. Archivieren Sie eine ungenutzte Geräteart, bevor Sie eine hinzufügen oder wiederherstellen.",
+  "admin.structure.groupLimit":
+    "Maximal 30 aktive Funktionsgruppen. Archivieren Sie eine leere Gruppe, bevor Sie eine hinzufügen oder wiederherstellen.",
+  "admin.structure.groupArchived":
+    "Diese Funktionsgruppe ist archiviert. Stellen Sie sie zuerst wieder her oder wählen Sie eine aktive Gruppe.",
+  "admin.structure.kindArchived":
+    "Diese Geräteart ist archiviert. Wählen Sie eine aktive Geräteart oder behalten Sie die bisherige bei.",
+  "admin.structure.groupInUse":
+    "Die Gruppe enthält aktive Gerätearten. Verschieben oder archivieren Sie diese zuerst.",
+  "admin.structure.moveRequired":
+    "Diese Geräteart wird verwendet. Wählen Sie eine andere aktive Geräteart für die Geräte und Modelle.",
+  "admin.structure.referenced":
+    "Der Eintrag wird noch verwendet. Entfernen Sie zuerst alle Verweise; Gerätearten müssen außerdem archiviert sein.",
   "admin.overview.title": "Übersicht",
   "admin.overview.meta": "Administration · Jiangtang",
   "admin.overview.subtitle": "Zustand der Installation und nächste Schritte.",
