@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { toNodeHandler } from "better-auth/node";
+import { readConfig, readRawConfig } from "~/lib/config.server";
 import { auth, MIN_PASSWORD_LENGTH } from "~/lib/auth.server";
 import { bootstrapFirstAdmin } from "~/lib/auth-bootstrap.server";
 import { db } from "~/lib/db.server";
@@ -12,7 +13,6 @@ import type { BootContext } from "~/server/boot";
  * The development defaults are unsafe for any public exposure.
  */
 
-const DEFAULT_DEV_ADMIN_EMAIL = "admin@jiangtang.local";
 const MIN_SECRET_LENGTH = 32;
 const FEED_TOKEN_PLACEHOLDER = "generate-a-long-random-token-here";
 
@@ -23,7 +23,7 @@ const FEED_TOKEN_PLACEHOLDER = "generate-a-long-random-token-here";
  * observe the resolved address without a database.
  */
 export function resolveDevAdminEmail(): string {
-  return process.env.DEV_ADMIN_EMAIL ?? DEFAULT_DEV_ADMIN_EMAIL;
+  return readConfig("DEV_ADMIN_EMAIL");
 }
 
 /**
@@ -36,22 +36,22 @@ export function resolveDevAdminEmail(): string {
  * bootstrap would then skip the admin with only a logged error, and boot would
  * continue without an admin. An unset one is allowed.
  */
-export function assertProductionSecrets(env: NodeJS.ProcessEnv = process.env): void {
-  const secret = env.BETTER_AUTH_SECRET ?? "";
+export function assertProductionSecrets(env?: NodeJS.ProcessEnv): void {
+  const secret = readRawConfig("BETTER_AUTH_SECRET", env) ?? "";
   if (secret.length < MIN_SECRET_LENGTH || secret.startsWith("change-me")) {
     throw new Error(
       `BETTER_AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters and must not be a placeholder. ` +
         "Generate one with `openssl rand -base64 48`.",
     );
   }
-  const feedToken = env.ICAL_FEED_TOKEN;
+  const feedToken = readConfig("ICAL_FEED_TOKEN", env);
   if (feedToken && (feedToken.length < MIN_SECRET_LENGTH || feedToken === FEED_TOKEN_PLACEHOLDER)) {
     throw new Error(
       `ICAL_FEED_TOKEN must be at least ${MIN_SECRET_LENGTH} characters and must not be a placeholder. ` +
         "Generate one with `openssl rand -hex 32`, or leave it empty to disable the feed.",
     );
   }
-  const adminPassword = env.ADMIN_PASSWORD;
+  const adminPassword = readConfig("ADMIN_PASSWORD", env);
   if (adminPassword && adminPassword.startsWith("change-me")) {
     throw new Error(
       "ADMIN_PASSWORD must not be a placeholder. Set a strong password, or remove it once the first admin exists.",
@@ -84,7 +84,7 @@ async function seedDevAdmin(): Promise<void> {
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) return;
 
-  const password = process.env.DEV_ADMIN_PASSWORD ?? "jiangtang-admin";
+  const password = readConfig("DEV_ADMIN_PASSWORD");
   try {
     const { user } = await auth.api.signUpEmail({
       body: { email, password, name: "Dev Admin" },

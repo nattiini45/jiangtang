@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import { readConfig } from "~/lib/config.server";
 import { REALTIME_CHANNEL, decodeRealtimeEvent, type RealtimeEvent } from "~/lib/realtime/events";
 
 /**
@@ -64,7 +65,7 @@ class RealtimeBroker {
   }
 
   private async start(): Promise<void> {
-    const url = process.env.DATABASE_URL;
+    const url = readConfig("DATABASE_URL");
     if (!url) throw new Error("DATABASE_URL is not set (realtime listener).");
 
     const client = new Client({ connectionString: url });
@@ -216,6 +217,6 @@ class RealtimeBroker {
 /** Process-wide singleton (HMR-safe: cached on globalThis in dev). */
 const globalForRealtime = globalThis as unknown as { __jiangtangBroker?: RealtimeBroker };
 export const broker: RealtimeBroker = globalForRealtime.__jiangtangBroker ?? new RealtimeBroker();
-if (process.env.NODE_ENV !== "production") {
+if (readConfig("NODE_ENV") !== "production") {
   globalForRealtime.__jiangtangBroker = broker;
 }
