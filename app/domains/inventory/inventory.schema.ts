@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customValuesInput } from "~/lib/custom-fields/values.schema";
 import { msgKey } from "~/i18n";
 import {
   EquipmentCategory,
@@ -46,6 +47,7 @@ const optionalJson = z.preprocess(emptyToUndefined, z.string().optional()).super
 
 export const equipmentCreateSchema = z
   .object({
+    customValues: customValuesInput,
     category: z.enum(EquipmentCategory).optional(),
     kindId: optionalId,
     modelId: optionalId,
@@ -200,6 +202,7 @@ export const equipmentCsvRowSchema = equipmentCsvFieldsSchema.transform(equipmen
 
 export const equipmentBulkRowSchema = equipmentCsvFieldsSchema
   .extend({
+    customValues: customValuesInput,
     kategorie: csvCategory.optional(),
     kindId: optionalId,
   })
@@ -208,8 +211,11 @@ export const equipmentBulkRowSchema = equipmentCsvFieldsSchema
     message: msgKey("inventory.form.kindRequired"),
   })
   .transform((row) => ({
+    ...(row.customValues === undefined ? {} : { customValues: row.customValues }),
     ...equipmentCsvFields({ ...row, kategorie: row.kategorie ?? "OTHER" }),
     kindId: row.kindId,
   }));
 
-export type EquipmentCsvRow = z.infer<typeof equipmentCsvRowSchema>;
+export type EquipmentCsvRow = z.infer<typeof equipmentCsvRowSchema> & {
+  customValues?: Record<string, unknown>;
+};

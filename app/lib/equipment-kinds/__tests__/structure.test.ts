@@ -66,8 +66,12 @@ describe("structure rules against PostgreSQL", () => {
         kindId: kind.id,
         mobility: "POOLED",
         status: "OPERATIONAL",
+        customValues: { [field.key]: "Synthetic retained value" },
       });
       await updateDeviceKind(actor, kind.id, { archived: true, moveDevicesTo: target.id });
+      expect(
+        (await db.equipment.findFirstOrThrow({ where: { name: `${prefix}Device` } })).customValues,
+      ).toEqual({ [field.id]: "Synthetic retained value" });
       expect(
         await db.customFieldKind.count({ where: { fieldId: field.id, kindId: kind.id } }),
       ).toBe(1);

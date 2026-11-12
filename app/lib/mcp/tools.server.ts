@@ -7,6 +7,7 @@ import { currentLocale, tr } from "~/i18n/request-locale.server";
 import { Prisma } from "~/generated/prisma/client";
 import type { EquipmentKindSummary } from "~/lib/equipment-kinds/kinds.server";
 import type { McpContext } from "./types.server";
+import { CustomValuesError } from "~/lib/custom-fields/values.server";
 
 const inputSchemas = new Map<string, ReturnType<typeof fromJsonSchema>>();
 
@@ -34,6 +35,17 @@ export function withMcpEquipmentKind<T extends { kind: EquipmentKindSummary }>(v
 }
 
 export async function mcpError(error: unknown): Promise<CallToolResult> {
+  if (error instanceof CustomValuesError) {
+    error = new Response(
+      JSON.stringify({
+        error: "ValidationError",
+        fieldErrors: error.fieldErrors,
+        formErrors: [],
+        errors: error.errors,
+      }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2025") error = new NotFoundError();
     else if (error.code === "P2003") {
