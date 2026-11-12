@@ -16,6 +16,12 @@ export const fieldsDe = {
   "fields.type.LINK": "Link",
   "fields.type.CHOICE": "Auswahl",
   "fields.type.MULTI_CHOICE": "Mehrfachauswahl",
+  "fields.name.conflict":
+    "Das {state} Feld „{name}“ verwendet diesen Namen bereits für {coverage}. Wähle einen anderen Namen oder bearbeite zuerst dieses Feld.",
+  "fields.name.active": "aktive",
+  "fields.name.archived": "archivierte",
+  "fields.name.allRooms": "alle Räume",
+  "fields.name.allKinds": "alle Gerätearten",
   "fields.moreDetails": "Weitere Angaben",
   "fields.form.unset": "Nicht angegeben",
   "fields.form.yes": "Ja",

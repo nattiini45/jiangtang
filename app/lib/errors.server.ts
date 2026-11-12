@@ -50,6 +50,16 @@ export class TransitionError extends ValidationError {
   }
 }
 
+export class FieldNameConflictError extends ValidationError {
+  constructor(
+    readonly holderId: string,
+    message: string,
+  ) {
+    super({ name: [message] });
+    this.name = "FieldNameConflictError";
+  }
+}
+
 /** 404 — an entity could not be found. */
 export class NotFoundError extends Error {
   constructor(message = tr("err.notFound")) {
@@ -118,6 +128,7 @@ export interface ErrorBody {
   fieldErrors?: FieldErrors;
   formErrors?: string[];
   transition?: TransitionRejection;
+  holderId?: string;
 }
 
 function json(body: ErrorBody, status: number): Response {
@@ -162,6 +173,7 @@ export function toErrorResponse(error: unknown): Response {
         fieldErrors: localizeFieldErrors(locale, error.fieldErrors),
         formErrors: localizeMessages(locale, error.formErrors),
         ...(error instanceof TransitionError ? { transition: error.transition } : {}),
+        ...(error instanceof FieldNameConflictError ? { holderId: error.holderId } : {}),
       },
       422,
     );
