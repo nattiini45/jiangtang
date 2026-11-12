@@ -53,23 +53,17 @@ def prepare():
         notes = release_notes(run("git", "show", f"{commit}:CHANGELOG.md"), version)
     output = Path(os.environ["RUNNER_TEMP"]) / "release"
     output.mkdir(exist_ok=True)
+    image = f"ghcr.io/{repository.lower()}:{version}"
+    notes += (
+        "\n### Image verification\n\n"
+        f"Image: `{image}`.\n\n"
+        f"Source commit: `{commit}`. The image's `org.opencontainers.image.revision` label "
+        f"is `{commit}`; the build checks this label and the version before publishing.\n\n"
+        "The provenance names the release workflow on the default branch, which builds the tagged commit. "
+        "Its source revision can be newer than the tagged commit.\n\n"
+        f"```sh\ngh attestation verify oci://{image} --repo {repository}\n```\n"
+    )
     (output / "notes.md").write_text(notes)
-    workflow = f"{os.environ['GITHUB_SERVER_URL']}/{repository}/.github/workflows/release.yml@{os.environ['GITHUB_REF']}"
-    provenance = {
-        "buildDefinition": {
-            "buildType": "https://actions.github.io/buildtypes/workflow/v1",
-            "externalParameters": {
-                "workflow": {"repository": f"{os.environ['GITHUB_SERVER_URL']}/{repository}", "path": ".github/workflows/release.yml", "ref": os.environ["GITHUB_REF"]},
-                "version": version, "commit": commit,
-            },
-            "resolvedDependencies": [{"uri": f"git+https://github.com/{repository}", "digest": {"gitCommit": commit}}],
-        },
-        "runDetails": {
-            "builder": {"id": workflow},
-            "metadata": {"invocationId": f"{os.environ['GITHUB_SERVER_URL']}/{repository}/actions/runs/{os.environ['GITHUB_RUN_ID']}/attempts/{os.environ['GITHUB_RUN_ATTEMPT']}"},
-        },
-    }
-    (output / "provenance.json").write_text(json.dumps(provenance))
     with open(os.environ["GITHUB_OUTPUT"], "a") as stream:
         stream.write(f"version={version}\nminor={'.'.join(version.split('.')[:2])}\ncommit={commit}\n")
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as stream:

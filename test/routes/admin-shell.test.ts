@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NAV, navigationFor } from "~/components/layout/nav";
 import { verbsFor } from "~/components/command/verbs";
 import { ENVIRONMENT_VARIABLES } from "~/lib/environment.server";
+import { CONFIG_REGISTRY } from "~/lib/config.server";
 import { buildInfo } from "~/lib/version.server";
 import * as about from "~/routes/_desktop.admin.about/route";
 import * as admin from "~/routes/_desktop.admin._index/route";
@@ -97,7 +98,7 @@ describe("administration shell", () => {
     const documented = [
       ...readFileSync(".env.example", "utf8").matchAll(/^\s*#?\s*([A-Z][A-Z0-9_]+)=/gm),
     ].map((m) => m[1]);
-    const listed = new Set<string>(ENVIRONMENT_VARIABLES.map((v) => v.name));
+    const listed = new Set<string>(CONFIG_REGISTRY.map((v) => v.name));
     expect(documented.filter((name) => !listed.has(name) && !excluded[name])).toEqual([]);
     expect(
       Object.keys(excluded).every((name) => documented.includes(name) && !listed.has(name)),

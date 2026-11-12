@@ -158,6 +158,7 @@ model Room {
   manualUrl      String?
   virtualTourUrl String?
   tipsNotes      String?
+  knownIssues    String?
 
   renewalStatus String?
   renewalFrom   DateTime? @db.Timestamptz(3)

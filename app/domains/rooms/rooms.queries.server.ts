@@ -106,6 +106,8 @@ export interface RoomListRow {
   status: RoomStatus;
   capacity: number | null;
   equipmentCount: number;
+  knownIssues: string | null;
+  lastCheckedAt: Date | null;
 }
 
 export async function listRooms(
@@ -127,6 +129,7 @@ export async function listRooms(
             OR: [
               { name: { contains: opts.q, mode: "insensitive" } },
               { roomNumber: { contains: opts.q, mode: "insensitive" } },
+              { knownIssues: { contains: opts.q, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -148,6 +151,8 @@ export async function listRooms(
     status: r.status,
     capacity: r.capacity,
     equipmentCount: r._count.equipment,
+    knownIssues: r.knownIssues,
+    lastCheckedAt: r.lastCheckedAt,
   }));
 }
 

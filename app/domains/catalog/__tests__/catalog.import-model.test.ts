@@ -691,6 +691,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261109220000_calendar_publication_initialization",
       "20261110200000_time_permissions",
       "20261110203000_invitations",
+      "20261111163000_room_known_issues",
       "20261112090000_equipment_ports",
       "20261112090100_equipment_connections",
     ]);

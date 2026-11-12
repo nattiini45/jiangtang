@@ -24,6 +24,8 @@ export interface RoomDefaults extends RoomFlags {
   manualUrl?: string | null;
   virtualTourUrl?: string | null;
   tipsNotes?: string | null;
+  knownIssues?: string | null;
+  lastCheckedAt?: string | null;
   renewalStatus?: string | null;
   renewalFrom?: string | null; // yyyy-mm-dd for the date input
   renewalTo?: string | null;
@@ -80,6 +82,13 @@ export function RoomFormFields({
           </Select>
         </FormField>
       </div>
+
+      <FormField name="knownIssues" label={t("rooms.knownIssues")}>
+        <Textarea name="knownIssues" defaultValue={defaults?.knownIssues ?? ""} rows={3} />
+      </FormField>
+      <FormField name="lastCheckedAt" label={t("rooms.lastChecked")}>
+        <Input name="lastCheckedAt" type="date" defaultValue={defaults?.lastCheckedAt ?? ""} />
+      </FormField>
 
       <RoomFeatureToggles defaults={defaults} />
 
