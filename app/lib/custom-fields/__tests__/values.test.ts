@@ -16,6 +16,7 @@ import {
 import { CustomValuesError, withCustomValues, validateCustomValues } from "../values.server";
 import type { CustomFieldType, CustomFieldScope } from "~/generated/prisma/client";
 import { createFieldSchema, fieldOptionsSchema } from "../definitions.schema";
+import { isLibraryProperty } from "~/lib/equipment-kinds/properties";
 
 const actor = { name: "Synthetic field editor" };
 const fieldIds: string[] = [],
@@ -143,7 +144,9 @@ describe("custom field values", () => {
     expect(Object.hasOwn(stored as object, f.id)).toBe(Boolean(exists));
   });
   it("counts archived fields and retired options toward the total limits", async () => {
-    const existing = await db.customField.count({ where: { scope: "EQUIPMENT" } });
+    const existing = (
+      await db.customField.findMany({ where: { scope: "EQUIPMENT" }, select: { systemKey: true } })
+    ).filter((field) => !isLibraryProperty(field)).length;
     const rows = Array.from({ length: 120 - existing }, () => ({
       id: randomUUID(),
       key: `f_${randomUUID().replaceAll("-", "")}`,

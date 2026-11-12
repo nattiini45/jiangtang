@@ -4,6 +4,7 @@ import { requirePermission } from "~/lib/rbac.server";
 import { TIME_ACTIVITY_TYPE, timeActivityVisibility } from "~/domains/time/time-access.server";
 import { db } from "~/lib/db.server";
 import { entityHref } from "~/lib/entity-links";
+import { tr } from "~/i18n/request-locale.server";
 
 /**
  * `/activity` — the global feed. Query-only folder, owns no model
@@ -155,8 +156,27 @@ async function queryActivity(
 ) {
   const limit = options.limit ?? 50;
   const cursor = decodeActivityCursor(options.cursor);
+  const batches = await db.$queryRaw<{ id: string; ids: string[]; count: bigint }[]>`
+    WITH changes AS (
+      SELECT id, action, "occurredAt",
+        CASE WHEN "occurredAt" - lag("occurredAt") OVER (
+          PARTITION BY action ORDER BY "occurredAt", id
+        ) > interval '10 seconds' THEN 1 ELSE 0 END AS boundary
+      FROM "ActivityLog" WHERE "actorId" IS NULL
+        AND action IN ('LibraryPropertyReconciled', 'CatalogModelLinked', 'CatalogModelCorrected', 'CatalogDevicePortsFilled')
+    ), steps AS (
+      SELECT id, action, "occurredAt", sum(boundary) OVER (
+        PARTITION BY action ORDER BY "occurredAt", id
+      ) AS step FROM changes
+    )
+    SELECT (array_agg(id ORDER BY "occurredAt" DESC, id DESC))[1] AS id,
+      array_agg(id) AS ids, count(*) AS count
+    FROM steps GROUP BY action, step`;
+  const batchById = new Map(batches.map((batch) => [batch.id, Number(batch.count)]));
+  const foldedIds = batches.flatMap((batch) => batch.ids.filter((id) => id !== batch.id));
   const rows = await db.activityLog.findMany({
     where: {
+      ...(foldedIds.length ? { id: { notIn: foldedIds } } : {}),
       AND: [
         visibility,
         ...(options.userAccountabilityOnly
@@ -218,9 +238,14 @@ async function queryActivity(
       entityId: r.entityId,
       occurredAt: r.occurredAt,
       actorId: r.actorId,
-      actorSnapshot: r.actorSnapshot,
-      title: entity?.title ?? titleFromData(r.data) ?? `#${r.entityId.slice(-6)}`,
-      href: entity ? entityHref(r.entityType, { id: r.entityId, slug: entity.slug }) : null,
+      actorSnapshot: batchById.has(r.id) ? { name: "Jiangtang" } : r.actorSnapshot,
+      title: batchById.has(r.id)
+        ? tr("activity.startup.count", { count: batchById.get(r.id)! })
+        : (entity?.title ?? titleFromData(r.data) ?? `#${r.entityId.slice(-6)}`),
+      href:
+        !batchById.has(r.id) && entity
+          ? entityHref(r.entityType, { id: r.entityId, slug: entity.slug })
+          : null,
     };
   });
 

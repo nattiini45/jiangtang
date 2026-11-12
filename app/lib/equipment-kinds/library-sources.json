@@ -9,6 +9,96 @@
     "url": "https://www.toa.de/produkte/f-2322c-eu/",
     "area": "audio-systems"
   },
+  "lib:control4_sddp": {
+    "title": "Control4 Composer Pro help: Auto Discovery (SDDP)",
+    "url": "https://docs.control4.com/help/c4/software/cpro/dealer-composer-help/content/composerpro_userguide/auto_discovery_sddp.htm",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:crestron_cip": {
+    "title": "Crestron Application Market: Technical brief Haivision (Crestron's Integrated Partner program)",
+    "url": "https://applicationmarket.crestron.com/content/Help/HaiVision/Technical%20Brief%20%C3%B9%20Crestron%20and%20Haivision%20Media%20Platform.pdf",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:crestron_connected": {
+    "title": "Crestron: Second Generation of Crestron Connected Technology (an IP-enabled device control protocol)",
+    "url": "https://www.crestron.com/News/Blog/June-2021/Second-Generation-of-Crestron-Connected-Technolog",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:crestron_roomview": {
+    "title": "Crestron help: RoomView Connected Display",
+    "url": "https://help.crestron.com/cds/symbols/Device_Library/Ethernet_Control_Modules/Ethernet_Modules_Generic/RoomView_Connected_Display.htm",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_ds_control4": {
+    "title": "Epson: EB-G7400U tech specs (Projector control via ... Control4)",
+    "url": "https://www.epson.eu/en_EU/eb-g7400u/p/19138",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_ds_de_pu1008w": {
+    "title": "Epson Deutschland: EB-PU1008W technische Daten (Netzwerkprotokoll; Projector control via, AMX-Geräteerkennung)",
+    "url": "https://www.epson.de/de_DE/produkte/projector/f%C3%BCr-profis/eb-pu1008w-projector/p/32084",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_ds_pu1008w": {
+    "title": "Epson UK: EB-PU1008W tech specs (Network Protocol; Projector control)",
+    "url": "https://www.epson.co.uk/en_GB/products/projector/professional/eb-pu1008w-projector/p/32084",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_ds_roomview": {
+    "title": "Epson: EB-L210SF tech specs (Projector control via ... Crestron RoomView)",
+    "url": "https://www.epson.co.uk/en_GB/products/projector/short-throw/eb-l210sf-projector/p/38523",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_escvp21": {
+    "title": "Epson ESC/VP21 Command Users Guide for Business Projectors",
+    "url": "https://download.epson-europe.com/pub/download/3222/epson322269eu.pdf",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_pu1008w_ug": {
+    "title": "Epson EB-PU1008W User's Guide, Projector Monitoring and Control Options p.134-136, Network menu p.114",
+    "url": "https://download.epson-europe.com/pub/download/6407/epson640755eu.pdf",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_vpnet": {
+    "title": "Epson ESC/VP.net Software Development Manual",
+    "url": "https://www.epson.com.au/d/pub/epson/techtips/escvp.netmanual_e_f.pdf",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:epson_webapi": {
+    "title": "Epson Web API Specifications for Projectors, Rev. 06",
+    "url": "https://download3.ebz.epson.net/dsc/f/03/00/17/83/00/85b4ea7401da59a0cb6aa4386a6b2fb05c5b9dd6/WebAPI_Specifications_EN_Rev06.pdf",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:extron_xtp": {
+    "title": "Extron: XTP Inside Display Devices",
+    "url": "https://www.extron.com/article/xtpad",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:pjlink_spec": {
+    "title": "JBMIA PJLink Specifications 2.10 (Class 2 extends Class 1, introduction)",
+    "url": "https://pjlink.jbmia.or.jp/english/data_cl2/PJLink_5-1.pdf",
+    "read": "page",
+    "area": "library"
+  },
+  "lib:tender_muelheim": {
+    "title": "Stadt Mülheim an der Ruhr: LV Ersatzneubau GS Saarn, Aula (Mediensteuerung; Anbindung an übergeordnete Steuerungssysteme)",
+    "url": "https://www1.muelheim-ruhr.de/system/files/ausschreibungen/GS_Saarn_Buehnen-_und_Veranstaltungstechnik_-_Paket_1_3_LV_LP6_v1_0_0.pdf",
+    "read": "page",
+    "area": "library"
+  },
   "pd:B1": {
     "title": "MH733 Meetingraum-Projektor | BenQ Display Solutions",
     "url": "https://www.benq.eu/de-de/business/projector/mh733.html",

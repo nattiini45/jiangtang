@@ -56,6 +56,22 @@ export function EquipmentFormFields({
   const locale = useLocale();
   const t = useT();
   const [modelId, setModelId] = React.useState(defaults?.modelId ?? "");
+  const [catalog, setCatalog] = React.useState<{
+    kindId: string;
+    query: string;
+    models: { id: string; name: string; manufacturer: string }[];
+  }>();
+  const [catalogFailed, setCatalogFailed] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const [picked, setPicked] = React.useState<{
+    id: string;
+    name: string;
+    manufacturer: string | null;
+  }>();
+  React.useEffect(() => {
+    setModelId(defaults?.modelId ?? "");
+    setPicked(undefined);
+  }, [defaults?.modelId]);
   const options = kinds.flatMap((group) => group.kinds);
   const [kindId, setKindId] = React.useState(
     defaults?.kindId ??
@@ -67,6 +83,44 @@ export function EquipmentFormFields({
   const category =
     Object.entries(DEFAULT_EQUIPMENT_KINDS).find(([, value]) => value.key === key)?.[0] ?? "OTHER";
   const [mobility, setMobility] = React.useState<string>(defaults?.mobility ?? "FIXED");
+  React.useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setCatalogFailed(false);
+      void (async () => {
+        try {
+          const response = await fetch(
+            `/api/model-catalog?${new URLSearchParams({ kindId, query })}`,
+            { signal: controller.signal },
+          );
+          if (!response.ok) throw new Error(String(response.status));
+          const data = (await response.json()) as NonNullable<typeof catalog>;
+          if (!controller.signal.aborted) setCatalog(data);
+        } catch {
+          if (!controller.signal.aborted) setCatalogFailed(true);
+        }
+      })();
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [kindId, query, defaults?.modelId]);
+  const available = [
+    ...models.filter(
+      (model) =>
+        model.id === modelId ||
+        query
+          .trim()
+          .toLowerCase()
+          .split(/\s+/)
+          .every((word) =>
+            `${model.manufacturer ?? ""} ${model.name}`.toLowerCase().includes(word),
+          ),
+    ),
+    ...(catalog?.kindId === kindId && catalog.query === query ? catalog.models : []),
+  ];
+  if (picked && !available.some((model) => model.id === picked.id)) available.push(picked);
   const pooled = mobility === "POOLED";
 
   return (
@@ -77,7 +131,13 @@ export function EquipmentFormFields({
             name="kindId"
             value={kindId}
             required
-            onChange={(e) => setKindId(e.currentTarget.value)}
+            onChange={(e) => {
+              setKindId(e.currentTarget.value);
+              if (modelId.startsWith("catalog:")) {
+                setModelId("");
+                setPicked(undefined);
+              }
+            }}
           >
             <KindOptions groups={kinds} />
           </Select>
@@ -113,19 +173,37 @@ export function EquipmentFormFields({
           </Select>
         </FormField>
         <FormField name="modelId" label={t("inventory.form.model")}>
+          <Input
+            type="search"
+            maxLength={200}
+            aria-label={t("inventory.catalog.search")}
+            placeholder={t("inventory.catalog.search")}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            className="mb-2"
+          />
           <Select
+            id="modelId"
             name="modelId"
             value={modelId}
-            onChange={(event) => setModelId(event.currentTarget.value)}
+            onChange={(event) => {
+              setModelId(event.currentTarget.value);
+              setPicked(available.find((model) => model.id === event.currentTarget.value));
+            }}
           >
             <option value="">{t("inventory.form.noModel")}</option>
-            {models.map((m) => (
+            {available.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.manufacturer ? `${m.manufacturer} ` : ""}
                 {m.name}
               </option>
             ))}
           </Select>
+          {catalogFailed ? (
+            <p role="status" className="text-muted-foreground text-xs">
+              {t("inventory.catalog.unavailable")}
+            </p>
+          ) : null}
         </FormField>
       </div>
 

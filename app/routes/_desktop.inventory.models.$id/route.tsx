@@ -1,4 +1,4 @@
-import { Link, useNavigation } from "react-router";
+import { Form, Link, useNavigation } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
@@ -22,6 +22,9 @@ import { ModelPortsEditor } from "~/components/inventory/ports-editor";
 import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 import { modelFieldValues } from "~/lib/custom-fields/display.server";
 import { FieldValues } from "~/components/fields/field-values";
+import { unlinkCatalogModel } from "~/domains/catalog/catalog.library.server";
+import { formatDate } from "~/i18n/format";
+import { useLocale } from "~/i18n/use-t";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -35,11 +38,12 @@ export function meta({ data, matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  await requireUser(request);
+  const actor = await requireUser(request);
   const detail = await getModelDetail(params.id);
   if (!detail) throw toErrorResponse(new NotFoundError(tr("err.model.notFound")));
   return {
     ...detail,
+    canUnlink: actor.role === "ADMIN",
     kinds: await listDeviceKinds(false, detail.model.kind.id),
     fields: await getFormFields("EQUIPMENT"),
     filledFields: await modelFieldValues(detail.model),
@@ -49,6 +53,14 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 export async function action({ request, params }: Route.ActionArgs) {
   const actor = await requireUser(request);
   const form = await request.clone().formData();
+  if (form.get("_action") === "unlinkCatalog") {
+    try {
+      await unlinkCatalogModel(actor, params.id);
+      return { ok: true };
+    } catch (error) {
+      throw toErrorResponse(error);
+    }
+  }
   if (form.get("_action") === "modelPorts") {
     try {
       await setEquipmentModelPorts(actor, params.id, JSON.parse(String(form.get("ports") ?? "[]")));
@@ -87,6 +99,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 
 export default function ModelDetail({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
+  const locale = useLocale();
   const { model, stats, instances } = loaderData;
   const nav = useNavigation();
   const busy = nav.state !== "idle";
@@ -104,10 +117,58 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
       </div>
 
       <ModelAssetView stats={stats} instances={instances} />
-      {loaderData.filledFields.length ? (
+      {loaderData.filledFields.length || model.catalogKey || model.manualUrl ? (
         <section className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4">
           <h2 className="mb-3 text-base font-semibold">{t("fields.model.sheet")}</h2>
-          <FieldValues fields={loaderData.filledFields} />
+          {model.catalogKey ? (
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm">
+              {model.catalogSource ? (
+                <p className="text-muted-foreground">
+                  {t("inventory.catalog.source", {
+                    manufacturer: model.catalogSource.manufacturer,
+                    date: formatDate(locale, `${model.catalogSource.retrievedOn}T12:00:00Z`),
+                  })}{" "}
+                  <a
+                    className="underline underline-offset-4"
+                    href={model.catalogSource.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("inventory.catalog.productPage")}
+                  </a>
+                </p>
+              ) : null}
+              {loaderData.canUnlink ? (
+                <Form
+                  method="post"
+                  onSubmit={(event) => {
+                    if (!confirm(t("inventory.catalog.unlinkConfirm"))) event.preventDefault();
+                  }}
+                >
+                  <Button
+                    variant="ghost"
+                    size="compact"
+                    name="_action"
+                    value="unlinkCatalog"
+                    disabled={busy}
+                  >
+                    {t("inventory.catalog.unlink")}
+                  </Button>
+                </Form>
+              ) : null}
+            </div>
+          ) : null}
+          <FieldValues fields={loaderData.filledFields} showLegend={false} />
+          {model.manualUrl ? (
+            <a
+              href={model.manualUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-block text-sm underline underline-offset-4"
+            >
+              {t("inventory.catalog.manual")}
+            </a>
+          ) : null}
         </section>
       ) : null}
 

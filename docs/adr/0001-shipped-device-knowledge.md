@@ -52,5 +52,6 @@ that report themselves can follow without rebuilding.
 - A new enum value ships one release before the first row uses it, so rollback code can skip
   values it cannot render.
 
-This release builds projector properties, their reconcile and resolver, and model values; the
-model catalog, picking and linking follow in the next release.
+The built path includes projector properties, their reconcile and resolver, model values, and
+the Epson model catalog with picking, automatic linking, corrections and unlinking. Other kinds'
+properties, ranges, parts, readings and relations follow separately.

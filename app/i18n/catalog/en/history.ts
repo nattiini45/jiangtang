@@ -1,6 +1,12 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.LibraryPropertyReconciled": "Properties added from the library",
+  "history.action.CatalogModelLinked": "Models linked to the catalog",
+  "history.action.CatalogModelCorrected": "Model data updated from the catalog",
+  "history.action.CatalogModelUnlinked": "Unlinked from the catalog",
+  "history.action.CatalogDevicePortsFilled": "Devices given their model ports",
+  "activity.startup.count": "{count}",
   "history.action.EquipmentKindUpdated": "Device kind updated",
   "history.action.EquipmentKindArchived": "Device kind archived",
   "history.action.EquipmentKindRestored": "Device kind restored",

@@ -1,4 +1,7 @@
 import { db } from "~/lib/db.server";
+import { catalogSource } from "./catalog.library.server";
+import { listModelCatalog } from "~/lib/catalog/catalog.server";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 import {
   kindSelect,
   equipmentKindFilter,
@@ -8,6 +11,34 @@ import {
 import type { EquipmentCategory, EquipmentStatus } from "~/generated/prisma/client";
 
 /** Read-only queries for the EquipmentModel catalog. */
+
+export async function catalogModelOptions(kindId: string | null, query: string) {
+  const kind = kindId
+    ? await db.equipmentKind.findUnique({ where: { id: kindId }, include: { group: true } })
+    : null;
+  if (!kind?.systemKey || kind.archivedAt || kind.group.archivedAt) return [];
+  const installed = await db.equipmentModel.findMany({ include: { kind: true } });
+  const normalize = (value: string | null) => value?.trim().toLowerCase();
+  const records = await listModelCatalog({ query, kind: kind.systemKey });
+  return records
+    .filter(
+      (record) =>
+        !installed.some(
+          (model) =>
+            model.catalogKey === record.key ||
+            ((model.kind ? model.kind.systemKey : DEFAULT_EQUIPMENT_KINDS[model.category].key) ===
+              record.kind &&
+              normalize(model.name) === normalize(record.name) &&
+              normalize(model.manufacturer) === normalize(record.manufacturer)),
+        ),
+    )
+    .slice(0, 30)
+    .map((record) => ({
+      id: `catalog:${record.key}`,
+      name: record.name,
+      manufacturer: record.manufacturer,
+    }));
+}
 
 export interface ModelListRow {
   id: string;
@@ -76,7 +107,9 @@ export async function getModel(id: string) {
       ports: { orderBy: [{ position: "asc" }, { id: "asc" }] },
     },
   });
-  return model ? (await withEquipmentKinds([model]))[0] : null;
+  if (!model) return null;
+  const { catalogSnapshot: _snapshot, ...resolved } = (await withEquipmentKinds([model]))[0];
+  return { ...resolved, catalogSource: await catalogSource(model.catalogKey) };
 }
 
 export interface ModelStats {

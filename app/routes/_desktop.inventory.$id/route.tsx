@@ -261,15 +261,26 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
 
       {(["model", "device"] as const).map((from) => {
         const fields = loaderData.filledFields.filter((field) => field.from === from);
-        return fields.length ? (
+        return fields.length || (from === "model" && eq.model?.manualUrl) ? (
           <section key={from} className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4">
             <h2 className="mb-3 text-base font-semibold">
               {t(from === "model" ? "fields.model.from" : "fields.device.own")}
             </h2>
             <FieldValues
+              showLegend={false}
               fields={fields}
               essentialFirst={fields.some((field) => field.origin === "library")}
             />
+            {from === "model" && eq.model?.manualUrl ? (
+              <a
+                href={eq.model.manualUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-block text-sm underline underline-offset-4"
+              >
+                {t("inventory.catalog.manual")}
+              </a>
+            ) : null}
           </section>
         ) : null;
       })}

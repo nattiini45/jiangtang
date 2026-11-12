@@ -11,10 +11,39 @@ import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { findOrCreateModel } from "~/domains/catalog/catalog.mutations.server";
+import { applyCatalogModelInTx } from "~/domains/catalog/catalog.library.server";
+import { loadModelCatalog } from "~/lib/catalog/catalog.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 import type { Equipment, Prisma } from "~/generated/prisma/client";
 import type { EquipmentCreateInput, EquipmentCsvRow } from "./inventory.schema";
 
 type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKindInput;
+type CatalogChanges = { modelId?: string; devices: string[] };
+
+async function resolveCatalogSelection(
+  tx: Tx,
+  audit: AuditFn,
+  input: EquipmentWriteInput & { category: Equipment["category"]; kindId: string },
+  changes: CatalogChanges,
+) {
+  if (!input.modelId?.startsWith("catalog:")) return input;
+  const catalog = await loadModelCatalog();
+  const record = catalog.records.find((record) => record.key === input.modelId?.slice(8));
+  const kind = await resolveEquipmentKind(tx, input);
+  const selected = await tx.equipmentKind.findUniqueOrThrow({ where: { id: kind.kindId } });
+  if (!record || record.kind !== selected.systemKey)
+    throw new ValidationError({ modelId: [tr("inventory.catalog.kindMismatch")] });
+  const result = await applyCatalogModelInTx(tx, audit, record, catalog.version);
+  if (result.changed) Object.assign(changes, { modelId: result.model.id, devices: result.devices });
+  return { ...input, modelId: result.model.id };
+}
+
+async function emitCatalogChanges(changes: CatalogChanges) {
+  if (changes.modelId)
+    await emitChange({ entityType: "equipmentModel", id: changes.modelId, op: "updated" });
+  for (const id of changes.devices)
+    await emitChange({ entityType: "equipment", id, op: "updated" });
+}
 
 export async function moveEquipmentKindInTx(
   tx: Tx,
@@ -81,9 +110,19 @@ export async function createEquipment(
   actor: AuditActor,
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
-  return txWithAudit(actor, async (tx, audit) => {
-    if (source.customValues !== undefined) await lockDefinitions(tx);
-    const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
+  const changes: CatalogChanges = { devices: [] };
+  const result = await txWithAudit(actor, async (tx, audit) => {
+    if (source.customValues !== undefined || source.modelId?.startsWith("catalog:"))
+      await lockDefinitions(tx);
+    const input = await resolveCatalogSelection(
+      tx,
+      audit,
+      {
+        ...source,
+        ...(await resolveEquipmentKind(tx, source)),
+      },
+      changes,
+    );
     let eq = await tx.equipment.create({ data: equipmentFields(input) });
     const custom =
       input.customValues === undefined
@@ -100,6 +139,8 @@ export async function createEquipment(
     });
     return eq;
   });
+  await emitCatalogChanges(changes);
+  return result;
 }
 
 /**
@@ -167,11 +208,21 @@ export async function updateEquipment(
   id: string,
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
-  return txWithAudit(actor, async (tx, audit) => {
-    if (source.customValues !== undefined) await lockDefinitions(tx);
+  const changes: CatalogChanges = { devices: [] };
+  const result = await txWithAudit(actor, async (tx, audit) => {
+    if (source.customValues !== undefined || source.modelId?.startsWith("catalog:"))
+      await lockDefinitions(tx);
     await lockKindStructure(tx);
     const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
-    const input = { ...source, ...(await resolveEquipmentKind(tx, source, current.kindId)) };
+    const input = await resolveCatalogSelection(
+      tx,
+      audit,
+      {
+        ...source,
+        ...(await resolveEquipmentKind(tx, source, current.kindId)),
+      },
+      changes,
+    );
     const custom =
       input.customValues === undefined
         ? undefined
@@ -190,6 +241,11 @@ export async function updateEquipment(
             eq: await tx.equipment.update({ where: { id }, data: fields }),
             auditData: undefined,
           };
+    if (
+      input.modelId !== current.modelId &&
+      !(await tx.equipmentPort.count({ where: { equipmentId: eq.id } }))
+    )
+      await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
       action: "EquipmentUpdated",
       entityType: "equipment",
@@ -201,6 +257,8 @@ export async function updateEquipment(
     });
     return eq;
   });
+  await emitCatalogChanges(changes);
+  return result;
 }
 
 async function retireEquipmentInTx(

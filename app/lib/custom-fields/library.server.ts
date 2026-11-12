@@ -162,9 +162,13 @@ export async function reconcileLibraryInTx(
 }
 
 export async function reconcileLibrary(library: PropertyLibrary = propertyLibrary) {
-  const changed = await txWithAudit(null, (tx, audit) => reconcileLibraryInTx(tx, audit, library), {
-    timeout: 30000,
-  });
+  const changed = await txWithAudit(
+    { name: "Jiangtang" },
+    (tx, audit) => reconcileLibraryInTx(tx, audit, library),
+    {
+      timeout: 30000,
+    },
+  );
   if (changed.length) await emitChange({ entityType: "customField", id: "library", op: "updated" });
   return changed;
 }

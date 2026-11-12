@@ -1,4 +1,10 @@
 export const historyDe = {
+  "history.action.LibraryPropertyReconciled": "Eigenschaften aus der Bibliothek ergänzt",
+  "history.action.CatalogModelLinked": "Modelle mit dem Katalog verknüpft",
+  "history.action.CatalogModelCorrected": "Modelldaten aus dem Katalog aktualisiert",
+  "history.action.CatalogModelUnlinked": "Vom Katalog gelöst",
+  "history.action.CatalogDevicePortsFilled": "Geräte mit Modellanschlüssen ergänzt",
+  "activity.startup.count": "{count}",
   "history.action.EquipmentKindUpdated": "Geräteart geändert",
   "history.action.EquipmentKindArchived": "Geräteart archiviert",
   "history.action.EquipmentKindRestored": "Geräteart wiederhergestellt",

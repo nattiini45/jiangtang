@@ -55,3 +55,42 @@ kind links applies to all devices and is never adopted. Its ID, position and val
 as separate rows. New own properties and renames cannot take a library name in either language.
 `LibraryState` records the applied version. A startup failure rolls back, logs an error and
 leaves the application running; the next startup retries. Changes are emitted after commit.
+
+## Model catalog
+
+The catalog ships facts, not manufacturer descriptions or images. Each manufacturer's versioned
+file lives under `app/lib/catalog/`; it is loaded lazily on the server. Records contain stable
+keys, manufacturer and model names, aliases, part numbers, a library kind key, product and manual
+addresses, values by library key, ports, and source addresses with retrieval dates. A manufacturer's
+entries are removed if it objects to their inclusion.
+
+Generate Epson's 140 projector records with `node scripts/catalog/epson.mjs /path/to/inputs`.
+The input folder contains `epson-models.json`, `epson-specs.json`, `epson-checked.json` (the checked
+pilot ports), `epson-ports.json`, and `epson-control.json`. Research files are not shipped. Only
+verified model facts are mapped; data-sheet rows supply normal-mode or unqualified single-value
+white and colour light output.
+Brightness keeps its measurement standard; lens shift uses the positive limit of the standard
+lens configuration. Ranges, parts and unsupported properties stay out. Port rows keep the source's
+named connector groups, not an inferred number of individual sockets. An assumed connector is
+included only for RS-232C, Ethernet/LAN or HDBaseT; the converter reports how many other rows it
+omitted. Regenerate the property library from version 3 before converting these records; only
+explicit `help_de` and `help_en` become help text, never research job descriptions.
+
+After the property reconcile, startup links an unlinked installation model only when manufacturer,
+name and kind match exactly one catalog record, ignoring case and surrounding spaces. A link
+fills missing model values, the manual address and an empty port list; devices without ports
+receive the model's ports through the same copy function used when adding a device. The device
+form combines installation models with catalog search results, returning at most 30 catalog
+options per search and never offering an existing model twice. Picking a catalog option creates
+or reuses the installation model in the device's audited save transaction.
+
+A link stores its version and a snapshot of what it supplied, including values by library key.
+On a higher version, a value, name, manual address or complete model port list is corrected only
+while it still equals that snapshot. House edits stay. An administrator can unlink on the model
+page or through MCP: supplied values, manual and model ports still matching the snapshot are
+removed, but house edits and copied device ports stay. The model's required name stays. An exact
+match can be linked again by a subsequent startup. The model page cites the manufacturer,
+product page and retrieval date without visually separating catalog values from house values.
+Startup errors roll back and are logged without preventing application startup. Audit rows stay
+append-only; the activity feed folds each system startup step into a readable Jiangtang entry,
+including property rows written by earlier releases.
