@@ -16,6 +16,17 @@ beforeAll(async () => {
   baselineGroups = (await db.equipmentFunctionGroup.findMany()).map((group) => group.id);
 });
 afterEach(async () => {
+  const owned = await db.equipmentKind.findMany({
+    where: { OR: [{ id: { in: ids } }, { name: { startsWith: "library-limit-" } }] },
+    select: { id: true },
+  });
+  const links = await db.customFieldKind.findMany({
+    where: { kindId: { in: owned.map((kind) => kind.id) } },
+  });
+  await db.customFieldKind.deleteMany({ where: { kindId: { in: owned.map((kind) => kind.id) } } });
+  await db.customField.deleteMany({
+    where: { id: { in: links.map((link) => link.fieldId) }, kinds: { none: {} } },
+  });
   await db.equipmentKind.deleteMany({
     where: { OR: [{ id: { in: ids } }, { name: { startsWith: "library-limit-" } }] },
   });
@@ -32,7 +43,7 @@ async function install(keys: string[]) {
 
 it("ships only the scoped bilingual data, valid names, ordered groups and five institution types", () => {
   expect(library.institutionTypes).toHaveLength(5);
-  expect(library.kinds).toHaveLength(58);
+  expect(library.kinds).toHaveLength(59);
   expect(library.functionGroups).toHaveLength(18);
   for (const kind of library.kinds) {
     expect(Object.keys(kind).sort()).toEqual([
@@ -41,7 +52,7 @@ it("ships only the scoped bilingual data, valid names, ordered groups and five i
       "group",
       "institution_types",
       "key",
-      ...(kind.key === "projector" ? ["properties"] : []),
+      "properties",
       "tier",
     ]);
     expect(kind.de.length).toBeLessThanOrEqual(60);
@@ -51,9 +62,9 @@ it("ships only the scoped bilingual data, valid names, ordered groups and five i
   }
 });
 
-it("reports nine defaults as present under the installation's names and filters by house", async () => {
+it("reports ten defaults as present under the installation's names and filters by house", async () => {
   const all = await listKindLibrary();
-  expect(all.kinds.filter((kind) => kind.status === "present")).toHaveLength(9);
+  expect(all.kinds.filter((kind) => kind.status === "present")).toHaveLength(10);
   expect(all.kinds.find((kind) => kind.key === "computer")).toMatchObject({
     status: "present",
     installedName: "PC",

@@ -52,6 +52,7 @@ that report themselves can follow without rebuilding.
 - A new enum value ships one release before the first row uses it, so rollback code can skip
   values it cannot render.
 
-The built path includes projector properties, their reconcile and resolver, model values, and
-the Epson model catalog with picking, automatic linking, corrections and unlinking. Other kinds'
-properties, ranges, parts, readings and relations follow separately.
+The built path includes the shipped kinds' properties, ranges, legacy-column copying with dual
+writes, the reconcile and resolver, model values, and the Epson model catalog with picking,
+automatic linking, corrections and unlinking. Further kinds, parts, readings and relations
+follow separately.

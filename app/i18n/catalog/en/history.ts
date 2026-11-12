@@ -1,6 +1,7 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.LibraryDevicePropertiesCopied": "Device properties copied from existing fields",
   "history.action.LibraryPropertyReconciled": "Properties added from the library",
   "history.action.CatalogModelLinked": "Models linked to the catalog",
   "history.action.CatalogModelCorrected": "Model data updated from the catalog",

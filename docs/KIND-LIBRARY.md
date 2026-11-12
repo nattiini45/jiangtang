@@ -1,6 +1,6 @@
 # Device-kind library
 
-The repository ships a bilingual catalog of 58 device kinds in 18 function groups for
+The repository ships a bilingual catalog of 59 device kinds in 18 function groups for
 universities and colleges, event and congress halls, councils, theatres and trade fairs.
 The data lives in `app/lib/equipment-kinds/library.json`; stable keys identify entries even
 after an installation renames them. Institution types narrow the list, and the core, common
@@ -24,13 +24,32 @@ moved during archiving have audit records. Operators need no migration or restar
 
 ## Properties and model values
 
-Installed projectors receive their library properties automatically on startup and when a
-kind is installed. The versioned file contains shared properties, the projector's own
+Installed library kinds receive their properties automatically on startup and when a
+kind is installed. The versioned file contains shared and kind-local
 properties, bilingual labels, units, choices, levels, weights, conditions and source IDs.
 `library-sources.json` holds the cited sources. Regenerate both with
 `node scripts/library/export.mjs /path/to/research.json`; the research input is not shipped.
-Readings, relations and ranges are not materialized in this release. `RANGE` is reserved in
-the database enum one release before any row uses it.
+Readings and relations are not materialized. Ranges store `{ min, max }` in the property's
+unit; either bound may be null, but a filled minimum cannot exceed the maximum. Both empty
+bounds clear the value on a form; structured writers clear it with null. Pages format ranges
+in the reader's language. Catalog range values remain out of scope.
+
+Startup also copies the former microphone kind, frequency, band, channel, lamp-change date,
+colour and service-tag columns into applicable properties where no value exists. It keeps
+each device's kind, and records the copy in the same audited transaction. Forms and MCP write
+both representations; the frequency board prefers properties. Omitted migrated columns stay
+unchanged, and clearing a property clears its former column. Lamp type and express service
+code remain fixed columns. No schema migration or administrator step is required.
+Legacy text that exceeds the property limit stays intact in its column and is reported by
+device ID and property key in the startup log; other valid properties still copy. An edit made
+by an older release during rollback does not replace an already-filled property on roll-forward.
+
+The generic microphone also receives frequency, band, channel and colour properties so existing
+units need not move to transmitter kinds. The generic control processor keeps its former colour
+as a property. These compatibility links use the researched shared definitions. Ratio units are
+displayed as `: 1`. Frequencies accept at most three decimal places, matching the legacy column;
+new structured writes reject extra precision rather than silently rounding it. The other
+microphone choices have no old enum equivalent, so their legacy `micKind` column is null.
 
 A MODEL property is stored once in `EquipmentModel.customValues`. Every device reads the
 model's value, falling back to its own value when the model has none. A device with a model

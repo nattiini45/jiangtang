@@ -27,7 +27,7 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "set_model_values",
       description:
-        "Merge model-level library properties by property key or library key. Choice values accept option keys, IDs or labels. Null clears a value. Every device of this model reads these values.",
+        "Merge model-level library properties by property key or library key. Choice values accept option keys, IDs or labels. Ranges use {min, max} in the property's unit; either bound may be null, and min must not exceed max. Null clears a value. Every device of this model reads these values.",
       schema: z.object({ modelId: z.string().min(1), values: z.record(z.string(), z.unknown()) }),
       write: true,
     },
@@ -39,7 +39,7 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "set_custom_values",
       description:
-        "Merge custom values into a room or device by field key. Null clears a key; omitted keys and all built-in fields stay unchanged. Choice values accept option IDs or labels. The entire write is rejected if any field fails validation.",
+        "Merge property values into a room or device by field key or library key. Null clears a key and its legacy column; omitted keys stay unchanged. Choice values accept option keys, IDs or labels. Ranges use {min, max} in the property's unit; either bound may be null, and min must not exceed max. The entire write is rejected if any field fails validation.",
       schema: z.object({
         scope: fieldScope,
         id: z.string().min(1),

@@ -1,5 +1,7 @@
 import type { fieldsDe } from "../de/fields";
 export const fieldsEn = {
+  "fields.range.min": "{name}: minimum",
+  "fields.range.max": "{name}: maximum",
   "fields.library.protected":
     "This property comes from the library. Its definition and device kinds cannot be changed or deleted.",
   "fields.library.nameTaken": "A library property already uses this name for this device kind.",
@@ -41,6 +43,7 @@ export const fieldsEn = {
   "fields.type.MULTI_CHOICE": "Multiple choice",
   "fields.type.DATE": "Date",
   "fields.type.LINK": "Link",
+  "fields.type.RANGE": "Range",
   "fields.admin.scope": "Fields for",
   "fields.admin.rooms": "Rooms",
   "fields.admin.devices": "Devices",

@@ -13,9 +13,11 @@ const group = "bg-card shadow-surface-2 grid gap-4 rounded-lg p-4 sm:grid-cols-2
 export function EquipmentCategoryFields({
   category,
   defaults,
+  properties = [],
 }: {
   category: string;
   defaults?: EquipmentDefaults;
+  properties?: string[];
 }) {
   const t = useT();
   const locale = useLocale();
@@ -23,13 +25,15 @@ export function EquipmentCategoryFields({
     return (
       <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.pc")}</legend>
-        <FormField name="dellServiceTag" label={t("inventory.catFields.dellService")}>
-          <Input
-            name="dellServiceTag"
-            defaultValue={defaults?.dellServiceTag ?? ""}
-            className="font-mono"
-          />
-        </FormField>
+        {!properties.includes("service_code") ? (
+          <FormField name="dellServiceTag" label={t("inventory.catFields.dellService")}>
+            <Input
+              name="dellServiceTag"
+              defaultValue={defaults?.dellServiceTag ?? ""}
+              className="font-mono"
+            />
+          </FormField>
+        ) : null}
         <FormField name="dellExpressTag" label={t("inventory.catFields.dellExpress")}>
           <Input
             name="dellExpressTag"
@@ -41,42 +45,56 @@ export function EquipmentCategoryFields({
     );
   }
   if (category === "MICROPHONE") {
+    if (
+      ["microphone.type", "frequency", "band_variant", "channel_name"].every((key) =>
+        properties.includes(key),
+      )
+    )
+      return null;
     return (
       <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.microphone")}</legend>
-        <FormField name="micKind" label={t("inventory.catFields.micKind")}>
-          <Select name="micKind" defaultValue={defaults?.micKind ?? ""}>
-            <option value="">{t("inventory.catFields.noMicKind")}</option>
-            {Object.values(MicKind).map((k) => (
-              <option key={k} value={k}>
-                {micKindLabel(locale, k)}
-              </option>
-            ))}
-          </Select>
-        </FormField>
-        <FormField name="frequencyMhz" label={t("inventory.catFields.frequency")}>
-          <Input
-            name="frequencyMhz"
-            type="number"
-            step="0.001"
-            defaultValue={defaults?.frequencyMhz ?? ""}
-            className="nums"
-          />
-        </FormField>
-        <FormField name="band" label={t("inventory.catFields.band")}>
-          <Input
-            name="band"
-            defaultValue={defaults?.band ?? ""}
-            placeholder={t("inventory.catFields.bandPlaceholder")}
-          />
-        </FormField>
-        <FormField name="channelLabel" label={t("inventory.catFields.channel")}>
-          <Input
-            name="channelLabel"
-            defaultValue={defaults?.channelLabel ?? ""}
-            placeholder={t("inventory.catFields.channelPlaceholder")}
-          />
-        </FormField>
+        {!properties.includes("microphone.type") ? (
+          <FormField name="micKind" label={t("inventory.catFields.micKind")}>
+            <Select name="micKind" defaultValue={defaults?.micKind ?? ""}>
+              <option value="">{t("inventory.catFields.noMicKind")}</option>
+              {Object.values(MicKind).map((k) => (
+                <option key={k} value={k}>
+                  {micKindLabel(locale, k)}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        ) : null}
+        {!properties.includes("frequency") ? (
+          <FormField name="frequencyMhz" label={t("inventory.catFields.frequency")}>
+            <Input
+              name="frequencyMhz"
+              type="number"
+              step="0.001"
+              defaultValue={defaults?.frequencyMhz ?? ""}
+              className="nums"
+            />
+          </FormField>
+        ) : null}
+        {!properties.includes("band_variant") ? (
+          <FormField name="band" label={t("inventory.catFields.band")}>
+            <Input
+              name="band"
+              defaultValue={defaults?.band ?? ""}
+              placeholder={t("inventory.catFields.bandPlaceholder")}
+            />
+          </FormField>
+        ) : null}
+        {!properties.includes("channel_name") ? (
+          <FormField name="channelLabel" label={t("inventory.catFields.channel")}>
+            <Input
+              name="channelLabel"
+              defaultValue={defaults?.channelLabel ?? ""}
+              placeholder={t("inventory.catFields.channelPlaceholder")}
+            />
+          </FormField>
+        ) : null}
       </fieldset>
     );
   }
@@ -87,18 +105,21 @@ export function EquipmentCategoryFields({
         <FormField name="lampType" label={t("inventory.catFields.lampType")}>
           <Input name="lampType" defaultValue={defaults?.lampType ?? ""} />
         </FormField>
-        <FormField name="lastLampChangeAt" label={t("inventory.catFields.lastLampChange")}>
-          <Input
-            name="lastLampChangeAt"
-            type="date"
-            defaultValue={defaults?.lastLampChangeAt ?? ""}
-            className="nums"
-          />
-        </FormField>
+        {!properties.includes("projector.lamp_change") ? (
+          <FormField name="lastLampChangeAt" label={t("inventory.catFields.lastLampChange")}>
+            <Input
+              name="lastLampChangeAt"
+              type="date"
+              defaultValue={defaults?.lastLampChangeAt ?? ""}
+              className="nums"
+            />
+          </FormField>
+        ) : null}
       </fieldset>
     );
   }
   if (category === "REMOTE" || category === "MEDIA_CONTROL") {
+    if (properties.includes("colour")) return null;
     return (
       <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.control")}</legend>

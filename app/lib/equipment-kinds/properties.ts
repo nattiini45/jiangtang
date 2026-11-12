@@ -4,7 +4,16 @@ export type LibraryProperty = {
   key: string;
   de: string;
   en: string;
-  type: "TEXT" | "LONG_TEXT" | "NUMBER" | "BOOLEAN" | "CHOICE" | "MULTI_CHOICE" | "DATE" | "LINK";
+  type:
+    | "TEXT"
+    | "LONG_TEXT"
+    | "NUMBER"
+    | "BOOLEAN"
+    | "CHOICE"
+    | "MULTI_CHOICE"
+    | "DATE"
+    | "LINK"
+    | "RANGE";
   unit: string | null;
   options: { key: string; de: string; en: string }[];
   level: "MODEL" | "DEVICE";

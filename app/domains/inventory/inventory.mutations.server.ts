@@ -1,5 +1,7 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
-import { applyEquipmentCustomValuesInTx } from "./inventory.custom-values.server";
+import { applyEquipmentPropertiesInTx } from "./inventory.custom-values.server";
+import { retainLegacyColumns } from "~/lib/custom-fields/legacy.server";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
 import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import type { Tx } from "~/lib/db.server";
 import {
@@ -112,8 +114,7 @@ export async function createEquipment(
 ): Promise<Equipment> {
   const changes: CatalogChanges = { devices: [] };
   const result = await txWithAudit(actor, async (tx, audit) => {
-    if (source.customValues !== undefined || source.modelId?.startsWith("catalog:"))
-      await lockDefinitions(tx);
+    await lockDefinitions(tx);
     const input = await resolveCatalogSelection(
       tx,
       audit,
@@ -124,12 +125,8 @@ export async function createEquipment(
       changes,
     );
     let eq = await tx.equipment.create({ data: equipmentFields(input) });
-    const custom =
-      input.customValues === undefined
-        ? {}
-        : await applyEquipmentCustomValuesInTx(tx, eq.id, input.customValues, eq.kindId);
-    if (input.customValues !== undefined)
-      eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
+    const custom = await applyEquipmentPropertiesInTx(tx, eq.id, input, eq.kindId);
+    eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
     await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
       action: "EquipmentCreated",
@@ -183,16 +180,23 @@ export async function createEquipmentInTx(
   audit: AuditFn,
   source: EquipmentWriteInput & { copiedValues?: Prisma.InputJsonObject },
 ): Promise<Equipment> {
-  if (source.customValues !== undefined || source.copiedValues !== undefined)
-    await lockDefinitions(tx);
+  await lockDefinitions(tx);
   const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
+  if (input.copiedValues) {
+    const cleared = (await getFieldSchema("EQUIPMENT", {}, tx))
+      .filter((field) =>
+        ["frequency", "channel_name", "service_code", "projector.lamp_change"].includes(
+          field.libraryKey ?? "",
+        ),
+      )
+      .map((field) => field.id);
+    input.copiedValues = Object.fromEntries(
+      Object.entries(input.copiedValues).filter(([id]) => !cleared.includes(id)),
+    );
+  }
   let eq = await tx.equipment.create({ data: equipmentFields(input) });
-  const custom =
-    input.customValues === undefined
-      ? {}
-      : await applyEquipmentCustomValuesInTx(tx, eq.id, input.customValues, eq.kindId);
-  if (input.customValues !== undefined)
-    eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
+  const custom = await applyEquipmentPropertiesInTx(tx, eq.id, input, eq.kindId);
+  eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
   await copyModelPortsInTx(tx, eq.id, eq.modelId);
   await audit({
     action: "EquipmentCreated",
@@ -210,8 +214,7 @@ export async function updateEquipment(
 ): Promise<Equipment> {
   const changes: CatalogChanges = { devices: [] };
   const result = await txWithAudit(actor, async (tx, audit) => {
-    if (source.customValues !== undefined || source.modelId?.startsWith("catalog:"))
-      await lockDefinitions(tx);
+    await lockDefinitions(tx);
     await lockKindStructure(tx);
     const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
     const input = await resolveCatalogSelection(
@@ -223,24 +226,23 @@ export async function updateEquipment(
       },
       changes,
     );
-    const custom =
-      input.customValues === undefined
-        ? undefined
-        : await applyEquipmentCustomValuesInTx(
-            tx,
-            id,
-            input.customValues,
-            input.kindId,
-            input.modelId ?? null,
-          );
-    const fields = equipmentFields(input);
-    const { eq, auditData } =
+    const fields = {
+      ...equipmentFields(input),
+      ...retainLegacyColumns(await getFieldSchema("EQUIPMENT", {}, tx), input.kindId, input),
+    };
+    const auditData =
       input.status === "RETIRED"
-        ? await retireEquipmentInTx(tx, id, fields)
-        : {
-            eq: await tx.equipment.update({ where: { id }, data: fields }),
-            auditData: undefined,
-          };
+        ? (await retireEquipmentInTx(tx, id, fields)).auditData
+        : undefined;
+    if (input.status !== "RETIRED") await tx.equipment.update({ where: { id }, data: fields });
+    const custom = await applyEquipmentPropertiesInTx(
+      tx,
+      id,
+      input,
+      input.kindId,
+      input.modelId ?? null,
+    );
+    const eq = await tx.equipment.findUniqueOrThrow({ where: { id } });
     if (
       input.modelId !== current.modelId &&
       !(await tx.equipmentPort.count({ where: { equipmentId: eq.id } }))
@@ -387,7 +389,7 @@ export async function bulkCreateEquipment(
   return txWithAudit(
     actor,
     async (tx, audit) => {
-      if (rows.some((row) => row.customValues !== undefined)) await lockDefinitions(tx);
+      await lockDefinitions(tx);
       const items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] = [];
       for (const row of rows) {
         // `EquipmentModel` belongs to `catalog/`, so `catalog/` writes it — and it
@@ -444,10 +446,7 @@ export async function bulkCreateEquipment(
             channelLabel: row.channelLabel ?? null,
           },
         });
-        const custom =
-          row.customValues === undefined
-            ? {}
-            : await applyEquipmentCustomValuesInTx(tx, eq.id, row.customValues, eq.kindId);
+        const custom = await applyEquipmentPropertiesInTx(tx, eq.id, row, eq.kindId);
         await copyModelPortsInTx(tx, eq.id, eq.modelId);
         await audit({
           action: "EquipmentCreated",

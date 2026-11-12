@@ -1,4 +1,184 @@
 {
+  "au:AMP_C7": {
+    "title": "Ampetronic: C7-2 MultiLoop hearing loop driver",
+    "url": "https://www.ampetronic.com/products/c7-2-multiloop-hearing-loop-driver/",
+    "area": "audio-systems"
+  },
+  "au:AMP_D": {
+    "title": "V600:4",
+    "url": "https://www.dynacord.com/product/v600-4",
+    "area": "audio-systems"
+  },
+  "au:AMP_P": {
+    "title": "MEZZO Series · Powersoft",
+    "url": "https://www.powersoft.com/en/products/install-amps/mezzo-series",
+    "area": "audio-systems"
+  },
+  "au:ANALOG_Y": {
+    "title": "Yamaha MG features [search excerpt read]",
+    "url": "https://usa.yamaha.com/products/proaudio/mixers/mg_series_xu_model/features.html",
+    "area": "audio-systems"
+  },
+  "au:BIAMP_TTP": {
+    "title": "Biamp Cornerstone: Tesira Text Protocol",
+    "url": "https://support.biamp.com/Tesira/Control/Tesira_Text_Protocol",
+    "area": "audio-systems"
+  },
+  "au:BNETZA_AZ": {
+    "title": "Bundesnetzagentur: Allgemeinzuteilungen, u. a. Vfg. 109/2021 (geändert durch Vfg. 91/2023) Frequenzen für die drahtlose Anbindung von Hörhilfen",
+    "url": "https://www.bundesnetzagentur.de/DE/Fachthemen/Telekommunikation/Frequenzen/Allgemeinzuteilungen/start.html",
+    "area": "audio-systems"
+  },
+  "au:BOOTH_D": {
+    "title": "DIN: Veröffentlichung DIN EN ISO 17651-1 und -2 [search excerpt read]",
+    "url": "https://www.din.de/de/mitwirken/normenausschuesse/nat/veroeffentlichung-von-din-en-iso-17651-1-und-din-en-iso-17651-2-1042988",
+    "area": "audio-systems"
+  },
+  "au:BOOTH_E": {
+    "title": "Standards für Dolmetsch-Anlagen - Europäische Kommission",
+    "url": "https://commission.europa.eu/about/departments-and-executive-agencies/interpretation/standards-interpreting-facilities_de",
+    "area": "audio-systems"
+  },
+  "au:CONF_B": {
+    "title": "DICENTIS Conference System | Keenfinity Group I North America",
+    "url": "https://www.keenfinity-group.com/us/en/solutions/conference-solutions/ip-based-conferencing/",
+    "area": "audio-systems"
+  },
+  "au:CONF_T": {
+    "title": "Conference systems for international institutions | Televic Conference",
+    "url": "https://www.televic.com/en/conference/markets/institutions",
+    "area": "audio-systems"
+  },
+  "au:DIN_60118": {
+    "title": "DIN Media: DIN EN IEC 60118-4:2018-08 (EN 60118-4:2015 + A1:2018), ersetzt DIN EN 60118-4:2015-10",
+    "url": "https://www.dinmedia.de/de/norm/din-en-iec-60118-4/289987496",
+    "area": "audio-systems"
+  },
+  "au:DSP_B": {
+    "title": "TesiraFORTÉ X - Biamp Cornerstone",
+    "url": "https://support.biamp.com/Tesira/Miscellaneous/TesiraFORTE_X",
+    "area": "audio-systems"
+  },
+  "au:DSP_FILE": {
+    "title": "Q-SYS multiple-core application guide [search excerpt read]",
+    "url": "https://www.qsys.com/resource-files/productresources/dn/dsp_cores/core_110f/q_dn_core_110f_appguide_multi-core_conferencing.pdf",
+    "area": "audio-systems"
+  },
+  "au:DSP_Q": {
+    "title": "Core 110f",
+    "url": "https://www.qsys.com/products-solutions/q-sys/processing/core-110f/",
+    "area": "audio-systems"
+  },
+  "au:DYN_V600": {
+    "title": "Dynacord V600:4 power amplifier data sheet",
+    "url": "https://products.dynacord.com/binary/V600_4_Power_amplifier,_600W,_4_channel_Datasheet_51_en_104201675531.pdf",
+    "area": "audio-systems"
+  },
+  "au:FOHHN_BS": {
+    "title": "Fohhn: Beam Steering Technology",
+    "url": "https://www.fohhn.com/en/technologies/fohhn-beam-steering-technology",
+    "area": "audio-systems"
+  },
+  "au:HEAR_L": {
+    "title": "Home - Listen Technologies",
+    "url": "https://www.listentech.com/",
+    "area": "audio-systems"
+  },
+  "au:HEAR_W": {
+    "title": "Infinium Flex Bundle | FM, Wi-Fi, & Auracast Broadcast Audio",
+    "url": "https://williamsav.com/product/infinium-flex-bundle-ba-sys4/",
+    "area": "audio-systems"
+  },
+  "au:HLAA_AURA": {
+    "title": "Hearing Loss Association of America: Auracast systems",
+    "url": "https://www.hearingloss.org/technology-and-accessibility/auracast/",
+    "area": "audio-systems"
+  },
+  "au:HOERKOMM": {
+    "title": "hörkomm.de: DIN EN 60118-4 Induktive Höranlagen überarbeitet",
+    "url": "https://www.hoerkomm.de/meldungen-detailseite/items/neu-ueberarbeitet-din-en-60118-4-induktiven-hoeranlagen.html",
+    "area": "audio-systems"
+  },
+  "au:IEC61603_7": {
+    "title": "EN 61603-7:2003 (IEC 61603-7) Infra-red transmission, Part 7: digital conference and interpretation systems — iTeh catalogue entry",
+    "url": "https://standards.iteh.ai/catalog/standards/clc/270c8f6b-9529-4ade-9eea-e8f15eb04783/en-61603-7-2003",
+    "area": "audio-systems"
+  },
+  "au:INT_C": {
+    "title": "FreeSpeak II Base II User Guide",
+    "url": "https://clearcom.com/DownloadCenter/manuals/FreeSpeakII_BaseII_v1.5/FSII-BASE-II_User_Guide-399G169E.pdf",
+    "area": "audio-systems"
+  },
+  "au:INT_R": {
+    "title": "Intercom Systems for Broadcast & Live Events | Riedel",
+    "url": "https://www.riedel.net/intercom/",
+    "area": "audio-systems"
+  },
+  "au:LOOP_A": {
+    "title": "Commissioning an Induction Loop System",
+    "url": "https://www.ampetronic.com/info-centre/learning-zone/testing-and-maintaining/commissioning/",
+    "area": "audio-systems"
+  },
+  "au:LOOP_B": {
+    "title": "Induktive Höranlagen beim Freistaat Bayern - Planungsrichtlinien ; Stand: 01.01.2019",
+    "url": "https://www.stmb.bayern.de/assets/stmi/min/181217-induktive-hoeranlagen.pdf",
+    "area": "audio-systems"
+  },
+  "au:MIX_A": {
+    "title": "Qu-Pac • Allen & Heath",
+    "url": "https://www.allen-heath.com/hardware/qu/qu-classic/qu-pac/",
+    "area": "audio-systems"
+  },
+  "au:MIX_Y": {
+    "title": "DM3 Series - Technische Daten - Mischpulte - Produkte - Audio - Yamaha - Business - Deutschland",
+    "url": "https://de.yamaha.com/de/business/audio/products/mixers/dm3/specs.html",
+    "area": "audio-systems"
+  },
+  "au:MON_E245": {
+    "title": "MONACOR: 100-V-Einbaulautsprecher E-245-10 und WDR-245 (EN 54-24)",
+    "url": "https://www.monacor.de/produkte/beschallungstechnik/lautsprecher-/einbaulautsprecher/100-volt/e-245-10/",
+    "area": "audio-systems"
+  },
+  "au:MON_ETS": {
+    "title": "MONACOR: ETS-210TW/220TW/240TW ELA-Lautsprechersäule, Bedienungsanleitung",
+    "url": "https://www.monacor.com/media/FLE/ETS-210TW_WS@BDA.pdf",
+    "area": "audio-systems"
+  },
+  "au:QSYS_QRC": {
+    "title": "Q-SYS Help: QRC Commands (StatusGet / EngineStatus)",
+    "url": "https://help.qsys.com/Content/External_Control_APIs/QRC/QRC_Commands.htm",
+    "area": "audio-systems"
+  },
+  "au:RF_L": {
+    "title": "ListenRF [search excerpt read; US bands not German approval]",
+    "url": "https://www.listentech.com/listenrf/",
+    "area": "audio-systems"
+  },
+  "au:S30": {
+    "title": "[Prior research, not independently reopened] Technische Daten Stadthalle Wetzlar",
+    "url": "https://www.stadthallewetzlar.de/dokumente/downloads/318/technische_daten_stadthalle.pdf",
+    "area": "audio-systems"
+  },
+  "au:S33": {
+    "title": "[Prior research, not independently reopened] Technische Ausstattung (Haus Leipzig)",
+    "url": "https://www.hausleipzig.com/media/haus-leipzig/downloads/technische-ausstattung-haus-leipzig---deutsch.pdf",
+    "area": "audio-systems"
+  },
+  "au:S38": {
+    "title": "[Prior research, not independently reopened] Hörunterstützung Auracast",
+    "url": "https://www.th-owl.de/inklusion/auracast/",
+    "area": "audio-systems"
+  },
+  "au:SPK_D": {
+    "title": "Installation.",
+    "url": "https://www.dbaudio.com/assets/products/downloads/brochures/dbaudio-brochure-installation-integrated-sound-solutions-de.pdf",
+    "area": "audio-systems"
+  },
+  "au:SPK_G": {
+    "title": "Genelec 8030C [search excerpt read]",
+    "url": "https://www.genelec.com/8030c",
+    "area": "audio-systems"
+  },
   "au:TOA_BS1110": {
     "title": "TOA Electronics (DE): BS-1110W EU Säulenlautsprecher",
     "url": "https://www.toa.de/produkte/bs-1110w-eu/",
@@ -8,6 +188,271 @@
     "title": "TOA Electronics (DE): F-2322C EU Deckenlautsprecher, technische Daten und Ausschreibungstext",
     "url": "https://www.toa.de/produkte/f-2322c-eu/",
     "area": "audio-systems"
+  },
+  "au:VOTE_T": {
+    "title": "Televic CoCon [search excerpt read]",
+    "url": "https://www.televic.com/en/conference/products/meeting-management-software/cocon",
+    "area": "audio-systems"
+  },
+  "cc:aki_usv": {
+    "title": "AKI USV: USV-Klassifizierung nach DIN EN 62040-3 (VFI, VI, VFD)",
+    "url": "https://www.aki-usv.com/produkte/usv-klassifizierung",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:apc_smartups": {
+    "title": "APC Smart-UPS (new) brochure, EMEA",
+    "url": "https://docs.rs-online.com/255f/0900766b80e8d028.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:atem": {
+    "title": "ATEM Television Studio – Techn. Daten | Blackmagic Design",
+    "url": "https://www.blackmagicdesign.com/de/products/atemtelevisionstudio/techspecs",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:atem_ts_de": {
+    "title": "Blackmagic Design (de): ATEM Television Studio – Techn. Daten",
+    "url": "https://www.blackmagicdesign.com/de/products/atemtelevisionstudio/techspecs",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:beg_knx": {
+    "title": "B.E.G. LUXOMAT KNX-Präsenzmelder, Applikationsbeschreibung 5.0",
+    "url": "https://www.beg-luxomat.com/files/product-catalogue-sync/web/download/applikationsbeschreibung/de/Applikationsbeschreibung_KNX_Melder_5.0_DE_250215.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:biamp": {
+    "title": "Impera | Room Control Systems & Configuration Software",
+    "url": "https://www.biamp.com/products/families/impera",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:bmd_micro_de": {
+    "title": "Blackmagic Design (de): Micro Studio Camera – Techn. Daten",
+    "url": "https://www.blackmagicdesign.com/de/products/blackmagicmicrostudiocamera/techspecs/W-CST-14",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:bmd_studio_de": {
+    "title": "Blackmagic Design (de): Blackmagic Studio Camera – Techn. Daten",
+    "url": "https://www.blackmagicdesign.com/de/products/blackmagicstudiocamera/techspecs/W-CAS-21",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:cisco": {
+    "title": "Cisco Room Kit EQ Data Sheet - Cisco",
+    "url": "https://www.cisco.com/c/en/us/products/collateral/collaboration-endpoints/spark-room-kit-series/room-kit-eq-ds.html",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:crestron_cp4n": {
+    "title": "Crestron CP4N Specifications (CP4 and CP4N Manual)",
+    "url": "https://docs.crestron.com/en-us/9214/Content/Topics/Specifications/Specifications-CP4N.htm",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:crestron_tss770": {
+    "title": "Crestron TSS-770 Specifications (TSS-70 Series Manual)",
+    "url": "https://docs.crestron.com/en-us/8745/Content/Topics/Specifications/Specifications-TSS-770.htm",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:crestron_tsw1070": {
+    "title": "Crestron TSW-1070 Specifications (TSW-70 Series Manual)",
+    "url": "https://docs.crestron.com/en-us/8550/Content/Topics/Specifications/Specifications-TSW-1070.htm",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:dante_netadmin": {
+    "title": "Audinate: Dante Information for Network Administrators",
+    "url": "https://www.getdante.com/wp-content/uploads/2024/10/dante-information-for-network-admins.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:datavideo_nvs35": {
+    "title": "Datavideo NVS-35 H.264 Dual Streaming Encoder",
+    "url": "https://datavideo.com/us/product/NVS-35",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:ddm": {
+    "title": "Advanced Settings",
+    "url": "https://dev.audinate.com/GA/ddm/userguide/1.7/webhelp/content/advanced_settings.htm",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:dini_viktas": {
+    "title": "DINI AG VIKTAS: Realisierung von Videokonferenzen (Hinweise, Jan 2016)",
+    "url": "https://dini.de/fileadmin/ag/viktas/hinweise_2016.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:fixed": {
+    "title": "Marshall Electronics - CV506 Miniature Full-HD Camera (3G/HDSDI and HDMI)",
+    "url": "https://www.marshall-usa.com/discontinued/cameras/CV506.php",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:gude_8316": {
+    "title": "GUDE Systems: Expert Power Control 8316, 8-fach switched und outlet-metered PDU",
+    "url": "https://gude-systems.com/produkte/expert-power-control-8316/",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:heise_6ghz": {
+    "title": "heise online: Wi-Fi 6E – Bundesnetzagentur gibt Frequenzen frei (5945–6425 MHz)",
+    "url": "https://www.heise.de/news/Wi-Fi-6E-Bundesnetzagentur-gibt-Frequenzen-fuer-schnelles-WLAN-frei-6137828.html",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:jabra_pc20_de": {
+    "title": "Jabra (de): PanaCast 20 Überblick",
+    "url": "https://www.jabra.com/de-de/business/video-conferencing/jabra-panacast-20",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:kramer_kt208": {
+    "title": "Kramer (de): KT-208 8-Zoll-PoE-Touchpanel zur Wandmontage oder mit Standfuß",
+    "url": "https://www1.kramerav.com/de/Product/KT-208",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:lancom_lx6500": {
+    "title": "LANCOM LX-6500 Datenblatt (de)",
+    "url": "https://gzhls.at/blob/ldb/f/1/4/d/aa9757b67311e71ff1802ef3b8c503c65e09.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:lara": {
+    "title": "lara",
+    "url": "https://assets.prod.pim.lightware.com/assets/File-Downloads/Guides-and-Manuals/User-Manual/LARA_UserManual.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:logi_brio_de": {
+    "title": "Logitech (de): Brio 4K Datenblatt",
+    "url": "https://www.logitech.com/content/dam/logitech/de_de/video-collaboration/pdf/brio-datasheet.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:logi_r400": {
+    "title": "Logitech (de): R400 Wireless Presenter Fernbedienung",
+    "url": "https://www.logitech.com/de-de/shop/p/r400-wireless-presenter",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:logi_rallybar_de": {
+    "title": "Logitech (de): Rally Bar Datenblatt",
+    "url": "https://www.logitech.com/content/dam/logitech/de_de/video-collaboration/pdf/rallybar.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:magewell_ue": {
+    "title": "Magewell Ultra Encode HDMI",
+    "url": "https://www.magewell.com/products/ultra-encode-hdmi",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:mtr": {
+    "title": "How to create and configure resource accounts for Teams Rooms and panels - Microsoft Teams | Microsoft Learn",
+    "url": "https://learn.microsoft.com/en-us/microsoftteams/rooms/create-resource-account",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:neets_delta": {
+    "title": "Neets Control DelTa product brief (rev 4)",
+    "url": "https://charmex.net/downloads/230-024-310-0310-neets-control-delta-product-brief-eng-rev4-_1139_1.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:netgear": {
+    "title": "M4250 AVLine AV-over-IP Switches | NETGEAR",
+    "url": "https://www.netgear.com/business/wired/switches/fully-managed/m4250/avline/",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:netio_4c": {
+    "title": "NETIO PowerPDU 4C",
+    "url": "https://www.netio-products.com/en/device/powerpdu-4c",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:opencast": {
+    "title": "Introduction - Developer Guide",
+    "url": "https://docs.opencast.org/develop/developer/architecture/capture-agent/capture-agent/",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:panopto_pearl": {
+    "title": "Panopto Support: How to Set Up a Pearl Nexus Remote Recorder",
+    "url": "https://support.panopto.com/s/article/How-to-Set-Up-a-Pearl-Nexus-Remote-Recorder",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:pdu": {
+    "title": "Switched PDUs with Outlet-Level Metering",
+    "url": "https://www.raritan.com/products/feature/switched-pdu-outlet-metering",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:pearl": {
+    "title": "Pearl Nexus: Capture with confidence, every time - Epiphan Video",
+    "url": "https://www.epiphan.com/products/pearl-nexus/",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:poly_g7500": {
+    "title": "Poly G7500 data sheet",
+    "url": "https://www.dekom.com/fileadmin/user_upload/manufacturers/polycom/polycom_g7500/Poly_G7500_Datasheet.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:presence": {
+    "title": "thePrema S360 KNX UP GR | Präsenz- und Bewegungsmelder | KNX | Theben",
+    "url": "https://www.theben.de/de/theprema-s360-knx-up-gr-2079501",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:ptz": {
+    "title": "Specifications | AW-UE80W/K | PTZ Camera Systems | Broadcast and Professional AV | Panasonic Global",
+    "url": "https://pro-av.panasonic.net/en/products/aw-ue80/spec.html",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:rack_excerpt": {
+    "title": "AVIXA F502.02:2020 (R2023); catalogue/search abstract only, standard not read",
+    "url": "https://www.avixa.org/resources/standards/rack-design-for-audiovisual-systems",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:rittal_vx": {
+    "title": "Rittal (de): Netzwerk-/Serverschrank VX IT, 42 HE",
+    "url": "https://www.rittal.com/de-de/products/PG20231215ITI101/PG20240402ITI203/PRO106364?variantId=5310818",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:roland_v160hd": {
+    "title": "Roland Pro A/V: V-160HD Streaming Video Switcher, specifications",
+    "url": "https://proav.roland.com/global/products/v-160hd/specifications/",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:schedule": {
+    "title": "schedule",
+    "url": "https://www.logitech.com/content/dam/logitech/en/video-collaboration/pdf/tap-scheduler.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:tender": {
+    "title": "176/177 - Medientechnik Cube 3 (FAK6 + ITHE)",
+    "url": "https://tendigo.de/ausschreibung/176-177-medientechnik-cube-3-fak6-ithe-afea3d66d3",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:touch": {
+    "title": "Q-SYS Touch Screen Controllers",
+    "url": "https://www.qsys.com/products-solutions/q-sys/control-io-controllers/q-sys-touch-screen-controllers/",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:tracking": {
+    "title": "tr315-datasheet",
+    "url": "https://www.averusa.com/pro-av/downloads/datasheet-brochure/tr315-datasheet.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:tuc_r400": {
+    "title": "TU Clausthal Geräteverleih: Datenblatt Logitech Wireless Presenter R400",
+    "url": "https://doku.tu-clausthal.de/lib/exe/fetch.php?media=geraeteverleih%3Alogitech_r400.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:tud": {
+    "title": "Anforderungen an die Multimediainstallation – Hochschulrechenzentrum – TU Darmstadt",
+    "url": "https://www.hrz.tu-darmstadt.de/services/it_services/medientechnik_hoersaele_und_seminarraeume/medientechnik/infos_fuer_planer_und_firmen/anforderungen.de.jsp",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:ups": {
+    "title": "Eaton 9E 1kVA-3kVA UPS Eaton 9E EBM - Advance user guide",
+    "url": "https://www.eaton.com/content/dam/eaton/products/backup-power-ups-surge-it-power-distribution/backup-power-ups/eaton_9e_ups/eaton-9e-1kva-3kva-ups-eaton-9e-ebm-advance-user-guide.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:ups_excerpt": {
+    "title": "Eaton 9E manual section 6 maintenance; targeted search excerpt (PDF reader truncated before chapter)",
+    "url": "https://www.eaton.com/content/dam/eaton/products/backup-power-ups-surge-it-power-distribution/backup-power-ups/eaton_9e_ups/eaton-9e-1kva-3kva-ups-eaton-9e-ebm-advance-user-guide.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:uzh_rl931a": {
+    "title": "Universität Zürich, Richtlinie 931a AV-Ausstattung Hörsäle",
+    "url": "https://www.ib.uzh.ch/dam/jcr:7c7a25c4-c1fe-4813-baf4-f024a8629779/RL_931a_Release_AV_Hoersaele_20180722.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:yealink_roompanel": {
+    "title": "Yealink (de): RoomPanel für Microsoft Teams",
+    "url": "https://www.yealink.com/de/product-detail/microsoft-teams-roompanel",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:youtube_live_de": {
+    "title": "YouTube-Hilfe: Live-Encoder-Einstellungen, Bitraten und Auflösungen",
+    "url": "https://support.google.com/youtube/answer/2853702?hl=de",
+    "area": "control-conference-infrastructure"
   },
   "lib:control4_sddp": {
     "title": "Control4 Composer Pro help: Auto Discovery (SDDP)",
@@ -99,6 +544,316 @@
     "read": "page",
     "area": "library"
   },
+  "ls:AMR": {
+    "title": "AMR Eventtechnik: Produktkatalog Mietpark",
+    "url": "https://amr-eventtechnik.de/produktkatalog.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:ATOMIC": {
+    "title": "Martin Atomic 3000 LED",
+    "url": "https://www.martin.com/en-US/products/atomic-3000-led",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:BHE_RWA": {
+    "title": "BHE: Rauch- und Wärmeabzugsanlagen, Pflicht zur regelmäßigen Wartung (2021)",
+    "url": "https://www.bhe.de/_Resources/Persistent/0/1/3/3/01334e9903d01c371940ccdfc72300ea6e5b6352/2021_07_Pflicht%20zur%20regelm%C3%A4%C3%9Figen%20Wartung.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:BMA": {
+    "title": "AMEV BMA 2019",
+    "url": "https://www.amev-online.de/AMEVInhalt/Planen/Fernmelde-und-IT-Anlagen/BMA%202019/BMA_2019.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:BRITEQ": {
+    "title": "Briteq LED Pixelbar RGB (16 Pixel, 25°)",
+    "url": "https://briteq-lighting.com/de/led-pixelbar-rgb",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:CONSOLE": {
+    "title": "ETC Eos addresses and parameters",
+    "url": "https://support.etcconnect.com/ETC/Consoles/Eos_Family/Software_and_Programming/Addresses_and_Parameters_in_Eos_Family_Consoles",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:D14675": {
+    "title": "DIN-14675.de: Wartung und Instandhaltung von Brandmeldeanlagen",
+    "url": "https://www.din-14675.de/die-wartung-und-instandhaltung-von-brandmeldeanlagen/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:DALI": {
+    "title": "DALI Alliance: Introduction to DALI (IEC 62386, DALI-2)",
+    "url": "https://www.dali-alliance.org/dali/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:DG313": {
+    "title": "Lasten über Personen (2020)",
+    "url": "https://publikationen.dguv.de/widgets/pdf/download/article/597",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:DGUV202": {
+    "title": "DGUV Information 202-021 Sichere Schultafeln",
+    "url": "https://publikationen.dguv.de/widgets/pdf/download/article/1382",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:DGV17": {
+    "title": "DGUV Vorschrift 17 §34",
+    "url": "https://www.bgbau-medien.de/handlungshilfen_gb/daten/dguv/17/34.htm",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:EN14434": {
+    "title": "DIN EN 14434:2024-01 Schreibtafeln für Bildungseinrichtungen",
+    "url": "https://www.dinmedia.de/de/norm/din-en-14434/374242455",
+    "read": "abstract",
+    "area": "lighting-stage-room"
+  },
+  "ls:EN50172": {
+    "title": "DKE: DIN EN 50172 (VDE 0108-100):2024-10, ersetzt 2005-01 und DIN VDE V 0108-100-1:2018-12",
+    "url": "https://www.dke.de/de/normen-standards/dokument?id=7209241&type=dke%7Cdokument",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:ETC": {
+    "title": "ETC Produktkatalog Deutsch (historisch; Terminologie)",
+    "url": "https://www.etcconnect.com/uploadedFiles/Main_Site/Documents/Public/Product_Catalog/Product_Catalog_German.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:ETCCYC": {
+    "title": "ETC ColorSource CYC",
+    "url": "https://www.etcconnect.com/Products/Entertainment-Fixtures/ColorSource-CYC/Features.aspx",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:FAIRCOM": {
+    "title": "faircom: Medienpult college",
+    "url": "https://www.rednerpult-faircom.de/produkte/medienpult-faircom-college/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:FRESNEL": {
+    "title": "ETC ColorSource Fresnel V datasheet",
+    "url": "https://www.etcconnect.com/WorkArea/DownloadAsset.aspx?id=10737512954",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:GER_B": {
+    "title": "Gerriets: Brandschutzklassen und Normen (DIN 4102, EN 13501-1)",
+    "url": "https://www.gerriets.com/de/page/baustoffklassen/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:HALL": {
+    "title": "Technische Ausstattung Haus Leipzig",
+    "url": "https://www.hausleipzig.com/media/haus-leipzig/downloads/technische-ausstattung-haus-leipzig---deutsch.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:HSNB": {
+    "title": "Hochschule Neubrandenburg: Medientechnik-Ausleihe",
+    "url": "https://www.hs-nb.de/zimt/medien-dienste/medientechnik-ausleihe/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:IGVW_P4": {
+    "title": "IGVW SQ P4 Mobile elektrische Anlagen in der Veranstaltungstechnik",
+    "url": "https://www.igvw.org/wp-content/uploads/IGVW_SQP4_web.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:INOBJ": {
+    "title": "inobjekt: Dozentenpulte für Seminarräume und Hörsäle",
+    "url": "https://inobjekt.com/education/dozentenpulte",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:INOTEC": {
+    "title": "INOTEC: Stellungnahme zur DIN EN 50172:2024-10 (Übergangsfrist bis 27.05.2027)",
+    "url": "https://www.inotec-licht.de/praxis/stellungnahme-neue-din-en-50172-2024-10/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:PAR": {
+    "title": "Vari-Lite VL800 PROPAR",
+    "url": "https://www.vari-lite.com/global/products/vl800-propar",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:RJ": {
+    "title": "Robert Juliat LEXIE 1176, 420 W LED-Verfolgerscheinwerfer (deutsch)",
+    "url": "https://www.robertjuliat.com/PDF/QS/DN41273300_qs_LEXIE-1176_v1_DE.pdf",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:SAA": {
+    "title": "DKE DIN VDE 0833-4:2024-06 scope",
+    "url": "https://www.dke.de/de/normen-standards/dokument?id=7202539&type=dke%7Cdokument",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:SHOWTEC_BAR": {
+    "title": "Showtec Pixel Bar 8 COB (IP20, mehrere DMX-Modi)",
+    "url": "https://www.showtec-lights.com/en/41266-pixel-bar-8-cob.html",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:TUDA": {
+    "title": "TU Darmstadt HRZ: Anforderungen an die Multimediainstallation in Hörsälen",
+    "url": "https://www.hrz.tu-darmstadt.de/services/it_services/medientechnik_hoersaele_und_seminarraeume/medientechnik/infos_fuer_planer_und_firmen/anforderungen.de.jsp",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:UDS_SAA": {
+    "title": "UDS Beratung: Sprachalarmanlage, Wartung, Prüfung und Begehung",
+    "url": "https://www.uds-beratung.de/beratung-service/ratgeber/artikel/sprachalarmanlage-saa-wartung-instandhaltung-begehung/",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:WAREMA": {
+    "title": "WAREMA: Verdunkelungen (vertikal, ZIP)",
+    "url": "https://architects.warema.com/de/fenster-markisen/verdunkelungen.html",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "mw:AT2": {
+    "title": "Audio-Technica ES933, Kondensatormikrofon zur abgehängten Montage (German page, search excerpt)",
+    "url": "https://www.audio-technica.com/de-de/es933c",
+    "area": "microphones-wireless"
+  },
+  "mw:BN2": {
+    "title": "BNetzA Vfg. 91/2025 Allgemeinzuteilung SRD, read: Tabelle 2 Nr. 94, 95, 46b, 96 and Tabelle 3 Nr. D94, D96; repeals Vfg. 2/2015, 3/2015, 107/2018; valid to 31.12.2035",
+    "url": "https://www.bundesnetzagentur.de/DE/Fachthemen/Telekommunikation/Frequenzen/Allgemeinzuteilungen/_DL/vfg91_2025.pdf?__blob=publicationFile&v=3",
+    "area": "microphones-wireless"
+  },
+  "mw:BY1": {
+    "title": "beyerdynamic Classis BM 32/33/34 Grenzflächenmikrofone, data sheet (search excerpt: Einbau in Tische oder Decken)",
+    "url": "https://www.canford.co.uk/ProductResources/resources/B/Beyer/Beyer%20BM32_33_34_datasheet.pdf",
+    "area": "microphones-wireless"
+  },
+  "mw:CB1": {
+    "title": "Catchbox Hub DSP Receiver, technical specifications (DECT 1.8/1.9 GHz, built-in antennas)",
+    "url": "https://catchbox.com/plus-system/hub-dsp-receiver",
+    "area": "microphones-wireless"
+  },
+  "mw:EU1": {
+    "title": "Commission Implementing Decision (EU) 2025/105, SRD harmonisation, Annex band 46b: \"863-865 MHz Audio PMSE devices 10 mW. This set of usage conditions is also available for personal cordless audio devices.\" (EUR-Lex blocked the full text; search excerpt of the Official Journal)",
+    "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/PDF/?uri=OJ:L_202500105",
+    "area": "microphones-wireless"
+  },
+  "mw:IEC1": {
+    "title": "IEC 60268-4:2018 Sound system equipment, Part 4: Microphones (abstract: impedance, sensitivity, directional pattern, dynamic range)",
+    "url": "https://webstore.iec.ch/en/publication/32039",
+    "area": "microphones-wireless"
+  },
+  "mw:S1": {
+    "title": "Shure SM58 user guide (full short guide read)",
+    "url": "https://www.shure.com/en-US/docs/guide/SM58",
+    "area": "microphones-wireless"
+  },
+  "mw:S10": {
+    "title": "Shure SM57 guide (search excerpt)",
+    "url": "https://www.shure.com/en-US/docs/guide/sm57",
+    "area": "microphones-wireless"
+  },
+  "mw:S11": {
+    "title": "Audio-Technica AT831 specifications (search excerpt)",
+    "url": "https://www.audio-technica.com/en-us/at831",
+    "area": "microphones-wireless"
+  },
+  "mw:S12": {
+    "title": "DPA 4060 product page (first 10,000 characters read)",
+    "url": "https://www.dpamicrophones.com/microphones/lavalier/4060/",
+    "area": "microphones-wireless"
+  },
+  "mw:S14": {
+    "title": "Audio-Technica ATM73 headworn microphone (search excerpt)",
+    "url": "https://www.audio-technica.com/en-us/atm73",
+    "area": "microphones-wireless"
+  },
+  "mw:S15": {
+    "title": "Shure ULX-D user guide, full PDF read (power 1/10/20 mW, AES-256, battery runtime display, group/channel scan, locks, firmware, cartridges, ULXD4/4D/4Q)",
+    "url": "https://pubs.shure.com/view/guide/ULXD/en-US.pdf",
+    "area": "microphones-wireless"
+  },
+  "mw:S16": {
+    "title": "Audio-Technica 3000 fourth-generation A&E specification (first 10,000 characters read)",
+    "url": "https://docs.audio-technica.com/us/0001_0024_03_3000series_submittal.pdf",
+    "area": "microphones-wireless"
+  },
+  "mw:S18": {
+    "title": "Shure MXCW guide (system-description search excerpt)",
+    "url": "https://www.shure.com/en-US/docs/guide/MXCW",
+    "area": "microphones-wireless"
+  },
+  "mw:S2": {
+    "title": "Audio-Technica U857Q, German product and specifications",
+    "url": "https://www.audio-technica.com/de-de/u857q",
+    "area": "microphones-wireless"
+  },
+  "mw:S29": {
+    "title": "Bundesnetzagentur Vfg. 37/2026, Allgemeinzuteilung Funkmikrofone (full text read)",
+    "url": "https://www.bundesnetzagentur.de/DE/Fachthemen/Telekommunikation/Frequenzen/Allgemeinzuteilungen/_DL/Mikrofone/vfg37_2026.pdf?__blob=publicationFile&v=3",
+    "area": "microphones-wireless"
+  },
+  "mw:S3": {
+    "title": "Audio-Technica U851R, German product and specifications",
+    "url": "https://www.audio-technica.com/de-de/u851r",
+    "area": "microphones-wireless"
+  },
+  "mw:S31": {
+    "title": "Shure Wireless Workbench exclusions (search excerpt)",
+    "url": "https://content-files.shure.com/Pubs/WWB/en-US/en-US/select-exclusions.html",
+    "area": "microphones-wireless"
+  },
+  "mw:S32": {
+    "title": "Shure Wireless Workbench coordination and reports (search excerpt)",
+    "url": "https://www.shure.com/en-US/products/software/wwb",
+    "area": "microphones-wireless"
+  },
+  "mw:S33": {
+    "title": "ULX-D command strings (official search excerpt; fetch returned empty body)",
+    "url": "https://www.shure.com/en-US/docs/commandstrings/ULXD",
+    "area": "microphones-wireless"
+  },
+  "mw:S35": {
+    "title": "DPA 4060 manual specifications (search excerpt)",
+    "url": "https://www.dpamicrophones.com/document-portal/manual/product/4060lmk/variant/208/",
+    "area": "microphones-wireless"
+  },
+  "mw:S8": {
+    "title": "Audio-Technica AT875R specification sheet (search excerpt)",
+    "url": "https://docs.audio-technica.com/us/at875r_submit.pdf",
+    "area": "microphones-wireless"
+  },
+  "mw:S9": {
+    "title": "Shure VP89 guide (search excerpt)",
+    "url": "https://www.shure.com/en-US/docs/guide/VP89",
+    "area": "microphones-wireless"
+  },
+  "mw:SH2": {
+    "title": "Shure MXA310 Tischarray, Bedienungsanleitung de-DE (read: 4 Kanäle, Richtcharakteristiken, Dante, PoE, Stummschaltung, LED, Firmware)",
+    "url": "https://pubs.shure.com/view/guide/MXA310/de-DE.pdf",
+    "area": "microphones-wireless"
+  },
+  "mw:SH9": {
+    "title": "Shure MX200 Series user guide (choir placement; search excerpt)",
+    "url": "https://www.shure.com/en-US/docs/guide/MX200",
+    "area": "microphones-wireless"
+  },
+  "mw:T1": {
+    "title": "Stadt Mülheim an der Ruhr, LV ID 9071 Ersatzneubau GS Saarn Aula, Bühnen- und Veranstaltungstechnik, Titel 01.04.03 Mikrofontechnik und 01.04.05 Drahtlose Konferenzanlage (read)",
+    "url": "https://www1.muelheim-ruhr.de/system/files/ausschreibungen/GS_Saarn_Buehnen-_und_Veranstaltungstechnik_-_Paket_1_3_LV_LP6_v1_0_0.pdf",
+    "area": "microphones-wireless"
+  },
   "pd:B1": {
     "title": "MH733 Meetingraum-Projektor | BenQ Display Solutions",
     "url": "https://www.benq.eu/de-de/business/projector/mh733.html",
@@ -119,9 +874,64 @@
     "url": "https://www.epson.eu/en_EU/products/projector/professional/eb-pu1008w-projector/p/32084",
     "area": "projection-displays"
   },
+  "pd:FLEXM": {
+    "title": "Unit LED: soft and bendable flexible LED module",
+    "url": "https://www.unit-led.com/soft-flexible-led-module",
+    "area": "projection-displays"
+  },
+  "pd:GER": {
+    "title": "Gerriets Rückprojektionsfolien (Material, Stärke, EN 13501-1, Gain)",
+    "url": "https://www.gerriets.com/de/shop/projektion/projektionsfolien/rueckprojektionsfolien/",
+    "area": "projection-displays"
+  },
+  "pd:I1": {
+    "title": "SMART Board MX-Serie – Interaktives Display | Deutschland | SMART Technologies",
+    "url": "https://www.smarttech.com/de-de/products/mx-series",
+    "area": "projection-displays"
+  },
+  "pd:I2": {
+    "title": "ActivPanel 10: The New Promethean Smart Board | Promethean",
+    "url": "https://www.prometheanworld.com/products/interactive-displays/activpanel/",
+    "area": "projection-displays"
+  },
+  "pd:KONF": {
+    "title": "Konfetech: Vorschaumonitore (Confidence-Monitore) mieten",
+    "url": "https://www.konfetech.de/konferenztechnik/praesentationstechnik/vorschaumonitore",
+    "area": "projection-displays"
+  },
+  "pd:LC1": {
+    "title": "XI’AN NOVASTAR TECH CO., LTD.",
+    "url": "https://oss.novastar.tech/uploads/2022/11/VX1000-All-in-One-Controller-User-Manual-V1.2.1.pdf",
+    "area": "projection-displays"
+  },
+  "pd:LC2": {
+    "title": "Dynamic Calibration – Brompton Technology",
+    "url": "https://www.bromptontech.com/technology/dynamic-calibration/",
+    "area": "projection-displays"
+  },
   "pd:LED1": {
     "title": "LG LSAB009: MAGNIT | LG Deutschland Business",
     "url": "https://www.lg.com/de/business/led-signage/innenbereich/lsab009/",
+    "area": "projection-displays"
+  },
+  "pd:LED2": {
+    "title": "Black Pearl The Film-Centric LED Panel | ROE Visual",
+    "url": "https://www.roevisual.com/en/products/black-pearl",
+    "area": "projection-displays"
+  },
+  "pd:LGAIO": {
+    "title": "LG LED All-in-One LAED015-GN",
+    "url": "https://www.lg.com/global/business/commercial-display/led-signage/indoor-led/laed015-gn/",
+    "area": "projection-displays"
+  },
+  "pd:LGC": {
+    "title": "LG Digital Signage Katalog (Kategorien OLED, High Brightness, Video Wall, Ultra Stretch, transparente LED-Folie)",
+    "url": "https://www.beamer24.de/kataloge/catalogs/LG_Displays/pdf/complete.pdf",
+    "area": "projection-displays"
+  },
+  "pd:LOG": {
+    "title": "Logitech Tap Scheduler data sheet",
+    "url": "https://www.logitech.com/content/dam/logitech/en/video-collaboration/pdf/tap-scheduler-datasheet.pdf",
     "area": "projection-displays"
   },
   "pd:NEC1": {
@@ -139,9 +949,54 @@
     "url": "https://pjlink.jbmia.or.jp/english/data_cl2/PJLink_5-1.pdf",
     "area": "projection-displays"
   },
+  "pd:ROEF": {
+    "title": "ROE Visual Black Marble interactive LED floor",
+    "url": "https://www.roevisual.com/us-en/products/black-marble-interactive-floor",
+    "area": "projection-displays"
+  },
+  "pd:RP1": {
+    "title": "Rijn IJssel",
+    "url": "https://www.prodvx.com/cases/rijn-ijssel",
+    "area": "projection-displays"
+  },
+  "pd:RP2": {
+    "title": "Low-Cost ePaper Signs for Workspace Management | 5-Year Battery | Visix",
+    "url": "https://www.visix.com/epaper-workplace-displays/",
+    "area": "projection-displays"
+  },
   "pd:SC1": {
     "title": "Projecta Tensioned DescenderPro specification",
     "url": "https://www.legrandav.com/-/media/files/projecta/resources/screens/electric_screens/ceiling_recessed_projection_screens/descenderpro/spec_data_sheet_tensioned_descenderpro1.ashx",
+    "area": "projection-displays"
+  },
+  "pd:SC2": {
+    "title": "Monoblox",
+    "url": "https://avstumpfl.com/us/projection-screens/mobile-projection-screens/monoblox/monoblox/",
+    "area": "projection-displays"
+  },
+  "pd:SP1": {
+    "title": "BrightSign HD5 data sheet",
+    "url": "https://www.brightsign.biz/wp-content/uploads/2024/06/HD5-datasheet-2024.pdf",
+    "area": "projection-displays"
+  },
+  "pd:SP2": {
+    "title": "HMP400 - SpinetiX Wiki",
+    "url": "https://support.spinetix.com/wiki/HMP400",
+    "area": "projection-displays"
+  },
+  "pd:V1": {
+    "title": "VZ-8NEO.UHD",
+    "url": "https://wolfvision.com/media/2165/download/WolfVision_VZ-8neo.UHD_Product_Sheet_DE.pdf?v=1",
+    "area": "projection-displays"
+  },
+  "pd:V2": {
+    "title": "New: ELMO L-12G – the document camera for today’s schools – ELMO EUROPE  SAS",
+    "url": "https://www.elmoeurope.com/en/2022/12/15/new-elmo-l-12g-the-document-camera-for-todays-schools/",
+    "area": "projection-displays"
+  },
+  "pd:W1": {
+    "title": "SMART Board 880 specifications - SMART Board 800",
+    "url": "https://support.smarttech.com/docs/hardware/interactive-whiteboards/smart-board-800/en/about/specifications/sbx880.cshtml",
     "area": "projection-displays"
   },
   "pd:WIT": {
@@ -156,11 +1011,179 @@
     "url": "https://www.hrz.tu-darmstadt.de/services/it_services/medientechnik_hoersaele_und_seminarraeume/medientechnik/infos_fuer_planer_und_firmen/anforderungen.de.jsp",
     "area": "presets"
   },
+  "presets:S11": {
+    "title": "AETM Audio Visual Design Guidelines (excerpt, section 4 'Screens')",
+    "publisher": "AETM (Australia), hosted by CQUniversity",
+    "year": "n.d.",
+    "url": "https://delivery-cqucontenthub.stylelabs.cloud/api/public/content/AETM-AV-Design-Guidelines-Excerpt.pdf",
+    "area": "presets"
+  },
+  "presets:S12": {
+    "title": "Learning Spaces and Meeting Rooms: Standard Design Catalogue V1.9",
+    "publisher": "CQUniversity (Australia)",
+    "year": "2019",
+    "url": "https://delivery-cqucontenthub.stylelabs.cloud/api/public/content/CQUni_Learning_Spaces_and_Meeting_Rooms-Standard_Design_Catalogue-V1.9.pdf",
+    "area": "presets"
+  },
+  "presets:S13": {
+    "title": "The UK Higher Education Learning Space Toolkit",
+    "publisher": "SCHOMS, AUDE, UCISA",
+    "year": "2016",
+    "url": "https://www.ucisa.ac.uk/-/media/Files/UCISA/Publication-files/TOOLKITS/2016/LearningSpace/Toolkit_UK-HE-learning-space_FINAL.pdf",
+    "area": "presets"
+  },
+  "presets:S15": {
+    "title": "AVIXA Standards Catalog (Available Standards)",
+    "publisher": "AVIXA",
+    "year": "2026 (page current)",
+    "url": "https://www.avixa.org/resources/standards/published-standards",
+    "area": "presets"
+  },
+  "presets:S16": {
+    "title": "Versammlungsstättenverordnung Baden-Württemberg, § 37 Prüfungen",
+    "publisher": "dejure.org (text of the Landesverordnung)",
+    "year": "2026 (page current)",
+    "url": "https://dejure.org/gesetze/VStaettVO/37.html",
+    "area": "presets"
+  },
+  "presets:S19": {
+    "title": "DGUV Vorschrift 17, § 34 Wiederkehrende Prüfungen",
+    "publisher": "BG BAU Medien (text of the DGUV regulation)",
+    "year": "2026 (page current)",
+    "url": "https://www.bgbau-medien.de/handlungshilfen_gb/daten/dguv/17/34.htm",
+    "area": "presets"
+  },
+  "presets:S2": {
+    "title": "Ausstattung der Raumtypen (Neuausstattung Medientechnik)",
+    "publisher": "Datenverarbeitungszentrale, Hochschule Bielefeld",
+    "year": "2026 (page current)",
+    "url": "https://www.hsbi.de/dvz/it-services/medienbereitstellung/neuausstattung/ausstattung-der-raumtypen",
+    "area": "presets"
+  },
+  "presets:S22": {
+    "title": "DGUV Vorschrift 3, § 5 Prüfungen (with Durchführungsanweisung)",
+    "publisher": "BG BAU Medien (text of the DGUV regulation)",
+    "year": "2026 (page current)",
+    "url": "https://www.bgbau-medien.de/handlungshilfen_gb/daten/dguv/3/5.htm",
+    "area": "presets"
+  },
+  "presets:S24": {
+    "title": "Induktive Höranlagen beim Freistaat Bayern, Planungsrichtlinien (Stand 01.01.2019)",
+    "publisher": "Bayerisches Staatsministerium für Wohnen, Bau und Verkehr",
+    "year": "2019",
+    "url": "https://www.stmb.bayern.de/assets/stmi/min/181217-induktive-hoeranlagen.pdf",
+    "area": "presets"
+  },
+  "presets:S25": {
+    "title": "DIN 18040-1 und DIN 18040-2, Planungsgrundlagen des barrierefreien Bauens",
+    "publisher": "Oberste Baubehörde im Bayerischen Staatsministerium des Innern, für Bau und Verkehr",
+    "year": "2010",
+    "url": "https://www.stmb.bayern.de/assets/stmi/buw/baurechtundtechnik/planungsgrundlagen_barrierefreies_bauen.pdf",
+    "area": "presets"
+  },
+  "presets:S27": {
+    "title": "Allgemeinzuteilung von Frequenzen für Funkmikrofone, Vfg. 37/2026",
+    "publisher": "Bundesnetzagentur",
+    "year": "2026",
+    "url": "https://www.bundesnetzagentur.de/DE/Fachthemen/Telekommunikation/Frequenzen/Allgemeinzuteilungen/_DL/Mikrofone/vfg37_2026.pdf?__blob=publicationFile&v=3",
+    "area": "presets"
+  },
+  "presets:S28": {
+    "title": "ISO 2603:2016 Simultaneous interpreting, Permanent booths, Requirements",
+    "publisher": "ISO",
+    "year": "2016",
+    "url": "https://www.iso.org/standard/67065.html",
+    "area": "presets"
+  },
+  "presets:S29": {
+    "title": "Technischer Leitfaden Stadthalle Singen, Version 1.1 (Stand 12.08.2026)",
+    "publisher": "Kultur und Tagung Singen",
+    "year": "2026",
+    "url": "https://www.stadthalle-singen.de/_Resources/Persistent/3d624a6766f96de7370cf5da84dc0000762fc951/STH-Technischer-Leitfaden.pdf",
+    "area": "presets"
+  },
+  "presets:S3": {
+    "title": "Medientechnik Ausstattung Hörsäle und Seminarräume",
+    "publisher": "Universitätsrechenzentrum, Universität Jena",
+    "year": "2026 (page current)",
+    "url": "https://www.uni-jena.de/112684/medientechnik-ausstattung-hoersaele-und-seminarraeume",
+    "area": "presets"
+  },
   "presets:S30": {
     "title": "Technische Daten Stadthalle Wetzlar",
     "publisher": "Stadthalle Wetzlar",
     "year": "n.d.",
     "url": "https://www.stadthallewetzlar.de/dokumente/downloads/318/technische_daten_stadthalle.pdf",
+    "area": "presets"
+  },
+  "presets:S31": {
+    "title": "Technische Informationen Stadthalle Osterholz-Scharmbeck (2026-01-30)",
+    "publisher": "Stadtmarketing Osterholz-Scharmbeck GmbH",
+    "year": "2026",
+    "url": "https://stadthalle-ohz.de/media/pages/files/e6315087fe-1779451538/stadthalle-ohz-technische-informationen-2026-01-30.pdf",
+    "area": "presets"
+  },
+  "presets:S32": {
+    "title": "Technisches Beiblatt Rathaushalle",
+    "publisher": "Stadt Haßfurt",
+    "year": "n.d.",
+    "url": "https://hassfurt.de/fileadmin/user_upload/Technisches_Beiblatt_Rathaushalle.pdf",
+    "area": "presets"
+  },
+  "presets:S33": {
+    "title": "Technische Ausstattung (Haus Leipzig)",
+    "publisher": "Haus Leipzig",
+    "year": "n.d.",
+    "url": "https://www.hausleipzig.com/media/haus-leipzig/downloads/technische-ausstattung-haus-leipzig---deutsch.pdf",
+    "area": "presets"
+  },
+  "presets:S34": {
+    "title": "Gemeinderat startet mit moderner Medientechnik in das neue Jahr",
+    "publisher": "Stadt Pforzheim (press release)",
+    "year": "n.d.",
+    "url": "https://www.pforzheim.de/stadt/aktuelles/pressemeldungen/s1/article/detail/News/gemeinderat-startet-mit-moderner-medientechnik-in-das-neue-jahr.html",
+    "area": "presets"
+  },
+  "presets:S35": {
+    "title": "Erneuerung der Medientechnik im großen Sitzungssaal des Rathauses",
+    "publisher": "Stadt Friedrichshafen (Gemeinderat template)",
+    "year": "2024",
+    "url": "https://friedrichshafen-sitzungsdienst.komm.one/bi/getfile.asp?id=222354&type=do",
+    "area": "presets"
+  },
+  "presets:S36": {
+    "title": "Technische Richtlinien 2026",
+    "publisher": "Deutsche Messe AG",
+    "year": "2025",
+    "url": "https://www.messe.de/files/files/000/media/downloads/technische-richtlinien/technische-richtlinien-2026-2.pdf",
+    "area": "presets"
+  },
+  "presets:S38": {
+    "title": "Hörunterstützung Auracast",
+    "publisher": "Inklusionsbüro, TH Ostwestfalen-Lippe",
+    "year": "2026",
+    "url": "https://www.th-owl.de/inklusion/auracast/",
+    "area": "presets"
+  },
+  "presets:S39": {
+    "title": "Bühnentechnik",
+    "publisher": "Wikipedia (de)",
+    "year": "2026 (page current)",
+    "url": "https://de.wikipedia.org/wiki/B%C3%BChnentechnik",
+    "area": "presets"
+  },
+  "presets:S4": {
+    "title": "Medienausstattung in Seminarräumen und Hörsälen",
+    "publisher": "ZIMT, Universität Siegen",
+    "year": "2026 (page current)",
+    "url": "https://www.uni-siegen.de/service/medienausstattung-in-seminarraeumen-und-hoersaelen",
+    "area": "presets"
+  },
+  "presets:S41": {
+    "title": "Einmessung nach DIN EN 60118-4",
+    "publisher": "Ingenieurbüro Zincke (service provider)",
+    "year": "2026 (page current)",
+    "url": "https://www.hoerschleifen.de/einmessung-nach-din-en-60118-4/",
     "area": "presets"
   },
   "presets:S5": {
@@ -177,10 +1200,239 @@
     "url": "https://www.ib.uzh.ch/dam/jcr:3ca616aa-2b71-4815-bece-ced954a1a88e/Richtlinie_Audio_Video_Seminarr%C3%A4ume_V_2025_1.pdf",
     "area": "presets"
   },
+  "presets:S7": {
+    "title": "Empfehlungen zur Ausstattung von Hörsälen und Seminarräumen (Stand 07.07.2005)",
+    "publisher": "HRZ, Philipps-Universität Marburg",
+    "year": "2005",
+    "url": "https://www.uni-marburg.de/de/hrz/ueber-uns/profil/geschichte/bilder-und-dokumente/mm-empfehlung-2005.pdf",
+    "area": "presets"
+  },
   "presets:general": {
     "title": "General knowledge of the first preset library author (research.md)",
     "area": "presets",
     "read": "none"
+  },
+  "sp:AT": {
+    "title": "9 x 2 4K Präsentation Matrix Switch - VP1920, ATEN Switches für Präsentationen | ATEN Belgium - Deutsch",
+    "url": "https://www.aten.com/de/de/products/professionelles-audiovideo/switches-f%C3%BCr-pr%C3%A4sentationen/vp1920/",
+    "body": "ATEN",
+    "area": "signal-path"
+  },
+  "sp:BMMCDE": {
+    "title": "Blackmagic Design (deutsch): Mini Converters, „Konverter“",
+    "url": "https://www.blackmagicdesign.com/de/products/miniconverters",
+    "body": "Blackmagic Design",
+    "area": "signal-path"
+  },
+  "sp:DELL": {
+    "title": "Dell OptiPlex 7090 Micro specifications (search excerpt only)",
+    "url": "https://www.dell.com/support/manuals/en-th/optiplex-7090-micro/opti7090mff_setupspecs/energy-star-epeat-and-trusted-platform-module-tpm?guid=guid-100ab2a7-6003-4c1d-8f16-f8862314a41a&lang=en-us",
+    "body": "Dell",
+    "area": "signal-path"
+  },
+  "sp:HDBT": {
+    "title": "HDBaseT Alliance: HDBaseT technology and specifications",
+    "url": "https://hdbaset.org/hdbaset-technology/",
+    "body": "HDBaseT Alliance",
+    "area": "signal-path"
+  },
+  "sp:IPMX": {
+    "title": "AIMS: IPMX open standard (SMPTE ST 2110, AES67, NMOS)",
+    "url": "https://ipmx.io/",
+    "body": "AIMS",
+    "area": "signal-path"
+  },
+  "sp:KI": {
+    "title": "CablePort Office - Kindermann GmbH",
+    "url": "https://www.kindermann.de/company/kindermann-highlights/cableport-office/",
+    "body": "Kindermann",
+    "area": "signal-path"
+  },
+  "sp:KIHDBT": {
+    "title": "Kindermann: HDBaseT 3.0 Extender Set für HDMI und USB 2.0",
+    "url": "https://www.kindermann.de/company/hdbaset-3-0-extender-set-fuer-hdmi-und-usb-2-0/",
+    "body": "Kindermann",
+    "area": "signal-path"
+  },
+  "sp:KIKON": {
+    "title": "Kindermann: Konnect Anschlusssystem (Kabelpeitschen 20 cm / 1 m / 3 m)",
+    "url": "https://www.kindermann.de/company/kindermann-highlights/konnect/",
+    "body": "Kindermann",
+    "area": "signal-path"
+  },
+  "sp:KIMX": {
+    "title": "Kindermann: VS-62HA 6x2 UHD HDMI Matrixschalter",
+    "url": "https://www.kindermann.de/VS-62HA-6x2-UHD-HDMI-Matrix-Switcher/4101000150",
+    "body": "Kindermann",
+    "area": "signal-path"
+  },
+  "sp:KITAF": {
+    "title": "Kindermann: Tischanschlussfeld (Kategorie Anbau/Einbau)",
+    "url": "https://www.kindermann.de/Produkte/Alle-Kategorien/Anschlussloesungen/Tischanschlussfeld/",
+    "body": "Kindermann",
+    "area": "signal-path"
+  },
+  "sp:KR": {
+    "title": "MTX3-42-HU 4x2 4K60 USB–C/HDMI Matrix",
+    "url": "https://www1.kramerav.com/Product/MTX3-42-HU",
+    "body": "Kramer",
+    "area": "signal-path"
+  },
+  "sp:KRFC113": {
+    "title": "Kramer: FC-113 HDMI to 3G HD-SDI Format Converter",
+    "url": "https://www1.kramerav.com/Product/FC-113",
+    "body": "Kramer",
+    "area": "signal-path"
+  },
+  "sp:KRHDX": {
+    "title": "Kramer: HDMI Übertrager (Kategorie: DGKat, HDBaseT, Glasfaser, CATx)",
+    "url": "https://www1.kramerav.com/de/products/range_extenders_repeaters/hdmi-extenders",
+    "body": "Kramer",
+    "area": "signal-path"
+  },
+  "sp:KRPS": {
+    "title": "Kramer: Präsentationsumschalter (Kategorie)",
+    "url": "https://www1.kramerav.com/de/products/presentation-systems/presentation-switchers",
+    "body": "Kramer",
+    "area": "signal-path"
+  },
+  "sp:KRVIA": {
+    "title": "Kramer: VIA Campus² (drahtlose Präsentations- und Kollaborationslösung)",
+    "url": "https://www1.kramerav.com/de/product/VIA%20Campus%C2%B2",
+    "body": "Kramer",
+    "area": "signal-path"
+  },
+  "sp:LIFO": {
+    "title": "Lindy: 300m Fibre Optic HDMI 4K60 Dongle Extender (LC, OM3/OM4)",
+    "url": "https://www.lindy.de/Audio-Video/300m-Fibre-Optic-HDMI-4K60-Dongle-Extender",
+    "body": "Lindy",
+    "area": "signal-path"
+  },
+  "sp:LIHDBT": {
+    "title": "Lindy: 100m Cat.6 HDBaseT Extender-Transmitter, HDMI 4K60, Audio, IR & RS-232",
+    "url": "https://www.lindy.de/Audio-Video/100m-Cat-6-HDBaseT-Extender-Transmitter-HDMI-4K60-Audio-IR-RS-232",
+    "body": "Lindy",
+    "area": "signal-path"
+  },
+  "sp:LIMX": {
+    "title": "Lindy: 2x2 HDMI 18G Matrix",
+    "url": "https://www.lindy.eu/Audio-Video/2x2-HDMI-18G-Matrix",
+    "body": "Lindy",
+    "area": "signal-path"
+  },
+  "sp:LUM": {
+    "title": "Lumens: Visual Presentation Cameras (document cameras)",
+    "url": "https://www.mylumens.com/en/Products/4/Visual-Presentation-Cameras",
+    "body": "Lumens",
+    "area": "signal-path"
+  },
+  "sp:LWAPI": {
+    "title": "Lightware Open API: LW2, LW3 (TCP 6107) and REST API",
+    "url": "https://www.lightware.com/support/open-api",
+    "body": "Lightware",
+    "area": "signal-path"
+  },
+  "sp:LWDA": {
+    "title": "DA4-HDMI20-C | 4 Outputs HDMI Distribution Amplifier",
+    "url": "https://www.lightware.com/en/products/Interfaces/da4-hdmi20-c",
+    "body": "Lightware",
+    "area": "signal-path"
+  },
+  "sp:LWMX2": {
+    "title": "Lightware MX2 matrix switchers (R variants: redundant power)",
+    "url": "https://www.lightware.com/product-families/mx2-hdmi20-matrix-switchers",
+    "body": "Lightware",
+    "area": "signal-path"
+  },
+  "sp:LWSFP": {
+    "title": "Lightware Generic SFP+ MM transceiver module",
+    "url": "https://www.lightware.com/en/products/accessories/generic-sfp-plus-mm",
+    "body": "Lightware",
+    "area": "signal-path"
+  },
+  "sp:LWUC": {
+    "title": "UCX_series_UserManual",
+    "url": "https://go.lightware.com/ucx-s-hum",
+    "body": "Lightware",
+    "area": "signal-path"
+  },
+  "sp:MS": {
+    "title": "Solstice Release Notes",
+    "url": "https://documentation.mersive.com/en/solstice/solstice-release-notes.html",
+    "body": "Mersive",
+    "area": "signal-path"
+  },
+  "sp:S2": {
+    "title": "Inherited preset research: Ausstattung der Raumtypen (Neuausstattung Medientechnik)",
+    "url": "https://www.hsbi.de/dvz/it-services/medienbereitstellung/neuausstattung/ausstattung-der-raumtypen",
+    "body": "HSBI",
+    "area": "signal-path"
+  },
+  "sp:SDVOE": {
+    "title": "SDVoE Alliance: SDVoE specifications",
+    "url": "https://sdvoe.org/technology/specifications/",
+    "body": "SDVoE Alliance",
+    "area": "signal-path"
+  },
+  "sp:SP": {
+    "title": "HMP400 - SpinetiX Wiki",
+    "url": "https://support.spinetix.com/wiki/HMP400",
+    "body": "SpinetiX",
+    "area": "signal-path"
+  },
+  "sp:TENDER_UDE": {
+    "title": "Leistungsbeschreibung Medientechnik Hörsäle, Universität Duisburg-Essen (Ausschreibung)",
+    "url": "https://studylibde.com/doc/2046395/1.-leistungsbeschreibung---universit%C3%A4t-duisburg",
+    "body": "Universität Duisburg-Essen (tender)",
+    "area": "signal-path"
+  },
+  "sp:VINX": {
+    "title": "VINX",
+    "url": "https://assets.prod.pim.lightware.com/assets/File-Downloads/Guides-and-Manuals/User-Manual/VINX_UserManual.pdf",
+    "body": "Lightware",
+    "area": "signal-path"
+  },
+  "sp:VIS": {
+    "title": "Duet-5 Encoder & Decoder – Visionary Solutions",
+    "url": "https://visionary-av.com/project/duet-5-encoder-decoder/",
+    "body": "Visionary Solutions",
+    "area": "signal-path"
+  },
+  "sp:WV": {
+    "title": "Cynap Pro - WolfVision GmbH",
+    "url": "https://wolfvision.com/de/produkte/cynap-pro",
+    "body": "WolfVision",
+    "area": "signal-path"
+  },
+  "sp:WVADMIN": {
+    "title": "vSolution Link Pro - WolfVision GmbH",
+    "url": "https://wolfvision.com/de/technischer-support/vsolution-link-pro",
+    "body": "WolfVision",
+    "area": "signal-path"
+  },
+  "sp:WVCY": {
+    "title": "WolfVision Cynap Pro (product page, firmware and warranty)",
+    "url": "https://wolfvision.com/en/products/cynap-pro",
+    "body": "WolfVision",
+    "area": "signal-path"
+  },
+  "sp:WVVIS": {
+    "title": "WolfVision: Dokumentenkameras (Visualizer)",
+    "url": "https://wolfvision.com/de/visualizer-und-dokumentenkameras",
+    "body": "WolfVision",
+    "area": "signal-path"
+  },
+  "sp:WVVZ": {
+    "title": "WolfVision VZ-8.UHD Visualizer",
+    "url": "https://wolfvision.com/en/products/vz-8uhd",
+    "body": "WolfVision",
+    "area": "signal-path"
+  },
+  "sp:ZYP": {
+    "title": "AV over IP Management | ZyPer Management Platform - ZeeVee",
+    "url": "https://www.zeevee.com/av-over-ip/management/",
+    "body": "ZeeVee",
+    "area": "signal-path"
   },
   "trade_knowledge": { "title": "General trade knowledge", "url": null }
 }

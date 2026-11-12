@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { db } from "~/lib/db.server";
 import { t } from "~/i18n";
 import { runPrefix } from "./run";
+import { reconcileLibrary } from "~/lib/custom-fields/library.server";
 
 const rooms: string[] = [];
 const models: string[] = [];
@@ -43,6 +44,8 @@ test("edits preserve an archived kind or group and its category-specific fields"
       dellExpressTag: "123456",
     },
   });
+  await reconcileLibrary();
+  const service = await db.customField.findUniqueOrThrow({ where: { systemKey: "service_code" } });
   await page.context().addCookies([
     { name: "locale", value: "de", url: baseURL! },
     { name: "view", value: "desktop", url: baseURL! },
@@ -63,13 +66,13 @@ test("edits preserve an archived kind or group and its category-specific fields"
       await expect(page.getByLabel(t("de", "inventory.kind"), { exact: true })).toHaveValue(
         computer.id,
       );
-      await expect(page.locator("[name='dellServiceTag']")).toHaveValue("DEMO123");
+      await expect(page.locator(`input[id='cf.${service.id}']`)).toHaveValue("DEMO123");
       const updatedName = `${runPrefix()}Preserved archived ${target}`;
       await page.getByLabel(t("de", "inventory.form.name"), { exact: true }).fill(updatedName);
       await page
         .getByRole("button", { name: t("de", "inventory.detail.submit"), exact: true })
         .click();
-      await expect(page.locator("[name='dellServiceTag']")).toHaveValue("DEMO123");
+      await expect(page.locator(`input[id='cf.${service.id}']`)).toHaveValue("DEMO123");
       await expect
         .poll(async () => (await db.equipment.findUniqueOrThrow({ where: { id: device.id } })).name)
         .toBe(updatedName);
@@ -232,12 +235,22 @@ for (const locale of ["de", "en"] as const) {
             .evaluateAll((groups) => groups.map((group) => group.getAttribute("label"))),
         ).toEqual([...new Map(kinds.map((kind) => [kind.group.id, kind.group.name])).values()]);
         for (const [key, field] of [
-          ["computer", "dellServiceTag"],
-          ["microphone", "frequencyMhz"],
+          ["computer", "service_code"],
+          ["microphone", "frequency"],
           ["projector", "lampType"],
         ]) {
           await select.selectOption(kinds.find((kind) => kind.systemKey === key)!.id);
-          await expect(page.locator(`[name='${field}']`)).toBeVisible();
+          const definition =
+            field === "lampType"
+              ? null
+              : await db.customField.findUniqueOrThrow({ where: { systemKey: field } });
+          const input = page.locator(
+            definition ? `input[id='cf.${definition.id}']` : `[name='${field}']`,
+          );
+          await expect(input).toBeAttached();
+          if (!(await input.isVisible()))
+            await page.locator("details").filter({ has: input }).locator("summary").first().click();
+          await expect(input).toBeVisible();
         }
         await select.selectOption(microphone.id);
         await checkWidth(page);
@@ -282,9 +295,9 @@ for (const locale of ["de", "en"] as const) {
         await expect(page.getByRole("link", { name: createdName, exact: true })).toBeVisible();
         await expect(page.locator(`a[href='/inventory/${devices[0].id}']`)).toHaveCount(0);
         const longName = page.locator(`a[href='/inventory/${devices[8].id}']`);
-        expect(await longName.evaluate((element) => getComputedStyle(element).textOverflow)).toBe(
-          "ellipsis",
-        );
+        await expect
+          .poll(() => longName.evaluate((element) => getComputedStyle(element).textOverflow))
+          .toBe("ellipsis");
         await checkWidth(page);
         await page.screenshot({ path: `${renders}/${locale}-${density}-${width}-device-list.png` });
         await page.goto("/inventory?category=MICROPHONE");

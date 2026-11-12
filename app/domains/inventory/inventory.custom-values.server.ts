@@ -1,8 +1,20 @@
 import type { Tx } from "~/lib/db.server";
-import { txWithAudit, type AuditActor } from "~/lib/audit.server";
+import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { emitChange } from "~/lib/realtime/emit.server";
-import { prepareCustomValues } from "~/lib/custom-fields/values.server";
+import {
+  prepareCustomValues,
+  validateCustomValues,
+  CustomValuesError,
+} from "~/lib/custom-fields/values.server";
 import type { CustomValuesInput } from "~/lib/custom-fields/values.schema";
+import { getFieldSchema, type ResolvedField } from "~/lib/custom-fields/schema.server";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { sameValue, valueObject } from "~/lib/custom-fields/fields";
+import {
+  legacyColumnValues,
+  legacyPropertyValues,
+  legacyProperties,
+} from "~/lib/custom-fields/legacy.server";
 
 export async function convertEquipmentCustomValuesInTx(tx: Tx, fieldId: string, multiple: boolean) {
   return tx.$executeRaw`UPDATE "Equipment" SET "customValues" = CASE
@@ -18,10 +30,111 @@ export async function applyEquipmentCustomValuesInTx(
   values: CustomValuesInput,
   kindId?: string | null,
   modelId?: string | null,
+  deviceFallbackIds: readonly string[] = [],
 ) {
-  const patch = await prepareCustomValues(tx, "EQUIPMENT", id, values, kindId, modelId);
+  const patch = await prepareCustomValues(
+    tx,
+    "EQUIPMENT",
+    id,
+    values,
+    kindId,
+    modelId,
+    deviceFallbackIds,
+  );
   await tx.$executeRaw`UPDATE "Equipment" SET "customValues" = ("customValues" || ${JSON.stringify(patch.set)}::jsonb) - ${patch.removed}::text[], "updatedAt" = now() WHERE id = ${id}`;
+  const columns = legacyColumnValues(await getFieldSchema("EQUIPMENT", {}, tx), {
+    ...patch.set,
+    ...Object.fromEntries(patch.removed.map((id) => [id, null])),
+  });
+  if (Object.keys(columns).length) await tx.equipment.update({ where: { id }, data: columns });
   return patch.auditData;
+}
+
+export async function applyEquipmentPropertiesInTx(
+  tx: Tx,
+  id: string,
+  input: Partial<Record<keyof typeof legacyProperties, unknown>> & {
+    customValues?: CustomValuesInput;
+  },
+  kindId?: string | null,
+  modelId?: string | null,
+) {
+  const row = await tx.equipment.findUniqueOrThrow({ where: { id } });
+  const fields = await getFieldSchema("EQUIPMENT", {}, tx);
+  const legacy = legacyPropertyValues(fields, kindId ?? row.kindId, input);
+  for (const field of fields) {
+    if (
+      Object.hasOwn(input.customValues ?? {}, field.key) ||
+      (field.libraryKey && Object.hasOwn(input.customValues ?? {}, field.libraryKey)) ||
+      sameValue(legacy[field.key], valueObject(row.customValues)[field.id])
+    )
+      delete legacy[field.key];
+  }
+  const values = { ...legacy, ...input.customValues };
+  const fallbackIds = fields
+    .filter((field) => field.libraryKey === "microphone.type" && Object.hasOwn(legacy, field.key))
+    .map((field) => field.id);
+  return Object.keys(values).length
+    ? applyEquipmentCustomValuesInTx(tx, id, values, kindId, modelId, fallbackIds)
+    : undefined;
+}
+
+export async function copyLegacyEquipmentPropertiesInTx(
+  tx: Tx,
+  audit: AuditFn,
+  definitions: ResolvedField[],
+  version: number,
+) {
+  const fields = definitions.map((field) => ({ ...field, archivedAt: null }));
+  const kinds = await tx.equipmentKind.findMany({ where: { systemKey: { not: null } } });
+  const devices = await tx.equipment.findMany({
+    where: {
+      OR: [
+        { micKind: { not: null } },
+        { frequencyMhz: { not: null } },
+        { band: { not: null } },
+        { channelLabel: { not: null } },
+        { lastLampChangeAt: { not: null } },
+        { color: { not: null } },
+        { dellServiceTag: { not: null } },
+      ],
+    },
+  });
+  const copied: string[] = [];
+  for (const device of devices) {
+    const kindId =
+      device.kindId ??
+      kinds.find((kind) => kind.systemKey === DEFAULT_EQUIPMENT_KINDS[device.category].key)?.id ??
+      null;
+    let values = legacyPropertyValues(fields, kindId, device, device.customValues);
+    if (!Object.keys(values).length) continue;
+    let patch;
+    try {
+      patch = validateCustomValues(fields, values, kindId);
+    } catch (error) {
+      if (!(error instanceof CustomValuesError)) throw error;
+      const invalid = new Set(error.errors.map((error) => error.field));
+      console.warn("[equipment-properties] legacy values left in their columns", {
+        deviceId: device.id,
+        fields: [...invalid],
+      });
+      values = Object.fromEntries(Object.entries(values).filter(([key]) => !invalid.has(key)));
+      if (!Object.keys(values).length) continue;
+      patch = validateCustomValues(fields, values, kindId);
+    }
+    await tx.equipment.update({
+      where: { id: device.id },
+      data: { customValues: { ...(device.customValues as object), ...patch.set } },
+    });
+    await audit({
+      action: "LibraryDevicePropertiesCopied",
+      entityType: "equipment",
+      entityId: device.id,
+      data: { count: Object.keys(patch.set).length, version },
+    });
+    copied.push(device.id);
+  }
+  return copied;
 }
 
 export async function setEquipmentCustomValues(

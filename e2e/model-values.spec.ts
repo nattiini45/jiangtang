@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { db } from "~/lib/db.server";
 import { t } from "~/i18n";
 import { runPrefix } from "./run";
+import { propertiesForKind } from "~/lib/equipment-kinds/properties";
 
 const deviceIds: string[] = [],
   modelIds: string[] = [];
@@ -105,7 +106,10 @@ for (const locale of ["de", "en"] as const)
       await capture("device-form");
       await page.goto(`/admin/structure?tab=fields&scope=EQUIPMENT&kind=${kind.id}`);
       const library = page.locator("details").filter({
-        has: page.getByText(t(locale, "fields.library.title", { count: 39 }), { exact: true }),
+        has: page.getByText(
+          t(locale, "fields.library.title", { count: propertiesForKind("projector").length }),
+          { exact: true },
+        ),
       });
       await library.locator("summary").click();
       await expect(library).toContainText(locale === "de" ? "Lichtquelle" : "Light source");

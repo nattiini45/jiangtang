@@ -7,6 +7,21 @@ const research = JSON.parse(await readFile(process.argv[2], "utf8"));
 research.sources.trade_knowledge ??= { title: "General trade knowledge", url: null };
 const path = new URL("../../app/lib/equipment-kinds/library.json", import.meta.url);
 const library = JSON.parse(await readFile(path, "utf8"));
+const kinds = library.kinds.filter((kind) => kind.key !== "audio_equipment");
+const audio = research.kinds.find((kind) => kind.key === "audio_equipment");
+if (!audio) throw new Error("Missing researched kind: audio_equipment");
+kinds.splice(
+  kinds.findIndex((kind) => kind.group === audio.group),
+  0,
+  {
+    key: audio.key,
+    de: audio.de,
+    en: audio.en,
+    group: audio.group,
+    institution_types: Object.keys(audio.tier),
+    tier: "core",
+  },
+);
 const types = {
   text: "TEXT",
   long_text: "LONG_TEXT",
@@ -16,46 +31,97 @@ const types = {
   multi_choice: "MULTI_CHOICE",
   date: "DATE",
   link: "LINK",
+  range: "RANGE",
 };
 const projector = research.kinds.find((kind) => kind.key === "projector");
 const shared = new Map(research.shared_properties.map((property) => [property.key, property]));
-const properties = projector.properties.flatMap((reference) => {
-  const property = reference.shared ? { ...shared.get(reference.key), ...reference } : reference;
-  if (property.reading || !types[property.type]) return [];
-  return [
-    {
-      key: reference.shared ? property.key : `projector.${property.key}`,
-      de: property.de,
-      en: property.en,
-      type: types[property.type],
-      unit: property.unit ?? null,
-      options: property.options ?? [],
-      level: property.level.toUpperCase(),
-      nature: property.nature,
-      weight: property.weight ?? "useful",
-      appliesIf: property.applies_if
-        ? {
-            property: `projector.${property.applies_if.property}`,
-            values: property.applies_if.values,
-          }
-        : null,
-      help: { de: property.help_de ?? null, en: property.help_en ?? null },
-      sources: [
-        ...new Set([...(shared.get(reference.key)?.sources ?? []), ...(property.sources ?? [])]),
-      ],
-    },
-  ];
-});
+const propertiesByKind = new Map(
+  kinds.map((kind) => {
+    const source = research.kinds.find((entry) => entry.key === kind.key);
+    if (!source) throw new Error(`Missing researched kind: ${kind.key}`);
+    const references = [...source.properties];
+    const legacy =
+      kind.key === "microphone"
+        ? ["frequency", "band_variant", "channel_name", "colour"]
+        : kind.key === "control_processor"
+          ? ["colour"]
+          : [];
+    for (const key of legacy)
+      if (!references.some((reference) => reference.key === key))
+        references.push({ key, shared: true });
+    return [
+      kind.key,
+      references.flatMap((reference) => {
+        const property = reference.shared
+          ? {
+              ...shared.get(reference.key),
+              ...reference,
+              applies_if: shared.get(reference.key).applies_if,
+            }
+          : reference;
+        if (property.reading || !types[property.type]) return [];
+        const protocol = ["control_protocol", "control_api"].includes(property.key)
+          ? projector.properties.find((property) => property.key === "control_protocols")
+          : null;
+        return [
+          {
+            key: reference.shared ? property.key : `${kind.key}.${property.key}`,
+            de: protocol?.de ?? property.de,
+            en: protocol?.en ?? property.en,
+            type: types[property.type],
+            unit: property.unit ?? null,
+            options: property.options ?? [],
+            level: property.level.toUpperCase(),
+            nature: property.nature,
+            weight: property.weight ?? "useful",
+            appliesIf: property.applies_if
+              ? {
+                  property: shared.has(property.applies_if.property)
+                    ? property.applies_if.property
+                    : `${kind.key}.${property.applies_if.property}`,
+                  values: property.applies_if.values,
+                }
+              : null,
+            help: { de: property.help_de ?? null, en: property.help_en ?? null },
+            sources: [
+              ...new Set([
+                ...(shared.get(reference.key)?.sources ?? []),
+                ...(property.sources ?? []),
+              ]),
+            ],
+          },
+        ];
+      }),
+    ];
+  }),
+);
+const unique = new Map();
+for (const property of [...propertiesByKind.values()].flat()) {
+  const previous = unique.get(property.key);
+  if (previous) {
+    const { sources: _beforeSources, ...before } = previous;
+    const { sources: _afterSources, ...after } = property;
+    if (JSON.stringify(before) !== JSON.stringify(after))
+      throw new Error(`Conflicting shared property: ${property.key}`);
+  }
+  unique.set(property.key, {
+    ...property,
+    sources: [...new Set([...(previous?.sources ?? []), ...property.sources])],
+  });
+}
+const properties = [...unique.values()];
 const allSources = [...new Set(properties.flatMap((property) => property.sources))].sort();
 const output = {
-  version: research.version,
-  units: research.units,
+  version: Math.max(4, research.version),
+  units: research.units.map((unit) =>
+    unit.key === ":1" ? { ...unit, de: ": 1", en: ": 1" } : unit,
+  ),
   institutionTypes: library.institutionTypes,
   functionGroups: library.functionGroups,
   sharedProperties: properties.filter((property) => !property.key.includes(".")),
-  kinds: library.kinds.map(({ properties: _properties, ...kind }) => ({
+  kinds: kinds.map(({ properties: _properties, ...kind }) => ({
     ...kind,
-    ...(kind.key === "projector" ? { properties: properties.map((property) => property.key) } : {}),
+    properties: propertiesByKind.get(kind.key).map((property) => property.key),
   })),
   properties: properties.filter((property) => property.key.includes(".")),
 };
