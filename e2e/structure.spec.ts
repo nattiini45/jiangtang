@@ -20,7 +20,9 @@ async function addKind(page: Page) {
   await page.getByRole("button", { name: t("de", "admin.structure.addKind"), exact: true }).click();
   await page.getByLabel(t("de", "admin.structure.name"), { exact: true }).fill(`${prefix()}Kind`);
   await page.getByRole("button", { name: t("de", "common.save"), exact: true }).click();
-  await expect(page.getByText(`${prefix()}Kind`, { exact: true })).toBeVisible();
+  await expect(
+    page.locator("li[data-entry-id] > div").getByText(`${prefix()}Kind`, { exact: true }),
+  ).toBeVisible();
   return db.equipmentKind.findFirstOrThrow({ where: { name: `${prefix()}Kind` } });
 }
 
