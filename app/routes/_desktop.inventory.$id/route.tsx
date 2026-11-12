@@ -2,6 +2,9 @@ import { Form, Link, redirect, useNavigation } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
+import { withFieldValues } from "~/lib/custom-fields/display.server";
+import { FieldValues } from "~/components/fields/field-values";
 import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -95,6 +98,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const qr = await qrSvg(qrHref);
   return {
     equipment,
+    fields: await getFormFields("EQUIPMENT"),
+    filledFields: (await withFieldValues("EQUIPMENT", [e]))[0].fields,
     kinds,
     models,
     rooms,
@@ -180,11 +185,20 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
     const result = safeParse(equipmentEditSchema, formDataToObject(form), locale);
     if (!result.success) return { fieldErrors: result.fieldErrors };
-    const eq = await updateEquipment(actor, id, result.data);
+    const current = await getEquipment(id);
+    if (!current) throw new NotFoundError();
+    const customValues = await parseFieldForm(
+      "EQUIPMENT",
+      form,
+      current.customValues,
+      result.data.kindId,
+    );
+    const eq = await updateEquipment(actor, id, { ...result.data, customValues });
     await emitChange({ entityType: "equipment", id: eq.id, op: "updated" });
     return redirect(`/inventory/${id}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("EQUIPMENT", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -245,6 +259,12 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         </Link>
       </div>
 
+      {loaderData.filledFields.length ? (
+        <section className="bg-card shadow-surface-2 rounded-lg p-4">
+          <FieldValues fields={loaderData.filledFields} />
+        </section>
+      ) : null}
+
       <EquipmentPorts
         equipmentId={eq.id}
         ports={eq.ports}
@@ -265,6 +285,9 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
 
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <EquipmentFormFields
+          key={eq.id}
+          fields={loaderData.fields}
+          stored={eq.customValues}
           kinds={loaderData.kinds}
           models={models}
           rooms={rooms}

@@ -8,6 +8,8 @@ import { createFieldSchema, updateFieldSchema, fieldOptionsSchema } from "./defi
 import type { z } from "zod";
 import { convertRoomCustomValuesInTx } from "~/domains/rooms/rooms.custom-values.server";
 import { convertEquipmentCustomValuesInTx } from "~/domains/inventory/inventory.custom-values.server";
+import { applies } from "./fields";
+export { applies } from "./fields";
 
 export const definitionInclude = {
   kinds: true,
@@ -21,10 +23,6 @@ export function getDefinitions(scope: CustomFieldScope, tx: Tx = db) {
     include: definitionInclude,
     orderBy: [{ position: "asc" }, { id: "asc" }],
   });
-}
-
-export function applies(field: { kinds: { kindId: string }[] }, kindId?: string | null) {
-  return field.kinds.length === 0 || field.kinds.some((link) => link.kindId === kindId);
 }
 
 export async function getRecordSchema(scope: CustomFieldScope, kindId?: string) {

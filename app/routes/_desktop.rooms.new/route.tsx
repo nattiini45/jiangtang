@@ -1,7 +1,8 @@
 import { Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { safeParseForm } from "~/lib/validation.server";
+import { safeParse, formDataToObject } from "~/lib/validation.server";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { listCampuses } from "~/domains/rooms/rooms.queries.server";
@@ -20,19 +21,22 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
-  return { campuses: await listCampuses() };
+  return { campuses: await listCampuses(), fields: await getFormFields("ROOM") };
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
-  const result = await safeParseForm(request, roomCreateSchema);
+  const form = await request.formData();
+  const result = safeParse(roomCreateSchema, formDataToObject(form));
   if (!result.success) return { fieldErrors: result.fieldErrors };
   try {
-    const room = await createRoom(actor, result.data);
+    const customValues = await parseFieldForm("ROOM", form);
+    const room = await createRoom(actor, { ...result.data, customValues });
     await emitChange({ entityType: "room", id: room.id, op: "created" });
     return redirect(`/rooms/${room.slug}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("ROOM", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -50,7 +54,7 @@ export default function NewRoom({ loaderData, actionData }: Route.ComponentProps
         </Link>
       </div>
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
-        <RoomFormFields campuses={loaderData.campuses} />
+        <RoomFormFields campuses={loaderData.campuses} fields={loaderData.fields} />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.creating") : t("rooms.new.submit")}

@@ -7,7 +7,7 @@ import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { ensureUniqueSlug } from "~/lib/slug.server";
 import { createEquipmentInTx } from "~/domains/inventory/inventory.mutations.server";
-import type { Building, Campus, Room } from "~/generated/prisma/client";
+import type { Building, Campus, Room, Prisma } from "~/generated/prisma/client";
 import { buildingNameExists, campusNameExists } from "./rooms.queries.server";
 import type {
   BuildingCreateInput,
@@ -333,6 +333,7 @@ export async function cloneRoom(
   input: RoomCloneInput,
 ): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    await lockDefinitions(tx);
     const source = await tx.room.findUnique({
       where: { slug: sourceSlug },
       include: { equipment: true },
@@ -359,6 +360,7 @@ export async function cloneRoom(
         videoInputs: input.copyCapabilities ? source.videoInputs : [],
         audioOutputs: input.copyCapabilities ? source.audioOutputs : [],
         tipsNotes: input.copyTips ? source.tipsNotes : null,
+        customValues: source.customValues as Prisma.InputJsonObject,
       },
     });
 
@@ -393,6 +395,7 @@ export async function cloneRoom(
           band: u.band ?? undefined,
           lampType: u.lampType ?? undefined,
           color: u.color ?? undefined,
+          copiedValues: u.customValues as Prisma.InputJsonObject,
         });
         copiedEquipment++;
       }

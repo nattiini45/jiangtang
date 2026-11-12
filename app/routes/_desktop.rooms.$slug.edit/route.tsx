@@ -1,6 +1,7 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -32,7 +33,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const locale = resolveLocale(request);
   const [room, campuses] = await Promise.all([getRoomBySlug(params.slug), listCampuses()]);
   if (!room) throw toErrorResponse(new NotFoundError(t(locale, "err.room.notFound")));
-  return { room, campuses };
+  return { room, campuses, fields: await getFormFields("ROOM") };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -55,11 +56,13 @@ export async function action({ request, params }: Route.ActionArgs) {
     if (form.get("lastCheckedAt") === form.get("_lastCheckedOriginal")) {
       result.data.lastCheckedAt = room.lastCheckedAt ?? undefined;
     }
-    const updated = await updateRoom(actor, room.id, result.data);
+    const customValues = await parseFieldForm("ROOM", form, room.customValues);
+    const updated = await updateRoom(actor, room.id, { ...result.data, customValues });
     await emitChange({ entityType: "room", id: updated.id, op: "updated" });
     return redirect(`/rooms/${updated.slug}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("ROOM", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -112,7 +115,13 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
           name="_lastCheckedOriginal"
           value={berlinDateInput(room.lastCheckedAt)}
         />
-        <RoomFormFields campuses={campuses} defaults={defaults} />
+        <RoomFormFields
+          key={room.id}
+          campuses={campuses}
+          defaults={defaults}
+          fields={loaderData.fields}
+          stored={room.customValues}
+        />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.saving") : t("rooms.edit.submit")}

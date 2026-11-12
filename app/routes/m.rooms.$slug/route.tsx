@@ -3,6 +3,7 @@ import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-rea
 import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { FieldValues } from "~/components/fields/field-values";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
@@ -99,6 +100,7 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
       <Button asChild className="min-h-11 w-full">
         <Link to={`/m?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
       </Button>
+      <FieldValues fields={room.fields} foldAfter={8} />
 
       <section className="flex min-w-0 flex-col gap-3">
         <h2 className="text-base font-semibold">{t("mobileDetails.schedule")}</h2>
@@ -205,6 +207,11 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
                     })}
                   </span>
                 </Link>
+                {e.fields.length ? (
+                  <div className="px-3 pb-3">
+                    <FieldValues fields={e.fields} />
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

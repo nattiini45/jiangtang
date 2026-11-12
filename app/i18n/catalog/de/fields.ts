@@ -1,4 +1,22 @@
 export const fieldsDe = {
+  "fields.moreDetails": "Weitere Angaben",
+  "fields.form.unset": "Nicht angegeben",
+  "fields.form.yes": "Ja",
+  "fields.form.no": "Nein",
+  "fields.form.clear": "Auswahl leeren",
+  "fields.form.search": "Optionen für {name} durchsuchen",
+  "fields.form.hidden":
+    "{count} gespeicherte Werte bleiben verborgen. Sie erscheinen wieder, wenn die bisherige Geräteart gewählt wird.",
+  "fields.form.archivedSelection":
+    "Die Auswahl enthält archivierte Optionen. Bei einer Änderung bleiben nur aktive Optionen erhalten.",
+  "fields.values.more": "{count} weitere Angaben anzeigen",
+  "fields.values.less": "Weniger anzeigen",
+  "fields.values.show": "Angaben anzeigen",
+  "fields.values.hide": "Angaben ausblenden",
+  "fields.values.forDevice": "Angaben zu {name}",
+  "fields.values.openAll": "Alle Angaben aufklappen",
+  "fields.values.closeAll": "Alle Angaben zuklappen",
+  "fields.values.newTab": "Öffnet in neuem Tab",
   "fields.error.encoding": "Ungültige Unicode-Zeichen oder Nullzeichen entfernen.",
   "fields.error.type":
     "Nur Text zu Langtext und Einfachauswahl zu Mehrfachauswahl (oder zurück) sind möglich. Ein neues Feld für einen anderen Typ anlegen.",
@@ -14,19 +32,19 @@ export const fieldsDe = {
   "fields.error.inUse":
     "Dieses Feld hat noch Werte. Es wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder es archiviert lassen.",
   "fields.error.optionInUse":
-    "Diese Option wird noch verwendet. Das Feld wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder die Option stilllegen.",
+    "Diese Option wird noch verwendet. Das Feld wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder die Option archivieren.",
   "fields.limit.text":
     "Text darf höchstens 200 Zeichen enthalten. Den Text kürzen oder ein Langtextfeld verwenden.",
   "fields.limit.longText":
     "Langtext darf höchstens 4.000 Zeichen enthalten. Den Text kürzen oder eine Notiz verlinken.",
   "fields.limit.bytes":
-    "Eigene Werte dürfen pro Datensatz höchstens 32 KB belegen. Werte kürzen, leeren oder durch einen Link ersetzen.",
-  "fields.option.retired": "{label} (stillgelegt)",
+    "Werte dürfen pro Datensatz höchstens 32 KB belegen. Werte kürzen, leeren oder durch einen Link ersetzen.",
+  "fields.option.retired": "{label} (archiviert)",
   "fields.limit.fields":
     "Höchstens 40 aktive Felder pro Datensatz. Ein Feld archivieren oder auf andere Gerätearten beschränken.",
   "fields.limit.total": "Höchstens 120 Felder pro Bereich. Ein ungenutztes Feld löschen.",
   "fields.limit.options":
-    "Höchstens 50 aktive Optionen pro Feld. Eine Option stilllegen oder löschen.",
+    "Höchstens 50 aktive Optionen pro Feld. Eine Option archivieren oder löschen.",
   "fields.limit.totalOptions": "Höchstens 200 Optionen pro Feld. Eine ungenutzte Option löschen.",
   "fields.error.roomKinds": "Raumfelder gelten für alle Räume. Gerätearten entfernen.",
   "fields.error.kind":

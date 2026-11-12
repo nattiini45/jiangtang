@@ -10,6 +10,8 @@ import { statusToken } from "~/lib/status";
 import { mobilityLabel } from "./labels";
 import { EquipmentCategoryFields } from "./equipment-category-fields";
 import { useLocale, useT } from "~/i18n/use-t";
+import { FieldInputs } from "~/components/fields/field-inputs";
+import type { Field } from "~/lib/custom-fields/fields";
 
 export interface EquipmentDefaults {
   category?: string;
@@ -41,11 +43,15 @@ export function EquipmentFormFields({
   rooms,
   kinds,
   defaults,
+  fields = [],
+  stored,
 }: {
   models: { id: string; name: string; manufacturer: string | null }[];
   rooms: { id: string; name: string }[];
   kinds: KindGroups;
   defaults?: EquipmentDefaults;
+  fields?: Field[];
+  stored?: unknown;
 }) {
   const locale = useLocale();
   const t = useT();
@@ -181,6 +187,7 @@ export function EquipmentFormFields({
           />
         </div>
       </details>
+      <FieldInputs fields={fields} stored={stored} kindId={kindId} />
     </>
   );
 }

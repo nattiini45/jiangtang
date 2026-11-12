@@ -9,6 +9,8 @@ import { CampusBuildingPicker } from "./campus-building-picker";
 import { CapabilityListInput } from "./capability-list-input";
 import { RoomFeatureToggles, type RoomFlags } from "./room-feature-toggles";
 import { useLocale, useT } from "~/i18n/use-t";
+import { FieldInputs } from "~/components/fields/field-inputs";
+import type { Field } from "~/lib/custom-fields/fields";
 
 export interface RoomDefaults extends RoomFlags {
   name?: string;
@@ -34,9 +36,13 @@ export interface RoomDefaults extends RoomFlags {
 export function RoomFormFields({
   campuses,
   defaults,
+  fields = [],
+  stored,
 }: {
   campuses: CampusWithBuildings[];
   defaults?: RoomDefaults;
+  fields?: Field[];
+  stored?: unknown;
 }) {
   const locale = useLocale();
   const t = useT();
@@ -154,6 +160,7 @@ export function RoomFormFields({
           <Input name="renewalTo" type="date" defaultValue={defaults?.renewalTo ?? ""} />
         </FormField>
       </fieldset>
+      <FieldInputs fields={fields} stored={stored} />
     </>
   );
 }
