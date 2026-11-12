@@ -23,6 +23,7 @@ export interface EventListRow {
   status: EventStatus;
   organizer: string | null;
   roomCount: number;
+  roomNames: string[];
 }
 
 export async function listEvents(
@@ -54,8 +55,17 @@ export async function listEvents(
         : {}),
     },
     orderBy: [{ startsAt: "desc" }, { id: "asc" }],
-    include: { rooms: { where: { cancelled: false }, select: { id: true } } },
+    include: {
+      rooms: { where: { cancelled: false }, select: { room: { select: { name: true } } } },
+    },
   });
+  const now = Date.now();
+  events.sort(
+    (a, b) =>
+      Number(+a.endsAt < now) - Number(+b.endsAt < now) ||
+      (+a.endsAt < now ? +b.startsAt - +a.startsAt : +a.startsAt - +b.startsAt) ||
+      a.id.localeCompare(b.id),
+  );
   return events.map((e) => ({
     id: e.id,
     title: e.title,
@@ -64,6 +74,7 @@ export async function listEvents(
     status: e.status,
     organizer: e.organizer,
     roomCount: e.rooms.length,
+    roomNames: [...new Set(e.rooms.map(({ room }) => room.name))],
   }));
 }
 

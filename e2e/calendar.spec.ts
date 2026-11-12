@@ -9,7 +9,7 @@ async function openCalendar(page: Page, url: string) {
 }
 
 test("calendar views persist their date and filters in the URL", async ({ page }) => {
-  await openCalendar(page, "/events?date=2026-11-08");
+  await openCalendar(page, "/calendar?date=2026-11-08");
   await expect(page.getByRole("link", { name: "Woche", exact: true })).toHaveAttribute(
     "aria-current",
     "page",
@@ -17,17 +17,21 @@ test("calendar views persist their date and filters in the URL", async ({ page }
   await page.getByRole("link", { name: "Monat", exact: true }).click();
   await expect(page).toHaveURL(/view=month/);
   await expect(page).toHaveURL(/date=2026-11-08/);
-  await page.getByLabel("Aufgabenfälligkeiten anzeigen").check();
-  await expect(page).toHaveURL(/tasks=1/);
+  await page.getByText("Anzeigen (5)", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
+  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates/);
   await page.getByRole("link", { name: "Nächster Zeitraum" }).click();
   await expect(page).toHaveURL(/date=2026-12-01/);
-  await expect(page).toHaveURL(/tasks=1/);
-  await page.getByRole("link", { name: "Liste", exact: true }).click();
+  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates/);
+  await page
+    .getByRole("complementary")
+    .getByRole("link", { name: "Veranstaltungen", exact: true })
+    .click();
   await expect(page.getByRole("button", { name: "Titel", exact: true })).toBeVisible();
 });
 
 test("a room slot opens a prefilled conflict-checked booking", async ({ page }) => {
-  await openCalendar(page, "/events?view=rooms");
+  await openCalendar(page, "/calendar?view=rooms");
   const freeSlot = page.getByRole("link", { name: /Demo-Raum A.01.*09:00/ });
   const url = new URL((await freeSlot.getAttribute("href")) ?? "", "http://localhost");
   await freeSlot.click();
@@ -48,7 +52,7 @@ test("calendar slots support keyboard navigation and exact Berlin transition day
     ["2026-03-29", 23],
     ["2026-10-25", 25],
   ] as const) {
-    await openCalendar(page, `/events?view=day&date=${date}`);
+    await openCalendar(page, `/calendar?view=day&date=${date}`);
     const slots = page.locator("a[data-slot-row]");
     await expect(slots).toHaveCount(hours);
     await slots.nth(9).focus();
@@ -61,7 +65,7 @@ test("calendar slots support keyboard navigation and exact Berlin transition day
 
 test("mobile agenda stays within 390px and creates on the selected day", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openCalendar(page, "/m/events?date=2026-10-25");
+  await openCalendar(page, "/m/calendar?date=2026-10-25");
   await expect(page.locator('input[name="date"]')).toHaveValue("2026-10-25");
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 390);
   await page.getByRole("link", { name: "Neue Veranstaltung", exact: true }).click();
@@ -74,7 +78,7 @@ test("the shared week gutter aligns transition hours without phantom slots", asy
     ["2026-03-29", 24, 23, "3"],
     ["2026-10-25", 25, 25, "4"],
   ] as const) {
-    await openCalendar(page, `/events?view=week&date=${date}`);
+    await openCalendar(page, `/calendar?view=week&date=${date}`);
     const gutter = page.locator("[data-time-gutter]");
     await expect(gutter).toHaveCount(1);
     await expect(gutter.locator(":scope > div")).toHaveCount(rows);
@@ -104,7 +108,7 @@ test("the shared week gutter aligns transition hours without phantom slots", asy
 });
 
 test("day drilling preserves tasks and resource filters", async ({ page }) => {
-  await openCalendar(page, "/events?view=month&date=2026-11-08&tasks=1&room=seed_room_a01");
+  await openCalendar(page, "/calendar?view=month&date=2026-11-08&tasks=1&room=seed_room_a01");
   await page
     .getByRole("region", { name: "2026-11-08", exact: true })
     .getByRole("link", { name: "8", exact: true })
@@ -121,7 +125,7 @@ test("room keyboard navigation skips occupied hours without changing rooms", asy
   });
   await openCalendar(
     page,
-    `/events?view=rooms&date=${berlinDateKey(event.startsAt)}&status=CONFIRMED&equipment=missing`,
+    `/calendar?view=rooms&date=${berlinDateKey(event.startsAt)}&status=CONFIRMED&equipment=missing`,
   );
   await expect(page.getByRole("link", { name: /Demo-Hybridveranstaltung/ })).toBeVisible();
   const before = page.getByRole("link", { name: /Demo-Raum A.01.*09:00/ });
@@ -133,7 +137,7 @@ test("room keyboard navigation skips occupied hours without changing rooms", asy
 });
 
 test("day headers stay visible while scrolling the time grid", async ({ page }) => {
-  await openCalendar(page, "/events?view=week");
+  await openCalendar(page, "/calendar?view=week");
   const scroller = page.locator('[data-slot-orientation="vertical"]');
   const heading = scroller.getByRole("heading", { level: 2 }).first();
   await expect(heading).toBeVisible();
@@ -151,7 +155,7 @@ test("an empty calendar slot creates a booked event and releases it on cancellat
   page,
 }) => {
   const title = `${runPrefix()}calendar booking`;
-  await openCalendar(page, "/events?view=rooms&date=2042-06-02");
+  await openCalendar(page, "/calendar?view=rooms&date=2042-06-02");
   await expect(page.locator('[data-slot-orientation="horizontal"]')).toHaveJSProperty(
     "scrollLeft",
     6 * 88,
@@ -171,7 +175,7 @@ test("an empty calendar slot creates a booked event and releases it on cancellat
       page.getByText("Abgesagt — Räume und Geräte sind freigegeben.", { exact: true }),
     ).toBeVisible();
     released = true;
-    await openCalendar(page, "/events?view=rooms&date=2042-06-02");
+    await openCalendar(page, "/calendar?view=rooms&date=2042-06-02");
     await expect(page.getByRole("link", { name: /Demo-Raum A.01.*09:00/ })).toBeVisible();
   } finally {
     if (!released) await page.request.post(createdUrl, { form: { _action: "cancelEvent" } });

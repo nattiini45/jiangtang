@@ -102,12 +102,12 @@ test.afterAll(async () => {
 });
 
 const CASES = [
-  ["calendar-populated-month", "/events?view=month&date=2026-11-09&tasks=1"],
-  ["calendar-populated-week", "/events?view=week&date=2026-11-09&tasks=1"],
-  ["calendar-populated-rooms", "/events?view=rooms&date=2026-11-09"],
-  ["calendar-focused-slot", "/events?view=rooms&date=2026-11-09"],
-  ["calendar-dst-day", "/events?view=day&date=2026-10-25"],
-  ["calendar-tasks-day", "/events?view=day&date=2026-11-09&tasks=1"],
+  ["calendar-populated-month", "/calendar?view=month&date=2026-11-09&tasks=1"],
+  ["calendar-populated-week", "/calendar?view=week&date=2026-11-09&tasks=1"],
+  ["calendar-populated-rooms", "/calendar?view=rooms&date=2026-11-09"],
+  ["calendar-focused-slot", "/calendar?view=rooms&date=2026-11-09"],
+  ["calendar-dst-day", "/calendar?view=day&date=2026-10-25"],
+  ["calendar-tasks-day", "/calendar?view=day&date=2026-11-09&tasks=1"],
 ] as const;
 
 for (const theme of ["light", "dark"] as const) {
@@ -121,7 +121,7 @@ for (const theme of ["light", "dark"] as const) {
       await page.goto(path);
       await expect(page.locator("html[data-hydrated]")).toBeAttached();
       await expect(
-        page.getByRole("heading", { level: 1, name: "Veranstaltungen", exact: true }),
+        page.getByRole("heading", { level: 1, name: "Kalender", exact: true }),
       ).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       if (name === "calendar-populated-month")
@@ -137,7 +137,7 @@ for (const theme of ["light", "dark"] as const) {
         await expect(title).toHaveCSS("hyphens", "auto");
         await expect(title).toHaveCSS("-webkit-line-clamp", "2");
         const label = title.locator("..");
-        await expect(label.locator("span").first()).toHaveText("13:00");
+        await expect(label.locator("span").first()).toHaveText("13:00 · Veranstaltungen");
         expect(
           await title.evaluate((element) => element.getBoundingClientRect().height),
         ).toBeLessThanOrEqual(32);

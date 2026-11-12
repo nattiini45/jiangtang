@@ -65,6 +65,7 @@ const ADMIN_GROUPS: { id: NavGroup; labelKey?: MessageKey }[] = [
 
 export const NAV: NavEntry[] = [
   { to: "/", labelKey: "nav.overview", icon: LayoutDashboard, end: true, group: "work" },
+  { to: "/calendar", labelKey: "nav.calendar", icon: CalendarDays, end: true, group: "work" },
   { to: "/board", labelKey: "nav.board", icon: KanbanSquare, end: false, group: "work" },
   { to: "/tasks", labelKey: "nav.tasks", icon: ListTodo, end: false, group: "work" },
   { to: "/timesheet", labelKey: "nav.timesheet", icon: Timer, end: false, group: "work" },

@@ -1,11 +1,8 @@
 import * as React from "react";
 import { Link } from "react-router";
-import { CalendarCheck, MoveHorizontal, Plus } from "lucide-react";
-import type {
-  CalendarBooking,
-  CalendarEvent,
-  CalendarTask,
-} from "~/domains/events/events.calendar.queries.server";
+import { MoveHorizontal, Plus } from "lucide-react";
+import type { CalendarBooking } from "~/domains/events/events.calendar.queries.server";
+import { calendarBandEntry, type CalendarEntry } from "~/lib/calendar-entries";
 import {
   berlinDayIndex,
   berlinDayStartMs,
@@ -28,8 +25,7 @@ import { statusToken } from "~/lib/status";
 import { cn } from "~/lib/utils";
 
 type Data = {
-  events: CalendarEvent[];
-  tasks: CalendarTask[];
+  entries: CalendarEntry[];
   startDay: number;
   endDay: number;
   dayHref: (day: number) => string;
@@ -95,37 +91,35 @@ function navigateSlots(event: React.KeyboardEvent<HTMLElement>) {
   }
 }
 
-function TaskMarkers({
-  tasks,
+function WholeDayEntries({
+  entries,
   day,
   limit,
-  compact = false,
 }: {
-  tasks: CalendarTask[];
+  entries: CalendarEntry[];
   day: number;
   limit?: number;
-  compact?: boolean;
 }) {
   const t = useT();
-  const due = tasks.filter((task) => berlinDayIndex(new Date(task.dueAt)) === day);
-  return due.slice(0, limit).map((task) => (
-    <Link
-      key={task.id}
-      to={`/tasks/${task.id}`}
-      className="hover:bg-hover relative z-10 flex min-h-7 min-w-0 items-start gap-1 rounded-sm px-1 py-1 text-xs"
-      title={t("events.calendar.taskDue", { title: task.title })}
-    >
-      <CalendarCheck className="mt-0.5 size-3 shrink-0" aria-hidden />
-      <span
-        className={cn(
-          "min-w-0",
-          compact ? "line-clamp-3 wrap-break-word hyphens-auto" : "line-clamp-2 wrap-anywhere",
-        )}
+  const locale = useLocale();
+  return eventsOnDay(entries.filter(calendarBandEntry), day)
+    .slice(0, limit)
+    .map((entry) => (
+      <Link
+        key={entry.id}
+        to={entry.href}
+        title={entry.title}
+        className="bg-tint hover:bg-selected relative z-10 flex min-h-7 min-w-0 flex-col rounded-md px-1.5 py-1 text-xs"
       >
-        {task.title}
-      </span>
-    </Link>
-  ));
+        <span className="text-muted-foreground truncate">
+          {t(entry.kind)}
+          {entry.allDay
+            ? ""
+            : ` · ${formatDateWith(locale, entry.startsAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}–${formatDateWith(locale, entry.endsAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+        </span>
+        <span className="line-clamp-2 wrap-anywhere font-semibold">{entry.title}</span>
+      </Link>
+    ));
 }
 
 function EventLabel({
@@ -136,7 +130,7 @@ function EventLabel({
   narrow = false,
   height = Infinity,
 }: {
-  event: CalendarEvent;
+  event: CalendarEntry;
   compact?: boolean;
   dense?: boolean;
   short?: boolean;
@@ -144,7 +138,10 @@ function EventLabel({
   height?: number;
 }) {
   const locale = useLocale();
-  const token = statusToken(locale, "event", event.status);
+  const t = useT();
+  const token = event.status
+    ? statusToken(locale, "event", event.status)
+    : { dotClassName: "bg-muted-foreground", label: t(event.kind) };
   const time = (value: Date) => {
     const instant = +new Date(value);
     const hour = berlinLocalString(instant).slice(0, 13);
@@ -169,7 +166,9 @@ function EventLabel({
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="flex items-center gap-1 text-xs">
           <span className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} aria-hidden />
-          <span className="nums">{formatTime(locale, event.startsAt)}</span>
+          <span className="nums truncate">
+            {time(event.startsAt)} · {t(event.kind)}
+          </span>
         </span>
         <span
           lang={locale}
@@ -204,7 +203,7 @@ function EventLabel({
         <span
           className={cn("truncate font-semibold", event.status === "CANCELLED" && "line-through")}
         >
-          {time(event.startsAt)} {event.title}
+          {t(event.kind)} · {time(event.startsAt)} {event.title}
         </span>
         <span className="sr-only">
           {token.label} {resources}
@@ -217,7 +216,7 @@ function EventLabel({
         <span className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} aria-hidden />
         <span className="nums truncate">
           {time(event.startsAt)}
-          {compact ? "" : `–${time(event.endsAt)}`}
+          {compact ? "" : `–${time(event.endsAt)}`} · {t(event.kind)}
         </span>
         <span className="sr-only">{token.label}</span>
       </span>
@@ -248,8 +247,7 @@ function EventLabel({
 }
 
 export function CalendarMonth({
-  events,
-  tasks,
+  entries: events,
   startDay,
   endDay,
   selectedDay,
@@ -269,8 +267,7 @@ export function CalendarMonth({
         ))}
         {calendarDays(startDay, endDay).map((day) => {
           const dayEvents = eventsOnDay(events, day);
-          const dayTasks = tasks.filter((task) => berlinDayIndex(new Date(task.dueAt)) === day);
-          const hidden = Math.max(0, dayEvents.length - 2) + Math.max(0, dayTasks.length - 2);
+          const hidden = Math.max(0, dayEvents.length - 3);
           return (
             <section
               key={day}
@@ -302,12 +299,11 @@ export function CalendarMonth({
                   {civilFromDayIndex(day).day}
                 </Link>
               </div>
-              <TaskMarkers tasks={dayTasks} day={day} limit={2} compact />
               <div className="flex flex-col gap-1">
-                {dayEvents.slice(0, 2).map((event) => (
+                {dayEvents.slice(0, 3).map((event) => (
                   <Link
                     key={event.id}
-                    to={`/events/${event.id}`}
+                    to={event.href}
                     title={event.title}
                     className="group bg-card relative z-10 isolate flex min-w-0 flex-col gap-0.5 rounded-md p-1.5"
                   >
@@ -315,7 +311,18 @@ export function CalendarMonth({
                       aria-hidden
                       className="bg-tint group-hover:bg-tint-hover pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
                     />
-                    <EventLabel event={event} compact />
+                    {event.allDay ? (
+                      <>
+                        <span className="text-muted-foreground truncate text-xs">
+                          {t(event.kind)}
+                        </span>
+                        <span className="line-clamp-2 wrap-anywhere text-xs font-semibold">
+                          {event.title}
+                        </span>
+                      </>
+                    ) : (
+                      <EventLabel event={event} compact />
+                    )}
                   </Link>
                 ))}
                 {hidden > 0 ? (
@@ -335,7 +342,7 @@ export function CalendarMonth({
   );
 }
 
-function arrangeEvents(events: CalendarEvent[], day: number, minimumDuration = 2_250_000) {
+function arrangeEvents(events: CalendarEntry[], day: number, minimumDuration = 2_250_000) {
   const start = berlinDayStartMs(day);
   const end = berlinDayStartMs(day + 1);
   const items = eventsOnDay(events, day).map((event) => ({
@@ -366,7 +373,7 @@ function arrangeEvents(events: CalendarEvent[], day: number, minimumDuration = 2
   return items;
 }
 
-export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: Data) {
+export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
   const locale = useLocale();
   const t = useT();
   const ref = React.useRef<HTMLDivElement>(null);
@@ -374,10 +381,8 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
   const days = calendarDays(startDay, endDay);
   const sharedTime = days.length > 1;
   const hourGrid = calendarHourGrid(days);
-  const hasTasks = tasks.some((task) => {
-    const day = berlinDayIndex(new Date(task.dueAt));
-    return day >= startDay && day < endDay;
-  });
+  const events = entries.filter((entry) => !calendarBandEntry(entry));
+  const hasWholeDays = entries.some(calendarBandEntry);
   React.useLayoutEffect(() => {
     if (ref.current) ref.current.scrollTop = 7 * 48;
   }, [startDay, endDay]);
@@ -390,7 +395,7 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
         ref={ref}
         className={cn(
           "max-h-[680px] scroll-pb-2 overflow-auto",
-          hasTasks ? "scroll-pt-36" : "scroll-pt-14",
+          hasWholeDays ? "scroll-pt-48" : "scroll-pt-14",
         )}
         data-slot-orientation="vertical"
         onKeyDown={navigateSlots}
@@ -398,7 +403,7 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
         <div
           className="grid"
           style={{
-            gridTemplateColumns: `${sharedTime ? "64px " : ""}repeat(${days.length}, minmax(${days.length === 1 ? "260" : "132"}px, 1fr))`,
+            gridTemplateColumns: `${sharedTime ? "64px " : ""}repeat(${days.length}, minmax(${days.length === 1 ? "260" : "100"}px, 1fr))`,
             gridTemplateRows: "auto 1fr",
           }}
         >
@@ -430,23 +435,11 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
                 </Link>
               </h2>
               <div
-                className={days.length === 1 ? "flex flex-wrap gap-x-4 [&>a]:max-w-72" : undefined}
+                data-whole-day-band
+                className="mt-1 flex max-h-40 flex-col gap-1 overflow-y-auto"
               >
-                <TaskMarkers tasks={tasks} day={day} limit={days.length === 1 ? undefined : 2} />
+                <WholeDayEntries entries={entries} day={day} />
               </div>
-              {days.length > 1 &&
-              tasks.filter((task) => berlinDayIndex(new Date(task.dueAt)) === day).length > 2 ? (
-                <Link
-                  to={dayHref(day)}
-                  className="hover:bg-hover mt-1 inline-flex rounded-sm px-1 py-1 text-xs"
-                >
-                  {t("events.calendar.more", {
-                    count:
-                      tasks.filter((task) => berlinDayIndex(new Date(task.dueAt)) === day).length -
-                      2,
-                  })}
-                </Link>
-              ) : null}
             </div>
           ))}
           {sharedTime ? (
@@ -535,7 +528,7 @@ export function CalendarTimeGrid({ events, tasks, startDay, endDay, dayHref }: D
                       calendarEventSegments(start, end, slots).map((segment) => (
                         <Link
                           key={`${event.id}-${segment.startsAt}`}
-                          to={`/events/${event.id}`}
+                          to={event.href}
                           title={`${event.title} · ${formatDateWith(locale, event.startsAt, { dateStyle: "short", timeStyle: "long" })}–${formatDateWith(locale, event.endsAt, { dateStyle: "short", timeStyle: "long" })}`}
                           className="group bg-card shadow-surface-1 text-foreground absolute z-10 isolate flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-md px-2 py-1 focus-visible:z-30"
                           style={{

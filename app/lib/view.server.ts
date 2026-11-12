@@ -1,6 +1,7 @@
 import { generatePath, matchRoutes, redirect, type MiddlewareFunction } from "react-router";
 import { readConfig } from "~/lib/config.server";
 import { sanitizeNext } from "~/lib/auth.server";
+import { legacyCalendarHref } from "~/lib/calendar-entries";
 
 export type View = "desktop" | "mobile";
 
@@ -23,6 +24,7 @@ export const DESKTOP_PAGES = [
   "/board",
   "/campuses",
   "/capacity",
+  "/calendar",
   "/events",
   "/events/new",
   "/events/:id",
@@ -75,7 +77,11 @@ const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
   "/quick-entry": { mobile: "/m", query: ["roomId", "equipmentId", "type"] },
   "/tickets/new": { mobile: "/m", query: ["roomId", "equipmentId", "type"] },
   "/board": { mobile: "/m/board" },
-  "/events": { mobile: "/m/events", query: ["date"] },
+  "/calendar": {
+    mobile: "/m/calendar",
+    query: ["date", "kinds", "room", "equipment", "status", "view"],
+  },
+  "/events": { mobile: "/m/events", query: ["status"] },
   "/events/new": { mobile: "/m/events/new", query: ["date", "startsAt", "endsAt", "roomId"] },
   "/events/:id": { mobile: "/m/events/:id", query: ["date"] },
   "/inventory/:id": { mobile: "/m" },
@@ -150,6 +156,14 @@ export function hasMobileEquivalent(path: string): boolean {
 
 export function viewPath(raw: string | null | undefined, view: View): string {
   const url = new URL(sanitizeNext(raw), "http://internal.invalid");
+  if (url.pathname === "/events" && view === "mobile") {
+    const legacy = legacyCalendarHref(url.searchParams);
+    if (legacy) {
+      const calendar = new URL(legacy, url);
+      url.pathname = calendar.pathname;
+      url.search = calendar.search;
+    }
+  }
   if (sanitizeNext(url.pathname) === "/" && url.pathname !== "/")
     return view === "mobile" ? "/m" : "/";
   url.pathname = pagePath(url.pathname);
