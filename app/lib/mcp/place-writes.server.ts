@@ -21,7 +21,7 @@ import {
   roomCreateSchema,
   roomEditSchema,
   roomCloneSchema,
-  roomCsvRowSchema,
+  roomBulkRowSchema,
 } from "~/domains/rooms/rooms.schema";
 import {
   createLocation,
@@ -225,7 +225,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
       name: "bulk_create_rooms",
       description:
         "Atomically import 1–500 rooms using the existing CSV row fields (including German column names). Returns the count and created room IDs, names and slugs. ADMIN only.",
-      schema: z.object({ rows: z.array(roomCsvRowSchema).min(1).max(500) }),
+      schema: z.object({ rows: z.array(roomBulkRowSchema).min(1).max(500) }),
       role: "ADMIN",
       entityType: "room",
       op: "created",

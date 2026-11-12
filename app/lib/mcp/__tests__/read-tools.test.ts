@@ -39,6 +39,8 @@ const { db } = vi.hoisted(() => {
       notification: model(),
       user: model(),
       $queryRaw: vi.fn(),
+      $executeRaw: vi.fn(),
+      $transaction: vi.fn(),
     },
   };
 });
@@ -100,6 +102,8 @@ async function status(name: string, input: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.$transaction.mockImplementation(async (callback) => callback(db));
+  db.$executeRaw.mockResolvedValue(1);
   for (const model of Object.values(db)) {
     if (typeof model === "function") continue;
     model.findMany.mockResolvedValue([]);

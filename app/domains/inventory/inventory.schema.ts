@@ -163,7 +163,6 @@ const csvEqStatus = z.preprocess((v) => {
 }, z.enum(EquipmentStatus));
 
 const equipmentCsvFieldsSchema = z.object({
-  customValues: customValuesInput,
   kategorie: csvCategory,
   modell: optionalText,
   raum: optionalText,
@@ -182,7 +181,6 @@ const equipmentCsvFieldsSchema = z.object({
 
 function equipmentCsvFields(r: z.infer<typeof equipmentCsvFieldsSchema>) {
   return {
-    ...(r.customValues === undefined ? {} : { customValues: r.customValues }),
     category: r.kategorie,
     modelText: r.modell,
     roomText: r.raum,
@@ -204,6 +202,7 @@ export const equipmentCsvRowSchema = equipmentCsvFieldsSchema.transform(equipmen
 
 export const equipmentBulkRowSchema = equipmentCsvFieldsSchema
   .extend({
+    customValues: customValuesInput,
     kategorie: csvCategory.optional(),
     kindId: optionalId,
   })
@@ -212,8 +211,11 @@ export const equipmentBulkRowSchema = equipmentCsvFieldsSchema
     message: msgKey("inventory.form.kindRequired"),
   })
   .transform((row) => ({
+    ...(row.customValues === undefined ? {} : { customValues: row.customValues }),
     ...equipmentCsvFields({ ...row, kategorie: row.kategorie ?? "OTHER" }),
     kindId: row.kindId,
   }));
 
-export type EquipmentCsvRow = z.infer<typeof equipmentCsvRowSchema>;
+export type EquipmentCsvRow = z.infer<typeof equipmentCsvRowSchema> & {
+  customValues?: Record<string, unknown>;
+};

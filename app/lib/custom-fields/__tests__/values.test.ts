@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "~/lib/db.server";
 import { createEquipment, updateEquipment } from "~/domains/inventory/inventory.mutations.server";
-import { equipmentCreateSchema } from "~/domains/inventory/inventory.schema";
+import { equipmentCreateSchema, equipmentCsvRowSchema } from "~/domains/inventory/inventory.schema";
 import { createRoom, updateRoom } from "~/domains/rooms/rooms.mutations.server";
-import { roomCreateSchema } from "~/domains/rooms/rooms.schema";
+import { roomCreateSchema, roomCsvRowSchema } from "~/domains/rooms/rooms.schema";
 import { setRoomCustomValues } from "~/domains/rooms/rooms.custom-values.server";
 import { setEquipmentCustomValues } from "~/domains/inventory/inventory.custom-values.server";
 import {
@@ -58,6 +58,27 @@ async function equipment(kindId?: string, values?: Record<string, unknown>) {
 }
 
 describe("custom field values", () => {
+  it("keeps arbitrary CSV customValues headers outside structured bulk inputs", () => {
+    for (const customValues of ["", "not structured data"]) {
+      expect(roomCsvRowSchema.parse({ name: "Synthetic CSV", customValues })).not.toHaveProperty(
+        "customValues",
+      );
+      expect(
+        equipmentCsvRowSchema.parse({ kategorie: "OTHER", mobilitaet: "POOLED", customValues }),
+      ).not.toHaveProperty("customValues");
+    }
+  });
+
+  it("reads definitions and values consistently during a concurrent type conversion", async () => {
+    const f = await field("CHOICE");
+    await updateFieldOptions(actor, { fieldId: f.id, changes: [{ op: "add", label: "Retained" }] });
+    const place = await room({ [f.key]: "Retained" });
+    const [rows] = await Promise.all([
+      withCustomValues("ROOM", [place]),
+      updateCustomField(actor, { id: f.id, type: "MULTI_CHOICE" }),
+    ]);
+    expect(JSON.stringify(rows[0].customValues[f.key])).toContain("Retained");
+  });
   it("merges supplied updates and validates device values against the newly selected kind", async () => {
     const kinds = await db.equipmentKind.findMany({ take: 2 });
     const original = await field("TEXT", "EQUIPMENT", [kinds[0].id]);

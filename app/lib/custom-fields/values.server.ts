@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { db, type Tx } from "~/lib/db.server";
+import type { Tx } from "~/lib/db.server";
+import { txWithAudit } from "~/lib/audit.server";
 import { Prisma, type CustomFieldScope, type EquipmentCategory } from "~/generated/prisma/client";
 import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 import { ValidationError, NotFoundError } from "~/lib/errors.server";
@@ -250,40 +251,47 @@ export async function withCustomValues<T extends { id: string }>(
   includeDefinitions = false,
 ) {
   if (!records.length) return [];
-  const definitions = await getDefinitions(scope);
-  const ids = records.map((record) => record.id);
-  const rows =
-    scope === "ROOM"
-      ? await db.room.findMany({
-          where: { id: { in: ids } },
-          select: { id: true, customValues: true },
-        })
-      : await db.equipment.findMany({
-          where: { id: { in: ids } },
-          select: { id: true, customValues: true, kindId: true, category: true },
-        });
-  const defaults =
-    scope === "EQUIPMENT" && rows.some((row) => "kindId" in row && !row.kindId)
-      ? await db.equipmentKind.findMany({ select: { id: true, systemKey: true } })
-      : [];
-  return records.map((record) => {
-    const row = rows.find((row) => row.id === record.id);
-    const kindId =
-      row && "kindId" in row && typeof row.kindId === "string"
-        ? row.kindId
-        : row && "category" in row
-          ? defaults.find(
-              (kind) =>
-                kind.systemKey === DEFAULT_EQUIPMENT_KINDS[row.category as EquipmentCategory].key,
-            )?.id
-          : undefined;
-    const applicable = definitions.filter((field) => !field.archivedAt && applies(field, kindId));
-    const stored = (row?.customValues ?? {}) as Prisma.JsonObject;
-    const customValues = Object.fromEntries(
-      applicable
-        .filter((field) => Object.hasOwn(stored, field.id))
-        .map((field) => [field.key, rendered(field, stored[field.id], true)]),
-    );
-    return { ...record, customValues, ...(includeDefinitions ? { customFields: applicable } : {}) };
+  return txWithAudit(null, async (tx) => {
+    await lockDefinitions(tx);
+    const definitions = await getDefinitions(scope, tx);
+    const ids = records.map((record) => record.id);
+    const rows =
+      scope === "ROOM"
+        ? await tx.room.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, customValues: true },
+          })
+        : await tx.equipment.findMany({
+            where: { id: { in: ids } },
+            select: { id: true, customValues: true, kindId: true, category: true },
+          });
+    const defaults =
+      scope === "EQUIPMENT" && rows.some((row) => "kindId" in row && !row.kindId)
+        ? await tx.equipmentKind.findMany({ select: { id: true, systemKey: true } })
+        : [];
+    return records.map((record) => {
+      const row = rows.find((row) => row.id === record.id);
+      const kindId =
+        row && "kindId" in row && typeof row.kindId === "string"
+          ? row.kindId
+          : row && "category" in row
+            ? defaults.find(
+                (kind) =>
+                  kind.systemKey === DEFAULT_EQUIPMENT_KINDS[row.category as EquipmentCategory].key,
+              )?.id
+            : undefined;
+      const applicable = definitions.filter((field) => !field.archivedAt && applies(field, kindId));
+      const stored = (row?.customValues ?? {}) as Prisma.JsonObject;
+      const customValues = Object.fromEntries(
+        applicable
+          .filter((field) => Object.hasOwn(stored, field.id))
+          .map((field) => [field.key, rendered(field, stored[field.id], true)]),
+      );
+      return {
+        ...record,
+        customValues,
+        ...(includeDefinitions ? { customFields: applicable } : {}),
+      };
+    });
   });
 }

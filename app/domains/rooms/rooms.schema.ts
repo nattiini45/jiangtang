@@ -158,7 +158,6 @@ const csvList = z.preprocess((v) => {
 
 export const roomCsvRowSchema = z
   .object({
-    customValues: customValuesInput,
     name: z.string().trim().min(1, msgKey("places.err.room.csvNameMissing")),
     raumnummer: optionalText,
     campus: optionalText,
@@ -184,7 +183,6 @@ export const roomCsvRowSchema = z
     ),
   })
   .transform((r) => ({
-    ...(r.customValues === undefined ? {} : { customValues: r.customValues }),
     name: r.name,
     roomNumber: r.raumnummer,
     campusName: r.campus,
@@ -204,7 +202,13 @@ export const roomCsvRowSchema = z
     lastCheckedAt: r.lastCheckedAt,
   }));
 
+export const roomBulkRowSchema = z.intersection(
+  roomCsvRowSchema,
+  z.object({ customValues: customValuesInput }),
+);
+
 export type RoomCsvRow = Omit<z.infer<typeof roomCsvRowSchema>, "knownIssues" | "lastCheckedAt"> & {
+  customValues?: Record<string, unknown>;
   knownIssues?: string;
   lastCheckedAt?: Date;
 };
