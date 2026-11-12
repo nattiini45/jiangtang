@@ -14,8 +14,39 @@ import {
 } from "~/lib/equipment-kinds/structure.schema";
 import { registerTool } from "./tools.server";
 import { mcpActor, type McpContext } from "./types.server";
+import {
+  installLibraryKinds,
+  libraryInstallSchema,
+  libraryQuerySchema,
+  listKindLibrary,
+} from "~/lib/equipment-kinds/library.server";
 
 export function registerStructureTools(server: McpServer, context: McpContext) {
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_kind_library",
+      description:
+        "List the bilingual device-kind library, optionally filtered by institutionType. Includes present/archived/name-taken status and remaining capacity. Admin only; installs nothing.",
+      schema: libraryQuerySchema,
+      role: "ADMIN",
+    },
+    ({ institutionType }) => listKindLibrary(institutionType),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "install_library_kinds",
+      description:
+        "Install exactly the selected library keys, atomically, in DEFAULT_LOCALE. Creates missing groups. Refuses existing, archived, taken or unknown entries without installing anything. Admin only.",
+      schema: libraryInstallSchema,
+      role: "ADMIN",
+      write: true,
+    },
+    (input, ctx) => installLibraryKinds(mcpActor(ctx), input),
+  );
   const id = z.string().min(1);
   registerTool(
     server,
