@@ -91,8 +91,8 @@ export const equipmentCreateSchema = z
 
 export const equipmentEditSchema = equipmentCreateSchema;
 
-export type EquipmentCreateInput = z.infer<typeof equipmentCreateSchema>;
-export type EquipmentEditInput = z.infer<typeof equipmentEditSchema>;
+export type EquipmentCreateInput = z.infer<typeof equipmentCreateSchema> & { kindId?: string };
+export type EquipmentEditInput = EquipmentCreateInput;
 
 // ── Equipment CSV bulk import ────────────────────────────────────────────────
 // `modell` is matched/auto-created by name; `raum` is matched by slug, room

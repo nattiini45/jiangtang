@@ -78,7 +78,8 @@ describe("workspace locale selection", () => {
       {},
       {
         get: (_t, model: string) => ({
-          findUnique: async () => null,
+          findUnique: async ({ where }: { where: { systemKey?: string } }) =>
+            model === "equipmentKind" ? { id: "kind", systemKey: where.systemKey } : null,
           findUniqueOrThrow: async () => ({ startsAt: new Date(), endsAt: new Date() }),
           create: async ({ data }: { data: { name?: string } }) => {
             if (model === "project" && data.name) names.push(data.name);

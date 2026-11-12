@@ -1,4 +1,9 @@
 import { db } from "~/lib/db.server";
+import {
+  kindSelect,
+  withEquipmentKinds,
+  type EquipmentKindSummary,
+} from "~/lib/equipment-kinds/kinds.server";
 import type { EquipmentCategory, EquipmentStatus } from "~/generated/prisma/client";
 
 /** Read-only queries for the EquipmentModel catalog. */
@@ -8,6 +13,7 @@ export interface ModelListRow {
   manufacturer: string | null;
   name: string;
   category: EquipmentCategory;
+  kind: EquipmentKindSummary;
   instanceCount: number;
   faultyCount: number;
 }
@@ -34,7 +40,7 @@ export async function listModels(
         : {}),
     },
     orderBy: [{ manufacturer: "asc" }, { name: "asc" }, { id: "asc" }],
-    include: { _count: { select: { instances: true } } },
+    include: { kind: { select: kindSelect }, _count: { select: { instances: true } } },
   });
 
   // Faulty-instance counts per model ("which model fails most"), one grouped query.
@@ -45,21 +51,26 @@ export async function listModels(
   });
   const faultyByModel = new Map(faulty.map((f) => [f.modelId, f._count]));
 
-  return models.map((m) => ({
+  return (await withEquipmentKinds(models)).map((m) => ({
     id: m.id,
     manufacturer: m.manufacturer,
     name: m.name,
     category: m.category,
+    kind: m.kind,
     instanceCount: m._count.instances,
     faultyCount: faultyByModel.get(m.id) ?? 0,
   }));
 }
 
-export function getModel(id: string) {
-  return db.equipmentModel.findUnique({
+export async function getModel(id: string) {
+  const model = await db.equipmentModel.findUnique({
     where: { id },
-    include: { ports: { orderBy: [{ position: "asc" }, { id: "asc" }] } },
+    include: {
+      kind: { select: kindSelect },
+      ports: { orderBy: [{ position: "asc" }, { id: "asc" }] },
+    },
   });
+  return model ? (await withEquipmentKinds([model]))[0] : null;
 }
 
 export interface ModelStats {

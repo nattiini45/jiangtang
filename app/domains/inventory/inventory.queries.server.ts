@@ -1,4 +1,9 @@
 import { db } from "~/lib/db.server";
+import {
+  kindSelect,
+  withEquipmentKinds,
+  type EquipmentKindSummary,
+} from "~/lib/equipment-kinds/kinds.server";
 import type {
   EquipmentCategory,
   EquipmentMobility,
@@ -12,6 +17,7 @@ export interface EquipmentListRow {
   id: string;
   name: string | null;
   category: EquipmentCategory;
+  kind: EquipmentKindSummary;
   status: EquipmentStatus;
   mobility: EquipmentMobility;
   assetTag: string | null;
@@ -53,12 +59,17 @@ export async function listEquipment(
         : {}),
     },
     orderBy: [{ category: "asc" }, { name: "asc" }, { id: "asc" }],
-    include: { room: { select: { name: true, slug: true } }, model: { select: { name: true } } },
+    include: {
+      kind: { select: kindSelect },
+      room: { select: { name: true, slug: true } },
+      model: { select: { name: true } },
+    },
   });
-  return items.map((e) => ({
+  return (await withEquipmentKinds(items)).map((e) => ({
     id: e.id,
     name: e.name,
     category: e.category,
+    kind: e.kind,
     status: e.status,
     mobility: e.mobility,
     assetTag: e.assetTag,
@@ -74,6 +85,7 @@ export async function getEquipment(id: string) {
   const equipment = await db.equipment.findUnique({
     where: { id },
     include: {
+      kind: { select: kindSelect },
       ports: {
         orderBy: [{ position: "asc" }, { id: "asc" }],
         include: {
@@ -111,6 +123,7 @@ export async function getEquipment(id: string) {
   if (!equipment) return null;
   return {
     ...equipment,
+    kind: (await withEquipmentKinds([equipment]))[0].kind,
     ports: equipment.ports.map(({ connectionEnd, ...port }) => {
       const other = connectionEnd?.connection.ends.find((end) => end.portId !== port.id)?.port;
       const connection =
@@ -150,13 +163,21 @@ export async function getEquipment(id: string) {
 
 /** Faulty fixed units that could be substituted by a spare (substitution picker). */
 export async function listSubstitutionTargets(excludeId: string) {
-  return db.equipment.findMany({
-    where: {
-      id: { not: excludeId },
-      status: { in: ["FAULTY", "MAINTENANCE"] },
-      substitutedBy: null,
-    },
-    orderBy: [{ name: "asc" }],
-    select: { id: true, name: true, assetTag: true, category: true },
-  });
+  return withEquipmentKinds(
+    await db.equipment.findMany({
+      where: {
+        id: { not: excludeId },
+        status: { in: ["FAULTY", "MAINTENANCE"] },
+        substitutedBy: null,
+      },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        assetTag: true,
+        category: true,
+        kind: { select: kindSelect },
+      },
+    }),
+  );
 }

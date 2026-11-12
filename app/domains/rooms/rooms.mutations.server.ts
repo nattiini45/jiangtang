@@ -368,6 +368,7 @@ export async function cloneRoom(
           // writer set is identical before and after a clone.
           modelId: u.modelId ?? undefined,
           category: u.category,
+          kindId: u.kindId ?? undefined,
           mobility: "FIXED",
           // Preserve the source unit's status (e.g. FAULTY/MAINTENANCE) — cloning
           // must not silently "fix" a broken unit by upgrading it to OPERATIONAL.

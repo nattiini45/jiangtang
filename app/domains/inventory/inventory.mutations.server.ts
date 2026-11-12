@@ -1,11 +1,14 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
+import { resolveEquipmentKind, type EquipmentKindInput } from "~/lib/equipment-kinds/kinds.server";
 import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { findOrCreateModel } from "~/domains/catalog/catalog.mutations.server";
 import type { Equipment, Prisma } from "~/generated/prisma/client";
-import type { EquipmentCreateInput, EquipmentCsvRow, EquipmentEditInput } from "./inventory.schema";
+import type { EquipmentCreateInput, EquipmentCsvRow } from "./inventory.schema";
+
+type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKindInput;
 
 /**
  * Equipment mutations. FIXED units live in a room; POOLED units float (roomId
@@ -16,6 +19,7 @@ import type { EquipmentCreateInput, EquipmentCsvRow, EquipmentEditInput } from "
 function equipmentFields(input: EquipmentCreateInput): Prisma.EquipmentUncheckedCreateInput {
   return {
     category: input.category,
+    kindId: input.kindId,
     modelId: input.modelId ?? null,
     roomId: input.mobility === "POOLED" ? null : (input.roomId ?? null),
     mobility: input.mobility,
@@ -43,9 +47,10 @@ function equipmentFields(input: EquipmentCreateInput): Prisma.EquipmentUnchecked
 
 export async function createEquipment(
   actor: AuditActor,
-  input: EquipmentCreateInput,
+  source: EquipmentWriteInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
+    const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
     const eq = await tx.equipment.create({ data: equipmentFields(input) });
     await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
@@ -96,8 +101,9 @@ export async function createEquipment(
 export async function createEquipmentInTx(
   tx: Tx,
   audit: AuditFn,
-  input: EquipmentCreateInput,
+  source: EquipmentWriteInput,
 ): Promise<Equipment> {
+  const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
   const eq = await tx.equipment.create({ data: equipmentFields(input) });
   await copyModelPortsInTx(tx, eq.id, eq.modelId);
   await audit({
@@ -112,9 +118,10 @@ export async function createEquipmentInTx(
 export async function updateEquipment(
   actor: AuditActor,
   id: string,
-  input: EquipmentEditInput,
+  source: EquipmentWriteInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
+    const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
     const fields = equipmentFields(input);
     const { eq, auditData } =
       input.status === "RETIRED"
@@ -254,7 +261,7 @@ export async function setSubstitution(
  */
 export async function bulkCreateEquipment(
   actor: AuditActor,
-  rows: EquipmentCsvRow[],
+  rows: (EquipmentCsvRow & { kindId?: string })[],
 ): Promise<{ created: number; items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] }> {
   return txWithAudit(
     actor,
@@ -266,7 +273,11 @@ export async function bulkCreateEquipment(
         // outside this batch's rollback. The old inline create at
         // this spot was the cross-folder write the domain-ownership rule forbids.
         const modelId = row.modelText
-          ? await findOrCreateModel(tx, audit, { name: row.modelText, category: row.category })
+          ? await findOrCreateModel(tx, audit, {
+              name: row.modelText,
+              category: row.category,
+              kindId: row.kindId,
+            })
           : null;
 
         let roomId: string | null = null;
@@ -295,7 +306,7 @@ export async function bulkCreateEquipment(
 
         const eq = await tx.equipment.create({
           data: {
-            category: row.category,
+            ...(await resolveEquipmentKind(tx, row)),
             modelId,
             roomId,
             mobility: row.mobility,

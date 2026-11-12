@@ -2,9 +2,12 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { Tx } from "~/lib/db.server";
-import type { EquipmentCategory, EquipmentModel } from "~/generated/prisma/client";
+import { resolveEquipmentKind, type EquipmentKindInput } from "~/lib/equipment-kinds/kinds.server";
+import type { EquipmentModel } from "~/generated/prisma/client";
 import { modelExists } from "./catalog.queries.server";
-import type { ModelCreateInput, ModelEditInput } from "./catalog.schema";
+import type { ModelCreateInput } from "./catalog.schema";
+
+type ModelWriteInput = Omit<ModelCreateInput, "category"> & EquipmentKindInput;
 
 /**
  * EquipmentModel mutations. Models have no status and an FK from Equipment blocks
@@ -13,7 +16,7 @@ import type { ModelCreateInput, ModelEditInput } from "./catalog.schema";
 
 export async function createModel(
   actor: AuditActor,
-  input: ModelCreateInput,
+  input: ModelWriteInput,
 ): Promise<EquipmentModel> {
   if (await modelExists(input.manufacturer ?? null, input.name)) {
     throw new ValidationError({ name: [tr("places.err.model.exists")] });
@@ -23,7 +26,7 @@ export async function createModel(
       data: {
         manufacturer: input.manufacturer ?? null,
         name: input.name,
-        category: input.category,
+        ...(await resolveEquipmentKind(tx, input)),
         specNotes: input.specNotes ?? null,
         manualUrl: input.manualUrl ?? null,
       },
@@ -41,7 +44,7 @@ export async function createModel(
 export async function updateModel(
   actor: AuditActor,
   id: string,
-  input: ModelEditInput,
+  input: ModelWriteInput,
 ): Promise<EquipmentModel> {
   if (await modelExists(input.manufacturer ?? null, input.name, id)) {
     throw new ValidationError({ name: [tr("places.err.model.nameTaken")] });
@@ -52,7 +55,7 @@ export async function updateModel(
       data: {
         manufacturer: input.manufacturer ?? null,
         name: input.name,
-        category: input.category,
+        ...(await resolveEquipmentKind(tx, input)),
         specNotes: input.specNotes ?? null,
         manualUrl: input.manualUrl ?? null,
       },
@@ -113,7 +116,7 @@ export async function updateModel(
 export async function findOrCreateModel(
   tx: Tx,
   audit: AuditFn,
-  input: { name: string; category: EquipmentCategory },
+  input: { name: string } & EquipmentKindInput,
 ): Promise<string> {
   const existing = await tx.equipmentModel.findFirst({
     where: { name: { equals: input.name, mode: "insensitive" } },
@@ -121,7 +124,7 @@ export async function findOrCreateModel(
   });
   if (existing) return existing.id;
   const model = await tx.equipmentModel.create({
-    data: { name: input.name, category: input.category },
+    data: { name: input.name, ...(await resolveEquipmentKind(tx, input)) },
   });
   await audit({
     action: "EquipmentModelCreated",

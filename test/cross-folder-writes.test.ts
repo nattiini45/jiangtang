@@ -200,6 +200,11 @@ const FOLDERS: Record<string, readonly string[]> = {
   // entry no scan ever consulted.
   "app/lib": ["ActivityLog"],
   "app/lib/calendar": ["CalendarOutbox", "CalendarPublicationInitialization"],
+  "app/lib/equipment-kinds": [
+    "EquipmentKind",
+    "EquipmentFunctionGroup",
+    "EquipmentKindsInitialization",
+  ],
   // the indexer owns the derived-data tables — Chunk/SearchIndexJob are
   // rebuilt from audited rows and carry no audit of their own.
   "app/lib/search": ["Chunk", "SearchIndexJob"],
