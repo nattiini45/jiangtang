@@ -1,5 +1,28 @@
 import type { fieldsDe } from "../de/fields";
 export const fieldsEn = {
+  "fields.error.encoding": "Remove invalid Unicode characters or NUL characters.",
+  "fields.error.type":
+    "Only text to long text and single choice to multiple choice (or back) are supported. Create a new field for another type.",
+  "fields.error.multiple":
+    "{count} records have multiple values. Reduce each selection to one value before changing the field type.",
+  "fields.error.unknown": "This field does not exist. Fetch the current record schema.",
+  "fields.error.archived": "This field is archived. Restore it first.",
+  "fields.error.applicable":
+    "This field does not apply to the device kind. Use the matching record schema.",
+  "fields.error.number": "Enter a finite number with at most 6 decimal places.",
+  "fields.error.value": "The value does not match the field type. Check the record schema.",
+  "fields.error.option": "Choose active options from the allowed list, without duplicates.",
+  "fields.error.inUse":
+    "This field still has values. Restore it and make it apply to the affected records before clearing their values, or keep it archived.",
+  "fields.error.optionInUse":
+    "This option is still in use. Restore its field and make it apply to the affected records before clearing their values, or retire the option instead.",
+  "fields.limit.text":
+    "Text can contain at most 200 characters. Shorten it or use a long-text field.",
+  "fields.limit.longText":
+    "Long text can contain at most 4,000 characters. Shorten it or link a note instead.",
+  "fields.limit.bytes":
+    "Custom values can use at most 32 KB per record. Shorten, clear or replace values with a link.",
+  "fields.option.retired": "{label} (retired)",
   "fields.limit.fields":
     "At most 40 active fields can apply to a record. Archive a field or restrict it to other device kinds.",
   "fields.limit.total": "At most 120 fields per scope. Delete an unused field.",

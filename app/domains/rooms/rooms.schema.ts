@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customValuesInput } from "~/lib/custom-fields/values.schema";
 import { msgKey } from "~/i18n";
 import { RoomStatus } from "~/generated/prisma/enums";
 import { optionalHttpUrl } from "~/lib/validation.server";
@@ -53,6 +54,7 @@ const stringArray = z.preprocess((v) => {
 
 export const roomCreateSchema = z
   .object({
+    customValues: customValuesInput,
     name: z.string().trim().min(1, msgKey("places.err.room.nameRequired")),
     roomNumber: optionalText,
     campusId: optionalId,
@@ -200,7 +202,13 @@ export const roomCsvRowSchema = z
     lastCheckedAt: r.lastCheckedAt,
   }));
 
+export const roomBulkRowSchema = z.intersection(
+  roomCsvRowSchema,
+  z.object({ customValues: customValuesInput }),
+);
+
 export type RoomCsvRow = Omit<z.infer<typeof roomCsvRowSchema>, "knownIssues" | "lastCheckedAt"> & {
+  customValues?: Record<string, unknown>;
   knownIssues?: string;
   lastCheckedAt?: Date;
 };

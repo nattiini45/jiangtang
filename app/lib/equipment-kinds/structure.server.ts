@@ -10,6 +10,7 @@ import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 import { queueEquipmentReindex } from "~/lib/search/jobs.server";
 import { moveEquipmentKindInTx } from "~/domains/inventory/inventory.mutations.server";
 import { moveModelKindInTx } from "~/domains/catalog/catalog.mutations.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import {
   groupCreateSchema,
   groupUpdateSchema,
@@ -93,6 +94,7 @@ export async function structureWrite<T>(
     const result = await txWithAudit(
       actor,
       async (tx, audit) => {
+        await lockDefinitions(tx);
         await lockKindStructure(tx);
         return work(tx, audit);
       },
