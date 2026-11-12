@@ -1,6 +1,7 @@
 import { db } from "~/lib/db.server";
 import {
   kindSelect,
+  equipmentKindFilter,
   withEquipmentKinds,
   type EquipmentKindSummary,
 } from "~/lib/equipment-kinds/kinds.server";
@@ -21,6 +22,7 @@ export interface ModelListRow {
 export async function listModels(
   opts?: {
     category?: EquipmentCategory;
+    kindId?: string;
     q?: string;
   },
   page: { offset?: number; limit?: number } = {},
@@ -29,7 +31,8 @@ export async function listModels(
     skip: page.offset,
     take: page.limit,
     where: {
-      category: opts?.category,
+      category: opts?.kindId ? undefined : opts?.category,
+      AND: await equipmentKindFilter(opts?.kindId),
       ...(opts?.q
         ? {
             OR: [

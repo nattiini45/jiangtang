@@ -44,11 +44,19 @@ export function initializeEquipmentKinds() {
   return txWithAudit(null, initializeKindsInTx);
 }
 
-export type EquipmentKindInput =
-  | { kindId: string; category?: EquipmentCategory }
-  | { kindId?: string; category: EquipmentCategory };
+export type EquipmentKindInput = { kindId?: string; category?: EquipmentCategory };
 
-export async function resolveEquipmentKind(tx: Tx, input: EquipmentKindInput) {
+export async function resolveEquipmentKind(
+  tx: Tx,
+  input: EquipmentKindInput,
+  currentKindId?: string | null,
+) {
+  if (!input.kindId && currentKindId) {
+    const current = await tx.equipmentKind.findUnique({ where: { id: currentKindId } });
+    if (current && categoryForKind(current.systemKey) === input.category)
+      return { kindId: current.id, category: input.category! };
+  }
+  if (!input.kindId && !input.category) throw new NotFoundError();
   const kind = await tx.equipmentKind.findUnique({
     where:
       input.kindId !== undefined
@@ -57,10 +65,44 @@ export async function resolveEquipmentKind(tx: Tx, input: EquipmentKindInput) {
     select: { id: true, systemKey: true },
   });
   if (!kind) throw new NotFoundError();
-  const category = (Object.entries(DEFAULT_EQUIPMENT_KINDS).find(
-    ([, value]) => value.key === kind.systemKey,
-  )?.[0] ?? "OTHER") as EquipmentCategory;
+  const category = categoryForKind(kind.systemKey);
   return { kindId: kind.id, category };
+}
+
+function categoryForKind(key: string | null): EquipmentCategory {
+  return (Object.entries(DEFAULT_EQUIPMENT_KINDS).find(([, value]) => value.key === key)?.[0] ??
+    "OTHER") as EquipmentCategory;
+}
+
+export function listDeviceKinds(includeArchived = false, currentKindId?: string) {
+  return db.equipmentFunctionGroup.findMany({
+    where: includeArchived
+      ? {}
+      : {
+          OR: [
+            { archivedAt: null },
+            ...(currentKindId ? [{ kinds: { some: { id: currentKindId } } }] : []),
+          ],
+        },
+    orderBy: [{ position: "asc" }, { name: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      position: true,
+      kinds: {
+        where: includeArchived
+          ? {}
+          : {
+              OR: [
+                { archivedAt: null, group: { archivedAt: null } },
+                ...(currentKindId ? [{ id: currentKindId }] : []),
+              ],
+            },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        select: { id: true, name: true, systemKey: true },
+      },
+    },
+  });
 }
 
 export const kindSelect = {
@@ -69,12 +111,36 @@ export const kindSelect = {
   systemKey: true,
   group: { select: { id: true, name: true, position: true } },
 } satisfies Prisma.EquipmentKindSelect;
+export async function equipmentKindFilter(kindId?: string) {
+  if (!kindId) return {};
+  const kind = await db.equipmentKind.findUnique({ where: { id: kindId } });
+  const defaultKeys: string[] = Object.values(DEFAULT_EQUIPMENT_KINDS).map((kind) => kind.key);
+  if (kind?.systemKey && defaultKeys.includes(kind.systemKey)) {
+    const category = categoryForKind(kind.systemKey);
+    return {
+      OR: [
+        { kindId: null, category },
+        {
+          category,
+          kind: {
+            systemKey: { in: defaultKeys },
+          },
+        },
+      ],
+    };
+  }
+  return {
+    OR: [{ kindId }],
+  };
+}
 export type EquipmentKindSummary = Prisma.EquipmentKindGetPayload<{ select: typeof kindSelect }>;
 
 export async function withEquipmentKinds<
   T extends { category: EquipmentCategory; kind: EquipmentKindSummary | null },
 >(rows: T[]): Promise<Array<Omit<T, "kind"> & { kind: EquipmentKindSummary }>> {
-  const defaults = rows.some((row) => !row.kind)
+  const needsFallback = (row: T) =>
+    !row.kind || (!!row.kind.systemKey && categoryForKind(row.kind.systemKey) !== row.category);
+  const defaults = rows.some(needsFallback)
     ? await db.equipmentKind.findMany({
         where: {
           systemKey: { in: Object.values(DEFAULT_EQUIPMENT_KINDS).map((kind) => kind.key) },
@@ -83,9 +149,9 @@ export async function withEquipmentKinds<
       })
     : [];
   return rows.map((row) => {
-    const kind =
-      row.kind ??
-      defaults.find((kind) => kind.systemKey === DEFAULT_EQUIPMENT_KINDS[row.category].key);
+    const kind = needsFallback(row)
+      ? defaults.find((kind) => kind.systemKey === DEFAULT_EQUIPMENT_KINDS[row.category].key)
+      : row.kind;
     if (!kind) throw new NotFoundError();
     return { ...row, kind };
   });

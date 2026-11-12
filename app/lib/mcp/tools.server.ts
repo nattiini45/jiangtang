@@ -5,6 +5,7 @@ import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.se
 import { formatDateTime } from "~/i18n/format";
 import { currentLocale, tr } from "~/i18n/request-locale.server";
 import { Prisma } from "~/generated/prisma/client";
+import type { EquipmentKindSummary } from "~/lib/equipment-kinds/kinds.server";
 import type { McpContext } from "./types.server";
 
 const inputSchemas = new Map<string, ReturnType<typeof fromJsonSchema>>();
@@ -31,6 +32,14 @@ export function withoutEquipmentKind<T extends object>(value: T): Omit<T, "kind"
     ...rest
   } = value as T & { kind?: unknown; kindId?: unknown };
   return rest;
+}
+
+export function withMcpEquipmentKind<T extends { kind: EquipmentKindSummary }>(value: T) {
+  const { kind, kindId: _kindId, ...rest } = value as T & { kindId?: string | null };
+  return {
+    ...rest,
+    kind: { id: kind.id, key: kind.systemKey, name: kind.name, group: kind.group },
+  };
 }
 
 export async function mcpError(error: unknown): Promise<CallToolResult> {

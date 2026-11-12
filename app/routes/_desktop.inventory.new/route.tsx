@@ -1,6 +1,7 @@
 import { Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
@@ -23,8 +24,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const url = new URL(request.url);
   const roomId = url.searchParams.get("roomId") || undefined;
-  const [models, rooms] = await Promise.all([listModels(), listRooms()]);
-  return { models, rooms, roomId };
+  const [models, rooms, kinds] = await Promise.all([listModels(), listRooms(), listDeviceKinds()]);
+  return { models, rooms, roomId, kinds };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -55,6 +56,7 @@ export default function NewEquipment({ loaderData, actionData }: Route.Component
       </div>
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
         <EquipmentFormFields
+          kinds={loaderData.kinds}
           models={loaderData.models}
           rooms={loaderData.rooms}
           defaults={

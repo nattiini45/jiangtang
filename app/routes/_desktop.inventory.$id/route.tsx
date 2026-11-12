@@ -2,6 +2,7 @@ import { Form, Link, redirect, useNavigation } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { tr } from "~/i18n/request-locale.server";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -28,7 +29,6 @@ import {
   type EquipmentDefaults,
 } from "~/components/inventory/equipment-form-fields";
 import { SubstitutionControl } from "~/components/inventory/substitution-control";
-import { categoryLabel } from "~/components/inventory/labels";
 import { FileUpload } from "~/components/upload/file-upload";
 import { AttachmentGallery } from "~/components/upload/attachment-gallery";
 import { ActivityFeed } from "~/components/history/activity-feed";
@@ -41,7 +41,7 @@ import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { QrCode } from "~/components/qr/qr-code";
 import { qrSvg } from "~/lib/qr.server";
-import { useLocale, useT } from "~/i18n/use-t";
+import { useT } from "~/i18n/use-t";
 import { mutateEquipmentPort } from "~/domains/inventory/inventory.ports.mutations.server";
 import { EquipmentPorts } from "~/components/inventory/ports-editor";
 import {
@@ -78,12 +78,13 @@ export async function loader({ request, params }: Route.LoaderArgs) {
           },
         ]
       : [];
-  const [models, rooms, targets, attachments, history] = await Promise.all([
+  const [models, rooms, targets, attachments, history, kinds] = await Promise.all([
     listModels(),
     listRooms(),
     listSubstitutionTargets(params.id),
     listAttachments({ equipmentId: params.id }),
     listEntityHistory(ENTITY_TYPE.equipment, params.id, 20),
+    listDeviceKinds(false, e.kind.id),
   ]);
   // Decimal → string so the loader payload is JSON-serializable.
   const equipment = { ...e, frequencyMhz: e.frequencyMhz ? e.frequencyMhz.toString() : null };
@@ -94,6 +95,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const qr = await qrSvg(qrHref);
   return {
     equipment,
+    kinds,
     models,
     rooms,
     targets,
@@ -202,12 +204,12 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
     qrHref,
   } = loaderData;
   const t = useT();
-  const locale = useLocale();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
-  const title = eq.name ?? categoryLabel(locale, eq.category);
+  const title = eq.name ?? eq.model?.name ?? eq.kind.name;
 
   const defaults: EquipmentDefaults = {
+    kindId: eq.kind.id,
     category: eq.category,
     modelId: eq.modelId,
     roomId: eq.roomId,
@@ -262,7 +264,12 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
       ) : null}
 
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
-        <EquipmentFormFields models={models} rooms={rooms} defaults={defaults} />
+        <EquipmentFormFields
+          kinds={loaderData.kinds}
+          models={models}
+          rooms={rooms}
+          defaults={defaults}
+        />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.saving") : t("inventory.detail.submit")}

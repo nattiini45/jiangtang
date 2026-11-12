@@ -26,6 +26,7 @@ export function ModelsPanel({ models }: { models: ModelListRow[] }) {
         </Button>
       </div>
       <DataGrid
+        growColumn="name"
         columns={columns}
         data={models}
         getRowId={(m) => m.id}

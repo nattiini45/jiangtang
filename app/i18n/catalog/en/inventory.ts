@@ -1,6 +1,11 @@
 import type { inventoryDe } from "../de/inventory";
 
 export const inventoryEn = {
+  "inventory.kind": "Kind",
+  "inventory.functionGroup": "Function group",
+  "inventory.form.kindRequired": "Choose a kind.",
+  "inventory.list.filterKind": "Filter by kind",
+  "inventory.list.allKinds": "All kinds",
   "inventory.stockImport.description":
     "Columns are the stock item's field names. An empty cell means “not given”: for `quantity` that is 1, for every other field the field stays empty. " +
     "`status` takes the enum value or the label in German or English: {statuses}. " +

@@ -50,12 +50,13 @@ export async function updateModel(
     throw new ValidationError({ name: [tr("places.err.model.nameTaken")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
+    const current = await tx.equipmentModel.findUniqueOrThrow({ where: { id } });
     const model = await tx.equipmentModel.update({
       where: { id },
       data: {
         manufacturer: input.manufacturer ?? null,
         name: input.name,
-        ...(await resolveEquipmentKind(tx, input)),
+        ...(await resolveEquipmentKind(tx, input, current.kindId)),
         specNotes: input.specNotes ?? null,
         manualUrl: input.manualUrl ?? null,
       },
