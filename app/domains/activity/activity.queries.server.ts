@@ -163,7 +163,7 @@ async function queryActivity(
           PARTITION BY action ORDER BY "occurredAt", id
         ) > interval '10 seconds' THEN 1 ELSE 0 END AS boundary
       FROM "ActivityLog" WHERE "actorId" IS NULL
-        AND action IN ('LibraryPropertyReconciled', 'CatalogModelLinked', 'CatalogModelCorrected', 'CatalogDevicePortsFilled')
+        AND action IN ('LibraryPropertyReconciled', 'LibraryDevicePropertiesCopied', 'CatalogModelLinked', 'CatalogModelCorrected', 'CatalogDevicePortsFilled')
     ), steps AS (
       SELECT id, action, "occurredAt", sum(boundary) OVER (
         PARTITION BY action ORDER BY "occurredAt", id

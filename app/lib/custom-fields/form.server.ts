@@ -8,7 +8,7 @@ import { currentLocale, tr } from "~/i18n/request-locale.server";
 
 export function formDefinitions(definitions: (FieldDefinition | ResolvedField)[]): Field[] {
   return definitions
-    .filter((field) => !field.archivedAt && field.type !== "RANGE")
+    .filter((field) => !field.archivedAt)
     .map((field) => ({
       id: field.id,
       key: field.key,
@@ -18,6 +18,7 @@ export function formDefinitions(definitions: (FieldDefinition | ResolvedField)[]
       level: field.level,
       weight: "weight" in field ? field.weight : "useful",
       origin: "origin" in field ? field.origin : "own",
+      libraryKey: "libraryKey" in field ? field.libraryKey : null,
       section: field.section,
       helpText: field.helpText,
       position: field.position,
@@ -43,15 +44,18 @@ export function valuesFromForm(form: FormData, fields: Field[], stored: unknown 
     const field = fields.find((field) => field.id === id);
     const entries = form.getAll(name);
     const raw = entries.length === 1 ? entries[0] : entries;
-    if (field?.type === "NUMBER" && typeof raw === "string") {
+    if (field?.type === "NUMBER" || field?.type === "RANGE") {
       const german = currentLocale() === "de";
       const ambiguous = german ? /^[1-9]\d{0,2}\.\d{3}$/ : /^[1-9]\d{0,2},\d{3}$/;
-      if (ambiguous.test(raw.trim()))
+      const entry = entries.find(
+        (entry) => typeof entry === "string" && ambiguous.test(entry.trim()),
+      );
+      if (typeof entry === "string")
         throw new ValidationError({
           [name]: [
             tr("fields.error.ambiguousNumber", {
-              thousands: raw.trim().replace(/[.,]/, ""),
-              decimal: raw.trim().replace(/[.,]/, german ? "," : "."),
+              thousands: entry.trim().replace(/[.,]/, ""),
+              decimal: entry.trim().replace(/[.,]/, german ? "," : "."),
             }),
           ],
         });

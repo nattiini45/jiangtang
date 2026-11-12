@@ -72,7 +72,23 @@ export function FieldValue({ field, compact = false }: { field: FilledField; com
   const t = useT();
   const locale = useLocale();
   const value = field.value;
-  if (field.type === "RANGE") return null;
+  if (field.type === "RANGE" && typeof value === "object" && !Array.isArray(value)) {
+    const number = (n: number) =>
+      formatNumber(locale, n, {
+        minimumFractionDigits: field.unit === ": 1" ? 2 : 0,
+        maximumFractionDigits: 6,
+      });
+    return (
+      <>
+        {value.min == null
+          ? `≤ ${number(value.max!)}`
+          : value.max == null
+            ? `≥ ${number(value.min)}`
+            : `${number(value.min)}–${number(value.max)}`}
+        {field.unit ? ` ${field.unit}` : ""}
+      </>
+    );
+  }
   if (compact && field.type === "MULTI_CHOICE" && Array.isArray(value)) return value.join(", ");
   if (field.type === "MULTI_CHOICE" && Array.isArray(value))
     return (

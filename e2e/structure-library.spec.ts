@@ -10,6 +10,17 @@ const prefix = () => `${runPrefix()}lib-`;
 const renders = "test-results/structure-library";
 test.afterEach(async () => {
   await db.equipment.deleteMany({ where: { name: { startsWith: prefix() } } });
+  const owned = await db.equipmentKind.findMany({
+    where: { OR: [{ id: { in: installed } }, { name: { startsWith: prefix() } }] },
+    select: { id: true },
+  });
+  const links = await db.customFieldKind.findMany({
+    where: { kindId: { in: owned.map((kind) => kind.id) } },
+  });
+  await db.customFieldKind.deleteMany({ where: { kindId: { in: owned.map((kind) => kind.id) } } });
+  await db.customField.deleteMany({
+    where: { id: { in: links.map((link) => link.fieldId) }, kinds: { none: {} } },
+  });
   await db.equipmentKind.deleteMany({
     where: { OR: [{ id: { in: installed } }, { name: { startsWith: prefix() } }] },
   });

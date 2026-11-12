@@ -26,9 +26,7 @@ export function FieldInputs(props: {
   modelValues?: unknown;
 }) {
   const t = useT();
-  const applicable = props.fields.filter(
-    (field) => field.type !== "RANGE" && applies(field, props.kindId),
-  );
+  const applicable = props.fields.filter((field) => applies(field, props.kindId));
   const hidden = props.fields.filter(
     (field) =>
       !applies(field, props.kindId) && !sameValue(valueObject(props.stored)[field.id], null),
@@ -144,9 +142,7 @@ function FieldEditor({
                 );
               }
               const value = draft[field.id] ?? inputValue(field, before[field.id]);
-              const changed =
-                !sameValue(value, inputValue(field, before[field.id])) &&
-                !sameValue(postedValue(field, value), before[field.id]);
+              const changed = !sameValue(postedValue(field, value), before[field.id]);
               return (
                 <div
                   key={field.id}
@@ -166,10 +162,7 @@ function FieldEditor({
                     onChange={(value) =>
                       setDraft((draft) => {
                         const next = { ...draft };
-                        if (
-                          sameValue(value, inputValue(field, before[field.id])) ||
-                          sameValue(postedValue(field, value), before[field.id])
-                        )
+                        if (sameValue(postedValue(field, value), before[field.id]))
                           delete next[field.id];
                         else next[field.id] = value;
                         return next;
@@ -219,6 +212,48 @@ function FieldControl({
       {field.helpText}
     </p>
   ) : null;
+  if (field.type === "RANGE")
+    return (
+      <fieldset
+        className="flex min-w-0 flex-col gap-1.5"
+        aria-describedby={props["aria-describedby"]}
+        aria-invalid={!!error}
+      >
+        <legend className="mb-1.5 text-sm font-semibold [overflow-wrap:anywhere]">
+          {field.name}
+        </legend>
+        {help}
+        <div className="flex min-w-0 items-center gap-2">
+          {["min", "max"].map((side, index) => (
+            <Input
+              key={side}
+              id={`${name}.${side}`}
+              aria-label={t(index === 0 ? "fields.range.min" : "fields.range.max", {
+                name: field.name,
+              })}
+              aria-invalid={!!error}
+              aria-describedby={props["aria-describedby"]}
+              inputMode="decimal"
+              className="min-w-0 flex-1"
+              value={Array.isArray(value) ? value[index] : ""}
+              onChange={(event) => {
+                const next = Array.isArray(value) ? [...value] : ["", ""];
+                next[index] = event.currentTarget.value;
+                onChange(next);
+              }}
+            />
+          ))}
+          {field.unit ? (
+            <span className="text-muted-foreground shrink-0 text-sm">{field.unit}</span>
+          ) : null}
+        </div>
+        {error ? (
+          <p id={`${name}.error`} role="alert" className="text-destructive text-xs">
+            {error}
+          </p>
+        ) : null}
+      </fieldset>
+    );
   if (field.type === "MULTI_CHOICE")
     return (
       <fieldset

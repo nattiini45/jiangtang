@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useFetcher } from "react-router";
 import { X } from "lucide-react";
 import type { action } from "~/routes/_desktop.admin.structure/route";
-import { fieldType } from "~/lib/custom-fields/definitions.schema";
+import { createFieldSchema } from "~/lib/custom-fields/definitions.schema";
 import { useT } from "~/i18n/use-t";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -74,7 +74,7 @@ export function FieldPanel({
               ? ["CHOICE" as const]
               : []),
       ]
-    : fieldType.options;
+    : createFieldSchema.shape.type.options;
   const sections = [
     ...new Set(
       fields

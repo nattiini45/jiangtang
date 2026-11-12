@@ -6,6 +6,8 @@ import { emitChange } from "~/lib/realtime/emit.server";
 import { workspaceLocale } from "~/i18n/locale.server";
 import { propertyLibrary, type PropertyLibrary } from "~/lib/equipment-kinds/properties";
 import { fieldType } from "./definitions.schema";
+import { getFieldSchema } from "./schema.server";
+import { copyLegacyEquipmentPropertiesInTx } from "~/domains/inventory/inventory.custom-values.server";
 
 export async function reconcileLibraryInTx(
   tx: Tx,
@@ -14,7 +16,7 @@ export async function reconcileLibraryInTx(
 ) {
   await lockDefinitions(tx, true);
   const state = await tx.libraryState.findUnique({ where: { key: "library" } });
-  if (state && state.version > library.version) return [];
+  if (state && state.version > library.version) return { fields: [], devices: [] };
   const refresh = !state || state.version < library.version;
   const locale = workspaceLocale();
   const properties = new Map(
@@ -113,9 +115,10 @@ export async function reconcileLibraryInTx(
               name: property[locale],
               type: property.type,
               level: property.level,
-              unit: property.unit
-                ? library.units.find((unit) => unit.key === property.unit)?.[locale]
-                : null,
+              unit:
+                property.type === "NUMBER" && property.unit
+                  ? library.units.find((unit) => unit.key === property.unit)?.[locale]
+                  : null,
               position: fields.length,
               kinds: { create: { kindId: kind.id } },
             },
@@ -158,7 +161,9 @@ export async function reconcileLibraryInTx(
       create: { key: "library", version: library.version },
       update: { version: library.version, appliedAt: new Date() },
     });
-  return [...changed];
+  const definitions = await getFieldSchema("EQUIPMENT", {}, tx);
+  const copied = await copyLegacyEquipmentPropertiesInTx(tx, audit, definitions, library.version);
+  return { fields: [...changed], devices: copied };
 }
 
 export async function reconcileLibrary(library: PropertyLibrary = propertyLibrary) {
@@ -169,6 +174,9 @@ export async function reconcileLibrary(library: PropertyLibrary = propertyLibrar
       timeout: 30000,
     },
   );
-  if (changed.length) await emitChange({ entityType: "customField", id: "library", op: "updated" });
-  return changed;
+  if (changed.fields.length)
+    await emitChange({ entityType: "customField", id: "library", op: "updated" });
+  for (const id of changed.devices)
+    await emitChange({ entityType: "equipment", id, op: "updated" });
+  return changed.fields;
 }

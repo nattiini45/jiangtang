@@ -339,7 +339,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_equipment",
       description:
-        "Replace every built-in editable device field by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Other omitted optional built-in fields are cleared. customValues is the exception: omitted leaves values untouched; supplied keys merge, null clears a key. Lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
+        "Replace built-in editable device fields by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Omitted optional built-in fields are cleared, except legacy columns now backed by library properties, which are retained. customValues merges supplied keys; null clears a key and its legacy column. Ranges use {min, max}, with either bound nullable. Lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
       schema: z.object({
         id,
         input: equipmentEditSchema

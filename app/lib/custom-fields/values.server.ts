@@ -10,13 +10,15 @@ import { applies, lockDefinitions, type FieldDefinition } from "./definitions.se
 import type { CustomValuesInput } from "./values.schema";
 import { fieldString, fieldType } from "./definitions.schema";
 import { getFieldSchema, effectiveValues } from "./schema.server";
+import type { RangeValue } from "./fields";
+import { sameValue } from "./fields";
 
 type ValueDefinition = Pick<
   FieldDefinition,
   "id" | "key" | "type" | "archivedAt" | "kinds" | "name" | "options"
 > & { libraryKey?: string | null };
 
-type Value = string | number | boolean | string[];
+type Value = string | number | boolean | string[] | RangeValue;
 type ValueError = { field: string; code: string; allowed?: string[] };
 export class CustomValuesError extends ValidationError {
   constructor(
@@ -60,12 +62,25 @@ export function compileCustomValues(
         break;
       case "NUMBER":
         rule = z.number().refine((value) => {
+          if (
+            field.libraryKey === "frequency" &&
+            (Math.abs(value) >= 100000 || Number(value.toFixed(3)) !== value)
+          )
+            return false;
           const [coefficient, exponent = "0"] = String(value).toLowerCase().split("e");
           return (coefficient.split(".")[1]?.length ?? 0) - Number(exponent) <= 6;
         });
         break;
       case "BOOLEAN":
         rule = z.boolean();
+        break;
+      case "RANGE":
+        rule = z
+          .object({ min: z.number().nullable().optional(), max: z.number().nullable().optional() })
+          .strict()
+          .refine(({ min, max }) => min != null || max != null)
+          .refine(({ min, max }) => min == null || max == null || min <= max)
+          .transform(({ min, max }) => ({ min: min ?? null, max: max ?? null }));
         break;
       case "DATE":
         rule = z.iso.date();
@@ -204,8 +219,7 @@ export function customValueChanges(
     return typeof value === "string" ? Array.from(value).slice(0, 200).join("") : value;
   };
   const changes = [...Object.keys(patch.set), ...patch.removed].flatMap((fieldId) => {
-    if (JSON.stringify(before[fieldId] ?? null) === JSON.stringify(patch.set[fieldId] ?? null))
-      return [];
+    if (sameValue(before[fieldId], patch.set[fieldId])) return [];
     const field = definitions.find((field) => field.id === fieldId)!;
     return [
       {
@@ -229,6 +243,7 @@ export async function prepareCustomValues(
   values: CustomValuesInput,
   kindId?: string | null,
   modelId?: string | null,
+  deviceFallbackIds: readonly string[] = [],
 ) {
   await lockDefinitions(tx);
   const table = scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
@@ -257,6 +272,7 @@ export async function prepareCustomValues(
     const blocked = definitions.find(
       (field) =>
         field.level === "MODEL" &&
+        !deviceFallbackIds.includes(field.id) &&
         (Object.hasOwn(values, field.key) ||
           (field.libraryKey && Object.hasOwn(values, field.libraryKey))),
     );

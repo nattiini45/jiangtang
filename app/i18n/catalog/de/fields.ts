@@ -1,4 +1,6 @@
 export const fieldsDe = {
+  "fields.range.min": "{name}: Minimum",
+  "fields.range.max": "{name}: Maximum",
   "fields.library.protected":
     "Diese Eigenschaft stammt aus der Bibliothek. Definition und Gerätearten können nicht geändert oder gelöscht werden.",
   "fields.library.nameTaken":
@@ -42,6 +44,7 @@ export const fieldsDe = {
   "fields.type.MULTI_CHOICE": "Mehrfachauswahl",
   "fields.type.DATE": "Datum",
   "fields.type.LINK": "Link",
+  "fields.type.RANGE": "Bereich",
   "fields.admin.scope": "Felder für",
   "fields.admin.rooms": "Räume",
   "fields.admin.devices": "Geräte",

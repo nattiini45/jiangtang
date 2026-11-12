@@ -63,16 +63,23 @@ model value, falling back to the device value, with `customValueOrigins` marking
 `device`. A device linked to a model cannot write a MODEL property, even if that model has
 no value, including attempts to clear a legacy device value; the error points to
 `/inventory/models/<modelId>`. A device without a model may
-write that property itself. `RANGE` is reserved but is not accepted, offered or rendered yet.
+write that property itself. `RANGE` accepts `{ min, max }` in the property's unit, with either
+bound null or omitted and at least one bound filled; a filled minimum must not exceed the
+maximum. Null clears the complete value. Legacy device properties are mirrored to their former
+columns for rollback compatibility.
+The legacy `micKind` input is kept for compatibility: it writes the device's own fallback
+property and the old column even when a model is linked. Explicit model-level property writes
+on a linked device are still refused; reading still prefers the model's value.
 
 For example, define `{scope:"EQUIPMENT", key:"lamp_hours", name:"Lamp hours", type:"NUMBER", kindIds:["projector-kind-id"]}`,
 then call `set_custom_values({scope:"EQUIPMENT", id:"device-id", values:{lamp_hours:1234}})`.
 
 `create_room`, `create_equipment` and each row in both bulk-create tools accept `customValues`
-with that same field-key mapping. `update_room` and `update_equipment` still replace **every
-built-in editable field** (omitted optional built-ins are cleared), but omitted `customValues`
-is left untouched, and a supplied object merges by key. A kind change keeps now-inapplicable
-values in storage, hidden until the kind applies again.
+with that same field-key mapping. `update_room` and `update_equipment` replace built-in editable
+fields (omitted optional built-ins are cleared), except legacy device columns backed by a
+property applicable to the resulting kind: omission retains those values. Omitted
+`customValues` is left untouched, and a supplied object merges by key. A kind change keeps
+now-inapplicable property values in storage, hidden until the kind applies again.
 
 `get_room`, `get_equipment`, `list_rooms` and `list_equipment` return `customValues` keyed by
 field key with choices rendered as labels. Retired selections remain readable with a retired

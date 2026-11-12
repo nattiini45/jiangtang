@@ -20,6 +20,7 @@ export const fieldType = z.enum([
   "MULTI_CHOICE",
   "DATE",
   "LINK",
+  "RANGE",
 ]);
 const label = fieldString
   .trim()
@@ -41,7 +42,7 @@ export const createFieldSchema = properties
   .extend({
     scope: fieldScope,
     key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
-    type: fieldType,
+    type: fieldType.exclude(["RANGE"]),
   })
   .strict();
 export const updateFieldSchema = properties
@@ -53,7 +54,7 @@ export const updateFieldSchema = properties
     kindIds: z.array(z.string().min(1)).optional(),
     id: z.string().min(1),
     archived: z.boolean().optional(),
-    type: fieldType.optional(),
+    type: fieldType.exclude(["RANGE"]).optional(),
   })
   .strict();
 export const fieldOptionsSchema = z.object({

@@ -8,11 +8,14 @@ export type Field = Pick<
   level?: "MODEL" | "DEVICE";
   weight?: "must" | "useful" | "special";
   origin?: "library" | "own";
+  libraryKey?: string | null;
   options: { id: string; label: string; archived: boolean }[];
 };
 
+export type RangeValue = { min: number | null; max: number | null };
+
 export type FilledField = Pick<Field, "id" | "name" | "type" | "section" | "position" | "unit"> & {
-  value: string | number | boolean | string[];
+  value: string | number | boolean | string[] | RangeValue;
   from?: "model" | "device";
   origin?: "own" | "library";
   weight?: "must" | "useful" | "special";
@@ -49,12 +52,21 @@ export function fieldGroups<
 }
 
 export function inputValue(field: Field, value: unknown): string | string[] {
+  if (field.type === "RANGE") {
+    const range = valueObject(value);
+    return [range.min == null ? "" : String(range.min), range.max == null ? "" : String(range.max)];
+  }
   if (field.type === "MULTI_CHOICE")
     return Array.isArray(value) ? value.map(String) : value == null ? [] : [String(value)];
   return value == null ? "" : String(value);
 }
 
 export function postedValue(field: Pick<Field, "type">, raw: string | string[]): unknown {
+  if (field.type === "RANGE") {
+    if (!Array.isArray(raw) || raw.length !== 2) return raw;
+    const [min, max] = raw.map((value) => postedValue({ type: "NUMBER" }, value));
+    return min == null && max == null ? null : { min, max };
+  }
   if (field.type === "MULTI_CHOICE") {
     const values = (Array.isArray(raw) ? raw : [raw]).filter((value) => value !== "");
     return values.length ? values : null;
@@ -71,8 +83,22 @@ export function postedValue(field: Pick<Field, "type">, raw: string | string[]):
 }
 
 export function sameValue(a: unknown, b: unknown) {
-  if (typeof a === "number" && !Number.isFinite(a)) return false;
+  const finite = (value: unknown): boolean =>
+    typeof value === "number"
+      ? Number.isFinite(value)
+      : value && typeof value === "object"
+        ? Object.values(value).every(finite)
+        : true;
+  if (!finite(a) || !finite(b)) return false;
   const normalize = (v: unknown) =>
-    Array.isArray(v) ? (v.length ? [...v].sort() : null) : v === "" || v == null ? null : v;
+    Array.isArray(v)
+      ? v.length
+        ? [...v].sort()
+        : null
+      : v && typeof v === "object"
+        ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+        : v === "" || v == null
+          ? null
+          : v;
   return JSON.stringify(normalize(a)) === JSON.stringify(normalize(b));
 }

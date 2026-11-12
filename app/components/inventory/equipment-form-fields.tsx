@@ -11,7 +11,7 @@ import { mobilityLabel } from "./labels";
 import { EquipmentCategoryFields } from "./equipment-category-fields";
 import { useLocale, useT } from "~/i18n/use-t";
 import { FieldInputs } from "~/components/fields/field-inputs";
-import type { Field } from "~/lib/custom-fields/fields";
+import { applies, type Field } from "~/lib/custom-fields/fields";
 
 export interface EquipmentDefaults {
   category?: string;
@@ -233,7 +233,13 @@ export function EquipmentFormFields({
         </Select>
       </FormField>
 
-      <EquipmentCategoryFields category={category} defaults={defaults} />
+      <EquipmentCategoryFields
+        category={category}
+        defaults={defaults}
+        properties={fields
+          .filter((field) => applies(field, kindId))
+          .map((field) => field.libraryKey ?? "")}
+      />
 
       <fieldset className="grid gap-4 sm:grid-cols-3">
         <legend className="mb-2 text-base font-semibold">{t("ports.network")}</legend>

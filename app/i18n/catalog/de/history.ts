@@ -1,4 +1,6 @@
 export const historyDe = {
+  "history.action.LibraryDevicePropertiesCopied":
+    "Geräteeigenschaften aus bisherigen Feldern übernommen",
   "history.action.LibraryPropertyReconciled": "Eigenschaften aus der Bibliothek ergänzt",
   "history.action.CatalogModelLinked": "Modelle mit dem Katalog verknüpft",
   "history.action.CatalogModelCorrected": "Modelldaten aus dem Katalog aktualisiert",
