@@ -9,6 +9,7 @@ import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Switch } from "~/components/ui/switch";
 import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { FieldsTab, type StructureFields } from "./fields-tab";
 
 type Groups = Awaited<ReturnType<typeof loader>>["groups"];
 type Entry = Pick<Groups[number], "id" | "name" | "archivedAt" | "updatedAt"> & {
@@ -25,7 +26,7 @@ function Errors({
 }) {
   if (!result || result.changed) return null;
   return (
-    <div role="alert" className="text-destructive text-sm">
+    <div role="alert" className="text-destructive wrap-anywhere text-sm">
       {[...Object.values(result.fieldErrors).flat(), ...result.formErrors].join(" ")}
     </div>
   );
@@ -47,12 +48,14 @@ function StructureRow({
   groups,
   index,
   count,
+  fields,
 }: {
   entry: Entry;
   entity: "kind" | "group";
   groups: Groups;
   index: number;
   count: number;
+  fields: StructureFields;
 }) {
   const t = useT();
   const fetcher = useFetcher<typeof action>();
@@ -251,6 +254,21 @@ function StructureRow({
               {t("admin.structure.archiveTitle", { name: entry.name })}
             </h2>
             <p className="text-muted-foreground text-sm">{t("admin.structure.moveHelp")}</p>
+            {fields.some((field) => field.kinds.some((link) => link.kindId === entry.id)) ? (
+              <div className="text-sm">
+                <p>{t("admin.structure.fieldsMove")}</p>
+                <ul className="mt-2 list-disc pl-5">
+                  {fields
+                    .filter((field) => field.kinds.some((link) => link.kindId === entry.id))
+                    .map((field) => (
+                      <li key={field.id}>
+                        {field.name}
+                        {field.archivedAt ? ` (${t("admin.structure.archived")})` : ""}
+                      </li>
+                    ))}
+                </ul>
+              </div>
+            ) : null}
             <input type="hidden" name="entity" value={entity} />
             <input type="hidden" name="id" value={entry.id} />
             <input type="hidden" name="intent" value="archive" />
@@ -301,14 +319,17 @@ function StructureRow({
 
 export function StructurePage({
   groups,
+  fields,
   libraryAction,
 }: {
   groups: Groups;
+  fields: StructureFields;
   libraryAction?: React.ReactNode;
 }) {
   const t = useT();
   const [params] = useSearchParams();
-  const entity = params.get("tab") === "groups" ? "group" : "kind";
+  const entity =
+    params.get("tab") === "fields" ? "field" : params.get("tab") === "groups" ? "group" : "kind";
   const [showArchived, setShowArchived] = useState(false);
   const [adding, setAdding] = useState(false);
   const fetcher = useFetcher<typeof action>();
@@ -329,6 +350,7 @@ export function StructurePage({
           [
             ["kind", "kinds"],
             ["group", "groups"],
+            ["field", "fields"],
           ] as const
         ).map(([value, label]) => (
           <Link
@@ -353,18 +375,20 @@ export function StructurePage({
             {t("admin.structure.showArchived")}
           </label>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {entity === "kind" ? libraryAction : null}
-          <Button
-            type="button"
-            onClick={() => {
-              fetcher.reset();
-              setAdding(true);
-            }}
-          >
-            {t(entity === "kind" ? "admin.structure.addKind" : "admin.structure.addGroup")}
-          </Button>
-        </div>
+        {entity !== "field" ? (
+          <div className="flex flex-wrap gap-2">
+            {entity === "kind" ? libraryAction : null}
+            <Button
+              type="button"
+              onClick={() => {
+                fetcher.reset();
+                setAdding(true);
+              }}
+            >
+              {t(entity === "kind" ? "admin.structure.addKind" : "admin.structure.addGroup")}
+            </Button>
+          </div>
+        ) : null}
       </div>
       {adding ? (
         <fetcher.Form
@@ -401,7 +425,9 @@ export function StructurePage({
           </div>
         </fetcher.Form>
       ) : null}
-      {entity === "kind" ? (
+      {entity === "field" ? (
+        <FieldsTab fields={fields} groups={groups} showArchived={showArchived} />
+      ) : entity === "kind" ? (
         visibleGroups.map((group) => {
           const kinds = group.kinds
             .filter((kind) => showArchived || !kind.archivedAt)
@@ -421,6 +447,7 @@ export function StructurePage({
                       entry={kind}
                       entity="kind"
                       groups={groups}
+                      fields={fields}
                       index={index}
                       count={kinds.filter((kind) => !kind.archivedAt).length}
                     />
@@ -443,6 +470,7 @@ export function StructurePage({
                 entry={group}
                 entity="group"
                 groups={groups}
+                fields={fields}
                 index={index}
                 count={visibleGroups.filter((group) => !group.archivedAt).length}
               />

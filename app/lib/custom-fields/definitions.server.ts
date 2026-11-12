@@ -1,5 +1,5 @@
 import { db, type Tx } from "~/lib/db.server";
-import { txWithAudit, type AuditActor } from "~/lib/audit.server";
+import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { FieldNameConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -9,6 +9,7 @@ import type { z } from "zod";
 import { convertRoomCustomValuesInTx } from "~/domains/rooms/rooms.custom-values.server";
 import { convertEquipmentCustomValuesInTx } from "~/domains/inventory/inventory.custom-values.server";
 import { applies } from "./fields";
+import { deriveFieldKey } from "./admin";
 export { applies } from "./fields";
 
 export const definitionInclude = {
@@ -65,12 +66,18 @@ async function checkLimits(tx: Tx, scope: CustomFieldScope) {
   }
 }
 
-async function checkKinds(tx: Tx, scope: CustomFieldScope, kindIds: string[]) {
+async function checkKinds(
+  tx: Tx,
+  scope: CustomFieldScope,
+  kindIds: string[],
+  retained: string[] = [],
+) {
   if (scope === "ROOM" && kindIds.length) fieldError("kindIds", tr("fields.error.roomKinds"));
   if (
     new Set(kindIds).size !== kindIds.length ||
-    (await tx.equipmentKind.count({ where: { id: { in: kindIds }, archivedAt: null } })) !==
-      kindIds.length
+    (await tx.equipmentKind.count({
+      where: { id: { in: kindIds }, OR: [{ archivedAt: null }, { id: { in: retained } }] },
+    })) !== kindIds.length
   ) {
     fieldError("kindIds", tr("fields.error.kind"));
   }
@@ -124,14 +131,92 @@ async function publish<T extends { id: string }>(result: T, op: "created" | "upd
   return result;
 }
 
+export async function moveKindFieldsInTx(
+  tx: Tx,
+  audit: AuditFn,
+  current: { id: string; name: string },
+  target: { id: string; name: string },
+) {
+  const id = current.id;
+  const movedFields: string[] = [];
+  const fields = await getDefinitions("EQUIPMENT", tx);
+  const moving = fields.filter((field) => field.kinds.some((link) => link.kindId === id));
+  const active = fields.filter(
+    (field) => !field.archivedAt && (applies(field, target.id) || moving.includes(field)),
+  );
+  if (active.length > 40)
+    throw new ValidationError({
+      moveDevicesTo: [
+        tr("admin.structure.fieldMoveLimit", {
+          names: active.map((field) => field.name).join(", "),
+          target: target.name,
+        }),
+      ],
+    });
+  for (const field of moving) {
+    if (field.kinds.some((link) => link.kindId === target.id)) continue;
+    const kindIds = [...field.kinds.map((link) => link.kindId), target.id];
+    try {
+      await checkFieldName(tx, "EQUIPMENT", field.name, kindIds, field.id);
+    } catch (error) {
+      if (error instanceof FieldNameConflictError)
+        throw new ValidationError({
+          moveDevicesTo: [
+            tr("admin.structure.fieldMoveName", {
+              name: field.name,
+              source: current.name,
+              target: target.name,
+            }),
+          ],
+        });
+      throw error;
+    }
+    await tx.customFieldKind.create({ data: { fieldId: field.id, kindId: target.id } });
+    await tx.customField.update({ where: { id: field.id }, data: { updatedAt: new Date() } });
+    movedFields.push(field.id);
+    await audit({
+      action: "CustomFieldUpdated",
+      entityType: "customField",
+      entityId: field.id,
+      data: {
+        name: field.name,
+        before: field.kinds.map((link) => link.kindId),
+        after: kindIds,
+      },
+    });
+  }
+  return movedFields;
+}
+
 export async function createCustomField(
   actor: AuditActor,
   input: z.input<typeof createFieldSchema>,
 ) {
-  const data = createFieldSchema.parse(input);
+  return createField(actor, createFieldSchema.parse(input));
+}
+
+export async function createNamedCustomField(
+  actor: AuditActor,
+  input: Omit<z.input<typeof createFieldSchema>, "key">,
+) {
+  return createField(actor, createFieldSchema.parse({ ...input, key: "field" }), true);
+}
+
+async function createField(
+  actor: AuditActor,
+  data: z.output<typeof createFieldSchema>,
+  deriveKey = false,
+) {
   const result = await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
     const { kindIds, ...columns } = data;
+    if (deriveKey)
+      columns.key = deriveFieldKey(
+        columns.name,
+        (
+          await tx.customField.findMany({ where: { scope: data.scope }, select: { key: true } })
+        ).map((field) => field.key),
+      );
     await checkKinds(tx, data.scope, kindIds);
     await checkFieldName(tx, data.scope, data.name, kindIds);
     if (data.unit != null && data.type !== "NUMBER") fieldError("unit", tr("fields.error.unit"));
@@ -160,7 +245,13 @@ export async function updateCustomField(
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUnique({ where: { id }, include: definitionInclude });
     if (!before) throw new NotFoundError();
-    if (kindIds) await checkKinds(tx, before.scope, kindIds);
+    if (kindIds)
+      await checkKinds(
+        tx,
+        before.scope,
+        kindIds,
+        before.kinds.map((link) => link.kindId),
+      );
     if (columns.name !== undefined || kindIds !== undefined)
       await checkFieldName(
         tx,
@@ -232,6 +323,7 @@ export async function updateCustomField(
 export async function updateFieldOptions(
   actor: AuditActor,
   input: z.input<typeof fieldOptionsSchema>,
+  append = false,
 ) {
   const { fieldId, changes } = fieldOptionsSchema.parse(input);
   const result = await txWithAudit(actor, async (tx, audit) => {
@@ -240,10 +332,19 @@ export async function updateFieldOptions(
     if (!field) throw new NotFoundError();
     if (field.type !== "CHOICE" && field.type !== "MULTI_CHOICE")
       fieldError("fieldId", tr("fields.error.choice"));
+    const max = await tx.customFieldOption.aggregate({
+      where: { fieldId },
+      _max: { position: true },
+    });
+    let nextPosition = (max._max.position ?? -1) + 1;
     for (const change of changes) {
       if (change.op === "add") {
         await tx.customFieldOption.create({
-          data: { fieldId, label: change.label, position: change.position },
+          data: {
+            fieldId,
+            label: change.label,
+            position: append ? nextPosition++ : change.position,
+          },
         });
       } else {
         const option = await tx.customFieldOption.findFirst({ where: { id: change.id, fieldId } });
@@ -285,10 +386,23 @@ export async function updateFieldOptions(
   return publish(result, "updated");
 }
 
-export async function deleteCustomField(actor: AuditActor, id: string) {
+export async function deleteCustomField(actor: AuditActor, id: string, archivedOnly = false) {
   const result = await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
-    if (await valuesExist(tx, id)) fieldError("id", tr("fields.error.inUse"));
+    const before = await tx.customField.findUniqueOrThrow({ where: { id } });
+    if (archivedOnly && !before.archivedAt) fieldError("id", tr("fields.admin.archiveFirst"));
+    const counts = await tx.$queryRaw<Array<{ count: bigint }>>`
+      SELECT count(*) FROM (
+        SELECT id FROM "Room" WHERE "customValues" ? ${id}
+        UNION ALL SELECT id FROM "Equipment" WHERE "customValues" ? ${id}
+      ) records`;
+    if (counts[0].count)
+      fieldError(
+        "id",
+        tr(counts[0].count === 1n ? "fields.error.inUseOne" : "fields.error.inUse", {
+          count: Number(counts[0].count),
+        }),
+      );
     const field = await tx.customField.delete({ where: { id }, include: definitionInclude });
     await audit({
       action: "CustomFieldDeleted",

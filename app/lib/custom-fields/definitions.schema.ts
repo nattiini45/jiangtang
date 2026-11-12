@@ -21,7 +21,10 @@ export const fieldType = z.enum([
   "DATE",
   "LINK",
 ]);
-const label = fieldString.trim().min(1).max(80);
+const label = fieldString
+  .trim()
+  .min(1, msgKey("fields.admin.labelInvalid"))
+  .max(80, msgKey("fields.admin.labelInvalid"));
 const position = z.int32();
 const properties = z.object({
   name: label,
@@ -45,7 +48,7 @@ export const updateFieldSchema = properties
     position: position.optional(),
     showInList: z.boolean().optional(),
     searchable: z.boolean().optional(),
-    kindIds: z.array(z.string().min(1)).max(80).optional(),
+    kindIds: z.array(z.string().min(1)).optional(),
     id: z.string().min(1),
     archived: z.boolean().optional(),
     type: fieldType.optional(),

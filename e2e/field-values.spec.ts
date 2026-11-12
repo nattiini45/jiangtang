@@ -309,7 +309,13 @@ test("new room and device forms save properties alongside built-in fields", asyn
   await expect(page.locator("[data-field-values]").first()).toContainText(
     "Zugang über den Seiteneingang",
   );
-  await expect(page.locator("[data-field-values]").last()).toContainText("7,25 h");
+  const device = await db.equipment.findFirstOrThrow({ where: { roomId: room.id } });
+  const mobileToggle = page.locator(`button[aria-controls='values-${device.id}']`);
+  await expect(mobileToggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(`#values-${device.id}`)).not.toBeVisible();
+  await mobileToggle.click();
+  await expect(mobileToggle).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(`#values-${device.id}`)).toContainText("7,25 h");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
