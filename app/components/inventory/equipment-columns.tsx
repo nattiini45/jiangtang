@@ -11,6 +11,7 @@ export function equipmentColumns(t: Translate, locale: Locale): ColumnDef<Equipm
   return [
     {
       accessorKey: "name",
+      meta: { searchText: (row) => row.name ?? categoryLabel(locale, row.category) },
       header: t("inventory.col.device"),
       size: 220,
       cell: ({ row }) => (
@@ -21,6 +22,7 @@ export function equipmentColumns(t: Translate, locale: Locale): ColumnDef<Equipm
     },
     {
       accessorKey: "category",
+      meta: { searchText: (row) => categoryLabel(locale, row.category) },
       header: t("inventory.col.category"),
       cell: ({ row }) => (
         <span className="text-sm">{categoryLabel(locale, row.original.category)}</span>
@@ -35,6 +37,7 @@ export function equipmentColumns(t: Translate, locale: Locale): ColumnDef<Equipm
     },
     {
       accessorKey: "roomName",
+      meta: { searchText: (row) => row.roomName || t("inventory.col.pool") },
       header: t("inventory.col.room"),
       cell: ({ row }) =>
         row.original.roomName ? (
@@ -52,6 +55,7 @@ export function equipmentColumns(t: Translate, locale: Locale): ColumnDef<Equipm
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => t(`status.equipment.${row.status}`) },
       header: t("inventory.col.status"),
       size: 150,
       cell: ({ row }) => <StatusCell kind="equipment" value={row.original.status} />,

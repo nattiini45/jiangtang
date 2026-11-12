@@ -31,6 +31,7 @@ export function eventColumns(t: Translate): ColumnDef<EventListRow>[] {
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => t(`status.event.${row.status}`) },
       header: t("events.col.status"),
       size: 140,
       cell: ({ row }) => <StatusCell kind="event" value={row.original.status} />,

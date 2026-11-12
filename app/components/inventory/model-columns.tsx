@@ -24,6 +24,7 @@ export function modelColumns(t: Translate, locale: Locale): ColumnDef<ModelListR
     },
     {
       accessorKey: "category",
+      meta: { searchText: (row) => categoryLabel(locale, row.category) },
       header: t("inventory.col.category"),
       cell: ({ row }) => (
         <span className="text-sm">{categoryLabel(locale, row.original.category)}</span>

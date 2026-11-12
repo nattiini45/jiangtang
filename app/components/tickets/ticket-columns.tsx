@@ -11,6 +11,7 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
   return [
     {
       accessorKey: "type",
+      meta: { searchText: (row) => ticketTypeLabel(locale, row.type) },
       header: t("tickets.col.type"),
       size: 110,
       cell: ({ row }) => (
@@ -44,12 +45,16 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => t(`status.ticket.${row.status}`) },
       header: t("tickets.col.status"),
       size: 130,
       cell: ({ row }) => <StatusCell kind="ticket" value={row.original.status} />,
     },
     {
       accessorKey: "priority",
+      meta: {
+        searchText: (row) => (row.priority != null ? priorityLabel(locale, row.priority) : null),
+      },
       header: t("tickets.col.priority"),
       size: 90,
       cell: ({ row }) =>

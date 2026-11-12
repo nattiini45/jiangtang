@@ -1,6 +1,5 @@
 import * as React from "react";
 import {
-  type ColumnDef,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -13,8 +12,9 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 import { cn } from "~/lib/utils";
 import type { Density } from "~/lib/theme.server";
 import { currentDensity, PREF_CHANGED_EVENT } from "~/lib/prefs";
-import { useT } from "~/i18n/use-t";
+import { useLocale, useT } from "~/i18n/use-t";
 import { Input } from "~/components/ui/input";
+import { canFilterColumn, filterGridText, searchableColumns, type ColumnDef } from "./filtering";
 
 /**
  * Shared virtualized data grid (TanStack Table v8 + Virtual). Tracks pass
@@ -53,8 +53,14 @@ export function DataGrid<TData>({
   getRowId,
 }: DataGridProps<TData>) {
   const t = useT();
+  const locale = useLocale();
+  const filterColumns = React.useMemo(() => searchableColumns(columns, locale), [columns, locale]);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
+  const filterValue = React.useMemo(
+    () => (globalFilter ? { text: globalFilter, locale } : undefined),
+    [globalFilter, locale],
+  );
 
   // Density: the prop still wins, but omitted it follows the user's
   // toggle — `document.documentElement.dataset.density` + PREF_CHANGED_EVENT,
@@ -70,14 +76,15 @@ export function DataGrid<TData>({
 
   const table = useReactTable({
     data,
-    columns,
-    state: { sorting, globalFilter },
+    columns: filterColumns,
+    state: { sorting, globalFilter: filterValue },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     getRowId,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getColumnCanGlobalFilter: canFilterColumn,
+    globalFilterFn: filterGridText,
     defaultColumn: { size: 160, minSize: 60 },
   });
 
