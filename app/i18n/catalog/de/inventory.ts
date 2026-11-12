@@ -14,7 +14,7 @@ export const inventoryDe = {
   "inventory.meta.fallbackName": "Gerät",
   "inventory.meta.new": "Neues Gerät · Jiangtang",
   "inventory.meta.import": "Geräte importieren · Jiangtang",
-  "inventory.meta.models": "Modellkatalog · Jiangtang",
+  "inventory.meta.models": "Modelle · Jiangtang",
   "inventory.meta.modelFallback": "Modell",
   "inventory.meta.modelNew": "Neues Modell · Jiangtang",
   "inventory.meta.stock": "Lager · Jiangtang",
@@ -31,7 +31,7 @@ export const inventoryDe = {
 
   "inventory.list.title": "Inventar",
   "inventory.list.subtitle": "Geräteinstanzen · fest verbaut & Pool.",
-  "inventory.list.models": "Modellkatalog",
+  "inventory.list.models": "Modelle",
   "inventory.list.new": "Neues Gerät",
   "inventory.tab.equipment": "Technik",
   "inventory.tab.models": "Modelle",
@@ -115,7 +115,7 @@ export const inventoryDe = {
   "inventory.import.sample":
     "Projektor,Epson EB-1485Fi,hoersaal-32,fest,Betriebsbereit,Beamer Decke,INV-100,SN-abc,,,,,,",
 
-  "inventory.models.title": "Modellkatalog",
+  "inventory.models.title": "Modelle",
   "inventory.models.subtitle": "Gerätemodelle einmal definieren, überall wiederverwenden.",
   "inventory.models.new": "Neues Modell",
   "inventory.models.empty": "Noch keine Modelle. Lege das erste an.",

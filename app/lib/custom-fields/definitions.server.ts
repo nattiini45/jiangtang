@@ -8,8 +8,11 @@ import { createFieldSchema, updateFieldSchema, fieldOptionsSchema } from "./defi
 import type { z } from "zod";
 import { convertRoomCustomValuesInTx } from "~/domains/rooms/rooms.custom-values.server";
 import { convertEquipmentCustomValuesInTx } from "~/domains/inventory/inventory.custom-values.server";
+import { convertModelCustomValuesInTx } from "~/domains/catalog/catalog.values.server";
 import { applies } from "./fields";
 import { deriveFieldKey } from "./admin";
+import { getFieldSchema } from "./schema.server";
+import { propertiesForKind, isLibraryProperty } from "~/lib/equipment-kinds/properties";
 export { applies } from "./fields";
 
 export const definitionInclude = {
@@ -27,7 +30,7 @@ export function getDefinitions(scope: CustomFieldScope, tx: Tx = db) {
 }
 
 export async function getRecordSchema(scope: CustomFieldScope, kindId?: string) {
-  return (await getDefinitions(scope)).filter(
+  return (await getFieldSchema(scope)).filter(
     (field) => !field.archivedAt && applies(field, kindId),
   );
 }
@@ -47,13 +50,13 @@ async function valuesExist(tx: Tx, fieldId: string, optionId?: string) {
       ? Prisma.sql`"customValues" ? ${fieldId}`
       : Prisma.sql`("customValues" -> ${fieldId}) @> ${JSON.stringify(optionId)}::jsonb`;
   const rows = await tx.$queryRaw<Array<{ present: boolean }>>(
-    Prisma.sql`SELECT EXISTS(SELECT 1 FROM "Room" WHERE ${match} UNION ALL SELECT 1 FROM "Equipment" WHERE ${match}) AS present`,
+    Prisma.sql`SELECT EXISTS(SELECT 1 FROM "Room" WHERE ${match} UNION ALL SELECT 1 FROM "Equipment" WHERE ${match} UNION ALL SELECT 1 FROM "EquipmentModel" WHERE ${match}) AS present`,
   );
   return rows[0].present;
 }
 
 async function checkLimits(tx: Tx, scope: CustomFieldScope) {
-  const fields = await getDefinitions(scope, tx);
+  const fields = (await getDefinitions(scope, tx)).filter((field) => !isLibraryProperty(field));
   if (fields.length > 120) fieldError("scope", tr("fields.limit.total"));
   const active = fields.filter((field) => !field.archivedAt);
   const kinds = new Set(active.flatMap((field) => field.kinds.map((link) => link.kindId)));
@@ -90,6 +93,19 @@ async function checkFieldName(
   kindIds: string[],
   excludeId?: string,
 ) {
+  if (scope === "EQUIPMENT") {
+    const kinds = await tx.equipmentKind.findMany({
+      where: kindIds.length ? { id: { in: kindIds } } : {},
+    });
+    if (
+      kinds.some((kind) =>
+        propertiesForKind(kind.systemKey).some((property) =>
+          [property.de, property.en].some((label) => label.toLowerCase() === name.toLowerCase()),
+        ),
+      )
+    )
+      fieldError("name", tr("fields.library.nameTaken"));
+  }
   const matches = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM "CustomField"
     WHERE scope = ${scope}::"CustomFieldScope" AND lower(name) = lower(${name})
@@ -140,9 +156,14 @@ export async function moveKindFieldsInTx(
   const id = current.id;
   const movedFields: string[] = [];
   const fields = await getDefinitions("EQUIPMENT", tx);
-  const moving = fields.filter((field) => field.kinds.some((link) => link.kindId === id));
+  const moving = fields.filter(
+    (field) => !isLibraryProperty(field) && field.kinds.some((link) => link.kindId === id),
+  );
   const active = fields.filter(
-    (field) => !field.archivedAt && (applies(field, target.id) || moving.includes(field)),
+    (field) =>
+      !isLibraryProperty(field) &&
+      !field.archivedAt &&
+      (applies(field, target.id) || moving.includes(field)),
   );
   if (active.length > 40)
     throw new ValidationError({
@@ -190,7 +211,7 @@ export async function moveKindFieldsInTx(
 
 export async function createCustomField(
   actor: AuditActor,
-  input: z.input<typeof createFieldSchema>,
+  input: Omit<z.input<typeof createFieldSchema>, "type"> & { type: FieldDefinition["type"] },
 ) {
   return createField(actor, createFieldSchema.parse(input));
 }
@@ -245,6 +266,14 @@ export async function updateCustomField(
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUnique({ where: { id }, include: definitionInclude });
     if (!before) throw new NotFoundError();
+    if (
+      isLibraryProperty(before) &&
+      (kindIds !== undefined ||
+        Object.keys(columns).some(
+          (key) => !["showInList", "listPosition", "searchable"].includes(key),
+        ))
+    )
+      fieldError("id", tr("fields.library.protected"));
     if (kindIds)
       await checkKinds(
         tx,
@@ -266,7 +295,12 @@ export async function updateCustomField(
       if (!["TEXT:LONG_TEXT", "CHOICE:MULTI_CHOICE", "MULTI_CHOICE:CHOICE"].includes(pair))
         fieldError("type", tr("fields.error.type"));
       if (before.type === "MULTI_CHOICE") {
-        const table = before.scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
+        const table =
+          before.scope === "ROOM"
+            ? Prisma.sql`"Room"`
+            : before.level === "MODEL"
+              ? Prisma.sql`"EquipmentModel"`
+              : Prisma.sql`"Equipment"`;
         const counts = await tx.$queryRaw<Array<{ count: bigint }>>(
           Prisma.sql`SELECT count(*) FROM ${table} WHERE CASE WHEN jsonb_typeof("customValues" -> ${id}) = 'array' THEN jsonb_array_length("customValues" -> ${id}) ELSE 0 END > 1`,
         );
@@ -274,7 +308,12 @@ export async function updateCustomField(
           fieldError("type", tr("fields.error.multiple", { count: Number(counts[0].count) }));
       }
       if (before.type === "CHOICE") {
-        const table = before.scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
+        const table =
+          before.scope === "ROOM"
+            ? Prisma.sql`"Room"`
+            : before.level === "MODEL"
+              ? Prisma.sql`"EquipmentModel"`
+              : Prisma.sql`"Equipment"`;
         const rows = await tx.$queryRaw<Array<{ present: boolean }>>(
           Prisma.sql`SELECT EXISTS(SELECT 1 FROM ${table} WHERE "customValues" ? ${id} AND pg_column_size(jsonb_set("customValues", ARRAY[${id}], jsonb_build_array("customValues" -> ${id}))) > 32768) AS present`,
         );
@@ -282,7 +321,11 @@ export async function updateCustomField(
       }
       if (before.type === "CHOICE" || before.type === "MULTI_CHOICE")
         convertedRecords = await (
-          before.scope === "ROOM" ? convertRoomCustomValuesInTx : convertEquipmentCustomValuesInTx
+          before.scope === "ROOM"
+            ? convertRoomCustomValuesInTx
+            : before.level === "MODEL"
+              ? convertModelCustomValuesInTx
+              : convertEquipmentCustomValuesInTx
         )(tx, id, columns.type === "MULTI_CHOICE");
     }
     if (columns.unit != null && (columns.type ?? before.type) !== "NUMBER")
@@ -330,6 +373,7 @@ export async function updateFieldOptions(
     await lockDefinitions(tx, true);
     const field = await tx.customField.findUnique({ where: { id: fieldId } });
     if (!field) throw new NotFoundError();
+    if (isLibraryProperty(field)) fieldError("fieldId", tr("fields.library.protected"));
     if (field.type !== "CHOICE" && field.type !== "MULTI_CHOICE")
       fieldError("fieldId", tr("fields.error.choice"));
     const max = await tx.customFieldOption.aggregate({
@@ -390,11 +434,13 @@ export async function deleteCustomField(actor: AuditActor, id: string, archivedO
   const result = await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUniqueOrThrow({ where: { id } });
+    if (isLibraryProperty(before)) fieldError("id", tr("fields.library.protected"));
     if (archivedOnly && !before.archivedAt) fieldError("id", tr("fields.admin.archiveFirst"));
     const counts = await tx.$queryRaw<Array<{ count: bigint }>>`
       SELECT count(*) FROM (
         SELECT id FROM "Room" WHERE "customValues" ? ${id}
         UNION ALL SELECT id FROM "Equipment" WHERE "customValues" ? ${id}
+        UNION ALL SELECT id FROM "EquipmentModel" WHERE "customValues" ? ${id}
       ) records`;
     if (counts[0].count)
       fieldError(

@@ -6,14 +6,15 @@ import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 import { ValidationError, NotFoundError } from "~/lib/errors.server";
 import { optionalHttpUrl } from "~/lib/validation.server";
 import { tr } from "~/i18n/request-locale.server";
-import {
-  applies,
-  getDefinitions,
-  lockDefinitions,
-  type FieldDefinition,
-} from "./definitions.server";
+import { applies, lockDefinitions, type FieldDefinition } from "./definitions.server";
 import type { CustomValuesInput } from "./values.schema";
-import { fieldString } from "./definitions.schema";
+import { fieldString, fieldType } from "./definitions.schema";
+import { getFieldSchema, effectiveValues } from "./schema.server";
+
+type ValueDefinition = Pick<
+  FieldDefinition,
+  "id" | "key" | "type" | "archivedAt" | "kinds" | "name" | "options"
+> & { libraryKey?: string | null };
 
 type Value = string | number | boolean | string[];
 type ValueError = { field: string; code: string; allowed?: string[] };
@@ -29,7 +30,7 @@ export class CustomValuesError extends ValidationError {
 let compiled:
   { signature: string; schema: z.ZodType<Record<string, Value | null | undefined>> } | undefined;
 export function compileCustomValues(
-  definitions: FieldDefinition[],
+  definitions: ValueDefinition[],
   kindId?: string | null,
   by: "key" | "id" = "key",
 ) {
@@ -41,6 +42,7 @@ export function compileCustomValues(
     const choice = fieldString.transform((value, ctx) => {
       const option =
         field.options.find((option) => !option.archivedAt && option.id === value) ??
+        field.options.find((option) => !option.archivedAt && option.systemKey === value) ??
         field.options.find(
           (option) => !option.archivedAt && option.label.toLowerCase() === value.toLowerCase(),
         );
@@ -79,6 +81,8 @@ export function compileCustomValues(
       case "MULTI_CHOICE":
         rule = z.array(choice).refine((values) => new Set(values).size === values.length);
         break;
+      default:
+        continue;
     }
     shape[field[by]] = rule.nullable().optional();
   }
@@ -88,14 +92,21 @@ export function compileCustomValues(
 }
 
 export function validateCustomValues(
-  definitions: FieldDefinition[],
+  definitions: ValueDefinition[],
   values: CustomValuesInput,
   kindId?: string | null,
   by: "key" | "id" = "key",
 ) {
   const errors: ValueError[] = [];
   const messages: Record<string, string[]> = Object.create(null);
-  const known = new Map(definitions.map((field) => [field[by], field]));
+  const known = new Map(
+    definitions
+      .filter((field) => fieldType.safeParse(field.type).success)
+      .flatMap((field) => [
+        [field[by], field] as const,
+        ...(by === "key" && field.libraryKey ? [[field.libraryKey, field] as const] : []),
+      ]),
+  );
   const candidates: Record<string, unknown> = Object.create(null);
   for (const [key, value] of Object.entries(values)) {
     const field = known.get(key);
@@ -117,7 +128,7 @@ export function validateCustomValues(
               : "fields.error.applicable",
         ),
       ];
-    } else candidates[key] = value;
+    } else candidates[field![by]] = value;
   }
   const parsed = compileCustomValues(definitions, kindId, by).safeParse(candidates);
   if (!parsed.success)
@@ -163,8 +174,8 @@ export function validateCustomValues(
   return { set, removed };
 }
 
-function rendered(
-  field: FieldDefinition,
+export function rendered(
+  field: ValueDefinition,
   value: Prisma.JsonValue | undefined,
   markRetired = false,
 ): Prisma.JsonValue {
@@ -183,42 +194,11 @@ function rendered(
   return value;
 }
 
-export async function prepareCustomValues(
-  tx: Tx,
-  scope: CustomFieldScope,
-  id: string,
-  values: CustomValuesInput,
-  kindId?: string | null,
+export function customValueChanges(
+  definitions: ValueDefinition[],
+  before: Prisma.JsonObject,
+  patch: ReturnType<typeof validateCustomValues>,
 ) {
-  await lockDefinitions(tx);
-  const table = scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
-  const rows = await tx.$queryRaw<
-    Array<{ customValues: Prisma.JsonObject; kindId?: string | null; category?: EquipmentCategory }>
-  >(
-    Prisma.sql`SELECT "customValues" ${scope === "EQUIPMENT" ? Prisma.sql`, "kindId", "category"` : Prisma.empty} FROM ${table} WHERE id = ${id} FOR UPDATE`,
-  );
-  if (!rows[0]) throw new NotFoundError();
-  const before = rows[0]?.customValues ?? {};
-  if (kindId === undefined && rows[0]?.kindId == null && rows[0]?.category)
-    kindId = (
-      await tx.equipmentKind.findUnique({
-        where: { systemKey: DEFAULT_EQUIPMENT_KINDS[rows[0].category].key },
-        select: { id: true },
-      })
-    )?.id;
-  const definitions = await getDefinitions(scope, tx);
-  const patch = validateCustomValues(
-    definitions,
-    values,
-    kindId === undefined ? rows[0]?.kindId : kindId,
-  );
-  const size = await tx.$queryRaw<
-    Array<{ bytes: number }>
-  >`SELECT pg_column_size((${JSON.stringify(before)}::jsonb || ${JSON.stringify(patch.set)}::jsonb) - ${patch.removed}::text[]) AS bytes`;
-  if (size[0].bytes > 32768)
-    throw new CustomValuesError([{ field: "customValues", code: "limit" }], {
-      customValues: [tr("fields.limit.bytes")],
-    });
   const truncate = (value: Prisma.JsonValue): Prisma.JsonValue => {
     if (Array.isArray(value)) value = value.join(", ");
     return typeof value === "string" ? Array.from(value).slice(0, 200).join("") : value;
@@ -237,11 +217,69 @@ export async function prepareCustomValues(
     ];
   });
   return {
+    custom: changes.slice(0, 20),
+    ...(changes.length > 20 ? { customMore: changes.length - 20 } : {}),
+  };
+}
+
+export async function prepareCustomValues(
+  tx: Tx,
+  scope: CustomFieldScope,
+  id: string,
+  values: CustomValuesInput,
+  kindId?: string | null,
+  modelId?: string | null,
+) {
+  await lockDefinitions(tx);
+  const table = scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
+  const rows = await tx.$queryRaw<
+    Array<{
+      customValues: Prisma.JsonObject;
+      kindId?: string | null;
+      category?: EquipmentCategory;
+      modelId?: string | null;
+    }>
+  >(
+    Prisma.sql`SELECT "customValues" ${scope === "EQUIPMENT" ? Prisma.sql`, "kindId", "category", "modelId"` : Prisma.empty} FROM ${table} WHERE id = ${id} FOR UPDATE`,
+  );
+  if (!rows[0]) throw new NotFoundError();
+  const before = rows[0]?.customValues ?? {};
+  if (kindId === undefined && rows[0]?.kindId == null && rows[0]?.category)
+    kindId = (
+      await tx.equipmentKind.findUnique({
+        where: { systemKey: DEFAULT_EQUIPMENT_KINDS[rows[0].category].key },
+        select: { id: true },
+      })
+    )?.id;
+  const definitions = await getFieldSchema(scope, {}, tx);
+  const effectiveModelId = modelId === undefined ? rows[0].modelId : modelId;
+  if (effectiveModelId) {
+    const blocked = definitions.find(
+      (field) =>
+        field.level === "MODEL" &&
+        (Object.hasOwn(values, field.key) ||
+          (field.libraryKey && Object.hasOwn(values, field.libraryKey))),
+    );
+    if (blocked)
+      throw new ValidationError({
+        [blocked.key]: [tr("fields.model.editOnModel", { modelId: effectiveModelId })],
+      });
+  }
+  const patch = validateCustomValues(
+    definitions,
+    values,
+    kindId === undefined ? rows[0]?.kindId : kindId,
+  );
+  const size = await tx.$queryRaw<
+    Array<{ bytes: number }>
+  >`SELECT pg_column_size((${JSON.stringify(before)}::jsonb || ${JSON.stringify(patch.set)}::jsonb) - ${patch.removed}::text[]) AS bytes`;
+  if (size[0].bytes > 32768)
+    throw new CustomValuesError([{ field: "customValues", code: "limit" }], {
+      customValues: [tr("fields.limit.bytes")],
+    });
+  return {
     ...patch,
-    auditData: {
-      custom: changes.slice(0, 20),
-      ...(changes.length > 20 ? { customMore: changes.length - 20 } : {}),
-    },
+    auditData: customValueChanges(definitions, before, patch),
   };
 }
 
@@ -253,7 +291,7 @@ export async function withCustomValues<T extends { id: string }>(
   if (!records.length) return [];
   return txWithAudit(null, async (tx) => {
     await lockDefinitions(tx);
-    const definitions = await getDefinitions(scope, tx);
+    const definitions = await getFieldSchema(scope, {}, tx);
     const ids = records.map((record) => record.id);
     const rows =
       scope === "ROOM"
@@ -263,7 +301,13 @@ export async function withCustomValues<T extends { id: string }>(
           })
         : await tx.equipment.findMany({
             where: { id: { in: ids } },
-            select: { id: true, customValues: true, kindId: true, category: true },
+            select: {
+              id: true,
+              customValues: true,
+              kindId: true,
+              category: true,
+              model: { select: { customValues: true } },
+            },
           });
     const defaults =
       scope === "EQUIPMENT" && rows.some((row) => "kindId" in row && !row.kindId)
@@ -281,15 +325,31 @@ export async function withCustomValues<T extends { id: string }>(
               )?.id
             : undefined;
       const applicable = definitions.filter((field) => !field.archivedAt && applies(field, kindId));
-      const stored = (row?.customValues ?? {}) as Prisma.JsonObject;
+      const effective = effectiveValues(
+        applicable,
+        row?.customValues,
+        row &&
+          "model" in row &&
+          row.model &&
+          typeof row.model === "object" &&
+          "customValues" in row.model
+          ? row.model.customValues
+          : undefined,
+      );
       const customValues = Object.fromEntries(
         applicable
-          .filter((field) => Object.hasOwn(stored, field.id))
-          .map((field) => [field.key, rendered(field, stored[field.id], true)]),
+          .filter((field) => effective[field.id].value != null)
+          .map((field) => [
+            field.key,
+            rendered(field, effective[field.id].value as Prisma.JsonValue, true),
+          ]),
       );
       return {
         ...record,
         customValues,
+        customValueOrigins: Object.fromEntries(
+          applicable.map((field) => [field.key, effective[field.id].from]),
+        ),
         ...(includeDefinitions ? { customFields: applicable } : {}),
       };
     });

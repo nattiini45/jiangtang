@@ -175,7 +175,13 @@ export async function updateEquipment(
     const custom =
       input.customValues === undefined
         ? undefined
-        : await applyEquipmentCustomValuesInTx(tx, id, input.customValues, input.kindId);
+        : await applyEquipmentCustomValuesInTx(
+            tx,
+            id,
+            input.customValues,
+            input.kindId,
+            input.modelId ?? null,
+          );
     const fields = equipmentFields(input);
     const { eq, auditData } =
       input.status === "RETIRED"

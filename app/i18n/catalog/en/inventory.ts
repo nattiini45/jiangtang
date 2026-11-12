@@ -16,7 +16,7 @@ export const inventoryEn = {
   "inventory.meta.fallbackName": "Device",
   "inventory.meta.new": "New device · Jiangtang",
   "inventory.meta.import": "Import devices · Jiangtang",
-  "inventory.meta.models": "Model catalog · Jiangtang",
+  "inventory.meta.models": "Models · Jiangtang",
   "inventory.meta.modelFallback": "Model",
   "inventory.meta.modelNew": "New model · Jiangtang",
   "inventory.meta.stock": "Stock · Jiangtang",
@@ -33,7 +33,7 @@ export const inventoryEn = {
 
   "inventory.list.title": "Inventory",
   "inventory.list.subtitle": "Device units · fixed install & pool.",
-  "inventory.list.models": "Model catalog",
+  "inventory.list.models": "Models",
   "inventory.list.new": "New device",
   "inventory.tab.equipment": "Equipment",
   "inventory.tab.models": "Models",
@@ -117,7 +117,7 @@ export const inventoryEn = {
   "inventory.import.sample":
     "Projector,Epson EB-1485Fi,lecture-hall-32,fixed,Operational,Ceiling projector,INV-100,SN-abc,,,,,,",
 
-  "inventory.models.title": "Model catalog",
+  "inventory.models.title": "Models",
   "inventory.models.subtitle": "Define device models once, reuse them everywhere.",
   "inventory.models.new": "New model",
   "inventory.models.empty": "No models yet. Create the first one.",

@@ -26,12 +26,12 @@ import {
 import { StructurePage } from "~/components/structure/structure-page";
 import { KindLibrary } from "~/components/structure/kind-library";
 import {
-  getDefinitions,
   createNamedCustomField,
   updateCustomField,
   updateFieldOptions,
   deleteCustomField,
 } from "~/lib/custom-fields/definitions.server";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
 import {
   fieldAdminSchema,
   parseFieldAdminPayload,
@@ -50,10 +50,17 @@ export async function loader({ request }: Route.LoaderArgs) {
     const [groups, library, rooms, devices] = await Promise.all([
       listStructure(),
       listKindLibrary(),
-      getDefinitions("ROOM"),
-      getDefinitions("EQUIPMENT"),
+      getFieldSchema("ROOM"),
+      getFieldSchema("EQUIPMENT"),
     ]);
-    return { groups, library, fields: [...rooms, ...devices] };
+    return {
+      groups,
+      library,
+      fields: [...rooms, ...devices].map((field) => ({
+        ...field,
+        unit: field.unit?.label ?? null,
+      })),
+    };
   } catch (error) {
     throw toErrorResponse(error);
   }

@@ -1,0 +1,96 @@
+{
+  "au:TOA_BS1110": {
+    "title": "TOA Electronics (DE): BS-1110W EU Säulenlautsprecher",
+    "url": "https://www.toa.de/produkte/bs-1110w-eu/",
+    "area": "audio-systems"
+  },
+  "au:TOA_F2322": {
+    "title": "TOA Electronics (DE): F-2322C EU Deckenlautsprecher, technische Daten und Ausschreibungstext",
+    "url": "https://www.toa.de/produkte/f-2322c-eu/",
+    "area": "audio-systems"
+  },
+  "pd:B1": {
+    "title": "MH733 Meetingraum-Projektor | BenQ Display Solutions",
+    "url": "https://www.benq.eu/de-de/business/projector/mh733.html",
+    "area": "projection-displays"
+  },
+  "pd:D1": {
+    "title": "ProLite LH4780SB-B1",
+    "url": "https://iiyama.com/ie_en/products/prolite-lh4780sb-b1/",
+    "area": "projection-displays"
+  },
+  "pd:D2": {
+    "title": "View support for your Signage Solutions P-Line Display 55BDL3117P/00 | Philips",
+    "url": "https://www.usa.philips.com/p-p/55BDL3117P_00/signage-solutions-p-line-display.support",
+    "area": "projection-displays"
+  },
+  "pd:E1": {
+    "title": "EB-PU1008W Projector | Professional | Projectors | Products | Epson Europe",
+    "url": "https://www.epson.eu/en_EU/products/projector/professional/eb-pu1008w-projector/p/32084",
+    "area": "projection-displays"
+  },
+  "pd:LED1": {
+    "title": "LG LSAB009: MAGNIT | LG Deutschland Business",
+    "url": "https://www.lg.com/de/business/led-signage/innenbereich/lsab009/",
+    "area": "projection-displays"
+  },
+  "pd:NEC1": {
+    "title": "Sharp NEC P420X/P350X/P350W User's Manual (USAGE TIME, CLEAR FILTER HOURS)",
+    "url": "https://sharp-displays.jp.sharp/support/webdl/dl_service/data/manual/english/P420X_manual_ENG.pdf",
+    "area": "projection-displays"
+  },
+  "pd:P1": {
+    "title": "PT-RZ970/RZ770/RZ660 Series FAQ | FAQ | Projector | Panasonic Global",
+    "url": "https://docs.connect.panasonic.com/projector/faq/rz970/",
+    "area": "projection-displays"
+  },
+  "pd:PJ": {
+    "title": "PJLink Specifications",
+    "url": "https://pjlink.jbmia.or.jp/english/data_cl2/PJLink_5-1.pdf",
+    "area": "projection-displays"
+  },
+  "pd:SC1": {
+    "title": "Projecta Tensioned DescenderPro specification",
+    "url": "https://www.legrandav.com/-/media/files/projecta/resources/screens/electric_screens/ceiling_recessed_projection_screens/descenderpro/spec_data_sheet_tensioned_descenderpro1.ashx",
+    "area": "projection-displays"
+  },
+  "pd:WIT": {
+    "title": "Wittler Interaktiv: Interaktive Beamer-Tafeln (UKD-Beamer, Finger und zwei Stifte)",
+    "url": "https://www.wittler.biz/de/interaktive-beamer-tafeln",
+    "area": "projection-displays"
+  },
+  "presets:S1": {
+    "title": "Allgemeine Anforderungen an die Multimediainstallation (Stand Mai 2012)",
+    "publisher": "Hochschulrechenzentrum, TU Darmstadt",
+    "year": "2012",
+    "url": "https://www.hrz.tu-darmstadt.de/services/it_services/medientechnik_hoersaele_und_seminarraeume/medientechnik/infos_fuer_planer_und_firmen/anforderungen.de.jsp",
+    "area": "presets"
+  },
+  "presets:S30": {
+    "title": "Technische Daten Stadthalle Wetzlar",
+    "publisher": "Stadthalle Wetzlar",
+    "year": "n.d.",
+    "url": "https://www.stadthallewetzlar.de/dokumente/downloads/318/technische_daten_stadthalle.pdf",
+    "area": "presets"
+  },
+  "presets:S5": {
+    "title": "Hörsäle & Seminarräume",
+    "publisher": "IT.SERVICES, Ruhr-Universität Bochum",
+    "year": "2026 (page current)",
+    "url": "https://www.it-services.ruhr-uni-bochum.de/services/sl/hoersaele_und_seminarraeume.html.de",
+    "area": "presets"
+  },
+  "presets:S6": {
+    "title": "Richtlinie Audio-Video Seminarräume, V 2026-1",
+    "publisher": "Zentrale Informatik, Universität Zürich",
+    "year": "2026",
+    "url": "https://www.ib.uzh.ch/dam/jcr:3ca616aa-2b71-4815-bece-ced954a1a88e/Richtlinie_Audio_Video_Seminarr%C3%A4ume_V_2025_1.pdf",
+    "area": "presets"
+  },
+  "presets:general": {
+    "title": "General knowledge of the first preset library author (research.md)",
+    "area": "presets",
+    "read": "none"
+  },
+  "trade_knowledge": { "title": "General trade knowledge", "url": null }
+}

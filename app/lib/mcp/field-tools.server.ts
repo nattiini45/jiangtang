@@ -18,8 +18,21 @@ import { mcpActor, type McpContext } from "./types.server";
 import { setRoomCustomValues } from "~/domains/rooms/rooms.custom-values.server";
 import { setEquipmentCustomValues } from "~/domains/inventory/inventory.custom-values.server";
 import { withCustomValues } from "~/lib/custom-fields/values.server";
+import { setModelValues } from "~/domains/catalog/catalog.values.server";
 
 export function registerFieldTools(server: McpServer, context: McpContext) {
+  registerTool(
+    server,
+    context,
+    {
+      name: "set_model_values",
+      description:
+        "Merge model-level library properties by property key or library key. Choice values accept option keys, IDs or labels. Null clears a value. Every device of this model reads these values.",
+      schema: z.object({ modelId: z.string().min(1), values: z.record(z.string(), z.unknown()) }),
+      write: true,
+    },
+    ({ modelId, values }, ctx) => setModelValues(mcpActor(ctx), modelId, values),
+  );
   registerTool(
     server,
     context,

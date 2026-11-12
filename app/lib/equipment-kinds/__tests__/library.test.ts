@@ -41,6 +41,7 @@ it("ships only the scoped bilingual data, valid names, ordered groups and five i
       "group",
       "institution_types",
       "key",
+      ...(kind.key === "projector" ? ["properties"] : []),
       "tier",
     ]);
     expect(kind.de.length).toBeLessThanOrEqual(60);

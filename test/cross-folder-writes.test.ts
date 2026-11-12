@@ -200,7 +200,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   // entry no scan ever consulted.
   "app/lib": ["ActivityLog"],
   "app/lib/calendar": ["CalendarOutbox", "CalendarPublicationInitialization"],
-  "app/lib/custom-fields": ["CustomField", "CustomFieldKind", "CustomFieldOption"],
+  "app/lib/custom-fields": ["CustomField", "CustomFieldKind", "CustomFieldOption", "LibraryState"],
   "app/lib/list-columns": ["ListColumns"],
   "app/lib/equipment-kinds": [
     "EquipmentKind",

@@ -17,6 +17,7 @@ export interface ModelListRow {
   kind: EquipmentKindSummary;
   instanceCount: number;
   faultyCount: number;
+  customValues?: unknown;
 }
 
 export async function listModels(
@@ -24,6 +25,7 @@ export async function listModels(
     category?: EquipmentCategory;
     kindId?: string;
     q?: string;
+    includeValues?: boolean;
   },
   page: { offset?: number; limit?: number } = {},
 ): Promise<ModelListRow[]> {
@@ -62,6 +64,7 @@ export async function listModels(
     kind: m.kind,
     instanceCount: m._count.instances,
     faultyCount: faultyByModel.get(m.id) ?? 0,
+    ...(opts?.includeValues ? { customValues: m.customValues } : {}),
   }));
 }
 
