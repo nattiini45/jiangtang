@@ -54,18 +54,28 @@ def prepare():
     output = Path(os.environ["RUNNER_TEMP"]) / "release"
     output.mkdir(exist_ok=True)
     (output / "notes.md").write_text(notes)
-    workflow = f"{os.environ['GITHUB_SERVER_URL']}/{repository}/.github/workflows/release.yml@{os.environ['GITHUB_REF']}"
+    repository_url = f"{os.environ['GITHUB_SERVER_URL']}/{repository}"
+    workflow_ref = os.environ["GITHUB_WORKFLOW_REF"]
+    workflow_path = workflow_ref.removeprefix(f"{repository}/").removesuffix(f"@{os.environ['GITHUB_REF']}")
     provenance = {
         "buildDefinition": {
             "buildType": "https://actions.github.io/buildtypes/workflow/v1",
             "externalParameters": {
-                "workflow": {"repository": f"{os.environ['GITHUB_SERVER_URL']}/{repository}", "path": ".github/workflows/release.yml", "ref": os.environ["GITHUB_REF"]},
+                "workflow": {"repository": repository_url, "path": workflow_path, "ref": os.environ["GITHUB_REF"]},
                 "version": version, "commit": commit,
             },
-            "resolvedDependencies": [{"uri": f"git+https://github.com/{repository}", "digest": {"gitCommit": commit}}],
+            "internalParameters": {
+                "github": {
+                    "event_name": os.environ["GITHUB_EVENT_NAME"],
+                    "repository_id": os.environ["GITHUB_REPOSITORY_ID"],
+                    "repository_owner_id": os.environ["GITHUB_REPOSITORY_OWNER_ID"],
+                    "runner_environment": os.environ["RUNNER_ENVIRONMENT"],
+                },
+            },
+            "resolvedDependencies": [{"uri": f"git+{repository_url}@{commit}", "digest": {"gitCommit": commit}}],
         },
         "runDetails": {
-            "builder": {"id": workflow},
+            "builder": {"id": f"{os.environ['GITHUB_SERVER_URL']}/{workflow_ref}"},
             "metadata": {"invocationId": f"{os.environ['GITHUB_SERVER_URL']}/{repository}/actions/runs/{os.environ['GITHUB_RUN_ID']}/attempts/{os.environ['GITHUB_RUN_ATTEMPT']}"},
         },
     }
