@@ -31,6 +31,9 @@ class ReleaseTests(unittest.TestCase):
                 "GITHUB_EVENT_NAME": "pull_request", "GITHUB_REF": "refs/pull/1/merge",
                 "RELEASE_COMMIT": "a" * 40, "RELEASE_VERSION": "",
                 "GITHUB_REPOSITORY": "synthetic/repo", "GITHUB_SERVER_URL": "https://github.com",
+                "GITHUB_REPOSITORY_ID": "456", "GITHUB_REPOSITORY_OWNER_ID": "789",
+                "GITHUB_WORKFLOW_REF": "synthetic/repo/.github/workflows/release.yml@refs/pull/1/merge",
+                "RUNNER_ENVIRONMENT": "github-hosted",
                 "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1", "RUNNER_TEMP": directory,
                 "GITHUB_OUTPUT": directory + "/output", "GITHUB_STEP_SUMMARY": directory + "/summary",
             }
@@ -46,6 +49,9 @@ class ReleaseTests(unittest.TestCase):
                     "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/main",
                     "RELEASE_COMMIT": "a" * 40, "RELEASE_VERSION": "0.1.0",
                     "GITHUB_REPOSITORY": "synthetic/repo", "GITHUB_SERVER_URL": "https://github.com",
+                    "GITHUB_REPOSITORY_ID": "456", "GITHUB_REPOSITORY_OWNER_ID": "789",
+                    "GITHUB_WORKFLOW_REF": "synthetic/repo/.github/workflows/release.yml@refs/heads/main",
+                    "RUNNER_ENVIRONMENT": "github-hosted",
                     "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "1", "RUNNER_TEMP": directory,
                     "GITHUB_OUTPUT": directory + "/output", "GITHUB_STEP_SUMMARY": directory + "/summary",
                 }
@@ -74,6 +80,52 @@ class ReleaseTests(unittest.TestCase):
                         self.assertEqual(mocked.call_args_list[-1].args, ("git", "checkout", "--detach", "a" * 40))
                         self.assertIn("version=0.1.0", Path(env["GITHUB_OUTPUT"]).read_text())
                         self.assertEqual(json.loads((Path(directory) / "release/provenance.json").read_text())["buildDefinition"]["resolvedDependencies"][0]["digest"], {"gitCommit": "a" * 40})
+
+    def test_provenance_matches_the_complete_github_workflow_predicate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = {
+                "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/main",
+                "RELEASE_COMMIT": "a" * 40, "RELEASE_VERSION": "0.1.0", "GITHUB_SHA": "b" * 40,
+                "GITHUB_REPOSITORY": "synthetic/repo", "GITHUB_SERVER_URL": "https://github.com",
+                "GITHUB_REPOSITORY_ID": "456", "GITHUB_REPOSITORY_OWNER_ID": "789",
+                "GITHUB_WORKFLOW_REF": "synthetic/repo/.github/workflows/release.yml@refs/heads/main",
+                "RUNNER_ENVIRONMENT": "github-hosted", "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2",
+                "RUNNER_TEMP": directory, "GITHUB_OUTPUT": directory + "/output",
+                "GITHUB_STEP_SUMMARY": directory + "/summary",
+            }
+            commands = [
+                "[]", "",
+                json.dumps({"check_runs": [{"name": "ci", "app": {"slug": "github-actions"}, "conclusion": "success"}]}),
+                '{"version": "0.1.0"}', "## [0.1.0]\n### Upgrade notes\nNone.", "",
+            ]
+            with patch.dict(os.environ, env, clear=True), patch("release.run", side_effect=commands):
+                prepare()
+            self.assertEqual(json.loads((Path(directory) / "release/provenance.json").read_text()), {
+                "buildDefinition": {
+                    "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+                    "externalParameters": {
+                        "workflow": {
+                            "ref": "refs/heads/main", "repository": "https://github.com/synthetic/repo",
+                            "path": ".github/workflows/release.yml",
+                        },
+                        "version": "0.1.0", "commit": "a" * 40,
+                    },
+                    "internalParameters": {
+                        "github": {
+                            "event_name": "workflow_dispatch", "repository_id": "456",
+                            "repository_owner_id": "789", "runner_environment": "github-hosted",
+                        },
+                    },
+                    "resolvedDependencies": [{
+                        "uri": "git+https://github.com/synthetic/repo@" + "a" * 40,
+                        "digest": {"gitCommit": "a" * 40},
+                    }],
+                },
+                "runDetails": {
+                    "builder": {"id": "https://github.com/synthetic/repo/.github/workflows/release.yml@refs/heads/main"},
+                    "metadata": {"invocationId": "https://github.com/synthetic/repo/actions/runs/123/attempts/2"},
+                },
+            })
 
 
 if __name__ == "__main__":
