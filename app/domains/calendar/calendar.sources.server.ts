@@ -33,6 +33,14 @@ function wholeDays(start: Date, end = start) {
   };
 }
 
+function wholeDayRange({ from, to }: CalendarRange) {
+  const endDay = berlinDayIndex(to);
+  return {
+    from: new Date(berlinDayStartMs(berlinDayIndex(from))),
+    to: new Date(berlinDayStartMs(endDay + Number(+to > berlinDayStartMs(endDay)))),
+  };
+}
+
 function dateOverlap(from: Date, to: Date) {
   return {
     OR: [
@@ -137,7 +145,8 @@ const service: CalendarSource = {
 const tasks: CalendarSource = {
   id: "tasks",
   choice: choice("tasks", "nav.tasks"),
-  async read({ from, to }) {
+  async read(range) {
+    const { from, to } = wholeDayRange(range);
     const rows = await db.task.findMany({
       where: {
         ...dateOverlap(from, to),
@@ -193,7 +202,8 @@ const tasks: CalendarSource = {
 const projects: CalendarSource = {
   id: "projects",
   choice: choice("projects", "nav.projects"),
-  async read({ from, to }) {
+  async read(range) {
+    const { from, to } = wholeDayRange(range);
     const rows = await db.project.findMany({
       where: dateOverlap(from, to),
       select: { id: true, name: true, slug: true, startAt: true, dueAt: true },
@@ -212,7 +222,8 @@ const projects: CalendarSource = {
 const renewals: CalendarSource = {
   id: "renewals",
   choice: datesChoice,
-  async read({ from, to }) {
+  async read(range) {
+    const { from, to } = wholeDayRange(range);
     const rows = await db.room.findMany({
       where: {
         OR: [
@@ -238,7 +249,8 @@ const renewals: CalendarSource = {
 const warranties: CalendarSource = {
   id: "warranties",
   choice: datesChoice,
-  async read({ from, to }) {
+  async read(range) {
+    const { from, to } = wholeDayRange(range);
     const rows = await db.inventoryItem.findMany({
       where: { warrantyExpiresAt: { gte: from, lt: to } },
       select: {
@@ -278,7 +290,8 @@ function fieldDates(scope: "ROOM" | "EQUIPMENT"): CalendarSource {
   return {
     id: `fields-${scope}`,
     choice: datesChoice,
-    async read({ from, to }) {
+    async read(range) {
+      const { from, to } = wholeDayRange(range);
       const table = scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
       const rows = await db.$queryRaw<
         {
@@ -346,8 +359,9 @@ const faults: CalendarSource = {
       kind: "calendar.kinds.faults",
       title: row.title,
       startsAt: row.occurredAt,
-      endsAt: new Date(+row.occurredAt + 60_000),
+      endsAt: new Date(+row.occurredAt + 1),
       allDay: false,
+      point: true,
       href: `/tickets/${row.id}`,
       rooms: row.room ? [row.room] : row.equipment?.room ? [row.equipment.room] : [],
       equipment: row.equipment

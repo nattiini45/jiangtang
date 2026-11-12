@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "~/lib/db.server";
-import { listEvents } from "../events.queries.server";
+import { listEvents, listEventsForPlanning } from "../events.queries.server";
 
 /**
  * `listEvents({ from, to })` uses OVERLAP semantics (endsAt > from AND
@@ -47,7 +47,7 @@ describe("listEvents window overlap", () => {
   it("puts ongoing and upcoming events first, then the newest past event", async () => {
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-10T08:00:00Z"));
     try {
-      const mine = (await listEvents()).filter((event) => event.title.startsWith(RUN));
+      const mine = (await listEventsForPlanning()).filter((event) => event.title.startsWith(RUN));
       expect(mine.map((event) => event.title.slice(RUN.length + 1))).toEqual([
         "spanning",
         "ongoing",

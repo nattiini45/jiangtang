@@ -9,6 +9,7 @@ export interface CalendarEntry {
   startsAt: Date;
   endsAt: Date;
   allDay: boolean;
+  point?: boolean;
   href: string;
   status?: EventStatus;
   rooms: { id: string; name: string }[];

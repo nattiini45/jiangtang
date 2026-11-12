@@ -210,6 +210,15 @@ describe("workspace calendar sources", () => {
   });
 
   it("uses active date definitions and kind applicability, not a fixed field list", async () => {
+    const partial = await getWorkspaceCalendar({
+      from: new Date("2045-06-10T12:00Z"),
+      to: new Date("2045-06-10T13:00Z"),
+      kinds: ["tasks", "projects", "dates"],
+    });
+    expect(partial.entries.some((entry) => entry.id === `task:${ids("TODO")}`)).toBe(true);
+    expect(
+      partial.entries.filter((entry) => entry.id.startsWith("field:") && entry.id.includes(prefix)),
+    ).toHaveLength(2);
     const entries = (await getWorkspaceCalendar({ ...range, kinds: ["dates"] })).entries.filter(
       (entry) => entry.id.startsWith("field:") && entry.id.includes(prefix),
     );

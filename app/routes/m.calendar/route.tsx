@@ -10,6 +10,8 @@ import { berlinDayIndex, berlinDayStartMs, dayIndexToDateKey } from "~/lib/berli
 import { EventStatus } from "~/generated/prisma/enums";
 import { parseEnumParam } from "~/lib/validation.server";
 import { CalendarFilters } from "~/components/events/calendar-filters";
+import { eventStatusLabel } from "~/components/events/labels";
+import { cn } from "~/lib/utils";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { formatDateWith, formatTime } from "~/i18n/format";
@@ -39,7 +41,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     ...calendar,
     entries: calendar.entries.map((entry) => ({
       ...entry,
-      mobileHref: hasMobileEquivalent(entry.href) ? viewPath(entry.href, "mobile") : null,
+      mobileHref: hasMobileEquivalent(entry.href)
+        ? viewPath(`${entry.href}?date=${dayIndexToDateKey(day)}`, "mobile")
+        : null,
     })),
     choices: calendarChoices,
     day,
@@ -111,15 +115,30 @@ export default function MobileCalendar({ loaderData }: Route.ComponentProps) {
       <p className="text-muted-foreground text-xs">{t("mobile.timeZone")}</p>
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {loaderData.entries.map((entry) => {
+          const spansDays =
+            berlinDayIndex(+new Date(entry.endsAt) - 1) > berlinDayIndex(new Date(entry.startsAt));
+          const when = entry.allDay
+            ? t("calendar.wholeDay")
+            : entry.point
+              ? formatTime(locale, entry.startsAt)
+              : `${formatTime(locale, entry.startsAt)}–${formatTime(locale, entry.endsAt)}`;
           const content = (
             <>
               <span className="text-muted-foreground text-xs">
-                {t(entry.kind)} ·{" "}
-                {entry.allDay
-                  ? t("calendar.wholeDay")
-                  : `${formatTime(locale, entry.startsAt)}–${formatTime(locale, entry.endsAt)}`}
+                {t(entry.kind)} · {when}
+                {spansDays
+                  ? ` · ${formatDateWith(locale, entry.startsAt, { day: "numeric", month: "short" })}–${formatDateWith(locale, +new Date(entry.endsAt) - 1, { day: "numeric", month: "short" })}`
+                  : ""}
+                {entry.status ? ` · ${eventStatusLabel(locale, entry.status)}` : ""}
               </span>
-              <span className="break-words text-sm font-semibold">{entry.title}</span>
+              <span
+                className={cn(
+                  "break-words text-sm font-semibold",
+                  entry.status === "CANCELLED" && "line-through",
+                )}
+              >
+                {entry.title}
+              </span>
               <span className="text-muted-foreground break-words text-xs">
                 {[...entry.rooms, ...entry.equipment].map((resource) => resource.name).join(" · ")}
               </span>

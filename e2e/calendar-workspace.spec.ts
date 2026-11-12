@@ -58,6 +58,30 @@ test.beforeAll(async () => {
       endsAt: new Date(`${date}T12:00Z`),
     },
   });
+  await db.event.create({
+    data: {
+      id: id("preview-event"),
+      title: "Demo: Bühnenprobe mit Ton und Bild",
+      startsAt: new Date("2045-06-05T10:00Z"),
+      endsAt: new Date("2045-06-05T12:00Z"),
+      status: "CONFIRMED",
+    },
+  });
+  for (const [kind, start, end] of [
+    ["SETUP", "2045-06-05T08:00Z", "2045-06-05T09:00Z"],
+    ["STANDBY", "2045-06-05T09:00Z", "2045-06-05T10:00Z"],
+    ["TEARDOWN", "2045-06-06T12:00Z", "2045-06-06T14:00Z"],
+  ] as const)
+    await db.serviceWindow.create({
+      data: {
+        id: id(`preview-${kind}`),
+        eventId: id("preview-event"),
+        kind,
+        startsAt: new Date(start),
+        endsAt: new Date(end),
+        roomId: id("room"),
+      },
+    });
   await db.project.create({
     data: {
       id: id("project"),
@@ -65,6 +89,24 @@ test.beforeAll(async () => {
       slug: id("project"),
       startAt: new Date(`${date}T00:00Z`),
       dueAt: new Date("2045-06-11T00:00Z"),
+    },
+  });
+  await db.event.create({
+    data: {
+      id: id("cancelled"),
+      title: "Demo: Abgesagte Probe",
+      startsAt: new Date("2045-06-20T10:00Z"),
+      endsAt: new Date("2045-06-20T12:00Z"),
+      status: "CANCELLED",
+    },
+  });
+  await db.event.create({
+    data: {
+      id: id("several-days"),
+      title: "Demo: Mehrtägiger Technikdienst",
+      startsAt: new Date("2045-06-21T10:00Z"),
+      endsAt: new Date("2045-06-23T12:00Z"),
+      status: "CONFIRMED",
     },
   });
   for (let index = 0; index < 7; index++)
@@ -162,7 +204,10 @@ test("events are a plain list with named rooms and a calendar-day link", async (
   await page.goto("/events");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Veranstaltungen");
   await expect(page.getByRole("navigation", { name: "Kalenderansichten" })).toHaveCount(0);
-  const row = page.getByRole("row").filter({ hasText: "Demo: Technik für das Sommerfest" });
+  const row = page
+    .getByRole("link", { name: "Demo: Technik für das Sommerfest", exact: true })
+    .locator("..")
+    .locator("..");
   await expect(row).toContainText("Demo: Werkstatt");
   await row.getByRole("link", { name: "Tag im Kalender öffnen" }).click();
   await expect(page).toHaveURL(new RegExp(`/calendar\\?view=day&date=${date}`));
@@ -183,6 +228,27 @@ test("mobile agenda shows work and projects beside events and keeps choices", as
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 390);
 });
 
+test("multi-day entries use the band, faults are opt-in, and mobile cancellations are explicit", async ({
+  page,
+}) => {
+  await page.goto("/calendar?view=day&date=2045-06-22");
+  await expect(
+    page
+      .locator("[data-whole-day-band]")
+      .getByRole("link", { name: /Demo: Mehrtägiger Technikdienst/ }),
+  ).toBeVisible();
+  await expect(page.locator('a[href*="several-days"]')).toHaveCount(1);
+  await page.goto("/m/calendar?date=2045-06-20");
+  const cancelled = page.getByRole("link", { name: /Demo: Abgesagte Probe/ });
+  await expect(cancelled).toContainText("Abgesagt");
+  await expect(cancelled.locator(".line-through")).toHaveText("Demo: Abgesagte Probe");
+  await page.goto("/m/calendar?date=2045-06-19");
+  await expect(page.getByRole("link", { name: /Demo: Bild fällt aus/ })).toHaveCount(0);
+  await page.getByText("Anzeigen (5)", { exact: true }).click();
+  await page.getByRole("checkbox", { name: "Störungen", exact: true }).check();
+  await expect(page.getByRole("link", { name: /Demo: Bild fällt aus/ })).toBeVisible();
+});
+
 for (const width of [1280, 1920])
   for (const locale of ["de", "en"])
     for (const theme of ["light", "dark"])
@@ -192,15 +258,13 @@ for (const width of [1280, 1920])
           baseURL,
         }) => {
           await page.setViewportSize({ width, height: 1000 });
-          await page
-            .context()
-            .addCookies(
-              ["locale", "theme", "density"].map((name) => ({
-                name,
-                value: { locale, theme, density }[name]!,
-                url: baseURL!,
-              })),
-            );
+          await page.context().addCookies(
+            ["locale", "theme", "density"].map((name) => ({
+              name,
+              value: { locale, theme, density }[name]!,
+              url: baseURL!,
+            })),
+          );
           await page.goto(`/calendar?view=month&date=${date}&kinds=${kinds}`);
           await expect(page.locator("html[data-hydrated]")).toBeAttached();
           await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -214,6 +278,9 @@ for (const width of [1280, 1920])
             fullPage: true,
           });
           if (width === 1280 && locale === "de" && theme === "light" && density === "comfortable") {
+            await page
+              .getByRole("region", { name: date, exact: true })
+              .screenshot({ path: "test-results/screens/workspace-overflow-de.png" });
             await page.getByText("Anzeigen (6)", { exact: true }).click();
             await page.screenshot({
               path: "test-results/screens/workspace-kinds-de.png",
@@ -221,6 +288,10 @@ for (const width of [1280, 1920])
             });
             await page.goto(`/calendar?view=week&date=${date}&kinds=${kinds}`);
             await expect(page.locator("[data-whole-day-band]")).toHaveCount(7);
+            await expect(page.locator("[data-whole-day-band] a").first()).toHaveCSS(
+              "flex-shrink",
+              "0",
+            );
             await page.screenshot({
               path: "test-results/screens/workspace-week-de.png",
               fullPage: true,
@@ -242,16 +313,28 @@ for (const width of [1280, 1920])
             });
             await page.setViewportSize({ width, height: 1000 });
           }
+          for (const view of ["week", "day", "rooms"]) {
+            await page.goto(`/calendar?view=${view}&date=${date}&kinds=${kinds}`);
+            await expect(page.locator("html[data-hydrated]")).toBeAttached();
+            await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+              locale === "de" ? "Kalender" : "Calendar",
+            );
+            await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
+            await page.screenshot({
+              path: `test-results/screens/workspace-${view}-${width}-${locale}-${theme}-${density}.png`,
+              fullPage: true,
+            });
+          }
           await page.goto("/events");
           await expect(page.getByRole("heading", { level: 1 })).toHaveText(
             locale === "de" ? "Veranstaltungen" : "Events",
           );
           await expect(page.locator("body")).toHaveJSProperty("scrollWidth", width);
-          const grid = page.locator("[role=table]");
-          if (await grid.count())
-            expect(
-              await grid.evaluate((element) => element.scrollWidth <= element.clientWidth),
-            ).toBe(true);
+          const grid = page.getByRole("main").locator(".overflow-auto").first();
+          await expect(grid).toBeVisible();
+          expect(await grid.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+            true,
+          );
           await page.screenshot({
             path: `test-results/screens/workspace-events-${width}-${locale}-${theme}-${density}.png`,
             fullPage: true,

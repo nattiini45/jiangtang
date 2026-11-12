@@ -26,7 +26,7 @@ import { parseEnumParam } from "~/lib/validation.server";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
-import { formatDateWith } from "~/i18n/format";
+import { formatDateWith, formatTime } from "~/i18n/format";
 import { useLocale, useT } from "~/i18n/use-t";
 
 export function meta({ matches }: Route.MetaArgs) {
@@ -196,7 +196,14 @@ export default function Calendar({ loaderData }: Route.ComponentProps) {
                 to={entry.href}
                 className="bg-tint hover:bg-selected max-w-72 rounded-md px-2 py-1 text-sm"
               >
-                <span className="text-muted-foreground text-xs">{t(entry.kind)}</span>
+                <span className="text-muted-foreground text-xs">
+                  {t(entry.kind)} ·{" "}
+                  {entry.allDay
+                    ? t("calendar.wholeDay")
+                    : entry.point
+                      ? formatTime(locale, entry.startsAt)
+                      : `${formatTime(locale, entry.startsAt)}–${formatTime(locale, entry.endsAt)}`}
+                </span>
                 <span className="line-clamp-2 wrap-anywhere">{entry.title}</span>
               </Link>
             ))}

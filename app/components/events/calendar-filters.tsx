@@ -91,11 +91,13 @@ export function CalendarFilters({
           </option>
         ))}
       </Select>
-      <details className="relative">
+      <details className={mobile ? "relative w-full" : "relative"}>
         <summary className={`${buttonVariants({ variant: "tertiary" })} cursor-pointer list-none`}>
           {t("calendar.show", { count: kinds.length })}
         </summary>
-        <fieldset className="bg-popover text-popover-foreground shadow-surface-3 absolute right-0 z-40 mt-2 flex w-64 flex-col gap-1 rounded-lg p-2">
+        <fieldset
+          className={`bg-popover text-popover-foreground shadow-surface-3 absolute z-40 mt-2 flex w-64 flex-col gap-1 rounded-lg p-2 ${mobile ? "left-0" : "right-0"}`}
+        >
           <legend className="sr-only">{t("calendar.kinds")}</legend>
           <input type="hidden" name="kinds" value="" />
           {choices.map((choice) => (

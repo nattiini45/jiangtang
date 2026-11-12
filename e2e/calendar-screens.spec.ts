@@ -137,7 +137,7 @@ for (const theme of ["light", "dark"] as const) {
         await expect(title).toHaveCSS("hyphens", "auto");
         await expect(title).toHaveCSS("-webkit-line-clamp", "2");
         const label = title.locator("..");
-        await expect(label.locator("span").first()).toHaveText("13:00 · Veranstaltungen");
+        await expect(label.locator("span").first()).toHaveText("Veranstaltungen · 13:00");
         expect(
           await title.evaluate((element) => element.getBoundingClientRect().height),
         ).toBeLessThanOrEqual(32);

@@ -45,7 +45,6 @@ export const eventsDe = {
   "events.col.endsAt": "Ende",
   "events.col.status": "Status",
   "events.col.rooms": "Räume",
-  "events.col.organizer": "Organisation",
 
   "events.calendar.weekday.0": "Mo",
   "events.calendar.weekday.1": "Di",
@@ -78,8 +77,6 @@ export const eventsDe = {
     "Freie Stunde wählen, um eine Veranstaltung anzulegen. Pfeiltasten wechseln die Stunde oder den Tag; Pos1 und Ende springen zur ersten oder letzten Stunde.",
   "events.calendar.noRooms":
     "Keine Räume gefunden. Zuerst einen Raum anlegen oder den Filter ändern.",
-  "events.calendar.empty":
-    "Keine Veranstaltungen in diesem Zeitraum. Eine freie Stunde wählen oder eine neue Veranstaltung anlegen.",
 
   "events.subscribe.button": "Kalender abonnieren",
   "events.subscribe.copied": "Kopiert!",
@@ -90,7 +87,7 @@ export const eventsDe = {
 
   "events.serviceWindowKind.SETUP": "Aufbau",
   "events.serviceWindowKind.STANDBY": "Bereitschaft",
-  "events.serviceWindowKind.TEARDOWN": "Abbau",
+  "events.serviceWindowKind.TEARDOWN": "Rückbau",
 
   "events.sync.title": "Kalender-Sync",
   "events.sync.SENT": "Synchronisiert",

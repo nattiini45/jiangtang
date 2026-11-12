@@ -2,7 +2,7 @@ import * as React from "react";
 import { Form, Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { listEvents } from "~/domains/events/events.queries.server";
+import { listEventsForPlanning } from "~/domains/events/events.queries.server";
 import { EventStatus } from "~/generated/prisma/enums";
 import { parseEnumParam } from "~/lib/validation.server";
 import { legacyCalendarHref } from "~/lib/calendar-entries";
@@ -25,7 +25,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const legacy = legacyCalendarHref(params);
   if (legacy) throw redirect(legacy);
   const status = parseEnumParam(EventStatus, params.get("status"));
-  return { events: await listEvents({ status }), status: status ?? "" };
+  return { events: await listEventsForPlanning(status), status: status ?? "" };
 }
 
 export default function EventsIndex({ loaderData }: Route.ComponentProps) {

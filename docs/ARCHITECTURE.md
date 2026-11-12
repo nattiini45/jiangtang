@@ -148,7 +148,7 @@ returns `CalendarEntry[]` from `app/lib/calendar-entries.ts`. Entries carry a gl
 kind label, title, half-open interval, whole-day flag, record URL and related resources. Timed
 events/service windows keep their instants; task/project/renewal date ranges include the end's
 Berlin civil day. Warranty and team-defined dates occupy a whole Berlin day. Faults use their
-occurrence instant, with a one-minute display span. Settled tasks and archived/inapplicable
+occurrence instant, marked as points with a one-millisecond interval for overlap checks. Settled tasks and archived/inapplicable
 field definitions stay out. DATE values are read by joining definitions with stored JSON values,
 not by a fixed list of fields, so a new active definition appears immediately.
 
@@ -317,12 +317,9 @@ behind the same interface.
 
 ## Calendar output
 
-The signed-in `/events` surface defaults to a Monday-first week calendar, with month, day,
-room-availability timeline and the original list as alternate views. Date, view, filters and the
-optional task due-date overlay live in the URL. `/m/events` is a selected-day agenda. Calendar
-loaders use half-open Berlin date ranges in `events.calendar.queries.server.ts`; room occupancy
+The signed-in workspace calendar is described [above](#workspace-calendar). Room occupancy
 uses booking windows independently of parent event times and never hides active bookings under
-event status or equipment filters. Empty hourly slots prefill the existing creation forms. Exact
+entry visibility, event status or equipment filters. Empty hourly slots prefill the existing creation forms. Exact
 UTC hints preserve both occurrences of the repeated autumn hour only while they match the
 submitted Berlin fields; mutations and conflict pre-checks resolve them identically. These hints
 do not bypass the database booking constraints.

@@ -91,35 +91,25 @@ function navigateSlots(event: React.KeyboardEvent<HTMLElement>) {
   }
 }
 
-function WholeDayEntries({
-  entries,
-  day,
-  limit,
-}: {
-  entries: CalendarEntry[];
-  day: number;
-  limit?: number;
-}) {
+function WholeDayEntries({ entries, day }: { entries: CalendarEntry[]; day: number }) {
   const t = useT();
   const locale = useLocale();
-  return eventsOnDay(entries.filter(calendarBandEntry), day)
-    .slice(0, limit)
-    .map((entry) => (
-      <Link
-        key={entry.id}
-        to={entry.href}
-        title={entry.title}
-        className="bg-tint hover:bg-selected relative z-10 flex min-h-7 min-w-0 flex-col rounded-md px-1.5 py-1 text-xs"
-      >
-        <span className="text-muted-foreground truncate">
-          {t(entry.kind)}
-          {entry.allDay
-            ? ""
-            : ` · ${formatDateWith(locale, entry.startsAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}–${formatDateWith(locale, entry.endsAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`}
-        </span>
-        <span className="line-clamp-2 wrap-anywhere font-semibold">{entry.title}</span>
-      </Link>
-    ));
+  return eventsOnDay(entries.filter(calendarBandEntry), day).map((entry) => (
+    <Link
+      key={entry.id}
+      to={entry.href}
+      title={entry.title}
+      className="bg-tint hover:bg-selected relative z-10 flex min-h-7 min-w-0 shrink-0 flex-col rounded-md px-1.5 py-1 text-xs"
+    >
+      <span className="text-muted-foreground truncate">
+        {t(entry.kind)}
+        {entry.allDay
+          ? ""
+          : ` · ${formatDateWith(locale, entry.startsAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}–${formatDateWith(locale, entry.endsAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+      </span>
+      <span className="line-clamp-2 wrap-anywhere font-semibold">{entry.title}</span>
+    </Link>
+  ));
 }
 
 function EventLabel({
@@ -167,7 +157,7 @@ function EventLabel({
         <span className="flex items-center gap-1 text-xs">
           <span className={cn("size-1.5 shrink-0 rounded-full", token.dotClassName)} aria-hidden />
           <span className="nums truncate">
-            {time(event.startsAt)} · {t(event.kind)}
+            {t(event.kind)} · {time(event.startsAt)}
           </span>
         </span>
         <span

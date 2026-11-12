@@ -45,7 +45,6 @@ export const eventsEn = {
   "events.col.endsAt": "Ends",
   "events.col.status": "Status",
   "events.col.rooms": "Rooms",
-  "events.col.organizer": "Organizer",
 
   "events.calendar.weekday.0": "Mon",
   "events.calendar.weekday.1": "Tue",
@@ -77,7 +76,6 @@ export const eventsEn = {
   "events.calendar.slotHint":
     "Choose a free hour to create an event. Arrow keys change the hour or day; Home and End jump to the first or last hour.",
   "events.calendar.noRooms": "No rooms found. Add a room first or change the filter.",
-  "events.calendar.empty": "No events in this period. Choose a free hour or create a new event.",
 
   "events.subscribe.button": "Subscribe to calendar",
   "events.subscribe.copied": "Copied",

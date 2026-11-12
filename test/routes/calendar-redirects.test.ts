@@ -1,9 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import { loader } from "~/routes/_desktop.events._index/route";
+import { loader as mobileLoader } from "~/routes/m.events._index/route";
 
 vi.mock("~/lib/auth.server", () => ({ requireUser: vi.fn(async () => ({ id: "synthetic" })) }));
 
 describe("legacy event calendar redirects", () => {
+  it("keeps an old mobile agenda bookmark on its day", async () => {
+    await expect(
+      mobileLoader({
+        request: new Request("http://localhost/m/events?date=2026-11-09&room=room&kinds=tasks"),
+      } as never),
+    ).rejects.toMatchObject({ status: 302, headers: expect.any(Headers) });
+    try {
+      await mobileLoader({
+        request: new Request("http://localhost/m/events?date=2026-11-09&room=room&kinds=tasks"),
+      } as never);
+    } catch (response) {
+      expect((response as Response).headers.get("Location")).toBe(
+        "/m/calendar?date=2026-11-09&room=room&kinds=tasks",
+      );
+    }
+  });
   it.each(["month", "week", "day", "rooms", "calendar"])(
     "redirects %s and retains all address state",
     async (view) => {

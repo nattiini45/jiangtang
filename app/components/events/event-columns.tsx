@@ -57,7 +57,7 @@ export function eventColumns(t: Translate): ColumnDef<EventListRow>[] {
         <Link
           to={`/calendar?view=day&date=${berlinDateKey(row.original.startsAt)}`}
           aria-label={t("calendar.openDay")}
-          className="hover:bg-hover inline-flex rounded-md p-2"
+          className="hover:bg-hover inline-flex h-control w-8 items-center justify-center rounded-md"
         >
           <CalendarDays className="size-icon" aria-hidden />
         </Link>

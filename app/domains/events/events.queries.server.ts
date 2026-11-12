@@ -59,13 +59,6 @@ export async function listEvents(
       rooms: { where: { cancelled: false }, select: { room: { select: { name: true } } } },
     },
   });
-  const now = Date.now();
-  events.sort(
-    (a, b) =>
-      Number(+a.endsAt < now) - Number(+b.endsAt < now) ||
-      (+a.endsAt < now ? +b.startsAt - +a.startsAt : +a.startsAt - +b.startsAt) ||
-      a.id.localeCompare(b.id),
-  );
   return events.map((e) => ({
     id: e.id,
     title: e.title,
@@ -76,6 +69,17 @@ export async function listEvents(
     roomCount: e.rooms.length,
     roomNames: [...new Set(e.rooms.map(({ room }) => room.name))],
   }));
+}
+
+export async function listEventsForPlanning(status?: EventStatus): Promise<EventListRow[]> {
+  const events = await listEvents({ status });
+  const now = Date.now();
+  return events.sort(
+    (a, b) =>
+      Number(+a.endsAt <= now) - Number(+b.endsAt <= now) ||
+      (+a.endsAt <= now ? +b.startsAt - +a.startsAt : +a.startsAt - +b.startsAt) ||
+      a.id.localeCompare(b.id),
+  );
 }
 
 export interface EventRoomRow {

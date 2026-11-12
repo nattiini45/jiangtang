@@ -1,7 +1,7 @@
-import { Form, Link } from "react-router";
+import { Form, Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { listEvents } from "~/domains/events/events.queries.server";
+import { listEventsForPlanning } from "~/domains/events/events.queries.server";
 import { EventStatus } from "~/generated/prisma/enums";
 import { parseEnumParam } from "~/lib/validation.server";
 import { eventStatusLabel } from "~/components/events/labels";
@@ -18,8 +18,10 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
-  const status = parseEnumParam(EventStatus, new URL(request.url).searchParams.get("status"));
-  return { events: await listEvents({ status }), status: status ?? "" };
+  const params = new URL(request.url).searchParams;
+  if (params.has("date")) throw redirect(`/m/calendar?${params}`);
+  const status = parseEnumParam(EventStatus, params.get("status"));
+  return { events: await listEventsForPlanning(status), status: status ?? "" };
 }
 export default function MobileEvents({ loaderData }: Route.ComponentProps) {
   const t = useT();
