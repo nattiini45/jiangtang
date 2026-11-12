@@ -70,11 +70,36 @@ export async function listEquipment(
   }));
 }
 
-export function getEquipment(id: string) {
-  return db.equipment.findUnique({
+export async function getEquipment(id: string) {
+  const equipment = await db.equipment.findUnique({
     where: { id },
     include: {
-      ports: { orderBy: [{ position: "asc" }, { id: "asc" }] },
+      ports: {
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        include: {
+          connectionEnd: {
+            include: {
+              connection: {
+                include: {
+                  ends: {
+                    include: {
+                      port: {
+                        select: {
+                          id: true,
+                          label: true,
+                          equipment: {
+                            select: { id: true, name: true, assetTag: true, status: true },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       model: {
         select: { id: true, name: true, manufacturer: true, ports: { select: { label: true } } },
       },
@@ -83,6 +108,44 @@ export function getEquipment(id: string) {
       substitutedBy: { select: { id: true, name: true, assetTag: true } },
     },
   });
+  if (!equipment) return null;
+  return {
+    ...equipment,
+    ports: equipment.ports.map(({ connectionEnd, ...port }) => {
+      const other = connectionEnd?.connection.ends.find((end) => end.portId !== port.id)?.port;
+      const connection =
+        connectionEnd && other
+          ? { id: connectionEnd.connectionId, note: connectionEnd.connection.note, other }
+          : null;
+      return {
+        ...port,
+        connection,
+        allowedActions: [
+          {
+            target: "CONNECT",
+            labelKey: "ports.connect",
+            allowed: !connection,
+            requiresConfirmation: false,
+            requiredFields: ["targetEquipmentId"],
+          },
+          {
+            target: "DISCONNECT",
+            labelKey: "ports.disconnect",
+            allowed: !!connection,
+            requiresConfirmation: true,
+            requiredFields: ["connectionId", "confirm"],
+          },
+          {
+            target: "REMOVE",
+            labelKey: "ports.remove",
+            allowed: !connection,
+            requiresConfirmation: true,
+            requiredFields: ["confirm"],
+          },
+        ],
+      };
+    }),
+  };
 }
 
 /** Faulty fixed units that could be substituted by a spare (substitution picker). */

@@ -295,4 +295,32 @@ export const inventoryDe = {
   "ports.duplicatePort": "Anschluss {label} duplizieren",
   "ports.positionFull":
     "Die Reihenfolge ist ausgeschöpft. Bitte eine kleinere Position am Gerät wählen und erneut übernehmen.",
+  "ports.connect": "Verbinden",
+  "ports.loading": "Wird geladen …",
+  "ports.disconnect": "Trennen",
+  "ports.connectPort": "Anschluss {label} verbinden",
+  "ports.disconnectPort": "Anschluss {label} trennen",
+  "ports.targetDevice": "Anderes Gerät",
+  "ports.targetPort": "Freier Anschluss",
+  "ports.chooseDevice": "Gerät auswählen",
+  "ports.choosePort": "Anschluss auswählen",
+  "ports.searchDevices": "Geräte suchen",
+  "ports.search": "Suchen",
+  "ports.sameRoomFirst": "Geräte im selben Raum stehen zuerst.",
+  "ports.noDevices": "Keine passenden Geräte gefunden.",
+  "ports.noFree": "Kein freier Anschluss. Einen neuen Anschluss anlegen.",
+  "ports.createThere": "Neuen Anschluss dort anlegen",
+  "ports.useExisting": "Vorhandenen Anschluss wählen",
+  "ports.connectionNote": "Kabel / Leitungsweg (optional)",
+  "ports.retired": "ausgemustertes Gerät",
+  "ports.connectedRemove":
+    "Der Anschluss ist mit {device} · {port} verbunden. Bitte zuerst trennen.",
+  "ports.sameDevice": "Bitte einen Anschluss an einem anderen Gerät wählen.",
+  "ports.connectionBusy":
+    "Ein Anschluss ist inzwischen belegt. Bitte die aktuelle Verbindung prüfen und erneut versuchen.",
+  "ports.chooseTarget": "Bitte einen freien Anschluss wählen oder dort einen neuen anlegen.",
+  "ports.confirmDisconnect": "Verbindung von {label} zu {device} · {port} trennen?",
+  "ports.changed":
+    "Der Anschluss oder die Verbindung wurde geändert. Bitte neu laden und erneut versuchen.",
+  "ports.lookupError": "Geräte konnten nicht geladen werden. Bitte die Suche erneut starten.",
 };

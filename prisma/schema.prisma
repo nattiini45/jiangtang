@@ -282,20 +282,39 @@ model EquipmentModelPort {
 }
 
 model EquipmentPort {
-  id          String              @id @default(cuid())
-  equipmentId String
-  equipment   Equipment           @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  label       String
-  connector   String
-  direction   PortDirection
-  signal      PortSignal
-  position    Int
-  note        String?
-  modelPortId String?
-  modelPort   EquipmentModelPort? @relation(fields: [modelPortId], references: [id], onDelete: SetNull)
+  id            String                  @id @default(cuid())
+  equipmentId   String
+  equipment     Equipment               @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  label         String
+  connector     String
+  direction     PortDirection
+  signal        PortSignal
+  position      Int
+  note          String?
+  modelPortId   String?
+  modelPort     EquipmentModelPort?     @relation(fields: [modelPortId], references: [id], onDelete: SetNull)
+  connectionEnd EquipmentConnectionEnd?
 
   @@unique([equipmentId, label])
+  @@unique([id, equipmentId])
   @@index([modelPortId])
+}
+
+model EquipmentConnection {
+  id   String                   @id @default(cuid())
+  note String?
+  ends EquipmentConnectionEnd[]
+}
+
+model EquipmentConnectionEnd {
+  portId       String              @id
+  equipmentId  String
+  port         EquipmentPort       @relation(fields: [portId, equipmentId], references: [id, equipmentId], onDelete: Restrict, onUpdate: Restrict)
+  connectionId String
+  connection   EquipmentConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, equipmentId])
+  @@unique([portId, equipmentId])
 }
 
 // ── People ───────────────────────────────────────────────────────────────────

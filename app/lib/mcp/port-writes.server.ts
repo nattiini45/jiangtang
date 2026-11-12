@@ -2,12 +2,45 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { setEquipmentModelPorts } from "~/domains/catalog/catalog.ports.mutations.server";
 import { mutateEquipmentPort } from "~/domains/inventory/inventory.ports.mutations.server";
-import { equipmentPortSchema, modelPortsSchema } from "~/domains/inventory/inventory.ports.schema";
+import {
+  connectEquipmentPorts,
+  disconnectEquipmentPorts,
+} from "~/domains/inventory/inventory.connections.mutations.server";
+import {
+  equipmentPortSchema,
+  modelPortsSchema,
+  connectPortsSchema,
+} from "~/domains/inventory/inventory.ports.schema";
 import { registerTool } from "./tools.server";
 import { mcpActor, type McpContext } from "./types.server";
 
 const id = z.string().trim().min(1);
 export function registerPortWrites(server: McpServer, context: McpContext) {
+  registerTool(
+    server,
+    context,
+    {
+      name: "connect_equipment_ports",
+      write: true,
+      description:
+        "Connect a free device port to a free port of another device, or create the other port atomically. Supply targetPortId OR newPort, plus optional cable/route note. Direction and signal are descriptive, not compatibility rules.",
+      schema: connectPortsSchema,
+    },
+    (input, ctx) => connectEquipmentPorts(mcpActor(ctx), input),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "disconnect_equipment_ports",
+      write: true,
+      destructive: true,
+      description:
+        "Disconnect a connection visible on this device, retaining both ports. Requires confirm=true. Get the connectionId from get_equipment.",
+      schema: z.object({ equipmentId: id, connectionId: id, confirm: z.literal(true) }),
+    },
+    (input, ctx) => disconnectEquipmentPorts(mcpActor(ctx), input.equipmentId, input.connectionId),
+  );
   registerTool(
     server,
     context,

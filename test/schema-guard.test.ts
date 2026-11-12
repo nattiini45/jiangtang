@@ -344,8 +344,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(59);
-    expect(withAction).toBe(47);
+    expect(owning).toBe(61);
+    expect(withAction).toBe(49);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

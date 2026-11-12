@@ -64,6 +64,30 @@ export async function mutateEquipmentPort(
         if (copies.length === 0) return { id: equipmentId, unchanged: true };
         copiedLabels = copies.map((copy) => copy.label);
       } else if (operation === "remove") {
+        const end = await tx.equipmentConnectionEnd.findUnique({
+          where: { portId: port!.id },
+          include: {
+            connection: {
+              include: {
+                ends: {
+                  include: {
+                    port: {
+                      include: { equipment: { select: { name: true, assetTag: true, id: true } } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+        const other = end?.connection.ends.find((entry) => entry.portId !== port!.id)?.port;
+        if (other)
+          throw new ValidationError({}, [
+            tr("ports.connectedRemove", {
+              device: other.equipment.name ?? other.equipment.assetTag ?? other.equipment.id,
+              port: other.label,
+            }),
+          ]);
         changed = await tx.equipmentPort.delete({ where: { id: port!.id } });
       } else {
         if (!data) throw new ValidationError({ label: [tr("ports.required")] });

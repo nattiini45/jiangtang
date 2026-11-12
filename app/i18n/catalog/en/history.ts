@@ -124,4 +124,6 @@ export const historyEn = {
   "history.action.EquipmentPortUpdated": "Port updated",
   "history.action.EquipmentPortRemoved": "Port removed",
   "history.action.EquipmentPortInherited": "Model ports added",
+  "history.action.EquipmentPortsConnected": "Ports connected",
+  "history.action.EquipmentPortsDisconnected": "Ports disconnected",
 } satisfies Record<keyof typeof historyDe, string>;

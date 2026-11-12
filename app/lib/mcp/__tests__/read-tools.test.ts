@@ -522,6 +522,7 @@ describe("booking reads", () => {
       assetTag: "MIC-1",
       status: "OPERATIONAL",
       mobility: "POOLED",
+      ports: [],
     });
   });
 
