@@ -4,6 +4,9 @@ import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
 import { useT } from "~/i18n/use-t";
 import { KindOptions, type KindGroups } from "./kind-options";
+import { useState } from "react";
+import { FieldInputs } from "~/components/fields/field-inputs";
+import type { Field } from "~/lib/custom-fields/fields";
 
 export interface ModelDefaults {
   manufacturer?: string | null;
@@ -18,12 +21,21 @@ export interface ModelDefaults {
 export function ModelFormFields({
   defaults,
   kinds,
+  fields = [],
+  stored,
 }: {
   defaults?: ModelDefaults;
   kinds: KindGroups;
+  fields?: Field[];
+  stored?: unknown;
 }) {
   const t = useT();
   const options = kinds.flatMap((group) => group.kinds);
+  const [kindId, setKindId] = useState(
+    defaults?.kindId ??
+      options.find((kind) => kind.systemKey === "projector")?.id ??
+      options[0]?.id,
+  );
   return (
     <>
       <FormField
@@ -49,11 +61,8 @@ export function ModelFormFields({
         <Select
           name="kindId"
           required
-          defaultValue={
-            defaults?.kindId ??
-            options.find((kind) => kind.systemKey === "projector")?.id ??
-            options[0]?.id
-          }
+          value={kindId}
+          onChange={(event) => setKindId(event.currentTarget.value)}
         >
           <KindOptions groups={kinds} />
         </Select>
@@ -73,6 +82,20 @@ export function ModelFormFields({
           placeholder="https://…"
         />
       </FormField>
+      {fields.some(
+        (field) =>
+          field.level === "MODEL" &&
+          (!field.kinds.length || field.kinds.some((link) => link.kindId === kindId)),
+      ) ? (
+        <section className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-base font-semibold">{t("fields.model.sheet")}</h2>
+          <FieldInputs
+            fields={fields.filter((field) => field.level === "MODEL")}
+            kindId={kindId}
+            stored={stored}
+          />
+        </section>
+      ) : null}
     </>
   );
 }

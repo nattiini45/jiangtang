@@ -10,6 +10,8 @@ import {
 import type { EquipmentModel } from "~/generated/prisma/client";
 import { modelExists } from "./catalog.queries.server";
 import type { ModelCreateInput } from "./catalog.schema";
+import { applyModelValuesInTx } from "./catalog.values.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 
 type ModelWriteInput = Omit<ModelCreateInput, "category"> & EquipmentKindInput;
 
@@ -49,6 +51,7 @@ export async function createModel(
     throw new ValidationError({ name: [tr("places.err.model.exists")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
+    if (input.customValues !== undefined) await lockDefinitions(tx);
     const model = await tx.equipmentModel.create({
       data: {
         manufacturer: input.manufacturer ?? null,
@@ -58,13 +61,17 @@ export async function createModel(
         manualUrl: input.manualUrl ?? null,
       },
     });
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyModelValuesInTx(tx, model.id, input.customValues);
     await audit({
       action: "EquipmentModelCreated",
       entityType: "equipmentModel",
       entityId: model.id,
-      data: { name: model.name, category: model.category },
+      data: { name: model.name, category: model.category, ...custom },
     });
-    return model;
+    return tx.equipmentModel.findUniqueOrThrow({ where: { id: model.id } });
   });
 }
 
@@ -77,6 +84,7 @@ export async function updateModel(
     throw new ValidationError({ name: [tr("places.err.model.nameTaken")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
+    if (input.customValues !== undefined) await lockDefinitions(tx);
     await lockKindStructure(tx);
     const current = await tx.equipmentModel.findUniqueOrThrow({ where: { id } });
     const model = await tx.equipmentModel.update({
@@ -89,12 +97,17 @@ export async function updateModel(
         manualUrl: input.manualUrl ?? null,
       },
     });
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyModelValuesInTx(tx, model.id, input.customValues);
     await audit({
       action: "EquipmentModelUpdated",
       entityType: "equipmentModel",
       entityId: model.id,
+      data: custom,
     });
-    return model;
+    return tx.equipmentModel.findUniqueOrThrow({ where: { id: model.id } });
   });
 }
 

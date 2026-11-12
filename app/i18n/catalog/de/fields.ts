@@ -1,4 +1,18 @@
 export const fieldsDe = {
+  "fields.library.protected":
+    "Diese Eigenschaft stammt aus der Bibliothek. Definition und Gerätearten können nicht geändert oder gelöscht werden.",
+  "fields.library.nameTaken":
+    "Eine Eigenschaft aus der Bibliothek verwendet diesen Namen bereits für diese Geräteart.",
+  "fields.library.title": "Aus der Bibliothek ({count})",
+  "fields.level.MODEL": "Modell",
+  "fields.level.DEVICE": "Gerät",
+  "fields.model.editOnModel":
+    "Diese Eigenschaft wird am Modell bearbeitet: /inventory/models/{modelId}",
+  "fields.model.edit": "Am Modell bearbeiten",
+  "fields.model.from": "Vom Modell",
+  "fields.device.own": "Dieses Gerät",
+  "fields.model.sheet": "Datenblatt",
+  "fields.properties.more": "Weitere Eigenschaften ({count})",
   "fields.columns.title": "Spalten",
   "fields.columns.help": "Für alle im Team · {count} von 12 Spalten. Der Name bleibt zuerst.",
   "fields.columns.allKinds": "Alle Gerätearten",

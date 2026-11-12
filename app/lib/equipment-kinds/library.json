@@ -1,92 +1,83 @@
 {
+  "version": 2,
+  "units": [
+    { "key": "lm", "de": "lm", "en": "lm" },
+    { "key": ":1", "de": ":1", "en": ":1" },
+    { "key": "%", "de": "%", "en": "%" },
+    { "key": "dB(A)", "de": "dB(A)", "en": "dB(A)" },
+    { "key": "kg", "de": "kg", "en": "kg" },
+    { "key": "mm", "de": "mm", "en": "mm" },
+    { "key": "cm", "de": "cm", "en": "cm" },
+    { "key": "m", "de": "m", "en": "m" },
+    { "key": "nm", "de": "nm", "en": "nm" },
+    { "key": "in", "de": "Zoll", "en": "in" },
+    { "key": "h", "de": "h", "en": "h" },
+    { "key": "h/day", "de": "h/Tag", "en": "h/day" },
+    { "key": "min", "de": "min", "en": "min" },
+    { "key": "s", "de": "s", "en": "s" },
+    { "key": "ms", "de": "ms", "en": "ms" },
+    { "key": "d", "de": "Tage", "en": "days" },
+    { "key": "pcs", "de": "Stk.", "en": "pcs" },
+    { "key": "°", "de": "°", "en": "°" },
+    { "key": "°C", "de": "°C", "en": "°C" },
+    { "key": "K", "de": "K", "en": "K" },
+    { "key": "cd/m²", "de": "cd/m²", "en": "cd/m²" },
+    { "key": "lx", "de": "lx", "en": "lx" },
+    { "key": "fps", "de": "fps", "en": "fps" },
+    { "key": "×", "de": "×", "en": "×" },
+    { "key": "GB", "de": "GB", "en": "GB" },
+    { "key": "bit", "de": "bit", "en": "bit" },
+    { "key": "px", "de": "Pixel", "en": "px" },
+    { "key": "Mbit/s", "de": "Mbit/s", "en": "Mbit/s" },
+    { "key": "Hz", "de": "Hz", "en": "Hz" },
+    { "key": "kHz", "de": "kHz", "en": "kHz" },
+    { "key": "MHz", "de": "MHz", "en": "MHz" },
+    { "key": "dB", "de": "dB", "en": "dB" },
+    { "key": "dB SPL", "de": "dB SPL", "en": "dB SPL" },
+    { "key": "dBm", "de": "dBm", "en": "dBm" },
+    { "key": "mV/Pa", "de": "mV/Pa", "en": "mV/Pa" },
+    { "key": "Ω", "de": "Ω", "en": "Ω" },
+    { "key": "W", "de": "W", "en": "W" },
+    { "key": "mW", "de": "mW", "en": "mW" },
+    { "key": "kWh", "de": "kWh", "en": "kWh" },
+    { "key": "VA", "de": "VA", "en": "VA" },
+    { "key": "A", "de": "A", "en": "A" },
+    { "key": "V", "de": "V", "en": "V" },
+    { "key": "mAh", "de": "mAh", "en": "mAh" },
+    { "key": "U", "de": "HE", "en": "U" },
+    { "key": "kN", "de": "kN", "en": "kN" },
+    { "key": "kN/m²", "de": "kN/m²", "en": "kN/m²" },
+    { "key": "m²", "de": "m²", "en": "m²" },
+    { "key": "l", "de": "l", "en": "l" },
+    { "key": "m/s", "de": "m/s", "en": "m/s" }
+  ],
   "institutionTypes": [
-    {
-      "key": "university",
-      "de": "Hochschule / Universität",
-      "en": "University or college"
-    },
+    { "key": "university", "de": "Hochschule / Universität", "en": "University or college" },
     {
       "key": "event_hall",
       "de": "Stadthalle / Kongress- und Veranstaltungszentrum",
       "en": "City, event or congress hall"
     },
-    {
-      "key": "council",
-      "de": "Rathaus / Ratssaal",
-      "en": "Town hall / council chamber"
-    },
-    {
-      "key": "theatre",
-      "de": "Theater",
-      "en": "Theatre"
-    },
-    {
-      "key": "trade_fair",
-      "de": "Messe",
-      "en": "Trade fair hall"
-    }
+    { "key": "council", "de": "Rathaus / Ratssaal", "en": "Town hall / council chamber" },
+    { "key": "theatre", "de": "Theater", "en": "Theatre" },
+    { "key": "trade_fair", "de": "Messe", "en": "Trade fair hall" }
   ],
   "functionGroups": [
-    {
-      "key": "display",
-      "de": "Anzeige",
-      "en": "Display",
-      "position": 1
-    },
-    {
-      "key": "source",
-      "de": "Quellen und Eingänge",
-      "en": "Sources and inputs",
-      "position": 2
-    },
-    {
-      "key": "transport",
-      "de": "Übertragung",
-      "en": "Transport",
-      "position": 3
-    },
-    {
-      "key": "switching",
-      "de": "Schaltung",
-      "en": "Switching",
-      "position": 4
-    },
-    {
-      "key": "audio",
-      "de": "Audio",
-      "en": "Audio",
-      "position": 5
-    },
-    {
-      "key": "control",
-      "de": "Steuerung",
-      "en": "Control",
-      "position": 6
-    },
-    {
-      "key": "capture",
-      "de": "Aufnahme und Regie",
-      "en": "Capture and production",
-      "position": 7
-    },
+    { "key": "display", "de": "Anzeige", "en": "Display", "position": 1 },
+    { "key": "source", "de": "Quellen und Eingänge", "en": "Sources and inputs", "position": 2 },
+    { "key": "transport", "de": "Übertragung", "en": "Transport", "position": 3 },
+    { "key": "switching", "de": "Schaltung", "en": "Switching", "position": 4 },
+    { "key": "audio", "de": "Audio", "en": "Audio", "position": 5 },
+    { "key": "control", "de": "Steuerung", "en": "Control", "position": 6 },
+    { "key": "capture", "de": "Aufnahme und Regie", "en": "Capture and production", "position": 7 },
     {
       "key": "conferencing",
       "de": "Konferenz und Streaming",
       "en": "Conferencing and streaming",
       "position": 8
     },
-    {
-      "key": "lighting",
-      "de": "Licht",
-      "en": "Lighting",
-      "position": 9
-    },
-    {
-      "key": "stage",
-      "de": "Bühne und Rigging",
-      "en": "Stage and rigging",
-      "position": 10
-    },
+    { "key": "lighting", "de": "Licht", "en": "Lighting", "position": 9 },
+    { "key": "stage", "de": "Bühne und Rigging", "en": "Stage and rigging", "position": 10 },
     {
       "key": "interp",
       "de": "Dolmetschen und Diskussion",
@@ -105,35 +96,156 @@
       "en": "Signage and booking panels",
       "position": 13
     },
-    {
-      "key": "network",
-      "de": "Netzwerk",
-      "en": "Network",
-      "position": 14
-    },
-    {
-      "key": "power",
-      "de": "Strom",
-      "en": "Power",
-      "position": 15
-    },
-    {
-      "key": "safety",
-      "de": "Sicherheit",
-      "en": "Safety",
-      "position": 16
-    },
+    { "key": "network", "de": "Netzwerk", "en": "Network", "position": 14 },
+    { "key": "power", "de": "Strom", "en": "Power", "position": 15 },
+    { "key": "safety", "de": "Sicherheit", "en": "Safety", "position": 16 },
     {
       "key": "fittings",
       "de": "Raumausstattung und Einbauten",
       "en": "Room fittings and built-in items",
       "position": 17
     },
+    { "key": "other", "de": "Sonstiges", "en": "Other", "position": 18 }
+  ],
+  "sharedProperties": [
     {
-      "key": "other",
-      "de": "Sonstiges",
-      "en": "Other",
-      "position": 18
+      "key": "weight",
+      "de": "Gewicht",
+      "en": "Weight",
+      "type": "NUMBER",
+      "unit": "kg",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": [
+        "pd:E1",
+        "trade_knowledge",
+        "pd:SC1",
+        "pd:D1",
+        "pd:D2",
+        "pd:LED1",
+        "au:TOA_F2322",
+        "au:TOA_BS1110"
+      ]
+    },
+    {
+      "key": "power_consumption",
+      "de": "Leistungsaufnahme",
+      "en": "Power consumption",
+      "type": "NUMBER",
+      "unit": "W",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "protection_class",
+      "de": "Schutzklasse",
+      "en": "Protection class",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "I", "de": "Schutzklasse I (Schutzleiter)", "en": "Class I (earthed)" },
+        {
+          "key": "II",
+          "de": "Schutzklasse II (schutzisoliert)",
+          "en": "Class II (double insulated)"
+        },
+        { "key": "III", "de": "Schutzklasse III (Schutzkleinspannung)", "en": "Class III (SELV)" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "datasheet",
+      "de": "Datenblatt",
+      "en": "Data sheet",
+      "type": "LINK",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "document",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "marking",
+      "de": "Kennzeichnung",
+      "en": "Marking",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "setting",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["presets:general", "trade_knowledge"]
+    },
+    {
+      "key": "care",
+      "de": "Betreuung durch",
+      "en": "Looked after by",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "av_team", "de": "Medientechnik", "en": "AV team" },
+        {
+          "key": "facility_management",
+          "de": "Gebäudetechnik / Hausmeister",
+          "en": "Facility management"
+        },
+        { "key": "faculty_institute", "de": "Fachbereich / Institut", "en": "Faculty / institute" },
+        { "key": "maintenance_contractor", "de": "Wartungsfirma", "en": "Maintenance contractor" },
+        { "key": "organiser_hirer", "de": "Veranstalter / Mieter", "en": "Organiser / hirer" }
+      ],
+      "level": "DEVICE",
+      "nature": "setting",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["presets:S5", "trade_knowledge"]
+    },
+    {
+      "key": "contract_until",
+      "de": "Wartungsvertrag bis",
+      "en": "Maintenance contract until",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["presets:general", "trade_knowledge"]
+    },
+    {
+      "key": "notes",
+      "de": "Notizen",
+      "en": "Notes",
+      "type": "LONG_TEXT",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "setting",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["presets:S5", "trade_knowledge"]
     }
   ],
   "kinds": [
@@ -143,7 +255,46 @@
       "en": "Projector",
       "group": "display",
       "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
-      "tier": "core"
+      "tier": "core",
+      "properties": [
+        "projector.light_source",
+        "projector.brightness",
+        "projector.resolution",
+        "projector.lamp_change",
+        "projector.filter_change",
+        "projector.filter_cleaning",
+        "projector.projection_mode",
+        "projector.application_class",
+        "projector.imaging",
+        "projector.brightness_mode",
+        "projector.lens_shift_h",
+        "projector.lens_shift_v",
+        "projector.lens_memory",
+        "projector.interactive",
+        "projector.interchangeable_lens",
+        "projector.brightness_standard",
+        "projector.colour_light_output",
+        "projector.resolution_enhancement",
+        "projector.noise",
+        "projector.lamp_count",
+        "projector.lamp_life_normal",
+        "projector.lamp_life_eco",
+        "projector.light_source_life",
+        "projector.life_conditions",
+        "projector.service_date",
+        "projector.geometry_backup",
+        "weight",
+        "projector.body_width",
+        "projector.body_height",
+        "projector.body_depth",
+        "power_consumption",
+        "protection_class",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
     },
     {
       "key": "display",
@@ -600,6 +751,470 @@
       "group": "other",
       "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
       "tier": "core"
+    }
+  ],
+  "properties": [
+    {
+      "key": "projector.light_source",
+      "de": "Lichtquelle",
+      "en": "Light source",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "lamp", "de": "Lampe", "en": "Lamp" },
+        { "key": "laser", "de": "Laser", "en": "Laser" },
+        { "key": "led", "de": "LED", "en": "LED" },
+        { "key": "hybrid", "de": "Laser/LED-Hybrid", "en": "Laser/LED hybrid" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1", "pd:P1", "pd:B1", "presets:S6", "presets:S1"]
+    },
+    {
+      "key": "projector.brightness",
+      "de": "Helligkeit (Weißlichtstrom)",
+      "en": "Brightness (white light output)",
+      "type": "NUMBER",
+      "unit": "lm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": null,
+      "help": {
+        "de": "Projektionshelligkeit ausschreiben; Messnorm und Modus mit angeben",
+        "en": "Specify projection brightness with measurement standard and mode"
+      },
+      "sources": ["pd:E1", "pd:B1", "presets:S1", "presets:S6", "presets:S30"]
+    },
+    {
+      "key": "projector.resolution",
+      "de": "Native Auflösung (Pixelmatrix)",
+      "en": "Native resolution (pixel matrix)",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": null,
+      "help": {
+        "de": "Native Bilddetails von akzeptiertem Eingangssignal unterscheiden",
+        "en": "Distinguish native image detail from accepted input signals"
+      },
+      "sources": ["pd:E1", "pd:B1", "presets:S1", "presets:S6", "presets:S30"]
+    },
+    {
+      "key": "projector.lamp_change",
+      "de": "Letzter Lampenwechsel",
+      "en": "Last lamp replacement",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
+      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "sources": ["pd:B1", "presets:S1", "presets:general"]
+    },
+    {
+      "key": "projector.filter_change",
+      "de": "Letzter Filterwechsel",
+      "en": "Last filter replacement",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "sources": ["pd:NEC1", "pd:E1", "presets:S6"]
+    },
+    {
+      "key": "projector.filter_cleaning",
+      "de": "Letzte Filterreinigung",
+      "en": "Last filter cleaning",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "sources": ["pd:NEC1", "pd:E1"]
+    },
+    {
+      "key": "projector.projection_mode",
+      "de": "Projektionsmodus (Front/Rück, Tisch/Decke)",
+      "en": "Projection mode (front/rear, desktop/ceiling)",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "setting",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": {
+        "de": "Betrieb nach Austausch wiederherstellen",
+        "en": "Restore operation after replacement"
+      },
+      "sources": ["pd:E1", "presets:S1"]
+    },
+    {
+      "key": "projector.application_class",
+      "de": "Projektorklasse",
+      "en": "Projector class",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "installation", "de": "Installationsprojektor", "en": "Installation" },
+        { "key": "portable", "de": "Portabler Projektor", "en": "Portable" },
+        { "key": "short_throw", "de": "Kurzdistanzprojektor", "en": "Short throw" },
+        {
+          "key": "ultra_short_throw",
+          "de": "Ultrakurzdistanzprojektor",
+          "en": "Ultra short throw"
+        },
+        {
+          "key": "large_venue",
+          "de": "Großbildprojektor / Veranstaltungsprojektor",
+          "en": "Large venue"
+        },
+        { "key": "mapping", "de": "Projektionsmapping", "en": "Projection mapping" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1", "pd:B1"]
+    },
+    {
+      "key": "projector.imaging",
+      "de": "Bildgebendes Verfahren",
+      "en": "Imaging technology",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "3lcd", "de": "3LCD", "en": "3LCD" },
+        { "key": "dlp_single", "de": "1-Chip-DLP", "en": "Single-chip DLP" },
+        { "key": "dlp_three", "de": "3-Chip-DLP", "en": "Three-chip DLP" },
+        { "key": "lcos", "de": "LCoS", "en": "LCoS" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1", "pd:B1"]
+    },
+    {
+      "key": "projector.brightness_mode",
+      "de": "Lichtquellenmodus / Helligkeitseinstellung",
+      "en": "Light-source mode / brightness setting",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "setting",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": {
+        "de": "Betrieb nach Austausch wiederherstellen",
+        "en": "Restore operation after replacement"
+      },
+      "sources": ["pd:P1", "pd:B1"]
+    },
+    {
+      "key": "projector.lens_shift_h",
+      "de": "Horizontaler Lens-Shift",
+      "en": "Horizontal lens shift",
+      "type": "NUMBER",
+      "unit": "%",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "projector.lens_shift_v",
+      "de": "Vertikaler Lens-Shift",
+      "en": "Vertical lens shift",
+      "type": "NUMBER",
+      "unit": "%",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "projector.lens_memory",
+      "de": "Objektivspeicher / Abrufposition",
+      "en": "Lens memory / recall position",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "setting",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": {
+        "de": "Betrieb nach Austausch wiederherstellen",
+        "en": "Restore operation after replacement"
+      },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.interactive",
+      "de": "Interaktive Funktion (Stift oder Finger)",
+      "en": "Interactive (pen or finger)",
+      "type": "BOOLEAN",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": {
+        "de": "Ersatz planen, Lehrende einweisen",
+        "en": "Plan replacement, brief lecturers"
+      },
+      "sources": ["pd:WIT"]
+    },
+    {
+      "key": "projector.interchangeable_lens",
+      "de": "Wechselobjektiv",
+      "en": "Interchangeable lens",
+      "type": "BOOLEAN",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.brightness_standard",
+      "de": "Lichtstrom-Messnorm",
+      "en": "Light-output measurement standard",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "iso_21118", "de": "ISO 21118", "en": "ISO 21118" },
+        {
+          "key": "idms_15_4",
+          "de": "IDMS 15.4 (Weiß- und Farblichtstrom)",
+          "en": "IDMS 15.4 (white and colour light output)"
+        },
+        {
+          "key": "ansi_legacy",
+          "de": "ANSI-Lumen nach ANSI IT7.228 (zurückgezogen, nur Altangaben)",
+          "en": "ANSI lumens to ANSI IT7.228 (withdrawn; legacy figures only)"
+        },
+        { "key": "other", "de": "Andere / nicht angegeben", "en": "Other / not stated" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1", "pd:B1"]
+    },
+    {
+      "key": "projector.colour_light_output",
+      "de": "Farblichtstrom",
+      "en": "Colour light output",
+      "type": "NUMBER",
+      "unit": "lm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "projector.resolution_enhancement",
+      "de": "Pixelshift / Auflösungsverbesserung",
+      "en": "Pixel shifting / resolution enhancement",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.noise",
+      "de": "Geräuschpegel mit Betriebsmodus",
+      "en": "Noise level with operating mode",
+      "type": "NUMBER",
+      "unit": "dB(A)",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.lamp_count",
+      "de": "Lampenanzahl",
+      "en": "Lamp count",
+      "type": "NUMBER",
+      "unit": "pcs",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:PJ"]
+    },
+    {
+      "key": "projector.lamp_life_normal",
+      "de": "Nenn-Lampenlebensdauer im Normalmodus",
+      "en": "Rated lamp life in normal mode",
+      "type": "NUMBER",
+      "unit": "h",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:B1"]
+    },
+    {
+      "key": "projector.lamp_life_eco",
+      "de": "Nenn-Lampenlebensdauer im Eco-Modus",
+      "en": "Rated lamp life in eco mode",
+      "type": "NUMBER",
+      "unit": "h",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:B1"]
+    },
+    {
+      "key": "projector.light_source_life",
+      "de": "Nenn-Lichtquellenlebensdauer",
+      "en": "Rated light-source life",
+      "type": "NUMBER",
+      "unit": "h",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": { "property": "projector.light_source", "values": ["laser", "led", "hybrid"] },
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1", "pd:P1"]
+    },
+    {
+      "key": "projector.life_conditions",
+      "de": "Lebensdauer: Resthelligkeit, Modus, Umgebung",
+      "en": "Lifetime: remaining brightness, mode, environment",
+      "type": "LONG_TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": { "property": "projector.light_source", "values": ["laser", "led", "hybrid"] },
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:P1"]
+    },
+    {
+      "key": "projector.service_date",
+      "de": "Letzter Lichtquellenservice",
+      "en": "Last light-source service",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": { "property": "projector.light_source", "values": ["laser", "led", "hybrid"] },
+      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "sources": ["pd:P1"]
+    },
+    {
+      "key": "projector.geometry_backup",
+      "de": "Geometrie- und Blending-Konfiguration",
+      "en": "Geometry and blending configuration",
+      "type": "LINK",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "document",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.body_width",
+      "de": "Gehäusebreite",
+      "en": "Body width",
+      "type": "NUMBER",
+      "unit": "mm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.body_height",
+      "de": "Gehäusehöhe",
+      "en": "Body height",
+      "type": "NUMBER",
+      "unit": "mm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.body_depth",
+      "de": "Gehäusetiefe",
+      "en": "Body depth",
+      "type": "NUMBER",
+      "unit": "mm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "sources": ["pd:E1"]
     }
   ]
 }

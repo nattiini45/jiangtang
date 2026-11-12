@@ -46,7 +46,7 @@ export function EquipmentFormFields({
   fields = [],
   stored,
 }: {
-  models: { id: string; name: string; manufacturer: string | null }[];
+  models: { id: string; name: string; manufacturer: string | null; customValues?: unknown }[];
   rooms: { id: string; name: string }[];
   kinds: KindGroups;
   defaults?: EquipmentDefaults;
@@ -55,6 +55,7 @@ export function EquipmentFormFields({
 }) {
   const locale = useLocale();
   const t = useT();
+  const [modelId, setModelId] = React.useState(defaults?.modelId ?? "");
   const options = kinds.flatMap((group) => group.kinds);
   const [kindId, setKindId] = React.useState(
     defaults?.kindId ??
@@ -112,7 +113,11 @@ export function EquipmentFormFields({
           </Select>
         </FormField>
         <FormField name="modelId" label={t("inventory.form.model")}>
-          <Select name="modelId" defaultValue={defaults?.modelId ?? ""}>
+          <Select
+            name="modelId"
+            value={modelId}
+            onChange={(event) => setModelId(event.currentTarget.value)}
+          >
             <option value="">{t("inventory.form.noModel")}</option>
             {models.map((m) => (
               <option key={m.id} value={m.id}>
@@ -187,7 +192,13 @@ export function EquipmentFormFields({
           />
         </div>
       </details>
-      <FieldInputs fields={fields} stored={stored} kindId={kindId} />
+      <FieldInputs
+        fields={fields}
+        stored={stored}
+        kindId={kindId}
+        modelId={modelId}
+        modelValues={models.find((model) => model.id === modelId)?.customValues}
+      />
     </>
   );
 }

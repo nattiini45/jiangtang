@@ -30,7 +30,7 @@ The schema lives in `prisma/schema.prisma`. The main families:
 | ---------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | Rooms                  | `Campus` → `Building` → `Room`                                                 | Bookable spaces. A `Room` carries capabilities (projector, microphones, recording), a status and external links. See [Rooms and locations](#rooms-and-locations). |
 | Locations              | `Location` (self-referencing tree, `LocationKind`: site, building, room, storage, rack, vehicle, …) | Any place where things are or happen, independent of rooms. A subtree must be reparented before a parent is deleted. |
-| Equipment              | `EquipmentModel` (catalog), `Equipment` (instances)                            | Fixed or pooled mobility, spare/substitute links, per-type attributes (network, microphone, lamp).            |
+| Equipment              | `EquipmentModel` (models), `Equipment` (instances)                            | Fixed or pooled mobility, spare/substitute links, per-type attributes (network, microphone, lamp).            |
 | Stock                  | `InventoryItem`, `Vendor`                                                      | Optional SKU and serial, unique in the database; quantity, warranty, supplier. May link to an `Equipment`.    |
 | Tickets                | `Ticket`                                                                       | Incident, request or repair. A repair may be created already resolved ("born resolved").                     |
 | Events                 | `Event`, `EventRoomBooking`, `EquipmentAllocation`, `ServiceWindow`            | Multi-room events, pooled equipment allocations, setup/standby/teardown windows.                              |
@@ -41,6 +41,9 @@ The schema lives in `prisma/schema.prisma`. The main families:
 | History                | `ActivityLog`                                                                  | Append-only audit trail, one row per meaningful mutation.                                                     |
 | Calendar output        | `CalendarOutbox`                                                               | Transactional outbox for CalDAV publishing.                                                                   |
 | Search                 | `Chunk`, `SearchIndexJob`                                                      | Derived index rows, rebuilt from the domain rows; never a source of truth.                                    |
+
+Library properties use ordinary `CustomField` rows with stable keys and MODEL/DEVICE levels;
+model values live in `EquipmentModel.customValues`, and `getFieldSchema` resolves labels for all readers.
 
 ### Rooms and locations
 

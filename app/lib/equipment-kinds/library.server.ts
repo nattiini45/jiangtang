@@ -1,12 +1,14 @@
 import { z } from "zod";
 import { msgKey } from "~/i18n";
-import library from "~/lib/equipment-kinds/library.json";
+import library from "~/lib/equipment-kinds/library.json" with { type: "json" };
 import { db, type Tx } from "~/lib/db.server";
 import type { AuditActor } from "~/lib/audit.server";
 import { workspaceLocale } from "~/i18n/locale.server";
 import { tr } from "~/i18n/request-locale.server";
 import { ValidationError } from "~/lib/errors.server";
 import { checkStructureLimit, KIND_LIMIT, structureWrite } from "./structure.server";
+import { reconcileLibraryInTx } from "~/lib/custom-fields/library.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 
 export const libraryQuerySchema = z.object({
   institutionType: z
@@ -77,74 +79,82 @@ export async function installLibraryKinds(
   input: z.input<typeof libraryInstallSchema>,
 ) {
   const { keys } = libraryInstallSchema.parse(input);
-  return structureWrite("kind", actor, async (tx, audit) => {
-    const snapshot = await listKindLibrary(undefined, tx);
-    const selected = snapshot.kinds.filter((kind) => keys.includes(kind.key));
-    const unavailable = selected
-      .filter((kind) => kind.status !== "available" || kind.groupArchived)
-      .map((kind) => kind.installationName);
-    unavailable.push(...keys.filter((key) => !selected.some((kind) => kind.key === key)));
-    if (unavailable.length)
-      throw new ValidationError({
-        keys: [tr("admin.structure.library.conflict", { names: unavailable.join(", ") })],
-      });
-    await checkStructureLimit(tx, "kind", selected.length);
-    const installed = [];
-    for (const definition of library.functionGroups) {
-      const kinds = selected.filter((kind) => kind.group === definition.key);
-      if (!kinds.length) continue;
-      let group = await tx.equipmentFunctionGroup.findUnique({
-        where: { systemKey: definition.key },
-      });
-      if (!group) {
-        const name = definition[snapshot.installationLocale];
-        const taken = await tx.equipmentFunctionGroup.findFirst({
-          where: { name: { equals: name, mode: "insensitive" }, archivedAt: null },
+  const result = await structureWrite(
+    "kind",
+    actor,
+    async (tx, audit) => {
+      const snapshot = await listKindLibrary(undefined, tx);
+      const selected = snapshot.kinds.filter((kind) => keys.includes(kind.key));
+      const unavailable = selected
+        .filter((kind) => kind.status !== "available" || kind.groupArchived)
+        .map((kind) => kind.installationName);
+      unavailable.push(...keys.filter((key) => !selected.some((kind) => kind.key === key)));
+      if (unavailable.length)
+        throw new ValidationError({
+          keys: [tr("admin.structure.library.conflict", { names: unavailable.join(", ") })],
         });
-        if (taken)
-          throw new ValidationError({
-            keys: [
-              tr("admin.structure.library.groupConflict", {
-                name,
-                kinds: kinds.map((kind) => kind.installationName).join(", "),
-              }),
-            ],
+      await checkStructureLimit(tx, "kind", selected.length);
+      const installed = [];
+      for (const definition of library.functionGroups) {
+        const kinds = selected.filter((kind) => kind.group === definition.key);
+        if (!kinds.length) continue;
+        let group = await tx.equipmentFunctionGroup.findUnique({
+          where: { systemKey: definition.key },
+        });
+        if (!group) {
+          const name = definition[snapshot.installationLocale];
+          const taken = await tx.equipmentFunctionGroup.findFirst({
+            where: { name: { equals: name, mode: "insensitive" }, archivedAt: null },
           });
-        await checkStructureLimit(tx, "group");
-        group = await tx.equipmentFunctionGroup.create({
-          data: { systemKey: definition.key, name, position: definition.position },
+          if (taken)
+            throw new ValidationError({
+              keys: [
+                tr("admin.structure.library.groupConflict", {
+                  name,
+                  kinds: kinds.map((kind) => kind.installationName).join(", "),
+                }),
+              ],
+            });
+          await checkStructureLimit(tx, "group");
+          group = await tx.equipmentFunctionGroup.create({
+            data: { systemKey: definition.key, name, position: definition.position },
+          });
+          await audit({
+            action: "EquipmentFunctionGroupCreated",
+            entityType: "equipmentFunctionGroup",
+            entityId: group.id,
+            data: { name: group.name, libraryKey: definition.key },
+          });
+        }
+        const max = await tx.equipmentKind.aggregate({
+          where: { groupId: group.id },
+          _max: { position: true },
         });
-        await audit({
-          action: "EquipmentFunctionGroupCreated",
-          entityType: "equipmentFunctionGroup",
-          entityId: group.id,
-          data: { name: group.name, libraryKey: definition.key },
-        });
+        let position = (max._max.position ?? -1) + 1;
+        for (const definition of kinds) {
+          const kind = await tx.equipmentKind.create({
+            data: {
+              systemKey: definition.key,
+              name: definition.installationName,
+              groupId: group.id,
+              position: position++,
+              tracksFrequency: false,
+            },
+          });
+          await audit({
+            action: "EquipmentKindCreated",
+            entityType: "equipmentKind",
+            entityId: kind.id,
+            data: { name: kind.name, groupId: group.id, libraryKey: definition.key },
+          });
+          installed.push(kind);
+        }
       }
-      const max = await tx.equipmentKind.aggregate({
-        where: { groupId: group.id },
-        _max: { position: true },
-      });
-      let position = (max._max.position ?? -1) + 1;
-      for (const definition of kinds) {
-        const kind = await tx.equipmentKind.create({
-          data: {
-            systemKey: definition.key,
-            name: definition.installationName,
-            groupId: group.id,
-            position: position++,
-            tracksFrequency: false,
-          },
-        });
-        await audit({
-          action: "EquipmentKindCreated",
-          entityType: "equipmentKind",
-          entityId: kind.id,
-          data: { name: kind.name, groupId: group.id, libraryKey: definition.key },
-        });
-        installed.push(kind);
-      }
-    }
-    return { installed };
-  });
+      await reconcileLibraryInTx(tx, audit);
+      return { installed };
+    },
+    true,
+  );
+  await emitChange({ entityType: "customField", id: "library", op: "updated" });
+  return result;
 }

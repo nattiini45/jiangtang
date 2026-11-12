@@ -76,16 +76,26 @@ function PickerForm({
   const [selected, setSelected] = useState(config.columns);
   const choices = [
     ...builtins.map((column) => ({ ...column, detail: "" })),
-    ...config.fields.map((field) => ({
-      id: fieldColumnId(field.id),
-      label: field.name,
-      detail: [
-        t(`fields.type.${field.type}`),
-        ...(scope === "EQUIPMENT"
-          ? [field.kindNames.length ? field.kindNames.join(", ") : t("fields.columns.allKinds")]
-          : []),
-      ].join(" · "),
-    })),
+    ...config.fields.flatMap((field) =>
+      field.type === "RANGE"
+        ? []
+        : [
+            {
+              id: fieldColumnId(field.id),
+              label: field.name,
+              detail: [
+                t(`fields.type.${field.type}`),
+                ...(scope === "EQUIPMENT"
+                  ? [
+                      field.kindNames.length
+                        ? field.kindNames.join(", ")
+                        : t("fields.columns.allKinds"),
+                    ]
+                  : []),
+              ].join(" · "),
+            },
+          ],
+    ),
   ];
   const ordered = [
     ...selected.flatMap((id) => choices.find((choice) => choice.id === id) ?? []),

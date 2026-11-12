@@ -25,7 +25,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const url = new URL(request.url);
   const roomId = url.searchParams.get("roomId") || undefined;
-  const [models, rooms, kinds] = await Promise.all([listModels(), listRooms(), listDeviceKinds()]);
+  const [models, rooms, kinds] = await Promise.all([
+    listModels({ includeValues: true }),
+    listRooms(),
+    listDeviceKinds(),
+  ]);
   return { models, rooms, roomId, kinds, fields: await getFormFields("EQUIPMENT") };
 }
 

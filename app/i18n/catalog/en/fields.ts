@@ -1,5 +1,17 @@
 import type { fieldsDe } from "../de/fields";
 export const fieldsEn = {
+  "fields.library.protected":
+    "This property comes from the library. Its definition and device kinds cannot be changed or deleted.",
+  "fields.library.nameTaken": "A library property already uses this name for this device kind.",
+  "fields.library.title": "From the library ({count})",
+  "fields.level.MODEL": "Model",
+  "fields.level.DEVICE": "Device",
+  "fields.model.editOnModel": "Edit this property on the model: /inventory/models/{modelId}",
+  "fields.model.edit": "Edit on the model",
+  "fields.model.from": "From the model",
+  "fields.device.own": "This device",
+  "fields.model.sheet": "Data sheet",
+  "fields.properties.more": "More properties ({count})",
   "fields.columns.title": "Columns",
   "fields.columns.help": "For everyone on the team · {count} of 12 columns. The name stays first.",
   "fields.columns.allKinds": "All device kinds",

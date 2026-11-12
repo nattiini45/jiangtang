@@ -9,8 +9,10 @@ to its provider: connect only clients you trust.
 
 An admin with a write token can define fields without a screen. `get_record_schema`
 accepts `{scope: "ROOM" | "EQUIPMENT", kindId?: string}` and returns active definitions
-with ordered options. Retired options retain `archivedAt` and cannot be selected.
-Names and labels are workspace data, not translated text.
+with ordered options, `libraryKey`, `origin` (`library` or `own`), `level` (`MODEL` or
+`DEVICE`), `unit` (`{key,label}` or null), `weight`, and option `key`s. Retired options
+retain `archivedAt` and cannot be selected. Library names, help, units and labels follow the
+request language; own-property text stays as entered. Unsupported types are omitted.
 
 - `create_custom_field`: `{scope, key, name, type, kindIds?: string[], helpText?, section?, unit?, position?, showInList?, listPosition?, searchable?}`.
   Types are TEXT, LONG_TEXT, NUMBER, BOOLEAN, CHOICE, MULTI_CHOICE, DATE and LINK.
@@ -18,6 +20,8 @@ Names and labels are workspace data, not translated text.
   restricted to disjoint sets of kinds; room field names remain unique. Archived fields count too.
   An empty kind list means every device kind; room fields always apply to every room.
   Name refusals identify the holder by `holderId` and describe its kinds and archive state.
+  A `systemKey` is refused. Own properties and renames cannot take a library property's
+  German or English name on an overlapping kind.
 - `update_custom_field`: `{id, ...changedProperties, archived?: boolean}`. Omitted
   properties stay unchanged. Archive hides a field and keeps its values; restore reveals them again.
   Type changes are limited to TEXT → LONG_TEXT, CHOICE → MULTI_CHOICE and the reverse choice
@@ -31,7 +35,11 @@ Names and labels are workspace data, not translated text.
 - `delete_custom_field`: `{id, confirm: true}`. Deletes a definition only when no record holds a value.
   Likewise, an option cannot be deleted while it is selected, even on a hidden or archived field.
 
-There can be at most 40 active fields applying to a record, 120 fields per scope,
+Library properties cannot be deleted or have their definition, options or kind links changed.
+Archive/restore and list/search flags remain available. Renaming and reordering library
+properties are not offered in this release.
+
+There can be at most 40 active own properties applying to a record, 120 own properties per scope,
 50 active options and 200 total options per field. Archive fields, narrow their kinds,
 retire options or delete unused definitions to make room. Definition changes append
 one audit entry with the connecting user's token attribution.
@@ -40,11 +48,22 @@ one audit entry with the connecting user's token attribution.
 
 `set_custom_values({scope: "ROOM" | "EQUIPMENT", id, values: {field_key: value}})`
 requires a write token, but not an admin role. It changes only supplied keys: `null` clears
-one value; omitted keys and built-in fields are untouched. Choice values accept option IDs
+one value; omitted keys and built-in fields are untouched. Library keys such as
+`projector.light_source` are accepted alongside installation field keys. Choice values accept option keys, IDs
 or case-insensitive active labels; multiple choices take an array without duplicates.
 Other types accept strings, finite numbers with at most six decimals, booleans, calendar dates
 (`YYYY-MM-DD`) or HTTP(S) links. Short and long text allow 200 and 4,000 characters;
 all values on one record together may use at most 32 KB. No value is written if one fails.
+
+`set_model_values({modelId, values})` uses the same validation and merge rules for the model's
+MODEL-level library properties. For example, `{ "projector.light_source": "laser" }`
+sets the light source once for every device of that model. `get_equipment_model` includes
+the model's stored `customValues` (field IDs as keys). Device reads return the effective
+model value, falling back to the device value, with `customValueOrigins` marking `model` or
+`device`. A device linked to a model cannot write a MODEL property, even if that model has
+no value, including attempts to clear a legacy device value; the error points to
+`/inventory/models/<modelId>`. A device without a model may
+write that property itself. `RANGE` is reserved but is not accepted, offered or rendered yet.
 
 For example, define `{scope:"EQUIPMENT", key:"lamp_hours", name:"Lamp hours", type:"NUMBER", kindIds:["projector-kind-id"]}`,
 then call `set_custom_values({scope:"EQUIPMENT", id:"device-id", values:{lamp_hours:1234}})`.
@@ -200,7 +219,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **49 read tools and 86 write tools**. Their published schemas are
+Discovery currently returns **49 read tools and 87 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.

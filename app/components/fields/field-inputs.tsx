@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useFieldError } from "~/components/forms";
 import { Label } from "~/components/ui/label";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
+import { FieldValue } from "./field-values";
 import { useT } from "~/i18n/use-t";
 import {
   applies,
@@ -13,16 +15,60 @@ import {
   sameValue,
   valueObject,
   type Field,
+  type FilledField,
 } from "~/lib/custom-fields/fields";
 
-export function FieldInputs({
+export function FieldInputs(props: {
+  fields: Field[];
+  stored?: unknown;
+  kindId?: string;
+  modelId?: string | null;
+  modelValues?: unknown;
+}) {
+  const t = useT();
+  const applicable = props.fields.filter(
+    (field) => field.type !== "RANGE" && applies(field, props.kindId),
+  );
+  const hidden = props.fields.filter(
+    (field) =>
+      !applies(field, props.kindId) && !sameValue(valueObject(props.stored)[field.id], null),
+  ).length;
+  const essential = applicable.filter(
+    (field) => field.origin !== "library" || field.weight === "must",
+  );
+  const other = applicable.filter((field) => field.origin === "library" && field.weight !== "must");
+  return (
+    <>
+      {hidden > 0 ? (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t("fields.form.hidden", { count: hidden })}
+        </p>
+      ) : null}
+      <FieldEditor {...props} fields={essential} />
+      {other.length ? (
+        <details className="min-w-0">
+          <summary className="cursor-pointer py-2 text-sm font-semibold">
+            {t("fields.properties.more", { count: other.length })}
+          </summary>
+          <FieldEditor {...props} fields={other} />
+        </details>
+      ) : null}
+    </>
+  );
+}
+
+function FieldEditor({
   fields,
   stored,
   kindId,
+  modelId,
+  modelValues,
 }: {
   fields: Field[];
   stored?: unknown;
   kindId?: string;
+  modelId?: string | null;
+  modelValues?: unknown;
 }) {
   const t = useT();
   const valuesError = useFieldError("customValues");
@@ -62,6 +108,35 @@ export function FieldInputs({
           </legend>
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => {
+              if (modelId && field.level === "MODEL") {
+                const value = valueObject(modelValues)[field.id] ?? before[field.id];
+                const label = (id: unknown) =>
+                  field.options.find((option) => option.id === id)?.label ?? String(id);
+                const display =
+                  field.type === "CHOICE"
+                    ? label(value)
+                    : field.type === "MULTI_CHOICE" && Array.isArray(value)
+                      ? value.map(label)
+                      : value;
+                return (
+                  <div key={field.id} className="min-w-0 text-sm">
+                    <div className="font-semibold [overflow-wrap:anywhere]">{field.name}</div>
+                    <div className="my-1 [overflow-wrap:anywhere]">
+                      {value == null ? (
+                        t("fields.form.unset")
+                      ) : (
+                        <FieldValue field={{ ...field, value: display as FilledField["value"] }} />
+                      )}
+                    </div>
+                    <Link
+                      to={`/inventory/models/${modelId}`}
+                      className="text-muted-foreground text-xs underline underline-offset-4"
+                    >
+                      {t("fields.model.edit")}
+                    </Link>
+                  </div>
+                );
+              }
               const value = draft[field.id] ?? inputValue(field, before[field.id]);
               const changed =
                 !sameValue(value, inputValue(field, before[field.id])) &&

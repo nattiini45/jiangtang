@@ -13,6 +13,7 @@ import { Button } from "~/components/ui/button";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.modelNew") }];
@@ -20,19 +21,22 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
-  return { kinds: await listDeviceKinds() };
+  return { kinds: await listDeviceKinds(), fields: await getFormFields("EQUIPMENT") };
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
+  const form = await request.clone().formData();
   const result = await safeParseForm(request, modelCreateSchema);
   if (!result.success) return { fieldErrors: result.fieldErrors };
   try {
-    const model = await createModel(actor, result.data);
+    const customValues = await parseFieldForm("EQUIPMENT", form, {}, result.data.kindId);
+    const model = await createModel(actor, { ...result.data, customValues });
     await emitChange({ entityType: "equipmentModel", id: model.id, op: "created" });
     return redirect(`/inventory/models/${model.id}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("EQUIPMENT", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -45,7 +49,7 @@ export default function NewModel({ loaderData, actionData }: Route.ComponentProp
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <h1 className="text-xl font-bold">{t("inventory.models.createTitle")}</h1>
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
-        <ModelFormFields kinds={loaderData.kinds} />
+        <ModelFormFields kinds={loaderData.kinds} fields={loaderData.fields} />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.saving") : t("inventory.models.createSubmit")}

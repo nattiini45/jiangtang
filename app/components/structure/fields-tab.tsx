@@ -46,10 +46,19 @@ export function FieldsTab({
   const visible = fields.filter(
     (field) =>
       field.scope === scope &&
+      field.origin === "own" &&
       (showArchived || !field.archivedAt) &&
       (scope === "ROOM" || applies(field, kindId)),
   );
   const sections = fieldGroups(visible);
+  const libraryKinds = kinds.filter(
+    (kind) =>
+      (!kindId || kind.id === kindId) &&
+      fields.some(
+        (field) =>
+          field.origin === "library" && field.kinds.some((link) => link.kindId === kind.id),
+      ),
+  );
   const move = (id: string, direction: "up" | "down", section: boolean) => {
     void fetcher.submit(
       {
@@ -232,6 +241,43 @@ export function FieldsTab({
               )}
             </p>
           ) : null}
+          {scope === "EQUIPMENT"
+            ? libraryKinds.map((kind) => {
+                const properties = fields.filter(
+                  (field) =>
+                    field.origin === "library" &&
+                    field.kinds.some((link) => link.kindId === kind.id),
+                );
+                return (
+                  <section key={kind.id} className="mt-5 min-w-0">
+                    <h2 className="mb-2 text-base font-semibold [overflow-wrap:anywhere]">
+                      {kind.name}
+                    </h2>
+                    <details className="bg-card shadow-surface-2 rounded-lg p-4">
+                      <summary className="cursor-pointer text-sm font-semibold">
+                        {t("fields.library.title", { count: properties.length })}
+                      </summary>
+                      <ul className="mt-3 divide-y">
+                        {properties.map((field) => (
+                          <li
+                            key={field.id}
+                            className="flex min-w-0 items-start justify-between gap-4 py-row text-sm"
+                          >
+                            <span className="min-w-0 [overflow-wrap:anywhere]">
+                              {field.name}
+                              {field.unit ? ` · ${field.unit}` : ""}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 text-xs">
+                              {t(`fields.level.${field.level}`)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </details>
+                  </section>
+                );
+              })
+            : null}
         </div>
         {selected ? (
           <FieldPanel

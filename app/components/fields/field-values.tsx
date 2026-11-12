@@ -6,11 +6,24 @@ import { useLocale, useT } from "~/i18n/use-t";
 import { formatDate, formatNumber } from "~/i18n/format";
 import { fieldGroups, type FilledField } from "~/lib/custom-fields/fields";
 
-export function FieldValues({ fields, foldAfter }: { fields: FilledField[]; foldAfter?: number }) {
+export function FieldValues({
+  fields,
+  foldAfter,
+  essentialFirst = false,
+}: {
+  fields: FilledField[];
+  foldAfter?: number;
+  essentialFirst?: boolean;
+}) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   if (!fields.length) return null;
-  const shown = foldAfter && !expanded ? fields.slice(0, foldAfter) : fields;
+  const essential = (field: FilledField) => field.origin === "own" || field.weight === "must";
+  const ordered = essentialFirst
+    ? [...fields.filter(essential), ...fields.filter((field) => !essential(field))]
+    : fields;
+  const first = essentialFirst ? fields.filter(essential).length : foldAfter;
+  const shown = first !== undefined && !expanded ? ordered.slice(0, first) : ordered;
   return (
     <div className="flex min-w-0 flex-col gap-4" data-field-values>
       {fieldGroups(shown).map(({ section, fields }) => (
@@ -33,7 +46,7 @@ export function FieldValues({ fields, foldAfter }: { fields: FilledField[]; fold
           </dl>
         </section>
       ))}
-      {foldAfter && fields.length > foldAfter ? (
+      {first !== undefined && fields.length > first ? (
         <Button
           type="button"
           variant="ghost"
@@ -44,7 +57,7 @@ export function FieldValues({ fields, foldAfter }: { fields: FilledField[]; fold
         >
           {expanded
             ? t("fields.values.less")
-            : t("fields.values.more", { count: fields.length - foldAfter })}
+            : t("fields.values.more", { count: fields.length - first })}
         </Button>
       ) : null}
     </div>
@@ -55,6 +68,7 @@ export function FieldValue({ field, compact = false }: { field: FilledField; com
   const t = useT();
   const locale = useLocale();
   const value = field.value;
+  if (field.type === "RANGE") return null;
   if (compact && field.type === "MULTI_CHOICE" && Array.isArray(value)) return value.join(", ");
   if (field.type === "MULTI_CHOICE" && Array.isArray(value))
     return (

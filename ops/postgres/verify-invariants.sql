@@ -242,13 +242,13 @@ BEGIN
 
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 24 CREATE TYPE = 24 enum types, 69 FOREIGN KEY = 69 contype 'f',
-  -- 2 EXCLUDE USING = 2 contype 'x', and the thirteen named CHECKs.
-  SELECT count(*) = 24 INTO have
+  -- row: 25 CREATE TYPE = 25 enum types, 69 FOREIGN KEY = 69 contype 'f',
+  -- 2 EXCLUDE USING = 2 contype 'x', and the fifteen named CHECKs.
+  SELECT count(*) = 25 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 24 enum types the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 25 enum types the migrations create');
   END IF;
 
   SELECT count(*) = 69 INTO have
@@ -269,24 +269,24 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 2 EXCLUDE constraints the baseline creates');
   END IF;
 
-  SELECT count(*) = 13 INTO have
+  SELECT count(*) = 15 INTO have
     FROM pg_constraint
-    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape')
+    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape', 'custom_field_library_scope', 'equipment_model_custom_values')
       AND contype = 'c';
   IF NOT have THEN
     missing := array_append(missing, 'room, timer, equipment kind/group or custom field CHECK constraints are missing');
   END IF;
 
-  -- Index floor, deliberately a floor: the 101 surviving CREATE INDEX statements are only
+  -- Index floor, deliberately a floor: the 102 surviving CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 101 is the number the
+  -- catalog total is NOT derivable from the migration text. 102 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 101 INTO have
+  SELECT count(*) >= 102 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 101 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 102 explicitly created indexes (pg_indexes count)');
   END IF;
 
   SELECT count(*) = 2 INTO have FROM pg_index i
@@ -323,15 +323,15 @@ BEGIN
     missing := array_append(missing, 'custom field key and active option label unique indexes are missing or invalid');
   END IF;
 
-  SELECT count(*) = 2 INTO have FROM pg_attribute a
+  SELECT count(*) = 3 INTO have FROM pg_attribute a
     JOIN pg_class r ON r.oid = a.attrelid JOIN pg_namespace n ON n.oid = r.relnamespace
     JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
-    WHERE n.nspname = 'public' AND r.relname IN ('Room', 'Equipment') AND a.attname = 'customValues'
+    WHERE n.nspname = 'public' AND r.relname IN ('Room', 'Equipment', 'EquipmentModel') AND a.attname = 'customValues'
       AND a.attnotnull AND a.atttypid = 'jsonb'::regtype AND pg_get_expr(d.adbin, d.adrelid) = '''{}''::jsonb';
   IF NOT have THEN
-    missing := array_append(missing, 'room/device custom values JSONB columns require NOT NULL and the empty-object default');
+    missing := array_append(missing, 'room/device/model custom values JSONB columns require NOT NULL and the empty-object default');
   END IF;
-  SELECT count(*) = 2 INTO have FROM pg_constraint WHERE conname IN ('room_custom_values', 'equipment_custom_values')
+  SELECT count(*) = 3 INTO have FROM pg_constraint WHERE conname IN ('room_custom_values', 'equipment_custom_values', 'equipment_model_custom_values')
     AND convalidated AND pg_get_constraintdef(oid) LIKE '%jsonb_typeof%' AND pg_get_constraintdef(oid) LIKE '%pg_column_size%' AND pg_get_constraintdef(oid) LIKE '%32768%';
   IF NOT have THEN
     missing := array_append(missing, 'custom values object/32 KB CHECK definitions are missing');
@@ -346,12 +346,25 @@ BEGIN
     missing := array_append(missing, 'list columns must contain 1 to 12 columns with the name first');
   END IF;
 
+  SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'custom_field_library_scope'
+    AND conrelid = '"CustomField"'::regclass AND convalidated
+    AND pg_get_constraintdef(oid) LIKE '%systemKey%IS NULL%EQUIPMENT%') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'library properties must have EQUIPMENT scope');
+  END IF;
+  SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE idx.relname = 'CustomFieldOption_fieldId_systemKey_key' AND i.indisunique AND i.indisvalid
+      AND pg_get_indexdef(i.indexrelid) LIKE '%("fieldId", "systemKey")%') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'library option keys must be unique within their property');
+  END IF;
+
   IF array_length(missing, 1) IS NOT NULL THEN
     RAISE EXCEPTION 'Jiangtang invariant check FAILED — % missing invariant(s): %',
       array_length(missing, 1), array_to_string(missing, '; ')
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, 24 enums / 69 foreign keys / 13 CHECKs, >=101 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, 25 enums / 69 foreign keys / 15 CHECKs, >=102 public indexes';
 END
 $verify$;

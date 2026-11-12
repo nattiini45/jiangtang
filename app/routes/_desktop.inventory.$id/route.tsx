@@ -82,7 +82,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         ]
       : [];
   const [models, rooms, targets, attachments, history, kinds] = await Promise.all([
-    listModels(),
+    listModels({ includeValues: true }),
     listRooms(),
     listSubstitutionTargets(params.id),
     listAttachments({ equipmentId: params.id }),
@@ -259,11 +259,20 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         </Link>
       </div>
 
-      {loaderData.filledFields.length ? (
-        <section className="bg-card shadow-surface-2 rounded-lg p-4">
-          <FieldValues fields={loaderData.filledFields} />
-        </section>
-      ) : null}
+      {(["model", "device"] as const).map((from) => {
+        const fields = loaderData.filledFields.filter((field) => field.from === from);
+        return fields.length ? (
+          <section key={from} className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4">
+            <h2 className="mb-3 text-base font-semibold">
+              {t(from === "model" ? "fields.model.from" : "fields.device.own")}
+            </h2>
+            <FieldValues
+              fields={fields}
+              essentialFirst={fields.some((field) => field.origin === "library")}
+            />
+          </section>
+        ) : null;
+      })}
 
       <EquipmentPorts
         equipmentId={eq.id}

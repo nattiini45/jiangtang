@@ -2,11 +2,20 @@ import type { FieldDefinition } from "./definitions.server";
 
 export type Field = Pick<
   FieldDefinition,
-  "id" | "key" | "name" | "type" | "unit" | "section" | "helpText" | "position" | "kinds"
-> & { options: { id: string; label: string; archived: boolean }[] };
+  "id" | "key" | "name" | "unit" | "section" | "helpText" | "position" | "kinds"
+> & {
+  type: FieldDefinition["type"];
+  level?: "MODEL" | "DEVICE";
+  weight?: "must" | "useful" | "special";
+  origin?: "library" | "own";
+  options: { id: string; label: string; archived: boolean }[];
+};
 
 export type FilledField = Pick<Field, "id" | "name" | "type" | "section" | "position" | "unit"> & {
   value: string | number | boolean | string[];
+  from?: "model" | "device";
+  origin?: "own" | "library";
+  weight?: "must" | "useful" | "special";
 };
 
 export function applies(field: { kinds: { kindId: string }[] }, kindId?: string | null) {
@@ -19,9 +28,20 @@ export function valueObject(value: unknown): Record<string, unknown> {
     : {};
 }
 
-export function fieldGroups<T extends { section: string | null; position: number }>(fields: T[]) {
+export function fieldGroups<
+  T extends {
+    section: string | null;
+    position: number;
+    weight?: "must" | "useful" | "special";
+    origin?: "own" | "library";
+  },
+>(fields: T[]) {
   const groups = new Map<string, T[]>();
-  for (const field of [...fields].sort((a, b) => a.position - b.position)) {
+  const rank = (field: T) =>
+    field.origin === "own" || !field.weight
+      ? 3
+      : ["must", "useful", "special"].indexOf(field.weight);
+  for (const field of [...fields].sort((a, b) => rank(a) - rank(b) || a.position - b.position)) {
     const section = field.section || "";
     groups.set(section, [...(groups.get(section) ?? []), field]);
   }

@@ -19,6 +19,9 @@ import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
 import { setEquipmentModelPorts } from "~/domains/catalog/catalog.ports.mutations.server";
 import { ModelPortsEditor } from "~/components/inventory/ports-editor";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
+import { modelFieldValues } from "~/lib/custom-fields/display.server";
+import { FieldValues } from "~/components/fields/field-values";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -35,7 +38,12 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   await requireUser(request);
   const detail = await getModelDetail(params.id);
   if (!detail) throw toErrorResponse(new NotFoundError(tr("err.model.notFound")));
-  return { ...detail, kinds: await listDeviceKinds(false, detail.model.kind.id) };
+  return {
+    ...detail,
+    kinds: await listDeviceKinds(false, detail.model.kind.id),
+    fields: await getFormFields("EQUIPMENT"),
+    filledFields: await modelFieldValues(detail.model),
+  };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -59,11 +67,20 @@ export async function action({ request, params }: Route.ActionArgs) {
   const result = await safeParseForm(request, modelEditSchema);
   if (!result.success) return { fieldErrors: result.fieldErrors, ok: false };
   try {
-    const model = await updateModel(actor, params.id, result.data);
+    const detail = await getModelDetail(params.id);
+    if (!detail) throw new NotFoundError();
+    const customValues = await parseFieldForm(
+      "EQUIPMENT",
+      form,
+      detail.model.customValues,
+      result.data.kindId,
+    );
+    const model = await updateModel(actor, params.id, { ...result.data, customValues });
     await emitChange({ entityType: "equipmentModel", id: model.id, op: "updated" });
     return { fieldErrors: undefined, ok: true };
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors, ok: false };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("EQUIPMENT", e.fieldErrors), ok: false };
     throw toErrorResponse(e);
   }
 }
@@ -87,6 +104,12 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
       </div>
 
       <ModelAssetView stats={stats} instances={instances} />
+      {loaderData.filledFields.length ? (
+        <section className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4">
+          <h2 className="mb-3 text-base font-semibold">{t("fields.model.sheet")}</h2>
+          <FieldValues fields={loaderData.filledFields} />
+        </section>
+      ) : null}
 
       <ModelPortsEditor ports={model.ports} />
 
@@ -101,6 +124,8 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
         ) : null}
         <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-3">
           <ModelFormFields
+            fields={loaderData.fields}
+            stored={model.customValues}
             kinds={loaderData.kinds}
             defaults={{
               kindId: model.kind.id,

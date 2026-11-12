@@ -7,6 +7,7 @@ import { emitChange } from "~/lib/realtime/emit.server";
 import { applies, fieldGroups } from "./fields";
 import { getDefinitions, lockDefinitions } from "./definitions.server";
 import { createFieldSchema, updateFieldSchema, fieldOptionsSchema } from "./definitions.schema";
+import { isLibraryProperty } from "~/lib/equipment-kinds/properties";
 
 export const fieldMoveSchema = z.object({
   id: z.string().min(1),
@@ -54,7 +55,11 @@ export async function moveCustomField(actor: AuditActor, input: z.input<typeof f
   await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
     const field = await tx.customField.findUniqueOrThrow({ where: { id } });
-    const all = await getDefinitions(field.scope, tx);
+    if (isLibraryProperty(field))
+      throw new ValidationError({ id: [tr("fields.library.protected")] });
+    const all = (await getDefinitions(field.scope, tx)).filter(
+      (field) => !isLibraryProperty(field),
+    );
     const visible = (row: (typeof all)[number]) =>
       (showArchived || !row.archivedAt) && (field.scope === "ROOM" || applies(row, kindId));
     const shown = all.filter(visible);

@@ -231,6 +231,12 @@ enum CustomFieldType {
   MULTI_CHOICE
   DATE
   LINK
+  RANGE
+}
+
+enum FieldLevel {
+  MODEL
+  DEVICE
 }
 
 model CustomField {
@@ -241,6 +247,8 @@ model CustomField {
   helpText String?
   section String?
   type CustomFieldType
+  level FieldLevel @default(DEVICE)
+  renamed Boolean @default(false)
   unit String?
   position Int @default(0)
   showInList Boolean @default(false)
@@ -268,12 +276,21 @@ model CustomFieldKind {
 
 model CustomFieldOption {
   id String @id @default(cuid())
+  systemKey String?
   fieldId String
   field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   label String
   position Int @default(0)
   archivedAt DateTime? @db.Timestamptz(3)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([fieldId, systemKey])
+}
+
+model LibraryState {
+  key String @id
+  version Int
+  appliedAt DateTime @default(now()) @db.Timestamptz(3)
 }
 
 model EquipmentKindsInitialization {
@@ -282,6 +299,7 @@ model EquipmentKindsInitialization {
 }
 
 model EquipmentModel {
+  customValues Json @default("{}") @db.JsonB
   kindId String?
   kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
   ports        EquipmentModelPort[]

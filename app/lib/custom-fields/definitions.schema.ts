@@ -37,11 +37,13 @@ const properties = z.object({
   searchable: z.boolean().default(true),
   kindIds: z.array(z.string().min(1)).max(80).default([]),
 });
-export const createFieldSchema = properties.extend({
-  scope: fieldScope,
-  key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
-  type: fieldType,
-});
+export const createFieldSchema = properties
+  .extend({
+    scope: fieldScope,
+    key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+    type: fieldType,
+  })
+  .strict();
 export const updateFieldSchema = properties
   .partial()
   .extend({

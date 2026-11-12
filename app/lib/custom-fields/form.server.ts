@@ -1,19 +1,23 @@
 import type { CustomFieldScope } from "~/generated/prisma/client";
 import { ValidationError } from "~/lib/errors.server";
-import { getDefinitions, getRecordSchema, type FieldDefinition } from "./definitions.server";
+import type { FieldDefinition } from "./definitions.server";
+import { getFieldSchema, type ResolvedField } from "./schema.server";
 import { validateCustomValues } from "./values.server";
 import { postedValue, sameValue, valueObject, type Field } from "./fields";
 import { currentLocale, tr } from "~/i18n/request-locale.server";
 
-export function formDefinitions(definitions: FieldDefinition[]): Field[] {
+export function formDefinitions(definitions: (FieldDefinition | ResolvedField)[]): Field[] {
   return definitions
-    .filter((field) => !field.archivedAt)
+    .filter((field) => !field.archivedAt && field.type !== "RANGE")
     .map((field) => ({
       id: field.id,
       key: field.key,
       name: field.name,
-      type: field.type,
-      unit: field.unit,
+      type: field.type as Field["type"],
+      unit: typeof field.unit === "object" ? (field.unit?.label ?? null) : field.unit,
+      level: field.level,
+      weight: "weight" in field ? field.weight : "useful",
+      origin: "origin" in field ? field.origin : "own",
       section: field.section,
       helpText: field.helpText,
       position: field.position,
@@ -27,7 +31,7 @@ export function formDefinitions(definitions: FieldDefinition[]): Field[] {
 }
 
 export async function getFormFields(scope: CustomFieldScope) {
-  return formDefinitions(await (scope === "ROOM" ? getRecordSchema(scope) : getDefinitions(scope)));
+  return formDefinitions(await getFieldSchema(scope));
 }
 
 export function valuesFromForm(form: FormData, fields: Field[], stored: unknown = {}) {
@@ -67,7 +71,7 @@ export async function parseFieldForm(
   stored: unknown = {},
   kindId?: string | null,
 ) {
-  const definitions = await getDefinitions(scope);
+  const definitions = await getFieldSchema(scope);
   const values = valuesFromForm(form, formDefinitions(definitions), stored);
   try {
     validateCustomValues(definitions, values, kindId);

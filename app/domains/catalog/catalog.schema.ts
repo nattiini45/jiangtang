@@ -2,6 +2,7 @@ import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { EquipmentCategory } from "~/generated/prisma/enums";
 import { optionalHttpUrl } from "~/lib/validation.server";
+import { customValuesInput } from "~/lib/custom-fields/values.schema";
 
 /** Zod schemas for the EquipmentModel catalog. Form values arrive as strings. */
 
@@ -18,6 +19,7 @@ export const modelCreateSchema = z
     kindId: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
     specNotes: optionalText,
     manualUrl: optionalUrl,
+    customValues: customValuesInput,
   })
   .refine((value) => value.kindId || value.category, {
     path: ["kindId"],

@@ -17,8 +17,9 @@ export async function applyEquipmentCustomValuesInTx(
   id: string,
   values: CustomValuesInput,
   kindId?: string | null,
+  modelId?: string | null,
 ) {
-  const patch = await prepareCustomValues(tx, "EQUIPMENT", id, values, kindId);
+  const patch = await prepareCustomValues(tx, "EQUIPMENT", id, values, kindId, modelId);
   await tx.$executeRaw`UPDATE "Equipment" SET "customValues" = ("customValues" || ${JSON.stringify(patch.set)}::jsonb) - ${patch.removed}::text[], "updatedAt" = now() WHERE id = ${id}`;
   return patch.auditData;
 }
