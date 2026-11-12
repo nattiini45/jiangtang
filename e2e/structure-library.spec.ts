@@ -115,6 +115,9 @@ test("library, editing, error and archive states fit both widths, languages and 
         await capture("kinds");
         const row = page.locator(`[data-entry-id='${kind.id}']`);
         await row.getByRole("button", { name: t(locale, "admin.structure.edit") }).click();
+        await expect(
+          row.getByLabel(t(locale, "admin.structure.name"), { exact: true }),
+        ).toBeVisible();
         await capture("editing");
         await row.getByLabel(t(locale, "admin.structure.name"), { exact: true }).fill("PC");
         await row.getByRole("button", { name: t(locale, "common.save"), exact: true }).click();
@@ -133,10 +136,16 @@ test("library, editing, error and archive states fit both widths, languages and 
         await page
           .getByRole("link", { name: t(locale, "admin.structure.groups"), exact: true })
           .click();
+        await expect(
+          page.getByRole("link", { name: t(locale, "admin.structure.groups"), exact: true }),
+        ).toHaveAttribute("aria-current", "page");
         await capture("groups");
         await page
           .getByRole("link", { name: t(locale, "admin.structure.kinds"), exact: true })
           .click();
+        await expect(
+          page.getByRole("link", { name: t(locale, "admin.structure.kinds"), exact: true }),
+        ).toHaveAttribute("aria-current", "page");
         await page
           .getByRole("button", { name: t(locale, "admin.structure.library.add"), exact: true })
           .click();
