@@ -20,18 +20,17 @@ for (const [view, label, nextDate] of [
   ["week", "Woche", "2026-11-15"],
   ["day", "Tag", "2026-11-09"],
   ["rooms", "Räume", "2026-11-09"],
-  ["list", "Liste", "2026-11-09"],
 ] as const) {
   test(`pending ${view} navigation preserves the latest date and filters`, async ({ page }) => {
     await page.goto(
-      `/events?view=${view === "week" ? "day" : "week"}&date=2026-11-08&status=CONFIRMED&room=seed_room_a01&equipment=${equipmentId}`,
+      `/calendar?view=${view === "week" ? "day" : "week"}&date=2026-11-08&status=CONFIRMED&room=seed_room_a01&equipment=${equipmentId}`,
     );
     await expect(page.locator("html[data-hydrated]")).toBeAttached();
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route("**/events.data?**", async (route) => {
+    await page.route("**/calendar.data?**", async (route) => {
       await gate;
       await route.continue();
     });
@@ -41,22 +40,24 @@ for (const [view, label, nextDate] of [
         .getByRole("link", { name: label, exact: true })
         .click();
       await expect(page.locator('main input[name="view"]')).toHaveValue(view);
-      await page.getByLabel("Aufgabenfälligkeiten anzeigen").check();
+      await page.getByText("Anzeigen (5)", { exact: true }).click();
+      await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
+      await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).check();
       const nextRequest = page.waitForRequest((request) => {
         const url = new URL(request.url());
-        return url.pathname === "/events.data" && url.searchParams.get("date") === nextDate;
+        return url.pathname === "/calendar.data" && url.searchParams.get("date") === nextDate;
       });
       await page.getByRole("link", { name: "Nächster Zeitraum" }).click();
       const request = await nextRequest;
       const params = new URL(request.url()).searchParams;
       expect(params.get("view")).toBe(view);
-      expect(params.get("tasks")).toBe("1");
+      expect(params.get("kinds")).toBe("events,service,tasks,projects,dates");
       expect(params.get("status")).toBe("CONFIRMED");
       expect(params.get("room")).toBe("seed_room_a01");
       expect(params.get("equipment")).toBe(equipmentId);
       await expect(page.locator('input[name="date"]')).toHaveValue(nextDate);
-      await page.getByLabel("Aufgabenfälligkeiten anzeigen").uncheck();
-      await page.getByLabel("Aufgabenfälligkeiten anzeigen").check();
+      await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
+      await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).check();
     } finally {
       release();
     }
@@ -64,13 +65,6 @@ for (const [view, label, nextDate] of [
       page.getByRole("main").getByRole("link", { name: label, exact: true }),
     ).toHaveAttribute("aria-current", "page");
     await expect(page).toHaveURL(new RegExp(`date=${nextDate}`));
-    await expect(page).toHaveURL(/tasks=1/);
-    if (view === "list") {
-      await page.locator('select[name="status"]').selectOption("PLANNED");
-      await expect(page).toHaveURL(/status=PLANNED/);
-      await expect(page).toHaveURL(/room=seed_room_a01/);
-      expect(new URL(page.url()).searchParams.get("equipment")).toBe(equipmentId);
-      await expect(page).toHaveURL(/tasks=1/);
-    }
+    await expect(page).toHaveURL(/kinds=events%2Cservice%2Ctasks%2Cprojects%2Cdates/);
   });
 }

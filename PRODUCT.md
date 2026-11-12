@@ -38,6 +38,11 @@ calendars. This is a product goal, not a claim of feature parity or completed mi
 
 - Tasks have assignments, status, priority, labels, dates, dependencies and project views; tickets
   can link to tasks and to rooms or equipment. Notes use Markdown and support import/export.
+- Calendar is a top-level workspace view at `/calendar`, directly after Overview. It combines
+  events, setup/standby/teardown, unfinished dated tasks, projects, room renewals, stock warranties
+  and the team's active date fields on rooms and equipment. Faults can be switched on. Choices
+  and resource filters travel in the URL. `/m/calendar` is its day agenda; `/events` and
+  `/m/events` are plain event lists. Calendar feeds still publish events only.
 - Rooms are bookable spaces in a campus/building hierarchy. Locations are a separate tree for
   storage and where things or work happen; they are not interchangeable room records.
 - Database exclusion constraints prevent overlapping room bookings and equipment allocations.

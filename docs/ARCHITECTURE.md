@@ -136,6 +136,43 @@ action calls `requireUser` or `requireRole` itself (see [Authentication and role
 A new public route goes on the `PUBLIC` list in `test/routes/route-auth-guard.test.ts`, with its
 reason.
 
+### Workspace calendar
+
+`/calendar` is independent of the event list at `/events`; `/m/calendar` is its mobile day
+agenda. The old `/events?view=month|week|day|rooms|calendar` links redirect with their filters.
+The public `/calendar/<token>/ics` feed and CalDAV continue publishing only events.
+
+`app/domains/calendar/calendar.sources.server.ts` registers the read-only sources. Each source
+has an id, a choice (id, catalog label and default visibility), and one bounded range read that
+returns `CalendarEntry[]` from `app/lib/calendar-entries.ts`. Entries carry a globally unique id,
+kind label, title, half-open interval, whole-day flag, record URL and related resources. Timed
+events/service windows keep their instants; task/project/renewal date ranges include the end's
+Berlin civil day. Warranty and team-defined dates occupy a whole Berlin day. Faults use their
+occurrence instant, marked as points with a one-millisecond interval for overlap checks. Settled tasks and archived/inapplicable
+field definitions stay out. DATE values are read by joining definitions with stored JSON values,
+not by a fixed list of fields, so a new active definition appears immediately.
+
+To add an inspection, loan or another dated record, implement a source with a range-constrained
+batch query, map to that contract and register it in `calendarSources`. Reuse a choice to group
+it with an existing switch, or give it its own translated choice. Routes and renderers consume
+the registry's choices and generic entries and need no change. Add range, applicability and
+resource-association tests alongside the source. Never query once per record or catch a failed
+source: the whole request must fail visibly. `getWorkspaceCalendar` validates the 366-day bound
+before starting any reads and combines enabled sources with resource pickers and occupancy.
+
+`kinds` is the explicit comma-separated choice in the URL (empty means none); absence enables
+everything except faults. It persists through view/date navigation on both surfaces. Resource
+filters are an intersection: unassociated tasks and projects disappear when a room or device is
+selected, consistently in every view. A task can associate through its linked ticket, stock
+through its linked equipment, and equipment through its room. Room occupancy is deliberately
+independent of visibility, status and equipment filters, so hiding an entry cannot advertise a
+booked hour as free. It is not a second source of booking truth; the database still arbitrates.
+
+The month shows at most three entries per day followed by a count linking to that day. Week and
+day views place whole-day and several-day date entries in the header band above the timed grid.
+Filter submissions flush their pending location synchronously before another navigation can
+derive its URL, preserving the most recent choice even while a previous range is still loading.
+
 ### Server entry and boot modules
 
 `server.ts` builds the Express app, mounts Vite (development) or the static build (production),
@@ -280,12 +317,9 @@ behind the same interface.
 
 ## Calendar output
 
-The signed-in `/events` surface defaults to a Monday-first week calendar, with month, day,
-room-availability timeline and the original list as alternate views. Date, view, filters and the
-optional task due-date overlay live in the URL. `/m/events` is a selected-day agenda. Calendar
-loaders use half-open Berlin date ranges in `events.calendar.queries.server.ts`; room occupancy
+The signed-in workspace calendar is described [above](#workspace-calendar). Room occupancy
 uses booking windows independently of parent event times and never hides active bookings under
-event status or equipment filters. Empty hourly slots prefill the existing creation forms. Exact
+entry visibility, event status or equipment filters. Empty hourly slots prefill the existing creation forms. Exact
 UTC hints preserve both occurrences of the repeated autumn hour only while they match the
 submitted Berlin fields; mutations and conflict pre-checks resolve them identically. These hints
 do not bypass the database booking constraints.

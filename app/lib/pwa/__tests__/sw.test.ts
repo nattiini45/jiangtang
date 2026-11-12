@@ -480,6 +480,7 @@ describe("service worker caching", () => {
         "/m/tasks",
         "/m/tickets",
         "/m/events",
+        "/m/calendar",
         "/m/projects",
         "/m/notes",
         "/m/timesheet",

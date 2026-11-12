@@ -92,6 +92,7 @@ const equivalents = [
   ["/tickets/new", "/m"],
   ["/board", "/m/board"],
   ["/events", "/m/events"],
+  ["/calendar", "/m/calendar"],
   ["/events/new", "/m/events/new"],
   ["/events/event-1", "/m/events/event-1"],
   ["/inventory/stock", "/m/inventory/stock"],
@@ -164,7 +165,12 @@ describe("route equivalents", () => {
   });
 
   it.each([
-    ["/events?date=2026-11-09&view=rooms&room=a", "/m/events?date=2026-11-09"],
+    ["/events?date=2026-11-09&view=rooms&room=a", "/m/calendar?date=2026-11-09&room=a&view=rooms"],
+    [
+      "/calendar?date=2026-11-09&kinds=tasks,projects&room=a&equipment=b",
+      "/m/calendar?date=2026-11-09&kinds=tasks%2Cprojects&room=a&equipment=b",
+    ],
+    ["/events?status=CONFIRMED", "/m/events?status=CONFIRMED"],
     [
       "/events/new?date=2026-11-09&startsAt=2026-11-09T08%3A00Z&endsAt=2026-11-09T09%3A00Z&roomId=a",
       "/m/events/new?date=2026-11-09&startsAt=2026-11-09T08%3A00Z&endsAt=2026-11-09T09%3A00Z&roomId=a",

@@ -52,7 +52,9 @@ for (const viewport of [
     expect(accessibility.violations).toEqual([]);
 
     const links = dialog.getByRole("navigation").getByRole("link");
-    await expect(links).toHaveCount(11);
+    await expect(links).toHaveCount(12);
+    await expect(links.filter({ hasText: "Kalender" })).toHaveAttribute("href", "/m/calendar");
+    await expect(links.filter({ hasText: "Veranstaltungen" })).toHaveAttribute("href", "/m/events");
     for (const link of await links.all()) {
       await link.scrollIntoViewIfNeeded();
       await expect(link).toBeInViewport({ ratio: 1 });

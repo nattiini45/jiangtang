@@ -1,6 +1,21 @@
 import type { eventsDe } from "../de/events";
 
 export const eventsEn = {
+  "nav.calendar": "Calendar",
+  "calendar.meta": "Calendar · Jiangtang",
+  "calendar.subtitle": "Events, work and dates for rooms and equipment.",
+  "calendar.kinds": "Show",
+  "calendar.show": "Show ({count})",
+  "calendar.kinds.service": "Setup and teardown",
+  "calendar.kinds.dates": "Room and equipment dates",
+  "calendar.kinds.faults": "Faults",
+  "calendar.renewal": "Renewal",
+  "calendar.warranty": "Warranty ends",
+  "calendar.wholeDay": "All day",
+  "calendar.openDay": "Open day in calendar",
+  "calendar.resourceHint":
+    "Room and equipment filters show only related entries. Room bookings stay visible for booking planning.",
+  "calendar.empty": "No entries in this period. Change what is shown or create an event.",
   "events.health.title": "Override asset health",
   "events.health.roomWarning":
     "This room is out of service. Book it only after deliberately checking that it can be used. Existing bookings stay unchanged.",
@@ -23,8 +38,6 @@ export const eventsEn = {
   "events.list.filterStatus": "Filter by status",
   "events.list.allStatuses": "All statuses",
   "events.list.filterSubmit": "Filter",
-  "events.list.viewList": "List",
-  "events.list.viewCalendar": "Calendar",
   "events.list.empty": "No events found.",
 
   "events.col.title": "Title",
@@ -32,7 +45,6 @@ export const eventsEn = {
   "events.col.endsAt": "Ends",
   "events.col.status": "Status",
   "events.col.rooms": "Rooms",
-  "events.col.organizer": "Organizer",
 
   "events.calendar.weekday.0": "Mon",
   "events.calendar.weekday.1": "Tue",
@@ -46,21 +58,16 @@ export const eventsEn = {
   "events.calendar.view.week": "Week",
   "events.calendar.view.day": "Day",
   "events.calendar.view.rooms": "Rooms",
-  "events.calendar.view.list": "List",
   "events.calendar.previous": "Previous period",
   "events.calendar.next": "Next period",
   "events.calendar.today": "Today",
   "events.calendar.date": "Choose date",
-  "events.calendar.allEvents": "All events",
   "events.calendar.filterRoom": "Filter by room",
   "events.calendar.allRooms": "All rooms",
   "events.calendar.filterEquipment": "Filter by equipment",
   "events.calendar.allEquipment": "All equipment",
-  "events.calendar.showTasks": "Show task due dates",
-  "events.calendar.tasks": "Task due dates",
   "events.calendar.more": "+{count} more",
   "events.calendar.scrollHours": "Scroll horizontally to see all {count} hours.",
-  "events.calendar.taskDue": "Due: {title}",
   "events.calendar.createOn": "Create event on {date}",
   "events.calendar.createAt": "Create event on {date} at {time}",
   "events.calendar.bookRoomAt": "Book {room} at {time}",
@@ -69,7 +76,6 @@ export const eventsEn = {
   "events.calendar.slotHint":
     "Choose a free hour to create an event. Arrow keys change the hour or day; Home and End jump to the first or last hour.",
   "events.calendar.noRooms": "No rooms found. Add a room first or change the filter.",
-  "events.calendar.empty": "No events in this period. Choose a free hour or create a new event.",
 
   "events.subscribe.button": "Subscribe to calendar",
   "events.subscribe.copied": "Copied",
