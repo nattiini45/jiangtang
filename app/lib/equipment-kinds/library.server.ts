@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { msgKey } from "~/i18n";
-import library from "~/lib/equipment-kinds/library.json";
+import library from "~/lib/equipment-kinds/library.json" with { type: "json" };
 import { db, type Tx } from "~/lib/db.server";
 import type { AuditActor } from "~/lib/audit.server";
 import { workspaceLocale } from "~/i18n/locale.server";

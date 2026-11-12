@@ -1,4 +1,4 @@
-import library from "./library.json";
+import library from "./library.json" with { type: "json" };
 
 export type LibraryProperty = {
   key: string;
