@@ -76,7 +76,13 @@ async function checkKinds(tx: Tx, scope: CustomFieldScope, kindIds: string[]) {
   }
 }
 
-async function checkFieldName(tx: Tx, scope: CustomFieldScope, name: string, excludeId?: string) {
+async function checkFieldName(
+  tx: Tx,
+  scope: CustomFieldScope,
+  name: string,
+  kindIds: string[],
+  excludeId?: string,
+) {
   const matches = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id FROM "CustomField"
     WHERE scope = ${scope}::"CustomFieldScope" AND lower(name) = lower(${name})
@@ -86,7 +92,13 @@ async function checkFieldName(tx: Tx, scope: CustomFieldScope, name: string, exc
     include: { kinds: { include: { kind: true } } },
     orderBy: { id: "asc" },
   });
-  const holder = fields[0];
+  const holder = fields.find(
+    (field) =>
+      scope === "ROOM" ||
+      !kindIds.length ||
+      !field.kinds.length ||
+      field.kinds.some((link) => kindIds.includes(link.kindId)),
+  );
   if (!holder) return;
   const coverage =
     scope === "ROOM"
@@ -121,7 +133,7 @@ export async function createCustomField(
     await lockDefinitions(tx, true);
     const { kindIds, ...columns } = data;
     await checkKinds(tx, data.scope, kindIds);
-    await checkFieldName(tx, data.scope, data.name);
+    await checkFieldName(tx, data.scope, data.name, kindIds);
     if (data.unit != null && data.type !== "NUMBER") fieldError("unit", tr("fields.error.unit"));
     const field = await tx.customField.create({
       data: { ...columns, kinds: { create: kindIds.map((kindId) => ({ kindId })) } },
@@ -150,7 +162,13 @@ export async function updateCustomField(
     if (!before) throw new NotFoundError();
     if (kindIds) await checkKinds(tx, before.scope, kindIds);
     if (columns.name !== undefined || kindIds !== undefined)
-      await checkFieldName(tx, before.scope, columns.name ?? before.name, id);
+      await checkFieldName(
+        tx,
+        before.scope,
+        columns.name ?? before.name,
+        kindIds ?? before.kinds.map((link) => link.kindId),
+        id,
+      );
     let convertedRecords = 0;
     if (columns.type && columns.type !== before.type) {
       const pair = `${before.type}:${columns.type}`;
