@@ -5,6 +5,7 @@ import type { Express } from "express";
 import type { ViteDevServer } from "vite";
 import type { BootContext } from "./app/server/boot";
 import { resolveRuntimeMode } from "./app/server/runtime-mode";
+import { readConfig, setRuntimeNodeEnv } from "./app/lib/config.server";
 
 // The shape of the React Router server build we rely on (loosely typed: the
 // dev build comes from a Vite virtual module that has no static types).
@@ -24,11 +25,11 @@ try {
 
 // The mode is decided before Express reads NODE_ENV, so every module sees the same
 // answer. See resolveRuntimeMode for what an unset or unexpected value means.
-const runtime = resolveRuntimeMode(process.env);
+const runtime = resolveRuntimeMode({ NODE_ENV: readConfig("NODE_ENV") });
 const DEVELOPMENT = runtime.development;
-process.env.NODE_ENV = runtime.nodeEnv;
+setRuntimeNodeEnv(runtime.nodeEnv);
 
-const PORT = Number(process.env.PORT ?? 3000);
+const PORT = readConfig("PORT");
 
 const app = express();
 app.disable("x-powered-by");

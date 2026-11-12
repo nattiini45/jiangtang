@@ -1,4 +1,5 @@
 import pino from "pino";
+import { readConfig } from "~/lib/config.server";
 
 /**
  * Structured logger. Pino with JSON output, Europe/Berlin
@@ -8,7 +9,7 @@ import pino from "pino";
  * Server-only (`.server.ts` suffix). The level is `LOG_LEVEL` (default `info`).
  */
 
-const LOG_LEVEL = process.env.LOG_LEVEL ?? "info";
+const LOG_LEVEL = readConfig("LOG_LEVEL");
 
 export const logger = pino({
   level: LOG_LEVEL,

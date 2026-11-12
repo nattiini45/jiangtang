@@ -1,3 +1,4 @@
+import { CONFIG, readConfig } from "~/lib/config.server";
 import { db } from "~/lib/db.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -23,7 +24,7 @@ import { STOCK_INCLUDE } from "./inventory.stock.queries.server";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** The default look-ahead. */
-export const DEFAULT_WARRANTY_WINDOW_DAYS = 30;
+export const DEFAULT_WARRANTY_WINDOW_DAYS = CONFIG.WARRANTY_WINDOW_DAYS.default;
 
 /**
  * The look-ahead window in days, from `WARRANTY_WINDOW_DAYS` (default 30).
@@ -35,8 +36,7 @@ export const DEFAULT_WARRANTY_WINDOW_DAYS = 30;
  * default instead. (`Number("")` is `0`, so an empty variable also lands here.)
  */
 export function getWarrantyWindowDays(): number {
-  const raw = Number(process.env.WARRANTY_WINDOW_DAYS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_WARRANTY_WINDOW_DAYS;
+  return readConfig("WARRANTY_WINDOW_DAYS");
 }
 
 /** The two ends of the window, recomputed on every call. */

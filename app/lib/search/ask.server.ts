@@ -117,7 +117,7 @@ export type AskSystemRole = "system" | "merge";
 
 /** The configured mode for the live provider (route-side; tests pass it in). */
 export function askSystemRole(): AskSystemRole {
-  const cfg = readAiConfig(process.env);
+  const cfg = readAiConfig();
   return cfg.generation.state === "api" ? cfg.generation.config.systemRole : "system";
 }
 

@@ -1,3 +1,4 @@
+import { readConfig } from "~/lib/config.server";
 import { PrismaClient } from "~/generated/prisma/client";
 import type { Prisma } from "~/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -13,7 +14,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const globalForDb = globalThis as unknown as { __jiangtangDb?: PrismaClient };
 
 function createClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
+  const connectionString = readConfig("DATABASE_URL");
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set (check .env or the environment).");
   }
@@ -29,7 +30,7 @@ function createClient(): PrismaClient {
 // cache the client on globalThis to avoid leaking connection pools across reloads.
 export const db: PrismaClient = globalForDb.__jiangtangDb ?? createClient();
 
-if (process.env.NODE_ENV !== "production") {
+if (readConfig("NODE_ENV") !== "production") {
   globalForDb.__jiangtangDb = db;
 }
 

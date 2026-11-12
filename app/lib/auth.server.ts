@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins";
 import { redirect } from "react-router";
+import { readConfig } from "~/lib/config.server";
 import { db } from "~/lib/db.server";
 import {
   clientIpFromHeaders,
@@ -54,8 +55,8 @@ function loginAttemptOf(ctx: {
  */
 export const auth = betterAuth({
   appName: "Jiangtang",
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.BETTER_AUTH_URL,
+  secret: readConfig("BETTER_AUTH_SECRET"),
+  baseURL: readConfig("BETTER_AUTH_URL"),
   database: prismaAdapter(db, { provider: "postgresql" }),
   // Invitation-only access: the HTTP router rejects public email sign-up
   // (disabledPaths is an onRequest hook; programmatic auth.api.signUpEmail used
@@ -154,8 +155,8 @@ export async function getOptionalUser(request: Request): Promise<AuthUser | null
  * REQUIRE_ADMIN_TWO_FACTOR=true once every admin can enrol; an admin without it
  * is then held on the account page until they do.
  */
-export function adminTwoFactorRequired(env: NodeJS.ProcessEnv = process.env): boolean {
-  return env.REQUIRE_ADMIN_TWO_FACTOR === "true";
+export function adminTwoFactorRequired(env?: NodeJS.ProcessEnv): boolean {
+  return readConfig("REQUIRE_ADMIN_TWO_FACTOR", env);
 }
 
 /** Where an admin who still has to enrol is sent, and the paths they may still load. */
