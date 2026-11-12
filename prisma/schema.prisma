@@ -205,8 +205,68 @@ model EquipmentKind {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   equipment Equipment[]
   models EquipmentModel[]
+  customFields CustomFieldKind[]
 
   @@index([groupId])
+}
+
+enum CustomFieldScope {
+  ROOM
+  EQUIPMENT
+}
+
+enum CustomFieldType {
+  TEXT
+  LONG_TEXT
+  NUMBER
+  BOOLEAN
+  CHOICE
+  MULTI_CHOICE
+  DATE
+  LINK
+}
+
+model CustomField {
+  id String @id @default(cuid())
+  scope CustomFieldScope
+  key String
+  name String
+  helpText String?
+  section String?
+  type CustomFieldType
+  unit String?
+  position Int @default(0)
+  showInList Boolean @default(false)
+  listPosition Int?
+  searchable Boolean @default(true)
+  systemKey String? @unique
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  kinds CustomFieldKind[]
+  options CustomFieldOption[]
+
+  @@unique([scope, key])
+}
+
+model CustomFieldKind {
+  fieldId String
+  kindId String
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  kind EquipmentKind @relation(fields: [kindId], references: [id], onDelete: Restrict)
+
+  @@id([fieldId, kindId])
+  @@index([kindId])
+}
+
+model CustomFieldOption {
+  id String @id @default(cuid())
+  fieldId String
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  label String
+  position Int @default(0)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 }
 
 model EquipmentKindsInitialization {

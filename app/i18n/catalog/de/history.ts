@@ -1,4 +1,11 @@
 export const historyDe = {
+  "history.entity.customField": "Eigenes Feld",
+  "history.action.CustomFieldCreated": "Feld erstellt",
+  "history.action.CustomFieldUpdated": "Feld bearbeitet",
+  "history.action.CustomFieldArchived": "Feld archiviert",
+  "history.action.CustomFieldRestored": "Feld wiederhergestellt",
+  "history.action.CustomFieldDeleted": "Feld gelöscht",
+  "history.action.CustomFieldOptionsChanged": "Feldoptionen bearbeitet",
   "history.entity.equipmentKind": "Geräteart",
   "history.entity.equipmentFunctionGroup": "Funktionsgruppe",
   "history.action.UserPermissionGranted": "Berechtigung für Zeiteinträge erteilt",
