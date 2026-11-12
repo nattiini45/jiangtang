@@ -1,11 +1,12 @@
-import { FALLBACK_LOCALE, LOCALE_COOKIE, isLocale, matchLocale, type Locale } from "./locales";
+import { LOCALE_COOKIE, isLocale, matchLocale, type Locale } from "./locales";
+import { readConfig } from "~/lib/config.server";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
-const SECURE = process.env.NODE_ENV === "production" ? "; Secure" : "";
+const SECURE = readConfig("NODE_ENV") === "production" ? "; Secure" : "";
 
 /** Installation-wide default: `DEFAULT_LOCALE`, else English. */
 export function workspaceLocale(): Locale {
-  return matchLocale(process.env.DEFAULT_LOCALE) ?? FALLBACK_LOCALE;
+  return readConfig("DEFAULT_LOCALE");
 }
 
 export function parseLocaleCookie(cookie: string | null | undefined): Locale | null {

@@ -1,6 +1,6 @@
 /**
  * `getAi()` — the one place the app resolves its providers. Lazily built
- * once per process from `readAiConfig(process.env)`; a `none` embedding or
+ * once per process from `readAiConfig()`; a `none` embedding or
  * generation capability yields `null` (no dense arm / no answers), while a
  * `none` reranker is the pass-through so the pipeline always has a ranker.
  *
@@ -28,7 +28,7 @@ export interface AiRegistry {
 let cached: AiRegistry | null = null;
 
 function build(): AiRegistry {
-  const cfg = readAiConfig(process.env);
+  const cfg = readAiConfig();
   return {
     embedding: cfg.embedding.state === "api" ? createEmbeddingProvider(cfg.embedding.config) : null,
     reranker:

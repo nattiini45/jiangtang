@@ -3,6 +3,24 @@
 set -uo pipefail
 fail=0
 
+scan_for_environment_reads() {
+  local root="$1"
+  grep -rnE 'process[[:space:]]*\.[[:space:]]*env\b' "$root/app" "$root/server.ts" \
+    --include='*.ts' --include='*.tsx' 2>/dev/null \
+    | grep -vF "$root/app/lib/config.server.ts:" \
+    | grep -vF "$root/app/generated/" \
+    | grep -v '/__tests__/' || true
+}
+
+# Generated code is tool-owned; test fixtures must keep their environment stubs.
+# No application bootstrap file needs an exception: the registry has no side effects.
+hits=$(scan_for_environment_reads .)
+if [ -n "$hits" ]; then
+  echo "::error:: Direct environment access is banned. Use ~/lib/config.server."
+  echo "$hits"
+  fail=1
+fi
+
 # 1) No direct `@prisma/client` imports in app code — use ~/generated/prisma/client.
 #    (The generated client itself imports @prisma/client/runtime; that's allowed.)
 hits=$(grep -rnE "from ['\"]@prisma/client['\"]" app --include='*.ts' --include='*.tsx' 2>/dev/null \
@@ -122,6 +140,21 @@ scan_for_during_drop() {
 if [ "${1:-}" = "--self-test" ]; then
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
+  mkdir -p "$tmp/env/app/lib" "$tmp/env/app/__tests__" "$tmp/env/app/generated"
+  printf '%s\n' 'process.env.PORT' > "$tmp/env/app/lib/config.server.ts"
+  printf '%s\n' 'process.env.PORT = "3100"' > "$tmp/env/app/__tests__/fixture.test.ts"
+  printf '%s\n' 'process.env.NODE_ENV' > "$tmp/env/app/generated/client.ts"
+  if [ -n "$(scan_for_environment_reads "$tmp/env")" ]; then
+    echo "guards self-test FAILED: registry, generated code or test fixture was rejected"; exit 1
+  fi
+  printf '%s\n' 'process.env.PORT' > "$tmp/env/app/violation.ts"
+  printf '%s\n' 'process.env.NODE_ENV' > "$tmp/env/server.ts"
+  env_hits=$(scan_for_environment_reads "$tmp/env")
+  if [ "$(printf '%s\n' "$env_hits" | wc -l)" -ne 2 ] \
+    || ! grep -q 'app/violation.ts:' <<< "$env_hits" \
+    || ! grep -q 'server.ts:' <<< "$env_hits"; then
+    echo "guards self-test FAILED: application or entry-point environment read was missed"; exit 1
+  fi
   # The real layout is <root>/<migration-name>/migration.sql; the fixtures must
   # match it, or the glob matches nothing and every case passes vacuously —
   # which is exactly what happened the first time this was run.
@@ -151,7 +184,7 @@ if [ "${1:-}" = "--self-test" ]; then
   if [ -z "$c" ]; then
     echo "guards self-test FAILED: a lowercase drop was not detected"; exit 1
   fi
-  echo "guards: self-test OK (comment-quoted ignored, executable detected, mixed-case detected)"
+  echo "guards: self-test OK (environment boundary, comment-quoted ignored, executable detected, mixed-case detected)"
   exit 0
 fi
 

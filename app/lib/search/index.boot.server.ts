@@ -11,6 +11,7 @@
  *    `reindexSource` → `embedPending`.
  */
 import type { Express } from "express";
+import { readConfig } from "~/lib/config.server";
 import type { BootContext } from "~/server/boot";
 import { logger } from "~/lib/observability/logger.server";
 import { broker } from "~/lib/realtime/listener.server";
@@ -31,7 +32,7 @@ async function drainEmbeds(): Promise<void> {
 }
 
 export function register(_app: Express, ctx: BootContext): void {
-  if (process.env.NODE_ENV === "test" || process.env.SEARCH_INDEXER === "off") return;
+  if (readConfig("NODE_ENV") === "test" || readConfig("SEARCH_INDEXER") === "off") return;
 
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
 
