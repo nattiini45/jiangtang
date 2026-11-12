@@ -402,14 +402,14 @@ describe("shipped model catalog", () => {
   });
 
   it("keeps every audit row but renders one readable Jiangtang entry per startup step", async () => {
-    const time = new Date("1901-01-01T00:00:00Z");
+    const time = new Date("1901-01-01T00:00:59.900Z");
     await txWithAudit(null, async (_tx, audit) => {
       for (let i = 0; i < 37; i++)
         await audit({
           action: "LibraryPropertyReconciled",
           entityType: "customField",
           entityId: `synthetic-${i}`,
-          occurredAt: time,
+          occurredAt: new Date(+time + i * 10),
         });
       for (let i = 0; i < 2; i++) {
         await audit({
@@ -429,13 +429,19 @@ describe("shipped model catalog", () => {
     const feed = await listActivity(admin, {
       cursor: encodeActivityCursor(new Date("1902-01-01T00:00:00Z"), "zz"),
     });
-    const steps = feed.items.filter((entry) => +entry.occurredAt === +time);
+    const steps = feed.items.filter(
+      (entry) => +entry.occurredAt >= +time && +entry.occurredAt <= +time + 360,
+    );
     expect(steps).toHaveLength(3);
     expect(steps.find((entry) => entry.action === "LibraryPropertyReconciled")).toMatchObject({
       title: "37",
       actorSnapshot: { name: "Jiangtang" },
       href: null,
     });
-    expect(await db.activityLog.count({ where: { occurredAt: time } })).toBe(41);
+    expect(
+      await db.activityLog.count({
+        where: { occurredAt: { gte: time, lte: new Date(+time + 360) } },
+      }),
+    ).toBe(41);
   });
 });

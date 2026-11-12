@@ -157,10 +157,21 @@ async function queryActivity(
   const limit = options.limit ?? 50;
   const cursor = decodeActivityCursor(options.cursor);
   const batches = await db.$queryRaw<{ id: string; ids: string[]; count: bigint }[]>`
-    SELECT max(id) AS id, array_agg(id) AS ids, count(*) AS count
-    FROM "ActivityLog" WHERE "actorId" IS NULL
-      AND action IN ('LibraryPropertyReconciled', 'CatalogModelLinked', 'CatalogModelCorrected', 'CatalogDevicePortsFilled')
-    GROUP BY action, "occurredAt"`;
+    WITH changes AS (
+      SELECT id, action, "occurredAt",
+        CASE WHEN "occurredAt" - lag("occurredAt") OVER (
+          PARTITION BY action ORDER BY "occurredAt", id
+        ) > interval '10 seconds' THEN 1 ELSE 0 END AS boundary
+      FROM "ActivityLog" WHERE "actorId" IS NULL
+        AND action IN ('LibraryPropertyReconciled', 'CatalogModelLinked', 'CatalogModelCorrected', 'CatalogDevicePortsFilled')
+    ), steps AS (
+      SELECT id, action, "occurredAt", sum(boundary) OVER (
+        PARTITION BY action ORDER BY "occurredAt", id
+      ) AS step FROM changes
+    )
+    SELECT (array_agg(id ORDER BY "occurredAt" DESC, id DESC))[1] AS id,
+      array_agg(id) AS ids, count(*) AS count
+    FROM steps GROUP BY action, step`;
   const batchById = new Map(batches.map((batch) => [batch.id, Number(batch.count)]));
   const foldedIds = batches.flatMap((batch) => batch.ids.filter((id) => id !== batch.id));
   const rows = await db.activityLog.findMany({
