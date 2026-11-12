@@ -34,12 +34,14 @@ export function projectColumns(t: Translate): ColumnDef<ProjectListRow>[] {
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => t(`status.project.${row.status}`) },
       header: t("projects.col.status"),
       size: 180,
       cell: ({ row }) => <StatusCell kind="project" value={row.original.status} />,
     },
     {
       accessorKey: "lead",
+      meta: { searchText: (row) => row.lead?.name },
       header: t("projects.col.lead"),
       size: 140,
       cell: ({ row }) =>

@@ -33,6 +33,9 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   },
   {
     accessorKey: "emailVerified",
+    meta: {
+      searchText: (row) => t(row.emailVerified ? "admin.users.verified" : "admin.users.unverified"),
+    },
     header: t("admin.users.verification"),
     size: 230,
     cell: ({ row }) => (
@@ -50,6 +53,7 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   },
   {
     accessorKey: "role",
+    meta: { searchText: (row) => t(`auth.role.${row.role}`) },
     header: t("admin.users.col.role"),
     size: 100,
     cell: ({ row }) => (
@@ -60,6 +64,7 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   },
   {
     id: "isActive",
+    meta: { searchText: (row) => t(row.isActive ? "admin.users.active" : "admin.users.inactive") },
     header: t("admin.users.col.status"),
     size: 110,
     cell: ({ row }) =>
@@ -71,6 +76,10 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   },
   {
     id: "twoFactorEnabled",
+    meta: {
+      searchText: (row) =>
+        t(row.twoFactorEnabled ? "admin.users.twoFactorOn" : "admin.users.twoFactorOff"),
+    },
     header: t("admin.users.col.twoFactor"),
     size: 75,
     cell: ({ row }) =>

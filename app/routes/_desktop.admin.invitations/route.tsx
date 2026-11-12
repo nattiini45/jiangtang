@@ -76,12 +76,16 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     },
     {
       accessorKey: "role",
+      meta: { searchText: (row) => t(`auth.role.${row.role}`) },
       header: t("admin.users.col.role"),
       size: 75,
       cell: ({ row }) => t(`auth.role.${row.original.role}`),
     },
     {
       accessorKey: "state",
+      meta: {
+        searchText: (row) => t(`admin.invitations.lifecycle.${row.state}`, { date: "" }).trim(),
+      },
       header: t("admin.users.col.status"),
       size: 240,
       cell: ({ row }) => {
@@ -98,6 +102,7 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     },
     {
       id: "invitedBy",
+      meta: { searchText: (row) => row.invitedBy?.name || t("admin.invitations.unknown") },
       header: t("admin.invitations.by"),
       size: 110,
       cell: ({ row }) => (

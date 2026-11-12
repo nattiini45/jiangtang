@@ -3,6 +3,7 @@ import { DateCell, MonoCell, type ColumnDef } from "~/components/data-grid";
 import { LocationKindText, StockStatusText } from "~/components/i18n/enum-text";
 import type { StockStatus } from "~/generated/prisma/enums";
 import type { Translate } from "~/i18n";
+import { kindLabel } from "~/components/locations/labels";
 
 /**
  * DataGrid columns for the stock list.
@@ -76,6 +77,12 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "location",
+      meta: {
+        searchText: (row, locale) =>
+          row.location
+            ? `${row.location.name} ${kindLabel(locale, row.location.kind)}`
+            : t("inventory.stock.col.unassigned"),
+      },
       header: t("inventory.stock.col.location"),
       cell: ({ row }) =>
         row.original.location ? (
@@ -95,12 +102,21 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "vendor",
+      meta: { searchText: (row) => row.vendor?.name },
       header: t("inventory.stock.col.vendor"),
       cell: ({ row }) =>
         row.original.vendor ? <span className="text-sm">{row.original.vendor.name}</span> : dash,
     },
     {
       accessorKey: "equipment",
+      meta: {
+        searchText: (row) =>
+          row.equipment
+            ? (row.equipment.name ??
+              row.equipment.assetTag ??
+              t("inventory.stock.detail.deviceFallback"))
+            : null,
+      },
       header: t("inventory.stock.col.device"),
       cell: ({ row }) =>
         row.original.equipment ? (
@@ -116,6 +132,7 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "status",
+      meta: { searchText: (row) => (row.status ? t(`status.stock.${row.status}`) : null) },
       header: t("inventory.stock.col.status"),
       size: 200,
       // The localized label, not the enum key — nobody reads ON_LOAN.
