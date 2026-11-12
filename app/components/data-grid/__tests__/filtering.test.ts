@@ -261,6 +261,17 @@ describe("grid text filtering", () => {
   it("keeps dates, numeric counts, count summaries and actions unchanged", () => {
     const tr = (key: Parameters<typeof t>[1], params?: Parameters<typeof t>[2]) =>
       t("de", key, params);
+    const checked = new Date("2042-06-15T08:00:00Z");
+    expect(
+      filtered(
+        roomColumns(tr),
+        [
+          { status: "ALL_GOOD", lastCheckedAt: null },
+          { status: "ALL_GOOD", lastCheckedAt: checked },
+        ] as never,
+        String(checked.getTime()),
+      ),
+    ).toEqual([]);
     const dates = eventColumns(tr).filter(
       (column) => "accessorKey" in column && column.accessorKey === "startsAt",
     );

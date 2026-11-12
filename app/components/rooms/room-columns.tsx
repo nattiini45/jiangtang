@@ -79,6 +79,7 @@ export function roomColumns(t: Translate): ColumnDef<RoomListRow>[] {
     {
       accessorFn: (row) => row.lastCheckedAt?.getTime(),
       id: "lastCheckedAt",
+      enableGlobalFilter: false,
       header: t("rooms.lastChecked"),
       size: 146,
       sortUndefined: "last",
