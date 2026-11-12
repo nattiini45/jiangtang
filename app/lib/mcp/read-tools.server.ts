@@ -82,6 +82,7 @@ import { isoWeekRange, dayIndexToIsoWeek } from "~/lib/berlin-days";
 import { NotFoundError } from "~/lib/errors.server";
 import { registerTool } from "~/lib/mcp/tools.server";
 import type { McpContext } from "~/lib/mcp/types.server";
+import { withCustomValues } from "~/lib/custom-fields/values.server";
 
 const id = z.string().trim().min(1).max(200);
 const byId = z.object({ id });
@@ -109,6 +110,7 @@ const isoWeek = z
   });
 const timeOwner = z.object({ userId: id.optional() });
 const activityTypes = [
+  "customField",
   "timeEntry",
   "user",
   "campus",
@@ -280,7 +282,12 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       }),
     },
     async (input) =>
-      page((await listRooms(input, queryPage(input))).map(withRoomBookingAction), input),
+      page(
+        (await withCustomValues("ROOM", await listRooms(input, queryPage(input)))).map(
+          withRoomBookingAction,
+        ),
+        input,
+      ),
   );
   registerTool(
     server,
@@ -290,7 +297,8 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       description: "Get a bookable room by ID, including its capabilities, campus and building.",
       schema: byId,
     },
-    async ({ id }) => withRoomBookingAction(await found(getRoom(id))),
+    async ({ id }) =>
+      withRoomBookingAction((await withCustomValues("ROOM", [await found(getRoom(id))], true))[0]),
   );
   registerTool(
     server,
@@ -382,7 +390,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     },
     async (input) =>
       page(
-        (await listEquipment(input, queryPage(input)))
+        (await withCustomValues("EQUIPMENT", await listEquipment(input, queryPage(input))))
           .map(withMcpEquipmentKind)
           .map(withEquipmentAllocationAction),
         input,
@@ -398,7 +406,11 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       schema: byId,
     },
     async ({ id }) =>
-      withEquipmentAllocationAction(withMcpEquipmentKind(await found(getEquipment(id)))),
+      withEquipmentAllocationAction(
+        withMcpEquipmentKind(
+          (await withCustomValues("EQUIPMENT", [await found(getEquipment(id))], true))[0],
+        ),
+      ),
   );
   registerTool(
     server,

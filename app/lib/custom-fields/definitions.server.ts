@@ -3,9 +3,11 @@ import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { tr } from "~/i18n/request-locale.server";
-import type { CustomFieldScope, Prisma } from "~/generated/prisma/client";
+import { Prisma, type CustomFieldScope } from "~/generated/prisma/client";
 import { createFieldSchema, updateFieldSchema, fieldOptionsSchema } from "./definitions.schema";
 import type { z } from "zod";
+import { convertRoomCustomValuesInTx } from "~/domains/rooms/rooms.custom-values.server";
+import { convertEquipmentCustomValuesInTx } from "~/domains/inventory/inventory.custom-values.server";
 
 export const definitionInclude = {
   kinds: true,
@@ -38,6 +40,17 @@ export async function lockDefinitions(tx: Tx, write = false) {
 
 export function fieldError(key: string, message: string): never {
   throw new ValidationError({ [key]: [message] });
+}
+
+async function valuesExist(tx: Tx, fieldId: string, optionId?: string) {
+  const match =
+    optionId === undefined
+      ? Prisma.sql`"customValues" ? ${fieldId}`
+      : Prisma.sql`("customValues" -> ${fieldId}) @> ${JSON.stringify(optionId)}::jsonb`;
+  const rows = await tx.$queryRaw<Array<{ present: boolean }>>(
+    Prisma.sql`SELECT EXISTS(SELECT 1 FROM "Room" WHERE ${match} UNION ALL SELECT 1 FROM "Equipment" WHERE ${match}) AS present`,
+  );
+  return rows[0].present;
 }
 
 async function checkLimits(tx: Tx, scope: CustomFieldScope) {
@@ -105,8 +118,33 @@ export async function updateCustomField(
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUnique({ where: { id }, include: definitionInclude });
     if (!before) throw new NotFoundError();
+    let convertedRecords = 0;
+    if (columns.type && columns.type !== before.type) {
+      const pair = `${before.type}:${columns.type}`;
+      if (!["TEXT:LONG_TEXT", "CHOICE:MULTI_CHOICE", "MULTI_CHOICE:CHOICE"].includes(pair))
+        fieldError("type", tr("fields.error.type"));
+      if (before.type === "MULTI_CHOICE") {
+        const table = before.scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
+        const counts = await tx.$queryRaw<Array<{ count: bigint }>>(
+          Prisma.sql`SELECT count(*) FROM ${table} WHERE CASE WHEN jsonb_typeof("customValues" -> ${id}) = 'array' THEN jsonb_array_length("customValues" -> ${id}) ELSE 0 END > 1`,
+        );
+        if (counts[0].count > 0)
+          fieldError("type", tr("fields.error.multiple", { count: Number(counts[0].count) }));
+      }
+      if (before.type === "CHOICE") {
+        const table = before.scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
+        const rows = await tx.$queryRaw<Array<{ present: boolean }>>(
+          Prisma.sql`SELECT EXISTS(SELECT 1 FROM ${table} WHERE "customValues" ? ${id} AND pg_column_size(jsonb_set("customValues", ARRAY[${id}], jsonb_build_array("customValues" -> ${id}))) > 32768) AS present`,
+        );
+        if (rows[0].present) fieldError("type", tr("fields.limit.bytes"));
+      }
+      if (before.type === "CHOICE" || before.type === "MULTI_CHOICE")
+        convertedRecords = await (
+          before.scope === "ROOM" ? convertRoomCustomValuesInTx : convertEquipmentCustomValuesInTx
+        )(tx, id, columns.type === "MULTI_CHOICE");
+    }
     if (kindIds) await checkKinds(tx, before.scope, kindIds);
-    if (columns.unit != null && before.type !== "NUMBER")
+    if (columns.unit != null && (columns.type ?? before.type) !== "NUMBER")
       fieldError("unit", tr("fields.error.unit"));
     const field = await tx.customField.update({
       where: { id },
@@ -132,7 +170,9 @@ export async function updateCustomField(
       action,
       entityType: "customField",
       entityId: id,
-      data: JSON.parse(JSON.stringify({ before, after: field })) as Prisma.InputJsonValue,
+      data: JSON.parse(
+        JSON.stringify({ before, after: field, convertedRecords }),
+      ) as Prisma.InputJsonValue,
     });
     return field;
   });
@@ -158,8 +198,11 @@ export async function updateFieldOptions(
       } else {
         const option = await tx.customFieldOption.findFirst({ where: { id: change.id, fieldId } });
         if (!option) throw new NotFoundError();
-        if (change.op === "delete") await tx.customFieldOption.delete({ where: { id: change.id } });
-        else
+        if (change.op === "delete") {
+          if (await valuesExist(tx, fieldId, change.id))
+            fieldError("changes", tr("fields.error.optionInUse"));
+          await tx.customFieldOption.delete({ where: { id: change.id } });
+        } else
           await tx.customFieldOption.update({
             where: { id: change.id },
             data: {
@@ -195,6 +238,7 @@ export async function updateFieldOptions(
 export async function deleteCustomField(actor: AuditActor, id: string) {
   const result = await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
+    if (await valuesExist(tx, id)) fieldError("id", tr("fields.error.inUse"));
     const field = await tx.customField.delete({ where: { id }, include: definitionInclude });
     await audit({
       action: "CustomFieldDeleted",

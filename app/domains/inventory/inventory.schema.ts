@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customValuesInput } from "~/lib/custom-fields/values.schema";
 import { msgKey } from "~/i18n";
 import {
   EquipmentCategory,
@@ -46,6 +47,7 @@ const optionalJson = z.preprocess(emptyToUndefined, z.string().optional()).super
 
 export const equipmentCreateSchema = z
   .object({
+    customValues: customValuesInput,
     category: z.enum(EquipmentCategory).optional(),
     kindId: optionalId,
     modelId: optionalId,
@@ -161,6 +163,7 @@ const csvEqStatus = z.preprocess((v) => {
 }, z.enum(EquipmentStatus));
 
 const equipmentCsvFieldsSchema = z.object({
+  customValues: customValuesInput,
   kategorie: csvCategory,
   modell: optionalText,
   raum: optionalText,
@@ -179,6 +182,7 @@ const equipmentCsvFieldsSchema = z.object({
 
 function equipmentCsvFields(r: z.infer<typeof equipmentCsvFieldsSchema>) {
   return {
+    ...(r.customValues === undefined ? {} : { customValues: r.customValues }),
     category: r.kategorie,
     modelText: r.modell,
     roomText: r.raum,

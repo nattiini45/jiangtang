@@ -66,6 +66,7 @@ import { emitChange } from "~/lib/realtime/emit.server";
 import type { ChangeOp, EntityType } from "~/lib/realtime/events";
 import { registerTool } from "./tools.server";
 import { mcpActor, type McpContext } from "./types.server";
+import { withCustomValues } from "~/lib/custom-fields/values.server";
 
 const id = z.string().trim().min(1);
 const byId = z.object({ id });
@@ -110,7 +111,19 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     handler: (input: z.output<S>, ctx: McpContext) => Promise<{ id: string } | { created: number }>,
   ) {
     registerTool(server, context, { ...definition, write: true }, async (input, ctx) => {
-      const result = await handler(input, ctx);
+      let result = await handler(input, ctx);
+      if (
+        (definition.entityType === "room" || definition.entityType === "equipment") &&
+        "id" in result &&
+        "customValues" in result
+      )
+        result = (
+          await withCustomValues(
+            definition.entityType === "room" ? "ROOM" : "EQUIPMENT",
+            [result],
+            true,
+          )
+        )[0];
       await emitChange({
         entityType: definition.entityType,
         id: "id" in result ? result.id : "bulk",
@@ -177,7 +190,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_room",
       description:
-        "Replace a room's editable fields by ID, not slug, including knownIssues and lastCheckedAt. Omitted optional fields are cleared; check and renewal instants require an ISO timestamp with an offset.",
+        "Replace every built-in editable room field by ID, not slug. Omitted optional built-in fields are cleared. customValues is the exception: omitted leaves values untouched; supplied keys merge, null clears a key. Check and renewal instants require an ISO timestamp with an offset.",
       schema: z.object({ id, input: roomEditSchema.safeExtend(roomInstants) }),
       entityType: "room",
       op: "updated",
@@ -301,7 +314,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_equipment",
       description:
-        "Replace an equipment instance's editable fields by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Other omitted optional fields are cleared; lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
+        "Replace every built-in editable device field by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Other omitted optional built-in fields are cleared. customValues is the exception: omitted leaves values untouched; supplied keys merge, null clears a key. Lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
       schema: z.object({
         id,
         input: equipmentEditSchema
