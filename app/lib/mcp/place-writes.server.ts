@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
+import { withoutEquipmentKind } from "./tools.server";
 import {
   createCampus,
   updateCampus,
@@ -115,7 +116,9 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
         id: "id" in result ? result.id : "bulk",
         op: definition.op,
       });
-      return result;
+      return definition.entityType === "equipment" || definition.entityType === "equipmentModel"
+        ? withoutEquipmentKind(result)
+        : result;
     });
   }
 

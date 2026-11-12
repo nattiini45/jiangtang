@@ -31,6 +31,8 @@ export const ENTITY_TYPE = {
   building: "building",
   room: "room",
   equipmentModel: "equipmentModel",
+  equipmentKind: "equipmentKind",
+  equipmentFunctionGroup: "equipmentFunctionGroup",
   equipment: "equipment",
   ticket: "ticket",
   event: "event",

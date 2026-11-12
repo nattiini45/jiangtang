@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { tr } from "~/i18n/request-locale.server";
+import { withoutEquipmentKind } from "./tools.server";
 import {
   EquipmentCategory,
   EquipmentMobility,
@@ -324,7 +325,8 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         "List equipment catalog models and instance/fault counts. Follow nextOffset; use list_equipment with modelId for instances.",
       schema: pagination.extend({ category: z.enum(EquipmentCategory).optional(), q }),
     },
-    async (input) => page(await listModels(input, queryPage(input)), input),
+    async (input) =>
+      page((await listModels(input, queryPage(input))).map(withoutEquipmentKind), input),
   );
   registerTool(
     server,
@@ -335,7 +337,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         "Get an equipment catalog model by ID. Use list_equipment with modelId for its instances.",
       schema: byId,
     },
-    ({ id }) => found(getModel(id)),
+    async ({ id }) => withoutEquipmentKind(await found(getModel(id))),
   );
   registerTool(
     server,
@@ -355,7 +357,9 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     },
     async (input) =>
       page(
-        (await listEquipment(input, queryPage(input))).map(withEquipmentAllocationAction),
+        (await listEquipment(input, queryPage(input)))
+          .map(withoutEquipmentKind)
+          .map(withEquipmentAllocationAction),
         input,
       ),
   );
@@ -368,7 +372,8 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         "Get an equipment instance, model, room, ordered ports, both-ended connections and port action legality, plus spare/substitute links by ID. Write permission still requires a write token.",
       schema: byId,
     },
-    async ({ id }) => withEquipmentAllocationAction(await found(getEquipment(id))),
+    async ({ id }) =>
+      withEquipmentAllocationAction(withoutEquipmentKind(await found(getEquipment(id)))),
   );
   registerTool(
     server,

@@ -24,6 +24,15 @@ export function serializeMcp(value: unknown): unknown {
   return value;
 }
 
+export function withoutEquipmentKind<T extends object>(value: T): Omit<T, "kind" | "kindId"> {
+  const {
+    kind: _kind,
+    kindId: _kindId,
+    ...rest
+  } = value as T & { kind?: unknown; kindId?: unknown };
+  return rest;
+}
+
 export async function mcpError(error: unknown): Promise<CallToolResult> {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2025") error = new NotFoundError();

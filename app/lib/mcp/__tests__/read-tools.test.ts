@@ -523,6 +523,13 @@ describe("booking reads", () => {
       status: "OPERATIONAL",
       mobility: "POOLED",
       ports: [],
+      category: "MICROPHONE",
+      kind: {
+        id: "microphone-kind",
+        name: "Microphone",
+        systemKey: "microphone",
+        group: { id: "audio-group", name: "Audio", position: 5 },
+      },
     });
   });
 

@@ -1,4 +1,6 @@
 export const historyDe = {
+  "history.entity.equipmentKind": "Geräteart",
+  "history.entity.equipmentFunctionGroup": "Funktionsgruppe",
   "history.action.UserPermissionGranted": "Berechtigung für Zeiteinträge erteilt",
   "history.action.UserPermissionRevoked": "Berechtigung für Zeiteinträge entzogen",
   "history.action.TimesheetViewed": "Zeiteinträge angesehen",
@@ -24,6 +26,8 @@ export const historyDe = {
   "history.action.EquipmentAllocated": "Zugeordnet",
   "history.action.EquipmentDeallocated": "Zuordnung gelöst",
   "history.action.EquipmentModelCreated": "Modell angelegt",
+  "history.action.EquipmentKindCreated": "Geräteart angelegt",
+  "history.action.EquipmentFunctionGroupCreated": "Funktionsgruppe angelegt",
   "history.action.EquipmentModelUpdated": "Modell bearbeitet",
   "history.action.EquipmentSubstitutionSet": "Ersatzgerät gesetzt",
   "history.action.EquipmentSubstitutionCleared": "Ersatzgerät entfernt",

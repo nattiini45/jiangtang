@@ -694,6 +694,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261111163000_room_known_issues",
       "20261112090000_equipment_ports",
       "20261112090100_equipment_connections",
+      "20261112120000_equipment_kinds",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only
     // new symbol is a function.
@@ -703,7 +704,7 @@ describe("no migration, no fragment directory, no schema change", () => {
     );
     expect(schema).toMatch(/model EquipmentModel \{/);
     expect(findOrCreateBody).toMatch(
-      /tx\.equipmentModel\.create\(\{\s*data: \{ name: input\.name, category: input\.category \},?\s*\}\)/,
+      /tx\.equipmentModel\.create\(\{\s*data: \{ name: input\.name, \.\.\.\(?await resolveEquipmentKind\(tx, input\)\)? \},?\s*\}\)/,
     );
   });
 });

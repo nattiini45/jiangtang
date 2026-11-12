@@ -40,6 +40,8 @@ export const ENTITY_TYPES = [
   "building",
   "room",
   "equipmentModel",
+  "equipmentKind",
+  "equipmentFunctionGroup",
   "equipment",
   "ticket",
   "event",

@@ -181,7 +181,42 @@ model Room {
 
 // ── Equipment ────────────────────────────────────────────────────────────────
 
+model EquipmentFunctionGroup {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  position Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  kinds EquipmentKind[]
+}
+
+model EquipmentKind {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  groupId String
+  group EquipmentFunctionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  position Int
+  tracksFrequency Boolean @default(false)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  equipment Equipment[]
+  models EquipmentModel[]
+
+  @@index([groupId])
+}
+
+model EquipmentKindsInitialization {
+  id String @id
+  locale String
+}
+
 model EquipmentModel {
+  kindId String?
+  kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
   ports        EquipmentModelPort[]
   id           String            @id @default(cuid())
   manufacturer String?
@@ -194,9 +229,12 @@ model EquipmentModel {
   updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
 
   @@unique([manufacturer, name])
+  @@index([kindId])
 }
 
 model Equipment {
+  kindId String?
+  kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
   ports    EquipmentPort[]
   id       String            @id @default(cuid())
   roomId   String? // null => part of the movable pool
@@ -248,6 +286,7 @@ model Equipment {
   @@index([modelId])
   @@index([category])
   @@index([status])
+  @@index([kindId])
 }
 
 enum PortDirection {

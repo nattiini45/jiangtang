@@ -20,5 +20,5 @@ export const modelCreateSchema = z.object({
 
 export const modelEditSchema = modelCreateSchema;
 
-export type ModelCreateInput = z.infer<typeof modelCreateSchema>;
-export type ModelEditInput = z.infer<typeof modelEditSchema>;
+export type ModelCreateInput = z.infer<typeof modelCreateSchema> & { kindId?: string };
+export type ModelEditInput = ModelCreateInput;

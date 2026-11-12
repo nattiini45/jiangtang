@@ -171,6 +171,7 @@ export async function seedWorkspace(
   audit: AuditFn,
   opts: { assignToUserId?: string; locale?: Locale } = {},
 ): Promise<SeedSummary> {
+  const { resolveEquipmentKind } = await import("~/lib/equipment-kinds/kinds.server");
   assertCountsMatchSpec();
   // Wording follows the installation language; ids and structure are shared.
   const {
@@ -240,7 +241,11 @@ export async function seedWorkspace(
   for (const row of EQUIPMENT_MODELS) {
     const wrote = await writeOnce(
       () => tx.equipmentModel.findUnique({ where: { id: row.id }, select: { id: true } }),
-      () => tx.equipmentModel.create({ data: row, select: { id: true } }),
+      async () =>
+        tx.equipmentModel.create({
+          data: { ...row, ...(await resolveEquipmentKind(tx, row)) },
+          select: { id: true },
+        }),
       note("EquipmentModel", "equipmentModel"),
     );
     await record("equipmentModel", wrote);
@@ -249,7 +254,11 @@ export async function seedWorkspace(
   for (const row of EQUIPMENT) {
     const wrote = await writeOnce(
       () => tx.equipment.findUnique({ where: { id: row.id }, select: { id: true } }),
-      () => tx.equipment.create({ data: row, select: { id: true } }),
+      async () =>
+        tx.equipment.create({
+          data: { ...row, ...(await resolveEquipmentKind(tx, row)) },
+          select: { id: true },
+        }),
       note("Equipment", "equipment"),
     );
     await record("equipment", wrote);

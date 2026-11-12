@@ -40,6 +40,9 @@ const NEW_BLOCKS = [
   "PersonalAccessToken",
   "UserPermission",
   "Invitation",
+  "EquipmentFunctionGroup",
+  "EquipmentKind",
+  "EquipmentKindsInitialization",
 ] as const;
 
 /**
@@ -51,6 +54,8 @@ const NEW_BLOCKS = [
 const NEW_RELATIONS_IN_EXISTING_BLOCKS: Record<string, string[]> = {
   Event: ["projectId"],
   Ticket: ["taskId"],
+  Equipment: ["kindId"],
+  EquipmentModel: ["kindId"],
 };
 
 type Field = { name: string; attrs: string };
@@ -344,8 +349,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(61);
-    expect(withAction).toBe(49);
+    expect(owning).toBe(64);
+    expect(withAction).toBe(52);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });
