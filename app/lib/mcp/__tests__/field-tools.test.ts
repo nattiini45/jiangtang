@@ -27,6 +27,42 @@ async function fieldClient(
 }
 
 describe("custom field MCP tools", () => {
+  it("returns the name holder and its coverage through the transport", async () => {
+    const { client, server } = await fieldClient();
+    const name = randomUUID();
+    try {
+      const kind = await db.equipmentKind.findFirstOrThrow({ where: { archivedAt: null } });
+      const response = await client.callTool({
+        name: "create_custom_field",
+        arguments: {
+          scope: "EQUIPMENT",
+          key: `f_${name.replaceAll("-", "")}`,
+          name,
+          type: "TEXT",
+          kindIds: [kind.id],
+        },
+      });
+      const field = (response.structuredContent as { result: { id: string } }).result;
+      const refusal = await client.callTool({
+        name: "create_custom_field",
+        arguments: {
+          scope: "EQUIPMENT",
+          key: `g_${name.replaceAll("-", "")}`,
+          name: name.toUpperCase(),
+          type: "TEXT",
+          kindIds: [kind.id],
+        },
+      });
+      expect(refusal.isError).toBe(true);
+      expect(JSON.stringify(refusal.content)).toContain(field.id);
+      expect(JSON.stringify(refusal.content)).toContain(kind.name);
+    } finally {
+      await db.customField.deleteMany({ where: { name } });
+      await client.close();
+      await server.close();
+    }
+  });
+
   it("runs definitions through the real transport and records token attribution", async () => {
     const { client, server } = await fieldClient();
     try {

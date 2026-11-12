@@ -277,16 +277,16 @@ BEGIN
     missing := array_append(missing, 'room, timer, equipment kind/group or custom field CHECK constraints are missing');
   END IF;
 
-  -- Index floor, deliberately a floor: the 102 CREATE INDEX statements are only
+  -- Index floor, deliberately a floor: the 101 surviving CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 102 is the number the
+  -- catalog total is NOT derivable from the migration text. 101 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 102 INTO have
+  SELECT count(*) >= 101 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 102 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 101 explicitly created indexes (pg_indexes count)');
   END IF;
 
   SELECT count(*) = 2 INTO have FROM pg_index i
@@ -314,14 +314,13 @@ BEGIN
     missing := array_append(missing, 'custom field option/kind foreign keys are missing or have wrong deletion actions');
   END IF;
 
-  SELECT count(*) = 3 INTO have FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+  SELECT count(*) = 2 INTO have FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
     WHERE i.indisunique AND i.indisvalid AND (
       (idx.relname = 'CustomField_scope_key_key' AND pg_get_indexdef(i.indexrelid) LIKE '%(scope, key)')
-      OR (idx.relname = 'custom_field_scope_name' AND pg_get_expr(i.indexprs, i.indrelid) = 'lower(name)' AND i.indpred IS NULL)
       OR (idx.relname = 'custom_field_option_active_label' AND pg_get_expr(i.indexprs, i.indrelid) = 'lower(label)'
         AND pg_get_expr(i.indpred, i.indrelid) = '("archivedAt" IS NULL)'));
   IF NOT have THEN
-    missing := array_append(missing, 'custom field key/name and active option label unique indexes are missing or invalid');
+    missing := array_append(missing, 'custom field key and active option label unique indexes are missing or invalid');
   END IF;
 
   SELECT count(*) = 2 INTO have FROM pg_attribute a
@@ -344,6 +343,6 @@ BEGIN
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, 24 enums / 69 foreign keys / 12 CHECKs, >=102 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, 24 enums / 69 foreign keys / 12 CHECKs, >=101 public indexes';
 END
 $verify$;

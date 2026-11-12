@@ -1,6 +1,6 @@
 import { db, type Tx } from "~/lib/db.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
-import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { FieldNameConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { tr } from "~/i18n/request-locale.server";
 import { Prisma, type CustomFieldScope } from "~/generated/prisma/client";
@@ -76,6 +76,49 @@ async function checkKinds(tx: Tx, scope: CustomFieldScope, kindIds: string[]) {
   }
 }
 
+async function checkFieldName(
+  tx: Tx,
+  scope: CustomFieldScope,
+  name: string,
+  kindIds: string[],
+  excludeId?: string,
+) {
+  const matches = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id FROM "CustomField"
+    WHERE scope = ${scope}::"CustomFieldScope" AND lower(name) = lower(${name})
+    ORDER BY id`;
+  const fields = await tx.customField.findMany({
+    where: { id: { in: matches.map((row) => row.id).filter((id) => id !== excludeId) } },
+    include: { kinds: { include: { kind: true } } },
+    orderBy: { id: "asc" },
+  });
+  const holder = fields.find(
+    (field) =>
+      scope === "ROOM" ||
+      !kindIds.length ||
+      !field.kinds.length ||
+      field.kinds.some((link) => kindIds.includes(link.kindId)),
+  );
+  if (!holder) return;
+  const coverage =
+    scope === "ROOM"
+      ? tr("fields.name.allRooms")
+      : !holder.kinds.length
+        ? tr("fields.name.allKinds")
+        : holder.kinds
+            .map((link) => link.kind.name)
+            .sort()
+            .join(", ");
+  throw new FieldNameConflictError(
+    holder.id,
+    tr("fields.name.conflict", {
+      name: holder.name,
+      coverage,
+      state: tr(holder.archivedAt ? "fields.name.archived" : "fields.name.active"),
+    }),
+  );
+}
+
 async function publish<T extends { id: string }>(result: T, op: "created" | "updated" | "deleted") {
   await emitChange({ entityType: "customField", id: result.id, op });
   return result;
@@ -90,6 +133,7 @@ export async function createCustomField(
     await lockDefinitions(tx, true);
     const { kindIds, ...columns } = data;
     await checkKinds(tx, data.scope, kindIds);
+    await checkFieldName(tx, data.scope, data.name, kindIds);
     if (data.unit != null && data.type !== "NUMBER") fieldError("unit", tr("fields.error.unit"));
     const field = await tx.customField.create({
       data: { ...columns, kinds: { create: kindIds.map((kindId) => ({ kindId })) } },
@@ -116,6 +160,15 @@ export async function updateCustomField(
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUnique({ where: { id }, include: definitionInclude });
     if (!before) throw new NotFoundError();
+    if (kindIds) await checkKinds(tx, before.scope, kindIds);
+    if (columns.name !== undefined || kindIds !== undefined)
+      await checkFieldName(
+        tx,
+        before.scope,
+        columns.name ?? before.name,
+        kindIds ?? before.kinds.map((link) => link.kindId),
+        id,
+      );
     let convertedRecords = 0;
     if (columns.type && columns.type !== before.type) {
       const pair = `${before.type}:${columns.type}`;
@@ -141,7 +194,6 @@ export async function updateCustomField(
           before.scope === "ROOM" ? convertRoomCustomValuesInTx : convertEquipmentCustomValuesInTx
         )(tx, id, columns.type === "MULTI_CHOICE");
     }
-    if (kindIds) await checkKinds(tx, before.scope, kindIds);
     if (columns.unit != null && (columns.type ?? before.type) !== "NUMBER")
       fieldError("unit", tr("fields.error.unit"));
     const field = await tx.customField.update({

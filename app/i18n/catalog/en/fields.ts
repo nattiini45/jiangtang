@@ -1,5 +1,11 @@
 import type { fieldsDe } from "../de/fields";
 export const fieldsEn = {
+  "fields.name.conflict":
+    "The {state} field “{name}” already uses this name for {coverage}. Choose another name or edit that field first.",
+  "fields.name.active": "active",
+  "fields.name.archived": "archived",
+  "fields.name.allRooms": "every room",
+  "fields.name.allKinds": "every device kind",
   "fields.moreDetails": "More details",
   "fields.form.unset": "Not set",
   "fields.form.yes": "Yes",

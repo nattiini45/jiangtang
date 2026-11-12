@@ -14,8 +14,10 @@ Names and labels are workspace data, not translated text.
 
 - `create_custom_field`: `{scope, key, name, type, kindIds?: string[], helpText?, section?, unit?, position?, showInList?, listPosition?, searchable?}`.
   Types are TEXT, LONG_TEXT, NUMBER, BOOLEAN, CHOICE, MULTI_CHOICE, DATE and LINK.
-  Keys are immutable; names and keys are unique per scope, including archived fields. An empty kind list
-  means every device kind; room fields always apply to every room.
+  Keys are immutable and unique per scope. Device fields can share a name only when both are
+  restricted to disjoint sets of kinds; room field names remain unique. Archived fields count too.
+  An empty kind list means every device kind; room fields always apply to every room.
+  Name refusals identify the holder by `holderId` and describe its kinds and archive state.
 - `update_custom_field`: `{id, ...changedProperties, archived?: boolean}`. Omitted
   properties stay unchanged. Archive hides a field and keeps its values; restore reveals them again.
   Type changes are limited to TEXT → LONG_TEXT, CHOICE → MULTI_CHOICE and the reverse choice

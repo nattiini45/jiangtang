@@ -59,7 +59,7 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "create_custom_field",
       description:
-        "Define a custom field. No kindIds means all records in the scope. Keys are immutable. Admin write token required.",
+        "Define a custom field. No kindIds means all records in the scope. Keys are immutable and unique per scope. Names can repeat only for disjoint device kinds, including archived fields. Admin write token required.",
       schema: createFieldSchema,
       role: "ADMIN",
       write: true,
