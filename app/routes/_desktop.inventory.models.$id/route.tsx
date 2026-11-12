@@ -1,4 +1,5 @@
 import { Link, useNavigation } from "react-router";
+import { z } from "zod";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { safeParseForm } from "~/lib/validation.server";
@@ -15,6 +16,8 @@ import { Button } from "~/components/ui/button";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { setEquipmentModelPorts } from "~/domains/catalog/catalog.ports.mutations.server";
+import { ModelPortsEditor } from "~/components/inventory/ports-editor";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -36,6 +39,22 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
 export async function action({ request, params }: Route.ActionArgs) {
   const actor = await requireUser(request);
+  const form = await request.clone().formData();
+  if (form.get("_action") === "modelPorts") {
+    try {
+      await setEquipmentModelPorts(actor, params.id, JSON.parse(String(form.get("ports") ?? "[]")));
+      return { portsSaved: true };
+    } catch (error) {
+      if (
+        error instanceof z.ZodError &&
+        error.issues.some((issue) => issue.message === "ports.duplicate")
+      )
+        return { portError: tr("ports.duplicate") };
+      if (error instanceof SyntaxError || (error instanceof Error && error.name === "ZodError"))
+        return { portError: tr("ports.invalid") };
+      throw toErrorResponse(error);
+    }
+  }
   const result = await safeParseForm(request, modelEditSchema);
   if (!result.success) return { fieldErrors: result.fieldErrors, ok: false };
   try {
@@ -55,7 +74,7 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
   const busy = nav.state !== "idle";
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h1 className="text-xl font-bold">
           {model.manufacturer ? `${model.manufacturer} ` : ""}
@@ -67,6 +86,8 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
       </div>
 
       <ModelAssetView stats={stats} instances={instances} />
+
+      <ModelPortsEditor ports={model.ports} />
 
       <details className="bg-card shadow-surface-2 rounded-lg p-4">
         <summary className="cursor-pointer text-base font-semibold">

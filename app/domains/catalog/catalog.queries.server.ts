@@ -56,7 +56,10 @@ export async function listModels(
 }
 
 export function getModel(id: string) {
-  return db.equipmentModel.findUnique({ where: { id } });
+  return db.equipmentModel.findUnique({
+    where: { id },
+    include: { ports: { orderBy: [{ position: "asc" }, { id: "asc" }] } },
+  });
 }
 
 export interface ModelStats {
@@ -79,7 +82,7 @@ export interface ModelInstanceRow {
 
 /** Model + its failure stats + instance list (the by-model asset view). */
 export async function getModelDetail(id: string) {
-  const model = await db.equipmentModel.findUnique({ where: { id } });
+  const model = await getModel(id);
   if (!model) return null;
 
   const instances = await db.equipment.findMany({
