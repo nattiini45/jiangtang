@@ -55,7 +55,7 @@ export const adminDe = {
   "admin.structure.archiveTitle": "„{name}“ archivieren",
   "admin.structure.archiveAndMove": "Verschieben und archivieren",
   "admin.structure.moveHelp":
-    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten bleiben erhalten.",
+    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten bleiben erhalten. Artspezifische Felder können am Ziel ausgeblendet sein; ihre Zuordnungen bleiben unverändert.",
   "admin.structure.moveTo": "Geräte und Modelle verschieben nach",
   "admin.structure.chooseKind": "Geräteart wählen",
   "admin.structure.deleteConfirm": "„{name}“ endgültig löschen?",

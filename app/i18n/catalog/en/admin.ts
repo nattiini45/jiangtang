@@ -55,7 +55,7 @@ export const adminEn = {
   "admin.structure.archiveTitle": "Archive “{name}”",
   "admin.structure.archiveAndMove": "Move and archive",
   "admin.structure.moveHelp":
-    "All devices and models move to the selected kind together. Their existing data is preserved.",
+    "All devices and models move to the selected kind together. Their existing data is preserved. Kind-specific fields may be hidden at the destination; their kind assignments stay unchanged.",
   "admin.structure.moveTo": "Move devices and models to",
   "admin.structure.chooseKind": "Choose a device kind",
   "admin.structure.deleteConfirm": "Permanently delete “{name}”?",
