@@ -1,6 +1,7 @@
 import { db } from "~/lib/db.server";
 import {
   kindSelect,
+  equipmentKindFilter,
   withEquipmentKinds,
   type EquipmentKindSummary,
 } from "~/lib/equipment-kinds/kinds.server";
@@ -33,6 +34,7 @@ export async function listEquipment(
     roomId?: string;
     modelId?: string;
     category?: EquipmentCategory;
+    kindId?: string;
     status?: EquipmentStatus;
     mobility?: EquipmentMobility;
     q?: string;
@@ -45,7 +47,8 @@ export async function listEquipment(
     where: {
       roomId: opts?.roomId,
       modelId: opts?.modelId,
-      category: opts?.category,
+      category: opts?.kindId ? undefined : opts?.category,
+      AND: await equipmentKindFilter(opts?.kindId),
       status: opts?.status,
       mobility: opts?.mobility,
       ...(opts?.q

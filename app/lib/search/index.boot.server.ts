@@ -67,7 +67,7 @@ export function register(_app: Express, ctx: BootContext): void {
     try {
       await broker.ensureStarted();
       broker.subscribe(SUBSCRIBER_ID, onEvent);
-      const report = await reconcileAll();
+      const report = await reconcileAll({ refreshTypes: ["EQUIPMENT"] });
       if (report.reindexed || report.deletedOrphans) {
         logger.info(report, "[search] reconcile on boot");
       }

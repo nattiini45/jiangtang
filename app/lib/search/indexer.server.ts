@@ -125,7 +125,9 @@ export interface ReconcileReport {
 }
 
 /** Reindex missing/stale sources and drop chunks whose source is gone. */
-export async function reconcileAll(): Promise<ReconcileReport> {
+export async function reconcileAll(
+  opts: { refreshTypes?: SourceType[] } = {},
+): Promise<ReconcileReport> {
   const report: ReconcileReport = { reindexed: 0, deletedOrphans: 0 };
   for (const type of SOURCE_TYPES) {
     const versions = await listSourceVersions(type);
@@ -142,7 +144,7 @@ export async function reconcileAll(): Promise<ReconcileReport> {
     for (const v of versions) {
       live.add(v.id);
       const max = maxBySource.get(v.id);
-      if (!max || max.getTime() < v.updatedAt.getTime()) {
+      if (!max || max.getTime() < v.updatedAt.getTime() || opts.refreshTypes?.includes(type)) {
         try {
           await reindexSource(type, v.id);
           report.reindexed++;

@@ -1,6 +1,7 @@
 import { Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
@@ -17,6 +18,11 @@ export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.modelNew") }];
 }
 
+export async function loader({ request }: Route.LoaderArgs) {
+  await requireUser(request);
+  return { kinds: await listDeviceKinds() };
+}
+
 export async function action({ request }: Route.ActionArgs) {
   const actor = await requireUser(request);
   const result = await safeParseForm(request, modelCreateSchema);
@@ -31,7 +37,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
 }
 
-export default function NewModel({ actionData }: Route.ComponentProps) {
+export default function NewModel({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
@@ -39,7 +45,7 @@ export default function NewModel({ actionData }: Route.ComponentProps) {
     <div className="mx-auto flex max-w-xl flex-col gap-6">
       <h1 className="text-xl font-bold">{t("inventory.models.createTitle")}</h1>
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
-        <ModelFormFields />
+        <ModelFormFields kinds={loaderData.kinds} />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.saving") : t("inventory.models.createSubmit")}

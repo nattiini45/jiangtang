@@ -15,6 +15,11 @@ import { equipmentCsvRowSchema } from "~/domains/inventory/inventory.schema";
 import { getEquipment, listEquipment } from "~/domains/inventory/inventory.queries.server";
 import { createModel, updateModel } from "~/domains/catalog/catalog.mutations.server";
 import { getModel, listModels } from "~/domains/catalog/catalog.queries.server";
+import { equipmentCreateSchema } from "~/domains/inventory/inventory.schema";
+import { modelCreateSchema } from "~/domains/catalog/catalog.schema";
+import { loadSource } from "~/lib/search/sources.server";
+import { reindexSource, reconcileAll } from "~/lib/search/indexer.server";
+import { searchWorkspace } from "~/domains/search/search.queries.server";
 import { cloneRoom } from "~/domains/rooms/rooms.mutations.server";
 import { registerPlaceWrites } from "~/lib/mcp/place-writes.server";
 import { registerReadTools } from "~/lib/mcp/read-tools.server";
@@ -24,6 +29,7 @@ import {
   backfillEquipmentKinds,
   initializeEquipmentKinds,
   initializeKindsInTx,
+  listDeviceKinds,
 } from "../kinds.server";
 
 const run = `kinds_${randomUUID()}`;
@@ -38,6 +44,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.chunk.deleteMany({ where: { sourceId: { startsWith: run } } });
   await db.equipment.deleteMany({
     where: { OR: [{ name: { startsWith: run } }, { id: { startsWith: run } }] },
   });
@@ -234,6 +241,119 @@ describe("equipment kind database invariants", () => {
 });
 
 describe("kind-aware domain and MCP boundaries", () => {
+  it("lists active kinds under ordered groups and includes archived entries only on request", async () => {
+    await db.equipmentKind.create({
+      data: {
+        id: `${run}_archived`,
+        name: `${run}_archived`,
+        groupId,
+        position: 1,
+        archivedAt: new Date("2040-01-01T00:00:00Z"),
+      },
+    });
+    await db.equipmentFunctionGroup.create({
+      data: {
+        id: `${run}_archived_group`,
+        name: `${run}_archived_group`,
+        position: 0,
+        archivedAt: new Date("2040-01-01T00:00:00Z"),
+      },
+    });
+    const active = await listDeviceKinds();
+    expect(active.map((group) => group.position)).toEqual(
+      active.map((group) => group.position).sort((a, b) => a - b),
+    );
+    expect(active.find((group) => group.id === groupId)?.kinds.map((kind) => kind.id)).toEqual([
+      kindId,
+    ]);
+    expect(active.some((group) => group.id === `${run}_archived_group`)).toBe(false);
+    const selected = await listDeviceKinds(false, `${run}_archived`);
+    expect(selected.find((group) => group.id === groupId)?.kinds.map((kind) => kind.id)).toContain(
+      `${run}_archived`,
+    );
+    await db.equipmentKind.create({
+      data: {
+        id: `${run}_archived_group_kind`,
+        name: `${run}_hidden`,
+        groupId: `${run}_archived_group`,
+        position: 1,
+      },
+    });
+    const selectedGroup = await listDeviceKinds(false, `${run}_archived_group_kind`);
+    expect(
+      selectedGroup
+        .find((group) => group.id === `${run}_archived_group`)
+        ?.kinds.map((kind) => kind.id),
+    ).toEqual([`${run}_archived_group_kind`]);
+    const all = await listDeviceKinds(true);
+    expect(all.some((group) => group.id === `${run}_archived_group`)).toBe(true);
+    expect(all.find((group) => group.id === groupId)?.kinds.map((kind) => kind.id)).toContain(
+      `${run}_archived`,
+    );
+  });
+
+  it("accepts kind-only forms and preserves custom kinds for matching category-only updates", async () => {
+    expect(equipmentCreateSchema.parse({ kindId, mobility: "POOLED" })).toMatchObject({ kindId });
+    expect(modelCreateSchema.parse({ kindId, name: run })).toMatchObject({ kindId });
+    expect(equipmentCreateSchema.safeParse({ mobility: "POOLED" }).success).toBe(false);
+    expect(modelCreateSchema.safeParse({ name: run }).success).toBe(false);
+    const equipment = await createEquipment(actor, {
+      kindId,
+      name: `${run}_preserve`,
+      mobility: "POOLED",
+      status: "OPERATIONAL",
+    });
+    const model = await createModel(actor, { kindId, name: `${run}_preserve` });
+    expect(
+      await updateEquipment(actor, equipment.id, {
+        category: "OTHER",
+        name: equipment.name!,
+        mobility: "POOLED",
+        status: "OPERATIONAL",
+      }),
+    ).toMatchObject({ kindId });
+    expect(
+      await updateModel(actor, model.id, { category: "OTHER", name: model.name }),
+    ).toMatchObject({ kindId });
+    expect(await listEquipment({ kindId, category: "PC", q: `${run}_preserve` })).toHaveLength(1);
+    expect(await listModels({ kindId, category: "PC", q: `${run}_preserve` })).toHaveLength(1);
+    expect(
+      await updateEquipment(actor, equipment.id, {
+        category: "PC",
+        name: equipment.name!,
+        mobility: "POOLED",
+        status: "OPERATIONAL",
+      }),
+    ).not.toMatchObject({ kindId });
+    expect(
+      await updateModel(actor, model.id, { category: "PC", name: model.name }),
+    ).not.toMatchObject({ kindId });
+  });
+
+  it("refreshes already indexed devices with their kind and function group", async () => {
+    const equipment = await db.equipment.create({
+      data: { id: `${run}_search`, category: "OTHER", kindId },
+    });
+    const source = await loadSource("EQUIPMENT", equipment.id);
+    expect(JSON.stringify(source)).toContain(kindId);
+    expect(JSON.stringify(source)).toContain(groupId);
+    await reindexSource("EQUIPMENT", equipment.id);
+    await db.chunk.updateMany({
+      where: { sourceId: equipment.id },
+      data: { text: "old index text" },
+    });
+    await reconcileAll({ refreshTypes: ["EQUIPMENT"] });
+    const chunks = await db.chunk.findMany({ where: { sourceId: equipment.id } });
+    expect(
+      chunks.some((chunk) => chunk.text.includes(kindId) && chunk.text.includes(groupId)),
+    ).toBe(true);
+    for (const q of [kindId, groupId]) {
+      expect((await searchWorkspace(q, { sourceTypes: ["EQUIPMENT"] })).results).toEqual(
+        expect.arrayContaining([expect.objectContaining({ sourceId: equipment.id })]),
+      );
+    }
+  });
+
   it("writes matching kinds for every category, derives categories for kinds, and falls back on reads", async () => {
     await expect(
       createEquipment(actor, { kindId: "missing", mobility: "POOLED", status: "OPERATIONAL" }),
@@ -280,6 +400,16 @@ describe("kind-aware domain and MCP boundaries", () => {
     expect(model.kind.systemKey).toBe("computer");
     expect((await getEquipment(device.id))?.kind).toEqual(device.kind);
     expect((await getModel(model.id))?.kind).toEqual(model.kind);
+    expect(await listEquipment({ kindId: device.kind.id, q: `${run}_fallback` })).toHaveLength(1);
+    expect(await listModels({ kindId: model.kind.id, q: `${run}_fallback` })).toHaveLength(1);
+    await db.equipment.update({ where: { id: device.id }, data: { kindId: projector.id } });
+    await db.equipmentModel.update({ where: { id: model.id }, data: { kindId: projector.id } });
+    expect((await getEquipment(device.id))?.kind.systemKey).toBe("computer");
+    expect((await getModel(model.id))?.kind.systemKey).toBe("computer");
+    expect(await listEquipment({ kindId: device.kind.id, q: `${run}_fallback` })).toHaveLength(1);
+    expect(await listModels({ kindId: model.kind.id, q: `${run}_fallback` })).toHaveLength(1);
+    expect(await listEquipment({ kindId: projector.id, q: `${run}_fallback` })).toHaveLength(0);
+    expect(await listModels({ kindId: projector.id, q: `${run}_fallback` })).toHaveLength(0);
   });
 
   it("keeps kinds on room clones and CSV/bulk creates, including auto-created models", async () => {
@@ -331,7 +461,7 @@ describe("kind-aware domain and MCP boundaries", () => {
     });
   });
 
-  it("MCP device/model creates, updates and bulk import dual-write without exposing kinds", async () => {
+  it("MCP exposes kind summaries and accepts kind IDs alongside legacy categories", async () => {
     const server = new McpServer({ name: "synthetic", version: "1" });
     registerPlaceWrites(server, {
       user: { ...DEMO_USER, role: "ADMIN" },
@@ -350,13 +480,22 @@ describe("kind-aware domain and MCP boundaries", () => {
       expect(result.isError, JSON.stringify(result.content)).not.toBe(true);
       const value = (result.structuredContent as { result: Record<string, unknown> }).result;
       expect(value).not.toHaveProperty("kindId");
-      expect(value).not.toHaveProperty("kind");
+      if (name.startsWith("get_equipment"))
+        expect(value.kind).toMatchObject({
+          id: expect.any(String),
+          key: expect.any(String),
+          name: expect.any(String),
+          group: { id: expect.any(String), name: expect.any(String) },
+        });
       return value;
     };
     try {
+      const groups = await call("list_device_kinds", {});
+      expect(Array.isArray(groups)).toBe(true);
+      expect(JSON.stringify(groups)).toContain(kindId);
       const eq = await call("create_equipment", {
         name: `${run}_mcp`,
-        category: "PC",
+        kindId,
         mobility: "POOLED",
       });
       await call("update_equipment", {
@@ -376,7 +515,7 @@ describe("kind-aware domain and MCP boundaries", () => {
       });
       const model = await call("create_equipment_model", {
         name: `${run}_mcpmodel`,
-        category: "PC",
+        kindId,
       });
       await call("update_equipment_model", {
         id: model.id,
@@ -384,10 +523,38 @@ describe("kind-aware domain and MCP boundaries", () => {
       });
       expect((await getModel(model.id as string))?.kind.systemKey).toBe("remote");
       await call("get_equipment_model", { id: model.id });
+      const listed = await call("list_equipment", {
+        kindId: (await getEquipment(eq.id as string))!.kind.id,
+        q: `${run}_mcp`,
+      });
+      expect(listed.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: eq.id,
+            kind: expect.objectContaining({ key: "microphone" }),
+          }),
+        ]),
+      );
+      const listedModels = await call("list_equipment_models", {
+        kindId: (await getModel(model.id as string))!.kind.id,
+        q: `${run}_mcpmodel`,
+      });
+      expect(listedModels.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: model.id,
+            kind: expect.objectContaining({ key: "remote" }),
+          }),
+        ]),
+      );
       await call("bulk_create_equipment", {
         rows: [{ kategorie: "PROJECTOR", mobilitaet: "POOLED", name: `${run}_mcpbulk` }],
       });
       expect((await listEquipment({ q: `${run}_mcpbulk` }))[0].kind.systemKey).toBe("projector");
+      await call("bulk_create_equipment", {
+        rows: [{ kindId, mobilitaet: "POOLED", name: `${run}_mcpkindbulk` }],
+      });
+      expect((await listEquipment({ q: `${run}_mcpkindbulk` }))[0].kind.id).toBe(kindId);
     } finally {
       await client.close();
       await server.close();

@@ -1,5 +1,10 @@
 import { db } from "~/lib/db.server";
 import {
+  kindSelect,
+  withEquipmentKinds,
+  type EquipmentKindSummary,
+} from "~/lib/equipment-kinds/kinds.server";
+import {
   listAttachments,
   type AttachmentRow,
 } from "~/domains/attachments/attachments.queries.server";
@@ -55,6 +60,7 @@ export interface DashboardEquipment extends Pick<
   id: string;
   name: string | null;
   category: EquipmentCategory;
+  kind: EquipmentKindSummary;
   status: EquipmentStatus;
   assetTag: string | null;
   modelName: string | null;
@@ -105,7 +111,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
       building: { select: { name: true } },
       equipment: {
         orderBy: [{ category: "asc" }, { name: "asc" }],
-        include: { model: { select: { name: true } } },
+        include: { kind: { select: kindSelect }, model: { select: { name: true } } },
       },
     },
   });
@@ -121,10 +127,11 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   const attachments = await listAttachments({ roomId: room.id });
   const history = await listEntityHistory(ENTITY_TYPE.room, room.id, 20);
 
-  const equipment: DashboardEquipment[] = room.equipment.map((e) => ({
+  const equipment: DashboardEquipment[] = (await withEquipmentKinds(room.equipment)).map((e) => ({
     id: e.id,
     name: e.name,
     category: e.category,
+    kind: e.kind,
     status: e.status,
     assetTag: e.assetTag,
     modelName: e.model?.name ?? null,

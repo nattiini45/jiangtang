@@ -10,15 +10,21 @@ const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === 
 const optionalText = z.preprocess(emptyToUndefined, z.string().trim().min(1).optional());
 const optionalUrl = optionalHttpUrl;
 
-export const modelCreateSchema = z.object({
-  manufacturer: optionalText,
-  name: z.string().trim().min(1, msgKey("places.err.name.required")),
-  category: z.enum(EquipmentCategory),
-  specNotes: optionalText,
-  manualUrl: optionalUrl,
-});
+export const modelCreateSchema = z
+  .object({
+    manufacturer: optionalText,
+    name: z.string().trim().min(1, msgKey("places.err.name.required")),
+    category: z.enum(EquipmentCategory).optional(),
+    kindId: z.preprocess(emptyToUndefined, z.string().trim().min(1).optional()),
+    specNotes: optionalText,
+    manualUrl: optionalUrl,
+  })
+  .refine((value) => value.kindId || value.category, {
+    path: ["kindId"],
+    message: msgKey("inventory.form.kindRequired"),
+  });
 
 export const modelEditSchema = modelCreateSchema;
 
-export type ModelCreateInput = z.infer<typeof modelCreateSchema> & { kindId?: string };
+export type ModelCreateInput = z.infer<typeof modelCreateSchema>;
 export type ModelEditInput = ModelCreateInput;

@@ -1,4 +1,9 @@
 export const inventoryDe = {
+  "inventory.kind": "Geräteart",
+  "inventory.functionGroup": "Funktionsgruppe",
+  "inventory.form.kindRequired": "Bitte eine Geräteart wählen.",
+  "inventory.list.filterKind": "Nach Geräteart filtern",
+  "inventory.list.allKinds": "Alle Gerätearten",
   "inventory.stockImport.description":
     "Spalten sind die Feldnamen des Lagerartikels. Eine leer gelassene Zelle heißt „nicht angegeben“: bei `quantity` bedeutet das 1, bei allen anderen Feldern bleibt das Feld leer. " +
     "`status` nimmt den Enum-Wert oder die Bezeichnung auf Deutsch oder Englisch: {statuses}. " +

@@ -20,6 +20,7 @@ const { db } = vi.hoisted(() => {
       room: model(),
       location: model(),
       equipmentModel: model(),
+      equipmentFunctionGroup: model(),
       equipment: model(),
       inventoryItem: model(),
       event: model(),
@@ -176,6 +177,8 @@ describe("read-only MCP coverage", () => {
         const response = await client.callTool({ name, arguments: {} });
         expect(response.isError, JSON.stringify(response.content)).not.toBe(true);
       }
+      const kinds = await client.callTool({ name: "list_device_kinds", arguments: {} });
+      expect(kinds.isError, JSON.stringify(kinds.content)).not.toBe(true);
     } finally {
       await client.close();
       await server.close();
@@ -187,6 +190,7 @@ describe("read-only MCP coverage", () => {
       ...listInputs.map(([name]) => name),
       ...entityReads.map((name) => `get_${name}`),
       "get_project",
+      "list_device_kinds",
       "get_allowed_actions",
       "check_booking_conflicts",
       "find_free_slot",
