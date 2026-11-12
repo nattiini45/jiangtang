@@ -116,7 +116,13 @@ export async function getEquipment(id: string) {
         },
       },
       model: {
-        select: { id: true, name: true, manufacturer: true, ports: { select: { label: true } } },
+        select: {
+          id: true,
+          name: true,
+          manufacturer: true,
+          manualUrl: true,
+          ports: { select: { label: true } },
+        },
       },
       room: { select: { id: true, slug: true, name: true } },
       substitutingFor: { select: { id: true, name: true, assetTag: true } },

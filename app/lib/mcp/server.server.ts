@@ -3,6 +3,7 @@ import { registerReadTools } from "./read-tools.server";
 import { registerPlaceWrites } from "./place-writes.server";
 import { registerPortWrites } from "./port-writes.server";
 import { registerFieldTools } from "./field-tools.server";
+import { registerCatalogTools } from "./catalog-tools.server";
 import { registerEventWrites } from "./event-writes.server";
 import { registerWorkWrites } from "./work-writes.server";
 import { registerAttachmentWrites } from "./attachment-writes.server";
@@ -28,6 +29,7 @@ export function createMcpServer(context: McpContext): McpServer {
   registerStructureTools(server, context);
   registerPortWrites(server, context);
   registerFieldTools(server, context);
+  registerCatalogTools(server, context);
   registerEventWrites(server, context);
   registerWorkWrites(server, context);
   registerAttachmentWrites(server, context);

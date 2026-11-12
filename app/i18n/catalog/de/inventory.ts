@@ -1,4 +1,17 @@
 export const inventoryDe = {
+  "inventory.catalog.search": "Modell suchen",
+  "inventory.catalog.onSave": "Das Datenblatt wird beim Speichern übernommen.",
+  "inventory.catalog.source": "Daten von {manufacturer}, abgerufen am {date}.",
+  "inventory.catalog.productPage": "Produktseite",
+  "inventory.catalog.unlink": "Vom Katalog lösen",
+  "inventory.catalog.manual": "Handbuch öffnen",
+  "inventory.catalog.unlinkConfirm":
+    "Vom Katalog lösen? Unveränderte Katalogwerte, der Handbuchlink und die Modellanschlüsse werden entfernt. Eigene Änderungen und Geräteanschlüsse bleiben erhalten.",
+  "inventory.catalog.ambiguous": "Mehrere Modelle passen. Bitte ein Modell ausdrücklich wählen.",
+  "inventory.catalog.kindRequired": "Bitte zuerst die Geräteart aus der Bibliothek installieren.",
+  "inventory.catalog.kindMismatch": "Das Katalogmodell gehört zu einer anderen Geräteart.",
+  "inventory.catalog.alreadyLinked":
+    "Dieses Modell ist bereits mit einem anderen Katalogeintrag verknüpft.",
   "inventory.kind": "Geräteart",
   "inventory.functionGroup": "Funktionsgruppe",
   "inventory.form.kindRequired": "Bitte eine Geräteart wählen.",
@@ -119,7 +132,7 @@ export const inventoryDe = {
   "inventory.models.subtitle": "Gerätemodelle einmal definieren, überall wiederverwenden.",
   "inventory.models.new": "Neues Modell",
   "inventory.models.empty": "Noch keine Modelle. Lege das erste an.",
-  "inventory.models.back": "← Katalog",
+  "inventory.models.back": "← Modelle",
   "inventory.models.editSummary": "Modell bearbeiten",
   "inventory.models.saved": "Gespeichert.",
   "inventory.models.submit": "Änderungen speichern",

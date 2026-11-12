@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "units": [
     { "key": "lm", "de": "lm", "en": "lm" },
     { "key": ":1", "de": ":1", "en": ":1" },
@@ -287,6 +287,8 @@
         "projector.body_width",
         "projector.body_height",
         "projector.body_depth",
+        "projector.control_protocols",
+        "projector.control_systems",
         "power_consumption",
         "protection_class",
         "datasheet",
@@ -770,7 +772,7 @@
       "nature": "specification",
       "weight": "must",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:P1", "pd:B1", "presets:S6", "presets:S1"]
     },
     {
@@ -784,10 +786,7 @@
       "nature": "specification",
       "weight": "must",
       "appliesIf": null,
-      "help": {
-        "de": "Projektionshelligkeit ausschreiben; Messnorm und Modus mit angeben",
-        "en": "Specify projection brightness with measurement standard and mode"
-      },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:B1", "presets:S1", "presets:S6", "presets:S30"]
     },
     {
@@ -801,10 +800,7 @@
       "nature": "specification",
       "weight": "must",
       "appliesIf": null,
-      "help": {
-        "de": "Native Bilddetails von akzeptiertem Eingangssignal unterscheiden",
-        "en": "Distinguish native image detail from accepted input signals"
-      },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:B1", "presets:S1", "presets:S6", "presets:S30"]
     },
     {
@@ -818,7 +814,7 @@
       "nature": "date",
       "weight": "useful",
       "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
-      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:B1", "presets:S1", "presets:general"]
     },
     {
@@ -832,7 +828,7 @@
       "nature": "date",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:NEC1", "pd:E1", "presets:S6"]
     },
     {
@@ -846,7 +842,7 @@
       "nature": "date",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:NEC1", "pd:E1"]
     },
     {
@@ -860,10 +856,7 @@
       "nature": "setting",
       "weight": "useful",
       "appliesIf": null,
-      "help": {
-        "de": "Betrieb nach Austausch wiederherstellen",
-        "en": "Restore operation after replacement"
-      },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "presets:S1"]
     },
     {
@@ -892,7 +885,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:B1"]
     },
     {
@@ -911,7 +904,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:B1"]
     },
     {
@@ -925,10 +918,7 @@
       "nature": "setting",
       "weight": "useful",
       "appliesIf": null,
-      "help": {
-        "de": "Betrieb nach Austausch wiederherstellen",
-        "en": "Restore operation after replacement"
-      },
+      "help": { "de": null, "en": null },
       "sources": ["pd:P1", "pd:B1"]
     },
     {
@@ -942,7 +932,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["trade_knowledge"]
     },
     {
@@ -956,7 +946,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["trade_knowledge"]
     },
     {
@@ -970,10 +960,7 @@
       "nature": "setting",
       "weight": "useful",
       "appliesIf": null,
-      "help": {
-        "de": "Betrieb nach Austausch wiederherstellen",
-        "en": "Restore operation after replacement"
-      },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -987,10 +974,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": {
-        "de": "Ersatz planen, Lehrende einweisen",
-        "en": "Plan replacement, brief lecturers"
-      },
+      "help": { "de": null, "en": null },
       "sources": ["pd:WIT"]
     },
     {
@@ -1004,7 +988,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -1031,7 +1015,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:B1"]
     },
     {
@@ -1045,7 +1029,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["trade_knowledge"]
     },
     {
@@ -1059,7 +1043,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -1073,7 +1057,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -1087,7 +1071,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:PJ"]
     },
     {
@@ -1101,7 +1085,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:B1"]
     },
     {
@@ -1115,7 +1099,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": { "property": "projector.light_source", "values": ["lamp"] },
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:B1"]
     },
     {
@@ -1129,7 +1113,7 @@
       "nature": "specification",
       "weight": "must",
       "appliesIf": { "property": "projector.light_source", "values": ["laser", "led", "hybrid"] },
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1", "pd:P1"]
     },
     {
@@ -1143,7 +1127,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": { "property": "projector.light_source", "values": ["laser", "led", "hybrid"] },
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:P1"]
     },
     {
@@ -1157,7 +1141,7 @@
       "nature": "date",
       "weight": "useful",
       "appliesIf": { "property": "projector.light_source", "values": ["laser", "led", "hybrid"] },
-      "help": { "de": "Wartung nachweisen", "en": "Document maintenance" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:P1"]
     },
     {
@@ -1171,7 +1155,7 @@
       "nature": "document",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -1185,7 +1169,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -1199,7 +1183,7 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
     },
     {
@@ -1213,8 +1197,142 @@
       "nature": "specification",
       "weight": "useful",
       "appliesIf": null,
-      "help": { "de": "Ersatz und Einsatz planen", "en": "Plan replacement and deployment" },
+      "help": { "de": null, "en": null },
       "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector.control_protocols",
+      "de": "Steuerprotokolle",
+      "en": "Control protocols",
+      "type": "MULTI_CHOICE",
+      "unit": null,
+      "options": [
+        {
+          "key": "pjlink_class1",
+          "de": "PJLink Class 1",
+          "en": "PJLink Class 1",
+          "note": "The model answers the Class 1 commands of the standard. Every PJLink device does, a Class 2 device too."
+        },
+        {
+          "key": "pjlink_class2",
+          "de": "PJLink Class 2",
+          "en": "PJLink Class 2",
+          "note": "Class 2 extends Class 1 (device search, status notification, serial number, software version, filter hours, input resolution); a Class 2 model also carries Class 1."
+        },
+        {
+          "key": "esc_vp_net",
+          "de": "ESC/VP.net (Epson)",
+          "en": "ESC/VP.net (Epson)",
+          "note": "Epson's network protocol (TCP 3629); carries ESC/VP21 commands."
+        },
+        {
+          "key": "esc_vp21",
+          "de": "ESC/VP21 (Epson)",
+          "en": "ESC/VP21 (Epson)",
+          "note": "Epson's command set over RS-232C; also inside ESC/VP.net and the Web API."
+        },
+        {
+          "key": "epson_web_api",
+          "de": "Epson Web API",
+          "en": "Epson Web API",
+          "note": "ESC/VP21 commands over HTTP when the Web API is switched on."
+        },
+        {
+          "key": "crestron_connected",
+          "de": "Crestron Connected",
+          "en": "Crestron Connected",
+          "note": "Crestron's control protocol built into the device; Crestron RoomView and Fusion monitor through it."
+        },
+        {
+          "key": "snmp",
+          "de": "SNMP",
+          "en": "SNMP",
+          "note": "Epson's manuals describe an SNMPv1 agent that sends notifications (traps) to up to two addresses and document no objects a program can query."
+        },
+        {
+          "key": "art_net",
+          "de": "Art-Net",
+          "en": "Art-Net",
+          "note": "Control from a DMX console or an application over Ethernet."
+        }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": {
+        "de": "Was das Gerät selbst spricht, mit dem Namen der Norm oder des Herstellers. „PJLink Class 1“ heißt: das Modell beantwortet die Befehle der Class 1; ein Modell mit Class 2 trägt deshalb beide. SNMP: Epsons Handbücher beschreiben einen Agenten, der Meldungen (Traps) sendet, und keine Werte, die ein Programm abfragen kann.",
+        "en": "What the device itself speaks, by the name of the standard or the maker. \"PJLink Class 1\" means the model answers the Class 1 commands, so a Class 2 model shows both. SNMP: Epson's manuals describe an agent that sends notifications (traps) and document nothing a program can query."
+      },
+      "sources": [
+        "lib:pjlink_spec",
+        "lib:epson_ds_pu1008w",
+        "lib:epson_ds_de_pu1008w",
+        "lib:epson_pu1008w_ug",
+        "lib:epson_vpnet",
+        "lib:epson_escvp21",
+        "lib:epson_webapi",
+        "lib:crestron_connected",
+        "lib:crestron_roomview"
+      ]
+    },
+    {
+      "key": "projector.control_systems",
+      "de": "Unterstützte Mediensteuerungen",
+      "en": "Supported control systems",
+      "type": "MULTI_CHOICE",
+      "unit": null,
+      "options": [
+        {
+          "key": "crestron",
+          "de": "Crestron",
+          "en": "Crestron",
+          "note": "Includes Crestron Integrated Partner, Crestron RoomView and \"Crestron (RS-232c only)\" on Epson data sheets."
+        },
+        {
+          "key": "extron",
+          "de": "Extron",
+          "en": "Extron",
+          "note": "Extron control (IP Link) with an Extron driver."
+        },
+        {
+          "key": "extron_xtp",
+          "de": "Extron XTP",
+          "en": "Extron XTP",
+          "note": "Direct connection within Extron XTP Systems (twisted-pair video, audio, RS-232 and Ethernet); a transmission system, not Extron control."
+        },
+        {
+          "key": "amx",
+          "de": "AMX",
+          "en": "AMX",
+          "note": "Includes AMX Device Discovery (Epson Deutschland: AMX-Geräteerkennung)."
+        },
+        {
+          "key": "control4",
+          "de": "Control4",
+          "en": "Control4",
+          "note": "Includes Control4 Simple Device Discovery Protocol (SDDP)."
+        }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": {
+        "de": "Mediensteuerungen, für die der Hersteller das Modell ausweist. Ob ein Programm den Zustand abfragen kann, sagen die Steuerprotokolle.",
+        "en": "Control systems the maker lists the model for. Whether a program can ask the device for its state is in Control protocols."
+      },
+      "sources": [
+        "lib:epson_ds_pu1008w",
+        "lib:epson_ds_roomview",
+        "lib:epson_ds_control4",
+        "lib:epson_ds_de_pu1008w",
+        "lib:epson_pu1008w_ug",
+        "lib:crestron_cip",
+        "lib:extron_xtp",
+        "lib:control4_sddp",
+        "lib:tender_muelheim"
+      ]
     }
   ]
 }

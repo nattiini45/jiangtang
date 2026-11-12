@@ -299,6 +299,9 @@ model EquipmentKindsInitialization {
 }
 
 model EquipmentModel {
+  catalogKey String? @unique
+  catalogSnapshot Json? @db.JsonB
+  catalogVersion Int?
   customValues Json @default("{}") @db.JsonB
   kindId String?
   kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)

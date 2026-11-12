@@ -65,7 +65,7 @@ it("ships bilingual renderable properties, valid units, conditions and cited sou
   expect(
     propertyLibrary.kinds.filter((kind) => kind.properties?.length).map((kind) => kind.key),
   ).toEqual(["projector"]);
-  expect(all).toHaveLength(37);
+  expect(all).toHaveLength(39);
   for (const property of all) {
     expect(property.de).not.toBe("");
     expect(property.en).not.toBe("");
@@ -102,7 +102,7 @@ it("ships bilingual renderable properties, valid units, conditions and cited sou
 
 it("reconciles installed kinds once, preserving identities, positions and audit count", async () => {
   const ids = await reconcileLibrary();
-  expect(ids).toHaveLength(37);
+  expect(ids).toHaveLength(39);
   const fields = await getFieldSchema("EQUIPMENT", {
     kindId: (await projector()).id,
     locale: "en",
@@ -299,7 +299,7 @@ it("keeps startup alive after a failed reconcile and retries at the next start",
   );
   query.mockRestore();
   await register();
-  expect(await db.customField.count({ where: { systemKey: { not: null } } })).toBe(37);
+  expect(await db.customField.count({ where: { systemKey: { not: null } } })).toBe(39);
 });
 
 it("installs projector properties in the kind-install transaction", async () => {
@@ -312,7 +312,7 @@ it("installs projector properties in the kind-install transaction", async () => 
   try {
     const result = await installLibraryKinds(actor, { keys: ["projector"] });
     installedId = result.installed[0].id;
-    expect(await db.customFieldKind.count({ where: { kindId: installedId } })).toBe(37);
+    expect(await db.customFieldKind.count({ where: { kindId: installedId } })).toBe(39);
   } finally {
     await db.customField.deleteMany({ where: { systemKey: { not: null } } });
     if (installedId) await db.equipmentKind.delete({ where: { id: installedId } });

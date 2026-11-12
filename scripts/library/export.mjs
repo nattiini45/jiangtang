@@ -39,7 +39,7 @@ const properties = projector.properties.flatMap((reference) => {
             values: property.applies_if.values,
           }
         : null,
-      help: { de: property.job_de ?? null, en: property.job_en ?? null },
+      help: { de: property.help_de ?? null, en: property.help_en ?? null },
       sources: [
         ...new Set([...(shared.get(reference.key)?.sources ?? []), ...(property.sources ?? [])]),
       ],

@@ -1,6 +1,18 @@
 import type { inventoryDe } from "../de/inventory";
 
 export const inventoryEn = {
+  "inventory.catalog.search": "Search models",
+  "inventory.catalog.onSave": "The data sheet will be filled in when you save.",
+  "inventory.catalog.source": "Data from {manufacturer}, retrieved {date}.",
+  "inventory.catalog.productPage": "Product page",
+  "inventory.catalog.unlink": "Unlink from catalog",
+  "inventory.catalog.manual": "Open manual",
+  "inventory.catalog.unlinkConfirm":
+    "Unlink from the catalog? Unchanged catalog values, the manual link and model ports will be removed. House edits and device ports will stay.",
+  "inventory.catalog.ambiguous": "Several models match. Please choose a model explicitly.",
+  "inventory.catalog.kindRequired": "Install the device kind from the library first.",
+  "inventory.catalog.kindMismatch": "The catalog model belongs to a different device kind.",
+  "inventory.catalog.alreadyLinked": "This model is already linked to another catalog record.",
   "inventory.kind": "Kind",
   "inventory.functionGroup": "Function group",
   "inventory.form.kindRequired": "Choose a kind.",
@@ -121,7 +133,7 @@ export const inventoryEn = {
   "inventory.models.subtitle": "Define device models once, reuse them everywhere.",
   "inventory.models.new": "New model",
   "inventory.models.empty": "No models yet. Create the first one.",
-  "inventory.models.back": "← Catalog",
+  "inventory.models.back": "← Models",
   "inventory.models.editSummary": "Edit model",
   "inventory.models.saved": "Saved.",
   "inventory.models.submit": "Save changes",

@@ -10,10 +10,12 @@ export function FieldValues({
   fields,
   foldAfter,
   essentialFirst = false,
+  showLegend = true,
 }: {
   fields: FilledField[];
   foldAfter?: number;
   essentialFirst?: boolean;
+  showLegend?: boolean;
 }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -28,9 +30,11 @@ export function FieldValues({
     <div className="flex min-w-0 flex-col gap-4" data-field-values>
       {fieldGroups(shown).map(({ section, fields }) => (
         <section key={section} className="min-w-0">
-          <h3 className="mb-2 text-sm font-semibold [overflow-wrap:anywhere]">
-            {section || t("fields.moreDetails")}
-          </h3>
+          {showLegend || section ? (
+            <h3 className="mb-2 text-sm font-semibold [overflow-wrap:anywhere]">
+              {section || t("fields.moreDetails")}
+            </h3>
+          ) : null}
           <dl className="flex flex-col gap-2 text-sm">
             {fields.map((field) => (
               <div

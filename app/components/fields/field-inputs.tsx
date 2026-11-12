@@ -128,12 +128,18 @@ function FieldEditor({
                         <FieldValue field={{ ...field, value: display as FilledField["value"] }} />
                       )}
                     </div>
-                    <Link
-                      to={`/inventory/models/${modelId}`}
-                      className="text-muted-foreground text-xs underline underline-offset-4"
-                    >
-                      {t("fields.model.edit")}
-                    </Link>
+                    {modelId.startsWith("catalog:") ? (
+                      <p className="text-muted-foreground text-xs">
+                        {t("inventory.catalog.onSave")}
+                      </p>
+                    ) : (
+                      <Link
+                        to={`/inventory/models/${modelId}`}
+                        className="text-muted-foreground text-xs underline underline-offset-4"
+                      >
+                        {t("fields.model.edit")}
+                      </Link>
+                    )}
                   </div>
                 );
               }

@@ -86,6 +86,22 @@ unknown, archived and non-applicable fields return `unknown_field`, `archived_fi
 `not_applicable`. Text/record size failures return `limit`, with a localized message naming
 the limit and how to reduce the data. An invalid row rolls its whole bulk batch back.
 
+## Shipped model catalog
+
+- `list_model_catalog({query?, kind?})` searches shipped facts by manufacturer, model name,
+  alias or part number; `kind` is the library key, such as `projector`. Results include values
+  by library key, ports, product and manual links and dated sources.
+- `link_catalog_model({catalogKey, modelId?})` requires a write token. Without `modelId`, it
+  reuses an exact manufacturer/name/kind match or creates the installation model. With a model,
+  it fills only empty values, manual address and ports. Devices without ports receive its ports.
+- `unlink_catalog_model({modelId})` requires an admin write token. It removes the link and
+  supplied values, manual and model ports still matching the stored snapshot; house changes,
+  the model name and copied device ports stay.
+
+`get_equipment_model` includes `catalogKey`, `catalogVersion` and `catalogSource`
+(`manufacturer`, `productUrl`, `retrievedOn`), or null for an unlinked model. The internal
+snapshot is not returned. Later catalog versions correct only unchanged supplied data.
+
 ## Credentials and connection
 
 In **My account → Personal access tokens**, create a named personal access token (PAT), choosing
@@ -219,7 +235,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **49 read tools and 87 write tools**. Their published schemas are
+Discovery currently returns **50 read tools and 89 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.

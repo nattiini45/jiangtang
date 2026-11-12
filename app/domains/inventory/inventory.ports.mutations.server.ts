@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError, hasSqlState } from "~/lib/errors.server
 import { emitChange } from "~/lib/realtime/emit.server";
 import { tr } from "~/i18n/request-locale.server";
 import { equipmentPortSchema, MAX_PORT_POSITION, type PortInput } from "./inventory.ports.schema";
+import { lockKindStructure } from "~/lib/equipment-kinds/kinds.server";
 
 export async function copyModelPortsInTx(tx: Tx, equipmentId: string, modelId: string | null) {
   if (!modelId) return [];
@@ -51,6 +52,7 @@ export async function mutateEquipmentPort(
   let result;
   try {
     result = await txWithAudit(actor, async (tx, audit) => {
+      if (operation === "inherit") await lockKindStructure(tx);
       await lockEquipmentPorts(tx, equipmentId);
       const port = portId
         ? await tx.equipmentPort.findFirst({ where: { id: portId, equipmentId } })
