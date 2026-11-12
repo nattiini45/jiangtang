@@ -236,6 +236,13 @@ describe("structure rules against PostgreSQL", () => {
     await expect(deleteStructureEntry(actor, "kind", kind.id)).rejects.toThrow();
     await updateDeviceKind(actor, kind.id, { archived: true });
     await updateFunctionGroup(actor, group.id, { archived: true });
+    await updateDeviceKind(actor, kind.id, {
+      name: `${prefix}Archived renamed`,
+      groupId: group.id,
+    });
+    expect((await db.equipmentKind.findUniqueOrThrow({ where: { id: kind.id } })).name).toBe(
+      `${prefix}Archived renamed`,
+    );
     await expect(deleteStructureEntry(actor, "group", group.id)).rejects.toThrow();
     await expect(updateDeviceKind(actor, kind.id, { archived: false })).rejects.toThrow();
     await deleteStructureEntry(actor, "kind", kind.id);

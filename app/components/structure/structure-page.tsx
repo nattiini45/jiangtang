@@ -58,10 +58,14 @@ function StructureRow({
   const fetcher = useFetcher<typeof action>();
   const busy = fetcher.state !== "idle";
   const [editing, setEditing] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const protectedKind =
     entity === "kind" && !!entry.systemKey && protectedKeys.includes(entry.systemKey);
   const inUse = !!entry._count && entry._count.equipment + entry._count.models > 0;
+  useEffect(() => {
+    if (archiving) dialog.current?.showModal();
+  }, [archiving]);
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.changed) {
       setEditing(false);
@@ -129,8 +133,18 @@ function StructureRow({
             {entry._count ? (
               <p className="text-muted-foreground nums text-sm">
                 {t("admin.structure.counts", {
-                  devices: entry._count.equipment,
-                  models: entry._count.models,
+                  devices: t(
+                    entry._count.equipment === 1
+                      ? "admin.structure.deviceOne"
+                      : "admin.structure.deviceMany",
+                    { count: entry._count.equipment },
+                  ),
+                  models: t(
+                    entry._count.models === 1
+                      ? "admin.structure.modelOne"
+                      : "admin.structure.modelMany",
+                    { count: entry._count.models },
+                  ),
                 })}
               </p>
             ) : null}
@@ -165,7 +179,10 @@ function StructureRow({
                 size="icon"
                 aria-label={t("admin.structure.edit")}
                 disabled={busy}
-                onClick={() => setEditing(true)}
+                onClick={() => {
+                  fetcher.reset();
+                  setEditing(true);
+                }}
               >
                 <Pencil className="size-icon" />
               </Button>
@@ -203,7 +220,11 @@ function StructureRow({
                   type="button"
                   variant="ghost"
                   disabled={busy}
-                  onClick={() => (inUse ? dialog.current?.showModal() : submit("archive"))}
+                  onClick={() => {
+                    fetcher.reset();
+                    if (inUse) setArchiving(true);
+                    else submit("archive");
+                  }}
                 >
                   {t("admin.structure.archive")}
                 </Button>
@@ -215,59 +236,65 @@ function StructureRow({
       <div className="px-4">
         <Errors result={fetcher.data} />
       </div>
-      <dialog
-        ref={dialog}
-        aria-labelledby={`archive-${entry.id}`}
-        className="bg-card text-foreground shadow-surface-5 fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100%-2rem))] overflow-y-auto rounded-xl p-6 backdrop:bg-(--scrim)"
-      >
-        <fetcher.Form method="post" className="flex flex-col gap-4">
-          <h2 id={`archive-${entry.id}`} className="text-lg font-semibold">
-            {t("admin.structure.archiveTitle", { name: entry.name })}
-          </h2>
-          <p className="text-muted-foreground text-sm">{t("admin.structure.moveHelp")}</p>
-          <input type="hidden" name="entity" value={entity} />
-          <input type="hidden" name="id" value={entry.id} />
-          <input type="hidden" name="intent" value="archive" />
-          <label className="text-sm">
-            {t("admin.structure.moveTo")}
-            <Select
-              name="moveDevicesTo"
-              required
-              defaultValue=""
-              aria-label={t("admin.structure.moveTo")}
-            >
-              <option value="" disabled>
-                {t("admin.structure.chooseKind")}
-              </option>
-              {groups
-                .filter((group) => !group.archivedAt)
-                .map((group) => (
-                  <optgroup key={group.id} label={group.name}>
-                    {group.kinds
-                      .filter((kind) => !kind.archivedAt && kind.id !== entry.id)
-                      .map((kind) => (
-                        <option key={kind.id} value={kind.id}>
-                          {kind.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-            </Select>
-          </label>
-          <Errors result={fetcher.data} />
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => dialog.current?.close()}
-              disabled={busy}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button disabled={busy}>{t("admin.structure.archiveAndMove")}</Button>
-          </div>
-        </fetcher.Form>
-      </dialog>
+      {archiving ? (
+        <dialog
+          ref={dialog}
+          onClose={() => setArchiving(false)}
+          onCancel={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          aria-labelledby={`archive-${entry.id}`}
+          className="bg-card text-foreground shadow-surface-5 fixed inset-0 m-auto max-h-[calc(100dvh-2rem)] w-[min(32rem,calc(100%-2rem))] overflow-y-auto rounded-xl p-6 backdrop:bg-(--scrim)"
+        >
+          <fetcher.Form method="post" className="flex flex-col gap-4">
+            <h2 id={`archive-${entry.id}`} className="text-lg font-semibold">
+              {t("admin.structure.archiveTitle", { name: entry.name })}
+            </h2>
+            <p className="text-muted-foreground text-sm">{t("admin.structure.moveHelp")}</p>
+            <input type="hidden" name="entity" value={entity} />
+            <input type="hidden" name="id" value={entry.id} />
+            <input type="hidden" name="intent" value="archive" />
+            <label className="text-sm">
+              {t("admin.structure.moveTo")}
+              <Select
+                name="moveDevicesTo"
+                required
+                defaultValue=""
+                aria-label={t("admin.structure.moveTo")}
+              >
+                <option value="" disabled>
+                  {t("admin.structure.chooseKind")}
+                </option>
+                {groups
+                  .filter((group) => !group.archivedAt)
+                  .map((group) => (
+                    <optgroup key={group.id} label={group.name}>
+                      {group.kinds
+                        .filter((kind) => !kind.archivedAt && kind.id !== entry.id)
+                        .map((kind) => (
+                          <option key={kind.id} value={kind.id}>
+                            {kind.name}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
+              </Select>
+            </label>
+            <Errors result={fetcher.data} />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => dialog.current?.close()}
+                disabled={busy}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button disabled={busy}>{t("admin.structure.archiveAndMove")}</Button>
+            </div>
+          </fetcher.Form>
+        </dialog>
+      ) : null}
     </li>
   );
 }
@@ -328,7 +355,13 @@ export function StructurePage({
         </div>
         <div className="flex flex-wrap gap-2">
           {entity === "kind" ? libraryAction : null}
-          <Button type="button" onClick={() => setAdding(true)}>
+          <Button
+            type="button"
+            onClick={() => {
+              fetcher.reset();
+              setAdding(true);
+            }}
+          >
             {t(entity === "kind" ? "admin.structure.addKind" : "admin.structure.addGroup")}
           </Button>
         </div>
