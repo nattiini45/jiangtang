@@ -4,7 +4,7 @@ import { DateCell } from "~/components/data-grid";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { categoryLabel, micKindLabel } from "~/components/inventory/labels";
+import { micKindLabel } from "~/components/inventory/labels";
 import { formatDate, formatNumber } from "~/i18n/format";
 import { FileUpload } from "~/components/upload/file-upload";
 import { AttachmentGallery } from "~/components/upload/attachment-gallery";
@@ -28,11 +28,22 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
   const { room, equipment, openTickets, recentTickets, attachments, history } = data;
   const photoRedirect = `/rooms/${room.slug}`;
 
-  const byCategory = new Map<string, DashboardEquipment[]>();
-  for (const e of equipment) {
-    const arr = byCategory.get(e.category) ?? [];
-    arr.push(e);
-    byCategory.set(e.category, arr);
+  const byGroup = new Map<
+    string,
+    { group: DashboardEquipment["kind"]["group"]; units: DashboardEquipment[] }
+  >();
+  const collator = new Intl.Collator(locale);
+  for (const e of [...equipment].sort(
+    (a, b) =>
+      a.kind.group.position - b.kind.group.position ||
+      collator.compare(a.kind.group.name, b.kind.group.name) ||
+      collator.compare(a.kind.name, b.kind.name) ||
+      collator.compare(a.name ?? a.modelName ?? "", b.name ?? b.modelName ?? "") ||
+      a.id.localeCompare(b.id),
+  )) {
+    const entry = byGroup.get(e.kind.group.id) ?? { group: e.kind.group, units: [] };
+    entry.units.push(e);
+    byGroup.set(e.kind.group.id, entry);
   }
   const features = FEATURE_LABELS.filter(([k]) => room[k as keyof typeof room]);
   const meta = [room.campus?.name, room.building?.name].filter(Boolean).join(" · ");
@@ -123,11 +134,9 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
               </p>
             ) : (
               <div className="divide-border divide-y">
-                {[...byCategory.entries()].map(([cat, units]) => (
-                  <div key={cat} className="px-4 py-3">
-                    <p className="text-muted-foreground mb-1 text-xs">
-                      {categoryLabel(locale, cat as DashboardEquipment["category"])}
-                    </p>
+                {[...byGroup.values()].map(({ group, units }) => (
+                  <section key={group.id} aria-label={group.name} className="px-4 py-3">
+                    <h3 className="mb-2 text-sm font-semibold">{group.name}</h3>
                     <ul className="flex flex-col gap-1">
                       {units.map((u) => (
                         <li key={u.id} className="flex items-start gap-2 text-sm">
@@ -139,6 +148,12 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
                             >
                               {u.name ?? u.modelName ?? "—"}
                             </Link>
+                            <p
+                              className="text-muted-foreground truncate text-xs"
+                              title={u.kind.name}
+                            >
+                              {u.kind.name}
+                            </p>
                             <DeviceDetails device={u} />
                           </div>
                           <span className="shrink-0">
@@ -147,7 +162,7 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </section>
                 ))}
               </div>
             )}

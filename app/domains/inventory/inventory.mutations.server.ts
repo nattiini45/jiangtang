@@ -16,7 +16,9 @@ type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKin
  * (spare → faulty) is 1:1, enforced by substitutingForId @unique.
  */
 
-function equipmentFields(input: EquipmentCreateInput): Prisma.EquipmentUncheckedCreateInput {
+function equipmentFields(
+  input: EquipmentCreateInput & { category: Equipment["category"] },
+): Prisma.EquipmentUncheckedCreateInput {
   return {
     category: input.category,
     kindId: input.kindId,
@@ -121,7 +123,8 @@ export async function updateEquipment(
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
-    const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
+    const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
+    const input = { ...source, ...(await resolveEquipmentKind(tx, source, current.kindId)) };
     const fields = equipmentFields(input);
     const { eq, auditData } =
       input.status === "RETIRED"

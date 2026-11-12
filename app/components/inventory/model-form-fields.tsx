@@ -2,22 +2,28 @@ import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
-import { EquipmentCategory } from "~/generated/prisma/enums";
-import { useLocale, useT } from "~/i18n/use-t";
-import { categoryLabel } from "./labels";
+import { useT } from "~/i18n/use-t";
+import { KindOptions, type KindGroups } from "./kind-options";
 
 export interface ModelDefaults {
   manufacturer?: string | null;
   name?: string;
   category?: string;
+  kindId?: string;
   specNotes?: string | null;
   manualUrl?: string | null;
 }
 
 /** Shared field block for the create + edit model forms (bound to ZodForm). */
-export function ModelFormFields({ defaults }: { defaults?: ModelDefaults }) {
+export function ModelFormFields({
+  defaults,
+  kinds,
+}: {
+  defaults?: ModelDefaults;
+  kinds: KindGroups;
+}) {
   const t = useT();
-  const locale = useLocale();
+  const options = kinds.flatMap((group) => group.kinds);
   return (
     <>
       <FormField
@@ -39,13 +45,17 @@ export function ModelFormFields({ defaults }: { defaults?: ModelDefaults }) {
           placeholder={t("inventory.models.namePlaceholder")}
         />
       </FormField>
-      <FormField name="category" label={t("inventory.models.category")}>
-        <Select name="category" defaultValue={defaults?.category ?? "PROJECTOR"}>
-          {Object.values(EquipmentCategory).map((c) => (
-            <option key={c} value={c}>
-              {categoryLabel(locale, c)}
-            </option>
-          ))}
+      <FormField name="kindId" label={t("inventory.kind")}>
+        <Select
+          name="kindId"
+          required
+          defaultValue={
+            defaults?.kindId ??
+            options.find((kind) => kind.systemKey === "projector")?.id ??
+            options[0]?.id
+          }
+        >
+          <KindOptions groups={kinds} />
         </Select>
       </FormField>
       <FormField name="specNotes" label={t("inventory.models.specNotes")}>

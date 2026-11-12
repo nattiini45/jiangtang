@@ -14,7 +14,7 @@ import { getProjectBySlug, listProjects } from "~/domains/projects/projects.quer
 import { getTask, listTasks } from "~/domains/tasks/tasks.queries.server";
 import { getNote, listNotes } from "~/domains/notes/notes.queries.server";
 import { getTimeEntry } from "~/domains/time/time.queries.server";
-import { serializeMcp, withoutEquipmentKind } from "~/lib/mcp/tools.server";
+import { serializeMcp, withMcpEquipmentKind } from "~/lib/mcp/tools.server";
 import { logger } from "~/lib/observability/logger.server";
 import type { McpContext } from "~/lib/mcp/types.server";
 
@@ -72,7 +72,7 @@ export function registerResources(server: McpServer, context: McpContext): void 
       name: "equipment",
       query: async () =>
         (await listEquipment({}, { limit: 51 }))
-          .map(withoutEquipmentKind)
+          .map(withMcpEquipmentKind)
           .map(withEquipmentAllocationAction),
       tool: "list_equipment",
     },
@@ -123,7 +123,7 @@ export function registerResources(server: McpServer, context: McpContext): void 
       description: "Equipment model, room and substitution links",
       query: async (id) => {
         const equipment = await getEquipment(id);
-        return equipment ? withEquipmentAllocationAction(withoutEquipmentKind(equipment)) : null;
+        return equipment ? withEquipmentAllocationAction(withMcpEquipmentKind(equipment)) : null;
       },
     },
     {

@@ -2,6 +2,7 @@ import { Link, useNavigation } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { safeParseForm } from "~/lib/validation.server";
 import { tr } from "~/i18n/request-locale.server";
 import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.server";
@@ -34,7 +35,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   await requireUser(request);
   const detail = await getModelDetail(params.id);
   if (!detail) throw toErrorResponse(new NotFoundError(tr("err.model.notFound")));
-  return detail;
+  return { ...detail, kinds: await listDeviceKinds() };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -100,7 +101,9 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
         ) : null}
         <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-3">
           <ModelFormFields
+            kinds={loaderData.kinds}
             defaults={{
+              kindId: model.kind.id,
               manufacturer: model.manufacturer,
               name: model.name,
               category: model.category,

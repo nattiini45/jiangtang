@@ -3,31 +3,41 @@ import type { ColumnDef } from "~/components/data-grid";
 import type { ModelListRow } from "~/domains/catalog/catalog.queries.server";
 import type { Translate } from "~/i18n";
 import type { Locale } from "~/i18n/locales";
-import { categoryLabel } from "./labels";
 
-export function modelColumns(t: Translate, locale: Locale): ColumnDef<ModelListRow>[] {
+export function modelColumns(t: Translate, _locale: Locale): ColumnDef<ModelListRow>[] {
   return [
     {
       accessorKey: "manufacturer",
       header: t("inventory.col.manufacturer"),
-      cell: ({ row }) => <span className="text-sm">{row.original.manufacturer ?? "—"}</span>,
+      cell: ({ row }) => (
+        <span className="truncate text-sm" title={row.original.manufacturer ?? undefined}>
+          {row.original.manufacturer ?? "—"}
+        </span>
+      ),
     },
     {
       accessorKey: "name",
       header: t("inventory.col.model"),
       cell: ({ row }) => (
-        <Link to={`/inventory/models/${row.original.id}`} className="hover:underline">
+        <Link
+          to={`/inventory/models/${row.original.id}`}
+          className="truncate hover:underline"
+          title={row.original.name}
+        >
           {row.original.name}
         </Link>
       ),
       size: 240,
     },
     {
-      accessorKey: "category",
-      meta: { searchText: (row) => categoryLabel(locale, row.category) },
-      header: t("inventory.col.category"),
+      id: "kind",
+      accessorFn: (row) => row.kind.name,
+      meta: { searchText: (row) => row.kind.name },
+      header: t("inventory.kind"),
       cell: ({ row }) => (
-        <span className="text-sm">{categoryLabel(locale, row.original.category)}</span>
+        <span className="truncate" title={row.original.kind.name}>
+          {row.original.kind.name}
+        </span>
       ),
     },
     {

@@ -46,7 +46,7 @@ import {
 import {
   equipmentCreateSchema,
   equipmentEditSchema,
-  equipmentCsvRowSchema,
+  equipmentBulkRowSchema,
 } from "~/domains/inventory/inventory.schema";
 import {
   createStockItem,
@@ -267,7 +267,8 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
   write(
     {
       name: "create_equipment_model",
-      description: "Create an equipment catalog model.",
+      description:
+        "Create an equipment catalog model with kindId, or the legacy category alias. kindId takes precedence and determines category.",
       schema: modelCreateSchema,
       entityType: "equipmentModel",
       op: "created",
@@ -278,7 +279,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_equipment_model",
       description:
-        "Replace a catalog model's editable fields by ID. Catalog models cannot be deleted.",
+        "Replace a catalog model's editable fields by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Catalog models cannot be deleted.",
       schema: z.object({ id, input: modelEditSchema }),
       entityType: "equipmentModel",
       op: "updated",
@@ -289,7 +290,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "create_equipment",
       description:
-        "Create an equipment instance. FIXED requires roomId; POOLED forbids roomId. Lamp-change instants require an ISO timestamp with an offset.",
+        "Create an equipment instance with kindId, or the legacy category alias. kindId takes precedence and determines category. FIXED requires roomId; POOLED forbids roomId. Lamp-change instants require an ISO timestamp with an offset.",
       schema: equipmentCreateSchema.safeExtend(equipmentInstants),
       entityType: "equipment",
       op: "created",
@@ -300,7 +301,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_equipment",
       description:
-        "Replace an equipment instance's editable fields by ID. Omitted optional fields are cleared; lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
+        "Replace an equipment instance's editable fields by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Other omitted optional fields are cleared; lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
       schema: z.object({
         id,
         input: equipmentEditSchema
@@ -343,8 +344,8 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "bulk_create_equipment",
       description:
-        "Atomically import 1–500 equipment instances using the existing CSV row fields (including German column names). Returns the count and created equipment IDs, names, categories and asset tags. ADMIN only.",
-      schema: z.object({ rows: z.array(equipmentCsvRowSchema).min(1).max(500) }),
+        "Atomically import 1–500 equipment instances using the existing CSV row fields (including German column names), plus kindId. Each row requires kindId or kategorie; kindId takes precedence. Returns the count and created equipment IDs, names, categories and asset tags. ADMIN only.",
+      schema: z.object({ rows: z.array(equipmentBulkRowSchema).min(1).max(500) }),
       role: "ADMIN",
       entityType: "equipment",
       op: "created",

@@ -2,6 +2,9 @@ import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { KindOptions, type KindGroups } from "~/components/inventory/kind-options";
 import { listEquipment } from "~/domains/inventory/inventory.queries.server";
 import { listModels } from "~/domains/catalog/catalog.queries.server";
 import { listStock } from "~/domains/inventory/inventory.stock.queries.server";
@@ -12,7 +15,7 @@ import { listFrequencyBoard } from "~/domains/inventory/inventory.frequency.serv
 import { parseInput } from "~/lib/validation.server";
 import { EquipmentCategory, EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
 import { statusToken } from "~/lib/status";
-import { categoryLabel, mobilityLabel } from "~/components/inventory/labels";
+import { mobilityLabel } from "~/components/inventory/labels";
 import { DataGrid } from "~/components/data-grid";
 import { equipmentColumns } from "~/components/inventory/equipment-columns";
 import { ModelsPanel } from "~/components/inventory/models-panel";
@@ -104,12 +107,26 @@ export async function loader({ request }: Route.LoaderArgs) {
   const mobility =
     mobilityParam in EquipmentMobility ? (mobilityParam as EquipmentMobility) : undefined;
 
-  const equipment = await listEquipment({ category, status, mobility });
+  const kinds = await listDeviceKinds();
+  const kindId = url.searchParams.get("kindId") || undefined;
+  const equipment = await listEquipment({ kindId, category, status, mobility });
   return {
     tab,
     equipment: {
       equipment,
-      filters: { category: category ?? "", status: status ?? "", mobility: mobility ?? "" },
+      kinds,
+      filters: {
+        kindId:
+          kindId ??
+          (category
+            ? kinds
+                .flatMap((group) => group.kinds)
+                .find((kind) => kind.systemKey === DEFAULT_EQUIPMENT_KINDS[category].key)?.id
+            : undefined) ??
+          "",
+        status: status ?? "",
+        mobility: mobility ?? "",
+      },
     },
   };
 }
@@ -154,6 +171,7 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
       {tab === "equipment" && "equipment" in loaderData ? (
         <EquipmentPanel
           equipment={loaderData.equipment.equipment}
+          kinds={loaderData.equipment.kinds}
           filters={loaderData.equipment.filters}
           columns={columns}
           autoSubmit={autoSubmit}
@@ -165,12 +183,14 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
 
 function EquipmentPanel({
   equipment,
+  kinds,
   filters,
   columns,
   autoSubmit,
 }: {
   equipment: Awaited<ReturnType<typeof listEquipment>>;
-  filters: { category: string; status: string; mobility: string };
+  kinds: KindGroups;
+  filters: { kindId: string; status: string; mobility: string };
   columns: ReturnType<typeof equipmentColumns>;
   autoSubmit: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }) {
@@ -190,18 +210,14 @@ function EquipmentPanel({
 
       <Form method="get" className="flex flex-wrap items-center gap-2">
         <Select
-          name="category"
-          aria-label={t("inventory.list.filterCategory")}
-          defaultValue={filters.category}
+          name="kindId"
+          aria-label={t("inventory.list.filterKind")}
+          defaultValue={filters.kindId}
           className="max-w-[14rem]"
           onChange={autoSubmit}
         >
-          <option value="">{t("inventory.list.allCategories")}</option>
-          {Object.values(EquipmentCategory).map((c) => (
-            <option key={c} value={c}>
-              {categoryLabel(locale, c)}
-            </option>
-          ))}
+          <option value="">{t("inventory.list.allKinds")}</option>
+          <KindOptions groups={kinds} />
         </Select>
         <Select
           name="status"
@@ -239,6 +255,7 @@ function EquipmentPanel({
       </Form>
 
       <DataGrid
+        growColumn="name"
         columns={columns}
         data={equipment}
         getRowId={(e) => e.id}

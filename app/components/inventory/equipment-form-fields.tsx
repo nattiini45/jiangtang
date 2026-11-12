@@ -3,14 +3,17 @@ import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
-import { EquipmentCategory, EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
+import { EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { KindOptions, type KindGroups } from "./kind-options";
 import { statusToken } from "~/lib/status";
-import { categoryLabel, mobilityLabel } from "./labels";
+import { mobilityLabel } from "./labels";
 import { EquipmentCategoryFields } from "./equipment-category-fields";
 import { useLocale, useT } from "~/i18n/use-t";
 
 export interface EquipmentDefaults {
   category?: string;
+  kindId?: string;
   modelId?: string | null;
   roomId?: string | null;
   mobility?: string;
@@ -36,32 +39,40 @@ export interface EquipmentDefaults {
 export function EquipmentFormFields({
   models,
   rooms,
+  kinds,
   defaults,
 }: {
   models: { id: string; name: string; manufacturer: string | null }[];
   rooms: { id: string; name: string }[];
+  kinds: KindGroups;
   defaults?: EquipmentDefaults;
 }) {
   const locale = useLocale();
   const t = useT();
-  const [category, setCategory] = React.useState<string>(defaults?.category ?? "PROJECTOR");
+  const options = kinds.flatMap((group) => group.kinds);
+  const [kindId, setKindId] = React.useState(
+    defaults?.kindId ??
+      options.find((kind) => kind.systemKey === "projector")?.id ??
+      options[0]?.id ??
+      "",
+  );
+  const key = options.find((kind) => kind.id === kindId)?.systemKey;
+  const category =
+    Object.entries(DEFAULT_EQUIPMENT_KINDS).find(([, value]) => value.key === key)?.[0] ?? "OTHER";
   const [mobility, setMobility] = React.useState<string>(defaults?.mobility ?? "FIXED");
   const pooled = mobility === "POOLED";
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField name="category" label={t("inventory.form.category")}>
+        <FormField name="kindId" label={t("inventory.kind")}>
           <Select
-            name="category"
-            value={category}
-            onChange={(e) => setCategory(e.currentTarget.value)}
+            name="kindId"
+            value={kindId}
+            required
+            onChange={(e) => setKindId(e.currentTarget.value)}
           >
-            {Object.values(EquipmentCategory).map((c) => (
-              <option key={c} value={c}>
-                {categoryLabel(locale, c)}
-              </option>
-            ))}
+            <KindOptions groups={kinds} />
           </Select>
         </FormField>
         <FormField name="mobility" label={t("inventory.form.mobility")}>

@@ -2,7 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { tr } from "~/i18n/request-locale.server";
-import { withoutEquipmentKind } from "./tools.server";
+import { withMcpEquipmentKind } from "./tools.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import {
   EquipmentCategory,
   EquipmentMobility,
@@ -323,10 +324,14 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       name: "list_equipment_models",
       description:
         "List equipment catalog models and instance/fault counts. Follow nextOffset; use list_equipment with modelId for instances.",
-      schema: pagination.extend({ category: z.enum(EquipmentCategory).optional(), q }),
+      schema: pagination.extend({
+        kindId: id.optional(),
+        category: z.enum(EquipmentCategory).optional(),
+        q,
+      }),
     },
     async (input) =>
-      page((await listModels(input, queryPage(input))).map(withoutEquipmentKind), input),
+      page((await listModels(input, queryPage(input))).map(withMcpEquipmentKind), input),
   );
   registerTool(
     server,
@@ -337,7 +342,26 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         "Get an equipment catalog model by ID. Use list_equipment with modelId for its instances.",
       schema: byId,
     },
-    async ({ id }) => withoutEquipmentKind(await found(getModel(id))),
+    async ({ id }) => withMcpEquipmentKind(await found(getModel(id))),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_device_kinds",
+      description:
+        "List function groups in display order with their device kinds. Names are installation data. Use a kind ID in device/model writes and filters. Active groups and kinds only by default.",
+      schema: z.object({ includeArchived: z.boolean().default(false) }),
+    },
+    async ({ includeArchived }) =>
+      (await listDeviceKinds(includeArchived)).map((group) => ({
+        ...group,
+        kinds: group.kinds.map(({ systemKey, ...kind }) => ({
+          ...kind,
+          key: systemKey,
+          groupId: group.id,
+        })),
+      })),
   );
   registerTool(
     server,
@@ -345,10 +369,11 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_equipment",
       description:
-        "List equipment instances with room/model names, asset tags, category, mobility and status. Follow nextOffset.",
+        "List equipment instances with room/model names, kind and function group, asset tags, mobility and status. Filter by kindId; category is a deprecated compatibility alias, ignored when kindId is given. Follow nextOffset.",
       schema: pagination.extend({
         roomId: id.optional(),
         modelId: id.optional(),
+        kindId: id.optional(),
         category: z.enum(EquipmentCategory).optional(),
         status: z.enum(EquipmentStatus).optional(),
         mobility: z.enum(EquipmentMobility).optional(),
@@ -358,7 +383,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     async (input) =>
       page(
         (await listEquipment(input, queryPage(input)))
-          .map(withoutEquipmentKind)
+          .map(withMcpEquipmentKind)
           .map(withEquipmentAllocationAction),
         input,
       ),
@@ -373,7 +398,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       schema: byId,
     },
     async ({ id }) =>
-      withEquipmentAllocationAction(withoutEquipmentKind(await found(getEquipment(id)))),
+      withEquipmentAllocationAction(withMcpEquipmentKind(await found(getEquipment(id)))),
   );
   registerTool(
     server,
