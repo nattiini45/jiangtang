@@ -77,6 +77,18 @@ describe.each(["tokenCreate", "tokenRevoke"])("/account %s origin protection", (
 });
 
 describe("/account token management", () => {
+  it("returns the request origin's MCP address without changing token metadata", async () => {
+    const tokens = [{ id: "safe-metadata" }];
+    mocks.list.mockResolvedValueOnce(tokens);
+    const result = await loader({
+      request: new Request("https://alternate.example.test:8443/account?tab=tokens"),
+      params: {},
+      context: {},
+    } as never);
+    expect(result.mcpUrl).toBe("https://alternate.example.test:8443/mcp");
+    expect(result.tokens).toBe(tokens);
+  });
+
   it("keeps required-2FA enrollment available without exposing other accounts' tokens", async () => {
     vi.stubEnv("REQUIRE_ADMIN_TWO_FACTOR", "true");
     const admin = { ...user, role: "ADMIN", twoFactorEnabled: false };

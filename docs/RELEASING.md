@@ -28,11 +28,25 @@ SBOM and transfers the exact scanned image to the publishing job, without a rebu
 
 Only after those steps pass can the publishing job push the image, attach its
 SBOM and SLSA build-provenance attestations, create `v<version>` at the selected
-commit and create the GitHub release using that changelog section. The SBOM is
-also a release attachment. No `latest` image tag is published. A failed scan or
+commit and create the GitHub release using that changelog section plus an image
+verification section. GitHub generates the provenance for the release workflow
+on the default branch, not for the selected commit as a resolved dependency.
+The build checks the image's revision and version labels against the selected
+commit and version before publishing; the attestation covers that image's digest.
+The SBOM is also a release attachment. No `latest` image tag is published. A failed scan or
 guard cannot start the publishing job. A later registry/attestation/API failure
 can leave a partial publication: inspect the run before retrying, and never move
 or delete a version tag to retry a released version.
+
+If publishing fails before the version tag and release exist, fix the cause and
+dispatch a new run from current `main`, with the same version and selected commit
+and `dry_run` disabled. Do not rerun the old attempt after changing the workflow:
+that attempt still uses the old workflow revision. The new run repeats the guards,
+build and scan, pushes the version and minor image tags again, then attests and
+creates the tag and release. The image digest can change on this rebuild. If the
+version tag already exists, the guard refuses a new run; inspect and complete the
+partial publication under the release maintainer's control instead of deleting or
+moving that tag.
 
 Pull requests changing the workflow, its guard script or the Dockerfile run a
 dry run automatically. They cannot publish. They skip main ancestry, `ci` success
@@ -101,12 +115,17 @@ gh attestation verify oci://ghcr.io/nattiini45/jiangtang:0.1.0 \
 ```
 
 Verification checks the image digest against GitHub's signed attestation and its
-workflow identity, not merely the mutable image tag. Inspect the provenance's
-`buildDefinition.resolvedDependencies` for the selected source commit and compare
-it with the release tag and the OCI revision label. This uses GitHub artifact
-attestation, not a separate cosign key or signing process.
+workflow identity, not merely the mutable image tag. GitHub's generated provenance
+names the release workflow on the default branch, which builds the tagged commit.
+Its `buildDefinition.resolvedDependencies` identifies the workflow's source, not
+the selected release commit. Compare the release tag's commit and the source commit
+in the release notes with the image's `org.opencontainers.image.revision` label;
+the build verifies that label and `org.opencontainers.image.version` before
+publishing. The notes include the versioned image name and verification command.
+This uses GitHub artifact attestation, not a separate cosign key or signing process.
 
 The signing certificate identifies the workflow revision at dispatch (the tip of
 `main`), which can be newer than the selected build commit. The selected commit
-is recorded in the signed predicate, not the certificate's source digest; do not
-use `--source-digest` with the release commit to verify this workflow.
+is recorded in the digest-bound image's revision label, not as the provenance's
+source digest; do not use `--source-digest` with the release commit to verify this
+workflow.

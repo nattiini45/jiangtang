@@ -15,6 +15,7 @@ export const historyEn = {
   "history.action.TicketCancelled": "Cancelled",
   "history.action.RoomCreated": "Room created",
   "history.action.RoomUpdated": "Room updated",
+  "history.action.RoomChecked": "Room checked",
   "history.action.RoomRetired": "Room retired",
   "history.action.RoomCloned": "Room duplicated",
   "history.action.RoomBooked": "Room booked",

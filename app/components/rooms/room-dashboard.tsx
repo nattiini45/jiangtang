@@ -1,10 +1,11 @@
-import { Link } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { ExternalLink } from "lucide-react";
-import { DateCell, MonoCell } from "~/components/data-grid";
+import { DateCell } from "~/components/data-grid";
 import { StatusBadge } from "~/components/ui/status-badge";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { categoryLabel } from "~/components/inventory/labels";
+import { categoryLabel, micKindLabel } from "~/components/inventory/labels";
+import { formatDate, formatNumber } from "~/i18n/format";
 import { FileUpload } from "~/components/upload/file-upload";
 import { AttachmentGallery } from "~/components/upload/attachment-gallery";
 import { ActivityFeed } from "~/components/history/activity-feed";
@@ -23,6 +24,7 @@ const FEATURE_LABELS = [
 export function RoomDashboard({ data }: { data: RoomDashboardData }) {
   const t = useT();
   const locale = useLocale();
+  const check = useFetcher();
   const { room, equipment, openTickets, recentTickets, attachments, history } = data;
   const photoRedirect = `/rooms/${room.slug}`;
 
@@ -38,12 +40,14 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold">{room.name}</h1>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          <h1 className="max-w-full truncate text-xl font-bold" title={room.name}>
+            {room.name}
+          </h1>
           {room.roomNumber ? <span className="nums text-sm">{room.roomNumber}</span> : null}
           <StatusBadge kind="room" value={room.status} />
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           <Button asChild variant="tertiary">
             <Link to={`/rooms/${room.slug}/clone`}>{t("rooms.dashboard.duplicate")}</Link>
           </Button>
@@ -58,8 +62,52 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
         {room.owner ? ` · ${room.owner}` : ""}
       </p>
 
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        {room.lastCheckedAt ? (
+          <p>
+            {t("rooms.dashboard.lastChecked")}{" "}
+            <DateCell value={room.lastCheckedAt} withTime={false} />
+          </p>
+        ) : (
+          <p className="text-muted-foreground">{t("rooms.dashboard.neverChecked")}</p>
+        )}
+        <check.Form method="post" action={`${photoRedirect}?index`}>
+          <Button type="submit" variant="tertiary" size="compact" disabled={check.state !== "idle"}>
+            {t("rooms.dashboard.checkToday")}
+          </Button>
+        </check.Form>
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="flex flex-col gap-4 lg:col-span-2">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+          {room.knownIssues || room.tipsNotes ? (
+            <section className="bg-card shadow-surface-2 flex flex-col gap-4 rounded-lg p-4">
+              {room.knownIssues ? (
+                <div>
+                  <h2 className="text-base font-semibold">{t("rooms.knownIssues")}</h2>
+                  <p className="mt-1 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
+                    {room.knownIssues}
+                  </p>
+                </div>
+              ) : null}
+              {room.tipsNotes ? (
+                <div>
+                  <h2 className="text-base font-semibold">{t("rooms.dashboard.tips")}</h2>
+                  <p className="mt-1 whitespace-pre-wrap text-sm [overflow-wrap:anywhere]">
+                    {room.tipsNotes}
+                  </p>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+          {room.status !== "ALL_GOOD" && !room.knownIssues ? (
+            <Link
+              to={`/rooms/${room.slug}/edit#knownIssues`}
+              className="text-muted-foreground text-sm underline underline-offset-4"
+            >
+              {t("rooms.dashboard.addReason")}
+            </Link>
+          ) : null}
           <section className="bg-card shadow-surface-2 rounded-lg">
             <header className="border-border flex min-h-12 items-center justify-between gap-2 border-b px-4">
               <h2 className="text-base font-semibold">{t("rooms.dashboard.installed")}</h2>
@@ -82,12 +130,18 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
                     </p>
                     <ul className="flex flex-col gap-1">
                       {units.map((u) => (
-                        <li key={u.id} className="flex items-center gap-2 text-sm">
-                          <Link to={`/inventory/${u.id}`} className="hover:underline">
-                            {u.name ?? u.modelName ?? "—"}
-                          </Link>
-                          {u.assetTag ? <MonoCell>{u.assetTag}</MonoCell> : null}
-                          <span className="ml-auto">
+                        <li key={u.id} className="flex items-start gap-2 text-sm">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              to={`/inventory/${u.id}`}
+                              className="block truncate hover:underline"
+                              title={u.name ?? u.modelName ?? undefined}
+                            >
+                              {u.name ?? u.modelName ?? "—"}
+                            </Link>
+                            <DeviceDetails device={u} />
+                          </div>
+                          <span className="shrink-0">
                             <StatusBadge kind="equipment" value={u.status} />
                           </span>
                         </li>
@@ -224,24 +278,9 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
             </section>
           ) : null}
 
-          {room.tipsNotes ? (
-            <section className="bg-card shadow-surface-2 rounded-lg p-4">
-              <p className="text-sm font-semibold">{t("rooms.dashboard.tips")}</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm">{room.tipsNotes}</p>
-            </section>
-          ) : null}
-
-          {room.renewalStatus || room.lastCheckedAt ? (
+          {room.renewalStatus ? (
             <section className="bg-card shadow-surface-2 text-muted-foreground flex flex-col gap-1 rounded-lg p-4 text-xs">
-              {room.renewalStatus ? (
-                <p>{t("rooms.dashboard.renewal", { status: room.renewalStatus })}</p>
-              ) : null}
-              {room.lastCheckedAt ? (
-                <p className="flex items-center gap-1">
-                  {t("rooms.dashboard.lastChecked")}{" "}
-                  <DateCell value={room.lastCheckedAt} withTime={false} />
-                </p>
-              ) : null}
+              <p>{t("rooms.dashboard.renewal", { status: room.renewalStatus })}</p>
             </section>
           ) : null}
         </div>
@@ -262,4 +301,40 @@ function ExtLink({ href, label }: { href: string; label: string }) {
       <ExternalLink className="size-3" />
     </a>
   );
+}
+
+function DeviceDetails({ device: d }: { device: DashboardEquipment }) {
+  const t = useT();
+  const locale = useLocale();
+  const details: (string | null)[] = [];
+  if (d.category === "PC") {
+    details.push(
+      d.hostname,
+      d.ipAddress,
+      d.macAddress,
+      d.dellServiceTag && `${t("inventory.catFields.dellService")}: ${d.dellServiceTag}`,
+      d.dellExpressTag && `${t("inventory.catFields.dellExpress")}: ${d.dellExpressTag}`,
+    );
+  } else if (d.category === "MICROPHONE") {
+    details.push(d.channelLabel, d.micKind && micKindLabel(locale, d.micKind));
+    if (d.frequencyMhz != null)
+      details.push(`${formatNumber(locale, d.frequencyMhz, { maximumFractionDigits: 3 })} MHz`);
+    details.push(d.band);
+  } else if (d.category === "PROJECTOR") {
+    details.push(
+      d.lampType,
+      d.lastLampChangeAt &&
+        `${t("inventory.catFields.lastLampChange")}: ${formatDate(locale, d.lastLampChangeAt)}`,
+    );
+  } else if (d.category === "REMOTE" || d.category === "MEDIA_CONTROL") {
+    details.push(d.color);
+  }
+  details.push(
+    d.assetTag && `${t("inventory.form.assetTag")}: ${d.assetTag}`,
+    d.serial && `${t("inventory.form.serial")}: ${d.serial}`,
+  );
+  const text = details.filter(Boolean).join(" · ");
+  return text ? (
+    <p className="text-muted-foreground text-xs [overflow-wrap:anywhere]">{text}</p>
+  ) : null;
 }

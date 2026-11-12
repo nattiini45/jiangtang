@@ -13,6 +13,7 @@ export const historyDe = {
   "history.action.TicketCancelled": "Abgebrochen",
   "history.action.RoomCreated": "Raum erstellt",
   "history.action.RoomUpdated": "Raum bearbeitet",
+  "history.action.RoomChecked": "Raum geprüft",
   "history.action.RoomRetired": "Raum ausgemustert",
   "history.action.RoomCloned": "Raum dupliziert",
   "history.action.RoomBooked": "Raum gebucht",

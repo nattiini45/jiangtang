@@ -6,6 +6,8 @@
  * immediately.
  */
 
+import { readConfig } from "~/lib/config.server";
+
 export type Theme = "light" | "dark" | "system";
 
 const COOKIE_NAME = "theme";
@@ -14,7 +16,7 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 // `Secure` in production. The live writer today is the client toggle
 // in app-shell.tsx (document.cookie); these Set-Cookie helpers are the server-set
 // fallback for a future no-JS path, kept correct so wiring them is drop-in.
-const SECURE = process.env.NODE_ENV === "production" ? "; Secure" : "";
+const SECURE = readConfig("NODE_ENV") === "production" ? "; Secure" : "";
 
 export function getTheme(request: Request): Theme {
   const cookie = request.headers.get("cookie") ?? "";

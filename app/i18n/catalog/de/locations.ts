@@ -7,7 +7,8 @@ export const locationsDe = {
   "locations.meta.new": "Neuer Standort · Jiangtang",
 
   "locations.list.title": "Standorte",
-  "locations.list.subtitle": "Die Baumstruktur — Campus, Gebäude, Räume, Lager, Racks.",
+  "locations.list.subtitle":
+    "Nicht buchbare Orte wie Lager, Schränke, Racks und Fahrzeuge, auf die Bestand, Aufgaben und Notizen verweisen können.",
   "locations.list.new": "Neuer Standort",
   "locations.list.emptyFiltered": "Keine Standorte dieser Art. Filter zurücksetzen?",
   "locations.list.empty": "Noch keine Standorte. Lege den ersten an.",

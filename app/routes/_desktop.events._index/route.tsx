@@ -2,6 +2,7 @@ import * as React from "react";
 import { Form, Link, redirect, useLocation, useNavigation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Route } from "./+types/route";
+import { readConfig } from "~/lib/config.server";
 import { requireUser } from "~/lib/auth.server";
 import { listEvents } from "~/domains/events/events.queries.server";
 import { getCalendarData } from "~/domains/events/events.calendar.queries.server";
@@ -76,7 +77,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         }),
     view === "list" ? listEvents({ status }) : Promise.resolve([]),
   ]);
-  const feedToken = process.env.ICAL_FEED_TOKEN;
+  const feedToken = readConfig("ICAL_FEED_TOKEN");
   const feedUrl =
     user.role === "ADMIN" && feedToken
       ? `${url.protocol}//${url.host}/calendar/${feedToken}/ics`

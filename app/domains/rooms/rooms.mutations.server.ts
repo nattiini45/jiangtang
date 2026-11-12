@@ -1,4 +1,5 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 import type { Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -235,6 +236,8 @@ function roomFields(
     manualUrl: input.manualUrl ?? null,
     virtualTourUrl: input.virtualTourUrl ?? null,
     tipsNotes: input.tipsNotes ?? null,
+    knownIssues: input.knownIssues ?? null,
+    lastCheckedAt: input.lastCheckedAt ?? null,
     renewalStatus: input.renewalStatus ?? null,
     renewalFrom: input.renewalFrom ?? null,
     renewalTo: input.renewalTo ?? null,
@@ -288,6 +291,21 @@ export async function retireRoom(actor: AuditActor, id: string): Promise<Room> {
     await audit({ action: "RoomRetired", entityType: "room", entityId: room.id });
     return room;
   });
+}
+
+export async function markRoomChecked(actor: AuditActor, id: string): Promise<Room> {
+  const room = await txWithAudit(actor, async (tx, audit) => {
+    const checked = await tx.room.update({ where: { id }, data: { lastCheckedAt: new Date() } });
+    await audit({
+      action: "RoomChecked",
+      entityType: "room",
+      entityId: id,
+      data: { lastCheckedAt: checked.lastCheckedAt!.toISOString() },
+    });
+    return checked;
+  });
+  await emitChange({ entityType: "room", id, op: "updated" });
+  return room;
 }
 
 /**
@@ -415,6 +433,8 @@ export async function bulkCreateRooms(
             mediaKeyRequired: row.mediaKeyRequired,
             videoInputs: row.videoInputs,
             audioOutputs: row.audioOutputs,
+            knownIssues: row.knownIssues ?? null,
+            lastCheckedAt: row.lastCheckedAt ?? null,
           },
         });
         await audit({

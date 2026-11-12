@@ -1,4 +1,5 @@
 import { generatePath, matchRoutes, redirect, type MiddlewareFunction } from "react-router";
+import { readConfig } from "~/lib/config.server";
 import { sanitizeNext } from "~/lib/auth.server";
 
 export type View = "desktop" | "mobile";
@@ -138,7 +139,7 @@ export function preferredView(headers: Headers): View {
 }
 
 export function setViewCookie(view: View): string {
-  return `view=${view}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === "production" ? "; Secure" : ""}`;
+  return `view=${view}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${readConfig("NODE_ENV") === "production" ? "; Secure" : ""}`;
 }
 
 export function hasMobileEquivalent(path: string): boolean {

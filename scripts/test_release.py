@@ -73,7 +73,35 @@ class ReleaseTests(unittest.TestCase):
                         prepare()
                         self.assertEqual(mocked.call_args_list[-1].args, ("git", "checkout", "--detach", "a" * 40))
                         self.assertIn("version=0.1.0", Path(env["GITHUB_OUTPUT"]).read_text())
-                        self.assertEqual(json.loads((Path(directory) / "release/provenance.json").read_text())["buildDefinition"]["resolvedDependencies"][0]["digest"], {"gitCommit": "a" * 40})
+
+    def test_release_notes_include_image_source_and_verification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env = {
+                "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/main",
+                "RELEASE_COMMIT": "a" * 40, "RELEASE_VERSION": "0.1.0", "GITHUB_SHA": "b" * 40,
+                "GITHUB_REPOSITORY": "synthetic/repo",
+                "RUNNER_TEMP": directory, "GITHUB_OUTPUT": directory + "/output",
+                "GITHUB_STEP_SUMMARY": directory + "/summary",
+            }
+            commands = [
+                "[]", "",
+                json.dumps({"check_runs": [{"name": "ci", "app": {"slug": "github-actions"}, "conclusion": "success"}]}),
+                '{"version": "0.1.0"}', "## [0.1.0]\n### Upgrade notes\nNone.", "",
+            ]
+            with patch.dict(os.environ, env, clear=True), patch("release.run", side_effect=commands):
+                prepare()
+            notes = (Path(directory) / "release/notes.md").read_text()
+            self.assertEqual(notes, (
+                "### Upgrade notes\nNone.\n\n### Image verification\n\n"
+                "Image: `ghcr.io/synthetic/repo:0.1.0`.\n\n"
+                f"Source commit: `{'a' * 40}`. The image's `org.opencontainers.image.revision` label "
+                f"is `{'a' * 40}`; the build checks this label and the version before publishing.\n\n"
+                "The provenance names the release workflow on the default branch, which builds the tagged commit. "
+                "Its source revision can be newer than the tagged commit.\n\n"
+                "```sh\ngh attestation verify oci://ghcr.io/synthetic/repo:0.1.0 --repo synthetic/repo\n```\n"
+            ))
+            self.assertNotIn("b" * 40, notes)
+            self.assertFalse((Path(directory) / "release/provenance.json").exists())
 
 
 if __name__ == "__main__":

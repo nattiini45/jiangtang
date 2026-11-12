@@ -3,6 +3,8 @@ import { requireUser } from "~/lib/auth.server";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
+import { getRoomBySlug } from "~/domains/rooms/rooms.queries.server";
+import { markRoomChecked } from "~/domains/rooms/rooms.mutations.server";
 import { RoomDashboard } from "~/components/rooms/room-dashboard";
 import { QrCode } from "~/components/qr/qr-code";
 import { qrSvg } from "~/lib/qr.server";
@@ -30,6 +32,18 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const qrHref = `${origin}/quick-entry?roomId=${data.room.id}`;
   const qr = await qrSvg(qrHref);
   return { data, qr, qrHref };
+}
+
+export async function action({ request, params }: Route.ActionArgs) {
+  const actor = await requireUser(request);
+  try {
+    const room = await getRoomBySlug(params.slug);
+    if (!room) throw new NotFoundError(tr("err.room.notFound"));
+    await markRoomChecked(actor, room.id);
+    return { checked: true };
+  } catch (error) {
+    throw toErrorResponse(error);
+  }
 }
 
 export default function RoomDashboardRoute({ loaderData }: Route.ComponentProps) {
