@@ -5,7 +5,7 @@ import type { Translate } from "~/i18n";
 
 const dash = <span className="text-muted-foreground">—</span>;
 
-export function roomColumns(t: Translate): ColumnDef<RoomListRow>[] {
+export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): ColumnDef<T>[] {
   return [
     {
       accessorKey: "roomNumber",
@@ -48,7 +48,7 @@ export function roomColumns(t: Translate): ColumnDef<RoomListRow>[] {
     {
       accessorKey: "capacity",
       header: t("rooms.col.capacity"),
-      size: 74,
+      size: 82,
       cell: ({ row }) =>
         row.original.capacity != null ? (
           <span className="nums">{row.original.capacity}</span>

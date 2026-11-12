@@ -1,5 +1,22 @@
 import type { fieldsDe } from "../de/fields";
 export const fieldsEn = {
+  "fields.columns.title": "Columns",
+  "fields.columns.help": "For everyone on the team · {count} of 12 columns. The name stays first.",
+  "fields.columns.allKinds": "All device kinds",
+  "fields.columns.up": "Move {name} up",
+  "fields.columns.down": "Move {name} down",
+  "fields.columns.reset": "Reset",
+  "fields.columns.saved": "Columns saved for the team.",
+  "fields.columns.invalid":
+    "Choose up to 12 columns and keep the name first. Reload the list if needed.",
+  "fields.type.TEXT": "Text",
+  "fields.type.LONG_TEXT": "Long text",
+  "fields.type.NUMBER": "Number",
+  "fields.type.BOOLEAN": "Yes/no",
+  "fields.type.DATE": "Date",
+  "fields.type.LINK": "Link",
+  "fields.type.CHOICE": "Single choice",
+  "fields.type.MULTI_CHOICE": "Multiple choice",
   "fields.moreDetails": "More details",
   "fields.form.unset": "Not set",
   "fields.form.yes": "Yes",

@@ -6,7 +6,10 @@ import type { Locale } from "~/i18n/locales";
 
 const dash = <span className="text-muted-foreground">—</span>;
 
-export function equipmentColumns(t: Translate, _locale: Locale): ColumnDef<EquipmentListRow>[] {
+export function equipmentColumns<T extends EquipmentListRow = EquipmentListRow>(
+  t: Translate,
+  _locale: Locale,
+): ColumnDef<T>[] {
   return [
     {
       accessorKey: "name",

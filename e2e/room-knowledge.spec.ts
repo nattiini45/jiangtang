@@ -139,21 +139,24 @@ for (const locale of ["de", "en"] as const) {
         .getByRole("button", { name: t(locale, "rooms.knownIssues"), exact: true })
         .locator("..");
       const issuesCell = page.getByText(problem, { exact: true }).locator("..");
-      const headers = issuesHeader.locator("..").locator(":scope > div");
+      const nameHeader = page
+        .getByRole("button", { name: t(locale, "rooms.col.name"), exact: true })
+        .locator("..");
+      const headers = nameHeader.locator("..").locator(":scope > div");
       const narrowWidths = await headers.evaluateAll((elements) =>
         elements.map((element) => element.getBoundingClientRect().width),
       );
-      const narrowIssuesWidth = (await issuesHeader.boundingBox())!.width;
-      expect(narrowIssuesWidth).toBeGreaterThanOrEqual(176);
+      const narrowNameWidth = (await nameHeader.boundingBox())!.width;
+      expect(narrowNameWidth).toBeGreaterThanOrEqual(142);
       await page.setViewportSize({ width: 1600, height: 800 });
       await expect
-        .poll(async () => (await issuesHeader.boundingBox())!.width)
-        .toBeCloseTo(narrowIssuesWidth + 320, 0);
+        .poll(async () => (await nameHeader.boundingBox())!.width)
+        .toBeCloseTo(narrowNameWidth + 320, 0);
       const wideWidths = await headers.evaluateAll((elements) =>
         elements.map((element) => element.getBoundingClientRect().width),
       );
-      expect(wideWidths.filter((_, index) => index !== 6)).toEqual(
-        narrowWidths.filter((_, index) => index !== 6),
+      expect(wideWidths.filter((_, index) => index !== 0)).toEqual(
+        narrowWidths.filter((_, index) => index !== 0),
       );
       expect((await issuesCell.boundingBox())!.width).toBeCloseTo(
         (await issuesHeader.boundingBox())!.width,
