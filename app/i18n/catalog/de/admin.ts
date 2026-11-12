@@ -60,9 +60,9 @@ export const adminDe = {
   "admin.structure.chooseKind": "Geräteart wählen",
   "admin.structure.deleteConfirm": "„{name}“ endgültig löschen?",
   "admin.structure.emptyKinds": "Noch keine Gerätearten in dieser Gruppe.",
-  "admin.structure.legacy": "Legacy-Kategorie · nicht archivierbar",
+  "admin.structure.legacy": "Standard-Geräteart · nicht archivierbar",
   "admin.structure.protected":
-    "Diese Geräteart gehört zu einer bisherigen Kategorie. Solange die Kategorie verwendet wird, kann sie nicht archiviert oder gelöscht werden.",
+    "Diese Geräteart gehört zu den Standard-Gerätearten. Sie lässt sich umbenennen und verschieben, aber nicht archivieren oder löschen.",
   "admin.structure.nameInvalid": "Der Name muss 1 bis 60 Zeichen lang sein.",
   "admin.structure.nameTaken":
     "Dieser Name ist bereits aktiv. Wählen Sie einen anderen Namen oder archivieren Sie den vorhandenen Eintrag.",
