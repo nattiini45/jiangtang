@@ -5,6 +5,30 @@ Jiangtang exposes workspace tools, read-only resources and planning prompts at
 agent. Your external client/model decides what to request, and may send returned workspace data
 to its provider: connect only clients you trust.
 
+## Custom field definitions
+
+An admin with a write token can define fields without a screen. `get_record_schema`
+accepts `{scope: "ROOM" | "EQUIPMENT", kindId?: string}` and returns active definitions
+with ordered options. Retired options retain `archivedAt` and cannot be selected.
+Names and labels are workspace data, not translated text.
+
+- `create_custom_field`: `{scope, key, name, type, kindIds?: string[], helpText?, section?, unit?, position?, showInList?, listPosition?, searchable?}`.
+  Types are TEXT, LONG_TEXT, NUMBER, BOOLEAN, CHOICE, MULTI_CHOICE, DATE and LINK.
+  Keys and types are immutable; names and keys are unique per scope. An empty kind list
+  means every device kind; room fields always apply to every room.
+- `update_custom_field`: `{id, ...changedProperties, archived?: boolean}`. Omitted
+  properties stay unchanged. Archive hides a field; restore reveals it again.
+- `update_field_options`: `{fieldId, changes: [...]}`. Changes are
+  `{op: "add", label, position?}`, `{op: "update", id, label?, position?, archived?}`
+  or `{op: "delete", id}`. Retire with `archived: true`, restore with `false`.
+  The batch is atomic; options cannot be merged.
+- `delete_custom_field`: `{id, confirm: true}`. Deletes an unused definition.
+
+There can be at most 40 active fields applying to a record, 120 fields per scope,
+50 active options and 200 total options per field. Archive fields, narrow their kinds,
+retire options or delete unused definitions to make room. Definition changes append
+one audit entry with the connecting user's token attribution.
+
 ## Credentials and connection
 
 In **My account → Personal access tokens**, create a named personal access token (PAT), choosing
@@ -138,7 +162,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **47 read tools and 76 write tools**. Their published schemas are
+Discovery currently returns **48 read tools and 80 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
