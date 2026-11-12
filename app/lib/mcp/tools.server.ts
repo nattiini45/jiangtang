@@ -25,15 +25,6 @@ export function serializeMcp(value: unknown): unknown {
   return value;
 }
 
-export function withoutEquipmentKind<T extends object>(value: T): Omit<T, "kind" | "kindId"> {
-  const {
-    kind: _kind,
-    kindId: _kindId,
-    ...rest
-  } = value as T & { kind?: unknown; kindId?: unknown };
-  return rest;
-}
-
 export function withMcpEquipmentKind<T extends { kind: EquipmentKindSummary }>(value: T) {
   const { kind, kindId: _kindId, ...rest } = value as T & { kindId?: string | null };
   return {

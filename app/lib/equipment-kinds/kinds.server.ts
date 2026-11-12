@@ -2,7 +2,8 @@ import { db, type Tx } from "~/lib/db.server";
 import { txWithAudit, type AuditFn } from "~/lib/audit.server";
 import { workspaceLocale } from "~/i18n/locale.server";
 import { Prisma, type EquipmentCategory } from "~/generated/prisma/client";
-import { NotFoundError } from "~/lib/errors.server";
+import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { tr } from "~/i18n/request-locale.server";
 import { DEFAULT_EQUIPMENT_KINDS, DEFAULT_FUNCTION_GROUPS } from "./defaults";
 
 export async function initializeKindsInTx(tx: Tx, audit: AuditFn) {
@@ -46,11 +47,16 @@ export function initializeEquipmentKinds() {
 
 export type EquipmentKindInput = { kindId?: string; category?: EquipmentCategory };
 
+export async function lockKindStructure(tx: Tx) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('equipment-kind-structure', 0))`;
+}
+
 export async function resolveEquipmentKind(
   tx: Tx,
   input: EquipmentKindInput,
   currentKindId?: string | null,
 ) {
+  await lockKindStructure(tx);
   if (!input.kindId && currentKindId) {
     const current = await tx.equipmentKind.findUnique({ where: { id: currentKindId } });
     if (current && categoryForKind(current.systemKey) === input.category)
@@ -62,14 +68,21 @@ export async function resolveEquipmentKind(
       input.kindId !== undefined
         ? { id: input.kindId }
         : { systemKey: DEFAULT_EQUIPMENT_KINDS[input.category!].key },
-    select: { id: true, systemKey: true },
+    select: {
+      id: true,
+      systemKey: true,
+      archivedAt: true,
+      group: { select: { archivedAt: true } },
+    },
   });
   if (!kind) throw new NotFoundError();
+  if ((kind.archivedAt || kind.group.archivedAt) && kind.id !== currentKindId)
+    throw new ValidationError({ kindId: [tr("admin.structure.kindArchived")] });
   const category = categoryForKind(kind.systemKey);
   return { kindId: kind.id, category };
 }
 
-function categoryForKind(key: string | null): EquipmentCategory {
+export function categoryForKind(key: string | null): EquipmentCategory {
   return (Object.entries(DEFAULT_EQUIPMENT_KINDS).find(([, value]) => value.key === key)?.[0] ??
     "OTHER") as EquipmentCategory;
 }
@@ -89,6 +102,7 @@ export function listDeviceKinds(includeArchived = false, currentKindId?: string)
       id: true,
       name: true,
       position: true,
+      archivedAt: true,
       kinds: {
         where: includeArchived
           ? {}
@@ -98,8 +112,15 @@ export function listDeviceKinds(includeArchived = false, currentKindId?: string)
                 ...(currentKindId ? [{ id: currentKindId }] : []),
               ],
             },
-        orderBy: [{ name: "asc" }, { id: "asc" }],
-        select: { id: true, name: true, systemKey: true },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          systemKey: true,
+          position: true,
+          archivedAt: true,
+          _count: { select: { equipment: true, models: true } },
+        },
       },
     },
   });

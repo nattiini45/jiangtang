@@ -1,6 +1,51 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.structure.title": "Structure",
+  "admin.structure.subtitle": "Manage the device kinds and function groups your team uses.",
+  "admin.structure.tabs": "Structure sections",
+  "admin.structure.kinds": "Device kinds",
+  "admin.structure.groups": "Function groups",
+  "admin.structure.name": "Name",
+  "admin.structure.group": "Function group",
+  "admin.structure.addKind": "Add device kind",
+  "admin.structure.addGroup": "Add function group",
+  "admin.structure.showArchived": "Show archived",
+  "admin.structure.archived": "Archived",
+  "admin.structure.counts": "{devices} devices · {models} models",
+  "admin.structure.up": "Move up",
+  "admin.structure.down": "Move down",
+  "admin.structure.edit": "Rename or move",
+  "admin.structure.restore": "Restore",
+  "admin.structure.archive": "Archive",
+  "admin.structure.archiveTitle": "Archive “{name}”",
+  "admin.structure.archiveAndMove": "Move and archive",
+  "admin.structure.moveHelp":
+    "All devices and models move to the selected kind together. Their existing data is preserved.",
+  "admin.structure.moveTo": "Move devices and models to",
+  "admin.structure.chooseKind": "Choose a device kind",
+  "admin.structure.deleteConfirm": "Permanently delete “{name}”?",
+  "admin.structure.emptyKinds": "No device kinds in this group yet.",
+  "admin.structure.legacy": "Legacy category · cannot archive",
+  "admin.structure.protected":
+    "This kind backs a legacy category. It cannot be archived or deleted while the category is in use.",
+  "admin.structure.nameInvalid": "The name must be 1 to 60 characters long.",
+  "admin.structure.nameTaken":
+    "This name is already active. Choose another name or archive the existing entry.",
+  "admin.structure.kindLimit":
+    "There can be at most 80 active device kinds. Archive an unused kind before adding or restoring one.",
+  "admin.structure.groupLimit":
+    "There can be at most 30 active function groups. Archive an empty group before adding or restoring one.",
+  "admin.structure.groupArchived":
+    "This function group is archived. Restore it first or choose an active group.",
+  "admin.structure.kindArchived":
+    "This device kind is archived. Choose an active kind or keep the record’s current kind.",
+  "admin.structure.groupInUse":
+    "This group contains active device kinds. Move or archive them first.",
+  "admin.structure.moveRequired":
+    "This kind is in use. Choose another active kind for its devices and models.",
+  "admin.structure.referenced":
+    "This entry is still referenced. Remove all references first; device kinds must also be archived.",
   "admin.overview.title": "Overview",
   "admin.overview.meta": "Administration · Jiangtang",
   "admin.overview.subtitle": "Installation health and next steps.",

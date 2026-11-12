@@ -2,7 +2,11 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { Tx } from "~/lib/db.server";
-import { resolveEquipmentKind, type EquipmentKindInput } from "~/lib/equipment-kinds/kinds.server";
+import {
+  lockKindStructure,
+  resolveEquipmentKind,
+  type EquipmentKindInput,
+} from "~/lib/equipment-kinds/kinds.server";
 import type { EquipmentModel } from "~/generated/prisma/client";
 import { modelExists } from "./catalog.queries.server";
 import type { ModelCreateInput } from "./catalog.schema";
@@ -50,6 +54,7 @@ export async function updateModel(
     throw new ValidationError({ name: [tr("places.err.model.nameTaken")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
+    await lockKindStructure(tx);
     const current = await tx.equipmentModel.findUniqueOrThrow({ where: { id } });
     const model = await tx.equipmentModel.update({
       where: { id },

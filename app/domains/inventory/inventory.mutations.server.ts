@@ -1,6 +1,10 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
-import { resolveEquipmentKind, type EquipmentKindInput } from "~/lib/equipment-kinds/kinds.server";
+import {
+  lockKindStructure,
+  resolveEquipmentKind,
+  type EquipmentKindInput,
+} from "~/lib/equipment-kinds/kinds.server";
 import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -123,6 +127,7 @@ export async function updateEquipment(
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
+    await lockKindStructure(tx);
     const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
     const input = { ...source, ...(await resolveEquipmentKind(tx, source, current.kindId)) };
     const fields = equipmentFields(input);

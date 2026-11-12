@@ -1,4 +1,12 @@
 export const historyDe = {
+  "history.action.EquipmentKindUpdated": "Geräteart geändert",
+  "history.action.EquipmentKindArchived": "Geräteart archiviert",
+  "history.action.EquipmentKindRestored": "Geräteart wiederhergestellt",
+  "history.action.EquipmentKindDeleted": "Geräteart gelöscht",
+  "history.action.EquipmentFunctionGroupUpdated": "Funktionsgruppe geändert",
+  "history.action.EquipmentFunctionGroupArchived": "Funktionsgruppe archiviert",
+  "history.action.EquipmentFunctionGroupRestored": "Funktionsgruppe wiederhergestellt",
+  "history.action.EquipmentFunctionGroupDeleted": "Funktionsgruppe gelöscht",
   "history.entity.equipmentKind": "Geräteart",
   "history.entity.equipmentFunctionGroup": "Funktionsgruppe",
   "history.action.UserPermissionGranted": "Berechtigung für Zeiteinträge erteilt",
