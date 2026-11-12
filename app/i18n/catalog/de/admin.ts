@@ -5,6 +5,27 @@ export const adminDe = {
     "Diese Felder verwenden die Geräteart noch: {names}. Ändern Sie zuerst die Zuordnung der Felder.",
   "admin.structure.recordReferences":
     "Die Geräteart wird noch von {devices} Geräten und {models} Modellen verwendet. Verschieben Sie diese zuerst.",
+  "admin.structure.library.add": "Aus der Bibliothek hinzufügen",
+  "admin.structure.library.help":
+    "Wählen Sie Ihr Haus und die gewünschten Gerätearten. Nur die angekreuzten Arten werden hinzugefügt; Felder werden nicht installiert.",
+  "admin.structure.library.institution": "Art des Hauses",
+  "admin.structure.library.chooseInstitution": "Art des Hauses wählen",
+  "admin.structure.library.remaining": "Noch {count} Gerätearten möglich.",
+  "admin.structure.library.language": "Neue Namen werden auf {language} angelegt.",
+  "admin.structure.library.german": "Deutsch",
+  "admin.structure.library.english": "Englisch",
+  "admin.structure.library.core": "Grundausstattung",
+  "admin.structure.library.common": "Häufig",
+  "admin.structure.library.special": "Speziell",
+  "admin.structure.library.present": "Vorhanden",
+  "admin.structure.library.taken": "Name belegt",
+  "admin.structure.library.groupArchived": "Gruppe archiviert",
+  "admin.structure.library.installedAs": "Vorhanden als „{name}“",
+  "admin.structure.library.install": "{count} Gerätearten hinzufügen",
+  "admin.structure.library.conflict":
+    "Nichts wurde hinzugefügt. Nicht verfügbar: {names}. Prüfen Sie vorhandene, archivierte oder gleichnamige Einträge.",
+  "admin.structure.library.groupConflict":
+    "Nichts wurde hinzugefügt. Der Gruppenname „{name}“ ist belegt; betroffen: {kinds}. Benennen Sie die vorhandene Gruppe um.",
   "admin.structure.title": "Struktur",
   "admin.structure.subtitle": "Gerätearten und Funktionsgruppen für Ihr Haus verwalten.",
   "admin.structure.tabs": "Strukturbereiche",

@@ -162,7 +162,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **48 read tools and 84 write tools**. Their published schemas are
+Discovery currently returns **49 read tools and 85 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -203,6 +203,15 @@ Archiving a used kind requires another active kind in `moveDevicesTo`: its devic
 move in the same audited transaction. Legacy category kinds can be renamed and regrouped, but
 cannot be archived. A group with active kinds cannot be archived. New kinds do not track frequency.
 These definition tools require an admin's read-write token; other roles are refused.
+
+`list_kind_library({ institutionType? })` is admin-only and returns bilingual institution
+types, groups and kinds, their tier, current installed name, availability and remaining
+capacity. Institution keys are `university`, `event_hall`, `council`, `theatre`, `trade_fair`.
+`install_library_kinds({ keys })` requires an admin's read-write token and installs exactly
+those keys in one transaction, including missing function groups. It uses `DEFAULT_LOCALE`
+for new names and the library's order; it never renames existing entries. Present, archived,
+name-taken and unknown entries are refused. Nothing is installed on a conflict. See the
+[device-kind library](KIND-LIBRARY.md); fields and room types are not installed.
 Use `set_equipment_model_ports({ modelId, ports })` to replace and reorder templates;
 each port has `label`, `connector`, `direction` and `signal`. New devices copy templates
 in their creation transaction. Template edits never overwrite existing device ports.

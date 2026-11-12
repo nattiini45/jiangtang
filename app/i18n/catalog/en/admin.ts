@@ -6,6 +6,27 @@ export const adminEn = {
     "These fields still refer to the kind: {names}. Change the fields’ kind assignments first.",
   "admin.structure.recordReferences":
     "This kind is still used by {devices} devices and {models} models. Move them first.",
+  "admin.structure.library.add": "Add from the library",
+  "admin.structure.library.help":
+    "Choose your institution and the device kinds you want. Only checked kinds are added; no fields are installed.",
+  "admin.structure.library.institution": "Institution type",
+  "admin.structure.library.chooseInstitution": "Choose an institution type",
+  "admin.structure.library.remaining": "Room for {count} more device kinds.",
+  "admin.structure.library.language": "New names are installed in {language}.",
+  "admin.structure.library.german": "German",
+  "admin.structure.library.english": "English",
+  "admin.structure.library.core": "Core",
+  "admin.structure.library.common": "Common",
+  "admin.structure.library.special": "Special",
+  "admin.structure.library.present": "Present",
+  "admin.structure.library.taken": "Name taken",
+  "admin.structure.library.groupArchived": "Group archived",
+  "admin.structure.library.installedAs": "Installed as “{name}”",
+  "admin.structure.library.install": "Add {count} device kinds",
+  "admin.structure.library.conflict":
+    "Nothing was added. Unavailable: {names}. Check existing, archived or same-named entries.",
+  "admin.structure.library.groupConflict":
+    "Nothing was added. The group name “{name}” is taken; affected kinds: {kinds}. Rename the existing group.",
   "admin.structure.title": "Structure",
   "admin.structure.subtitle": "Manage the device kinds and function groups your team uses.",
   "admin.structure.tabs": "Structure sections",
