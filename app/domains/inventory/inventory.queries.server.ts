@@ -74,7 +74,10 @@ export function getEquipment(id: string) {
   return db.equipment.findUnique({
     where: { id },
     include: {
-      model: { select: { id: true, name: true, manufacturer: true } },
+      ports: { orderBy: [{ position: "asc" }, { id: "asc" }] },
+      model: {
+        select: { id: true, name: true, manufacturer: true, ports: { select: { label: true } } },
+      },
       room: { select: { id: true, slug: true, name: true } },
       substitutingFor: { select: { id: true, name: true, assetTag: true } },
       substitutedBy: { select: { id: true, name: true, assetTag: true } },

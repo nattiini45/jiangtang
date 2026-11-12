@@ -1,5 +1,6 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
+import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { findOrCreateModel } from "~/domains/catalog/catalog.mutations.server";
@@ -46,6 +47,7 @@ export async function createEquipment(
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
     const eq = await tx.equipment.create({ data: equipmentFields(input) });
+    await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
       action: "EquipmentCreated",
       entityType: "equipment",
@@ -97,6 +99,7 @@ export async function createEquipmentInTx(
   input: EquipmentCreateInput,
 ): Promise<Equipment> {
   const eq = await tx.equipment.create({ data: equipmentFields(input) });
+  await copyModelPortsInTx(tx, eq.id, eq.modelId);
   await audit({
     action: "EquipmentCreated",
     entityType: "equipment",
@@ -308,6 +311,7 @@ export async function bulkCreateEquipment(
             channelLabel: row.channelLabel ?? null,
           },
         });
+        await copyModelPortsInTx(tx, eq.id, eq.modelId);
         await audit({
           action: "EquipmentCreated",
           entityType: "equipment",

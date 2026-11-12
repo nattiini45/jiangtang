@@ -23,25 +23,6 @@ export function EquipmentCategoryFields({
     return (
       <fieldset className={group}>
         <legend className={legend}>{t("inventory.catFields.pc")}</legend>
-        <FormField name="hostname" label={t("inventory.catFields.hostname")}>
-          <Input name="hostname" defaultValue={defaults?.hostname ?? ""} />
-        </FormField>
-        <FormField name="ipAddress" label={t("inventory.catFields.ip")}>
-          <Input
-            name="ipAddress"
-            defaultValue={defaults?.ipAddress ?? ""}
-            placeholder="192.0.2.1"
-            className="font-mono"
-          />
-        </FormField>
-        <FormField name="macAddress" label={t("inventory.catFields.mac")}>
-          <Input
-            name="macAddress"
-            defaultValue={defaults?.macAddress ?? ""}
-            placeholder="02:00:00:3C:4D:5E"
-            className="font-mono"
-          />
-        </FormField>
         <FormField name="dellServiceTag" label={t("inventory.catFields.dellService")}>
           <Input
             name="dellServiceTag"

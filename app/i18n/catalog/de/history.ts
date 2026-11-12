@@ -117,4 +117,9 @@ export const historyDe = {
   "history.action.VendorCreated": "Lieferant erstellt",
   "history.action.VendorUpdated": "Lieferant aktualisiert",
   "history.action.VendorDeleted": "Lieferant gelöscht",
+  "history.action.EquipmentModelPortsSet": "Modellanschlüsse gespeichert",
+  "history.action.EquipmentPortAdded": "Anschluss hinzugefügt",
+  "history.action.EquipmentPortUpdated": "Anschluss aktualisiert",
+  "history.action.EquipmentPortRemoved": "Anschluss entfernt",
+  "history.action.EquipmentPortInherited": "Modellanschlüsse übernommen",
 };

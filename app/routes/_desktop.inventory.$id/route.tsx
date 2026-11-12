@@ -41,6 +41,8 @@ import { metaLocale } from "~/i18n/meta";
 import { QrCode } from "~/components/qr/qr-code";
 import { qrSvg } from "~/lib/qr.server";
 import { useLocale, useT } from "~/i18n/use-t";
+import { mutateEquipmentPort } from "~/domains/inventory/inventory.ports.mutations.server";
+import { EquipmentPorts } from "~/components/inventory/ports-editor";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -106,6 +108,32 @@ export async function action({ request, params }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "update");
   const id = params.id;
+  const portActions = {
+    portAdd: "add",
+    portUpdate: "update",
+    portRemove: "remove",
+    portInherit: "inherit",
+  } as const;
+  if (Object.hasOwn(portActions, intent)) {
+    try {
+      await mutateEquipmentPort(
+        actor,
+        id,
+        portActions[intent as keyof typeof portActions],
+        form.has("port") ? JSON.parse(String(form.get("port"))) : undefined,
+        String(form.get("portId") ?? ""),
+      );
+      return { portsSaved: true };
+    } catch (error) {
+      if (error instanceof ValidationError)
+        return {
+          portError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
+        };
+      if (error instanceof SyntaxError || (error instanceof Error && error.name === "ZodError"))
+        return { portError: tr("ports.invalid") };
+      throw toErrorResponse(error);
+    }
+  }
   try {
     if (intent === "retire") {
       const eq = await retireEquipment(actor, id);
@@ -191,6 +219,15 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
           {t("inventory.detail.back")}
         </Link>
       </div>
+
+      <EquipmentPorts
+        ports={eq.ports}
+        hasModel={
+          !!eq.model?.ports.some(
+            (template) => !eq.ports.some((port) => port.label === template.label),
+          )
+        }
+      />
 
       {eq.status !== "RETIRED" ? (
         <SubstitutionControl

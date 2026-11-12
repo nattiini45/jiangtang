@@ -135,6 +135,29 @@ export function EquipmentFormFields({
 
       <EquipmentCategoryFields category={category} defaults={defaults} />
 
+      <fieldset className="grid gap-4 sm:grid-cols-3">
+        <legend className="mb-2 text-base font-semibold">{t("ports.network")}</legend>
+        <FormField name="hostname" label={t("inventory.catFields.hostname")}>
+          <Input name="hostname" defaultValue={defaults?.hostname ?? ""} />
+        </FormField>
+        <FormField name="ipAddress" label={t("inventory.catFields.ip")}>
+          <Input
+            name="ipAddress"
+            defaultValue={defaults?.ipAddress ?? ""}
+            placeholder="192.0.2.1"
+            className="font-mono"
+          />
+        </FormField>
+        <FormField name="macAddress" label={t("inventory.catFields.mac")}>
+          <Input
+            name="macAddress"
+            defaultValue={defaults?.macAddress ?? ""}
+            placeholder="02:00:00:3C:4D:5E"
+            className="font-mono"
+          />
+        </FormField>
+      </fieldset>
+
       <details className="bg-card shadow-surface-2 rounded-lg p-4">
         <summary className="cursor-pointer text-base font-semibold">
           {t("inventory.form.attributes")}
