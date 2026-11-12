@@ -38,6 +38,7 @@ export interface DataGridProps<TData> {
   maxHeight?: number | string;
   className?: string;
   growColumn?: string;
+  stickyColumn?: string;
   getRowId?: (row: TData, index: number) => string;
 }
 
@@ -50,6 +51,7 @@ export function DataGrid<TData>({
   maxHeight = 600,
   className,
   growColumn,
+  stickyColumn,
   getRowId,
 }: DataGridProps<TData>) {
   const t = useT();
@@ -101,7 +103,10 @@ export function DataGrid<TData>({
 
   return (
     <div
-      className={cn("bg-card shadow-surface-2 flex flex-col overflow-hidden rounded-lg", className)}
+      className={cn(
+        "bg-card shadow-surface-2 flex min-w-0 max-w-full flex-col overflow-hidden rounded-lg",
+        className,
+      )}
     >
       {filter ? (
         <div className="border-b p-2">
@@ -115,85 +120,119 @@ export function DataGrid<TData>({
         </div>
       ) : null}
 
-      <div ref={scrollRef} className="overflow-auto" style={{ maxHeight }}>
-        {/* Header */}
-        <div className="bg-card sticky top-0 z-10">
-          {table.getHeaderGroups().map((hg) => (
-            <div key={hg.id} className="flex border-b">
-              {hg.headers.map((header) => {
-                const canSort = header.column.getCanSort();
-                const sorted = header.column.getIsSorted();
+      <div
+        ref={scrollRef}
+        role="table"
+        aria-rowcount={rows.length + 1}
+        className="overflow-auto"
+        style={{ maxHeight }}
+      >
+        <div style={{ minWidth: table.getTotalSize() }}>
+          {/* Header */}
+          <div role="rowgroup" className="bg-card sticky top-0 z-10">
+            {table.getHeaderGroups().map((hg) => (
+              <div key={hg.id} role="row" className="flex border-b">
+                {hg.headers.map((header) => {
+                  const canSort = header.column.getCanSort();
+                  const sorted = header.column.getIsSorted();
+                  return (
+                    <div
+                      key={header.id}
+                      role="columnheader"
+                      data-column-id={header.column.id}
+                      aria-sort={
+                        sorted === "asc"
+                          ? "ascending"
+                          : sorted === "desc"
+                            ? "descending"
+                            : undefined
+                      }
+                      className={cn(
+                        "text-muted-foreground flex h-control shrink-0 items-center px-3 text-xs font-semibold",
+                        header.column.id === stickyColumn && "bg-card sticky left-0 z-20",
+                      )}
+                      style={{
+                        width: header.getSize(),
+                        flexGrow: header.column.id === growColumn ? 1 : 0,
+                      }}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <button
+                          type="button"
+                          disabled={!canSort}
+                          onClick={header.column.getToggleSortingHandler()}
+                          className={cn(
+                            "-mx-1 inline-flex min-w-0 items-center gap-1 rounded-xs px-1 transition-colors duration-80 [&>svg]:shrink-0",
+                            canSort && "hover:text-foreground cursor-pointer",
+                            sorted && "text-foreground",
+                          )}
+                        >
+                          <span className="truncate">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                          </span>
+                          {canSort ? (
+                            sorted === "asc" ? (
+                              <ChevronUp className="size-3.5" />
+                            ) : sorted === "desc" ? (
+                              <ChevronDown className="size-3.5" />
+                            ) : (
+                              <ChevronsUpDown className="size-3.5" strokeWidth={1.5} />
+                            )
+                          ) : null}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {/* Body */}
+          {rows.length === 0 ? (
+            <div className="text-muted-foreground p-6 text-center text-sm">
+              {emptyMessage ?? t("common.dataGrid.empty")}
+            </div>
+          ) : (
+            <div
+              role="rowgroup"
+              style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+            >
+              {virtualizer.getVirtualItems().map((vr) => {
+                const row = rows[vr.index];
                 return (
                   <div
-                    key={header.id}
-                    className="text-muted-foreground flex h-control shrink-0 items-center px-3 text-xs font-semibold"
-                    style={{
-                      width: header.getSize(),
-                      flexGrow: header.column.id === growColumn ? 1 : 0,
-                    }}
+                    key={row.id}
+                    role="row"
+                    aria-rowindex={vr.index + 2}
+                    data-row-id={row.id}
+                    className="group hover:bg-hover absolute top-0 left-0 flex w-full border-b transition-colors duration-80 last:border-b-0"
+                    style={{ height: rowHeight, transform: `translateY(${vr.start}px)` }}
                   >
-                    {header.isPlaceholder ? null : (
-                      <button
-                        type="button"
-                        disabled={!canSort}
-                        onClick={header.column.getToggleSortingHandler()}
+                    {row.getVisibleCells().map((cell) => (
+                      <div
+                        key={cell.id}
+                        role="cell"
+                        data-column-id={cell.column.id}
                         className={cn(
-                          "-mx-1 inline-flex items-center gap-1 rounded-xs px-1 transition-colors duration-80",
-                          canSort && "hover:text-foreground cursor-pointer",
-                          sorted && "text-foreground",
+                          "flex shrink-0 items-center truncate px-3",
+                          cell.column.id === stickyColumn &&
+                            "bg-card sticky left-0 z-10 group-hover:bg-[image:linear-gradient(var(--hover),var(--hover))]",
                         )}
+                        style={{
+                          width: cell.column.getSize(),
+                          flexGrow: cell.column.id === growColumn ? 1 : 0,
+                        }}
                       >
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                        {canSort ? (
-                          sorted === "asc" ? (
-                            <ChevronUp className="size-3.5" />
-                          ) : sorted === "desc" ? (
-                            <ChevronDown className="size-3.5" />
-                          ) : (
-                            <ChevronsUpDown className="size-3.5" strokeWidth={1.5} />
-                          )
-                        ) : null}
-                      </button>
-                    )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </div>
+                    ))}
                   </div>
                 );
               })}
             </div>
-          ))}
+          )}
         </div>
-
-        {/* Body */}
-        {rows.length === 0 ? (
-          <div className="text-muted-foreground p-6 text-center text-sm">
-            {emptyMessage ?? t("common.dataGrid.empty")}
-          </div>
-        ) : (
-          <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
-            {virtualizer.getVirtualItems().map((vr) => {
-              const row = rows[vr.index];
-              return (
-                <div
-                  key={row.id}
-                  className="hover:bg-hover absolute top-0 left-0 flex w-full border-b transition-colors duration-80 last:border-b-0"
-                  style={{ height: rowHeight, transform: `translateY(${vr.start}px)` }}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <div
-                      key={cell.id}
-                      className="flex shrink-0 items-center truncate px-3"
-                      style={{
-                        width: cell.column.getSize(),
-                        flexGrow: cell.column.id === growColumn ? 1 : 0,
-                      }}
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );

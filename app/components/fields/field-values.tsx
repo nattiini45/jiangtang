@@ -51,10 +51,11 @@ export function FieldValues({ fields, foldAfter }: { fields: FilledField[]; fold
   );
 }
 
-function FieldValue({ field }: { field: FilledField }) {
+export function FieldValue({ field, compact = false }: { field: FilledField; compact?: boolean }) {
   const t = useT();
   const locale = useLocale();
   const value = field.value;
+  if (compact && field.type === "MULTI_CHOICE" && Array.isArray(value)) return value.join(", ");
   if (field.type === "MULTI_CHOICE" && Array.isArray(value))
     return (
       <span className="flex flex-wrap gap-1">

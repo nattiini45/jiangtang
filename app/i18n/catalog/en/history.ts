@@ -10,6 +10,8 @@ export const historyEn = {
   "history.action.EquipmentFunctionGroupRestored": "Function group restored",
   "history.action.EquipmentFunctionGroupDeleted": "Function group deleted",
   "history.entity.customField": "Custom field",
+  "history.entity.listColumns": "List columns",
+  "history.action.ListColumnsChanged": "Changed list columns",
   "history.action.CustomFieldCreated": "Field created",
   "history.action.CustomFieldUpdated": "Field updated",
   "history.action.CustomFieldArchived": "Field archived",

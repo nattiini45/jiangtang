@@ -1,5 +1,14 @@
 import type { fieldsDe } from "../de/fields";
 export const fieldsEn = {
+  "fields.columns.title": "Columns",
+  "fields.columns.help": "For everyone on the team · {count} of 12 columns. The name stays first.",
+  "fields.columns.allKinds": "All device kinds",
+  "fields.columns.up": "Move {name} up",
+  "fields.columns.down": "Move {name} down",
+  "fields.columns.reset": "Reset",
+  "fields.columns.saved": "Columns saved for the team.",
+  "fields.columns.invalid":
+    "Choose up to 12 columns and keep the name first. Reload the list if needed.",
   "fields.admin.saved": "Field saved.",
   "fields.admin.labelInvalid": "Enter between 1 and 80 characters.",
   "fields.admin.everyKindHint":

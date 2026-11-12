@@ -34,6 +34,7 @@ export const ENTITY_TYPE = {
   equipmentKind: "equipmentKind",
   equipmentFunctionGroup: "equipmentFunctionGroup",
   customField: "customField",
+  listColumns: "listColumns",
   equipment: "equipment",
   ticket: "ticket",
   event: "event",

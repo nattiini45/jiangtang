@@ -1,4 +1,13 @@
 export const fieldsDe = {
+  "fields.columns.title": "Spalten",
+  "fields.columns.help": "Für alle im Team · {count} von 12 Spalten. Der Name bleibt zuerst.",
+  "fields.columns.allKinds": "Alle Gerätearten",
+  "fields.columns.up": "{name} nach oben",
+  "fields.columns.down": "{name} nach unten",
+  "fields.columns.reset": "Zurücksetzen",
+  "fields.columns.saved": "Spalten für das Team gespeichert.",
+  "fields.columns.invalid":
+    "Wähle höchstens 12 Spalten und lasse den Namen an erster Stelle. Lade die Liste bei Bedarf neu.",
   "fields.admin.saved": "Feld gespeichert.",
   "fields.admin.labelInvalid": "Zwischen 1 und 80 Zeichen eingeben.",
   "fields.admin.everyKindHint":

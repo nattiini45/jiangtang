@@ -26,6 +26,10 @@ import { Select } from "~/components/ui/select";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { getListColumns, withListValues } from "~/lib/list-columns/columns.server";
+import type { ListColumns, ListValues } from "~/lib/list-columns/columns";
+import { withFieldColumns } from "~/components/data-grid/field-columns";
+import { ColumnPicker } from "~/components/data-grid/column-picker";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.list") }];
@@ -48,7 +52,7 @@ const TABS: {
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const user = await requireUser(request);
   const url = new URL(request.url);
   const tabParam = url.searchParams.get("tab") || "";
   const tab: InventoryTab = (
@@ -109,12 +113,19 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const kinds = await listDeviceKinds();
   const kindId = url.searchParams.get("kindId") || undefined;
-  const equipment = await listEquipment({ kindId, category, status, mobility });
+  const columnConfig = await getListColumns("EQUIPMENT", user.role === "ADMIN");
+  const equipment = await withListValues(
+    "EQUIPMENT",
+    await listEquipment({ kindId, category, status, mobility }),
+    columnConfig.columns,
+  );
   return {
     tab,
     equipment: {
       equipment,
       kinds,
+      columnConfig,
+      canConfigure: user.role === "ADMIN",
       filters: {
         kindId:
           kindId ??
@@ -132,15 +143,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
-  const locale = useLocale();
   const t = useT();
   const { tab } = loaderData;
-  const columns = React.useMemo(() => equipmentColumns(t, locale), [t, locale]);
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement>) =>
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       {/* Section tabs — plain links so they are keyboard-reachable and the section
           lives in the URL (`?tab=`), shareable like every other filter. */}
       <nav aria-label={t("inventory.tabs.aria")} className="flex border-b">
@@ -173,7 +182,8 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
           equipment={loaderData.equipment.equipment}
           kinds={loaderData.equipment.kinds}
           filters={loaderData.equipment.filters}
-          columns={columns}
+          columnConfig={loaderData.equipment.columnConfig}
+          canConfigure={loaderData.equipment.canConfigure}
           autoSubmit={autoSubmit}
         />
       ) : null}
@@ -185,27 +195,47 @@ function EquipmentPanel({
   equipment,
   kinds,
   filters,
-  columns,
+  columnConfig,
+  canConfigure,
   autoSubmit,
 }: {
-  equipment: Awaited<ReturnType<typeof listEquipment>>;
+  equipment: (Awaited<ReturnType<typeof listEquipment>>[number] & ListValues)[];
   kinds: KindGroups;
   filters: { kindId: string; status: string; mobility: string };
-  columns: ReturnType<typeof equipmentColumns>;
+  columnConfig: ListColumns;
+  canConfigure: boolean;
   autoSubmit: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }) {
   const locale = useLocale();
   const t = useT();
+  const columns = React.useMemo(
+    () =>
+      withFieldColumns(
+        equipmentColumns<(typeof equipment)[number]>(t, locale),
+        columnConfig,
+        locale,
+      ),
+    [t, locale, columnConfig],
+  );
+  const builtins = equipmentColumns(t, locale).map((column) => ({
+    id: String(column.id ?? ("accessorKey" in column ? column.accessorKey : "")),
+    label: String(column.header),
+  }));
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold">{t("inventory.list.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("inventory.list.subtitle")}</p>
         </div>
-        <Button asChild>
-          <Link to="/inventory/new">{t("inventory.list.new")}</Link>
-        </Button>
+        <div className="flex gap-2">
+          {canConfigure ? (
+            <ColumnPicker scope="EQUIPMENT" config={columnConfig} builtins={builtins} />
+          ) : null}
+          <Button asChild>
+            <Link to="/inventory/new">{t("inventory.list.new")}</Link>
+          </Button>
+        </div>
       </div>
 
       <Form method="get" className="flex flex-wrap items-center gap-2">
@@ -256,6 +286,7 @@ function EquipmentPanel({
 
       <DataGrid
         growColumn="name"
+        stickyColumn="name"
         columns={columns}
         data={equipment}
         getRowId={(e) => e.id}

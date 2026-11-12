@@ -201,6 +201,7 @@ const FOLDERS: Record<string, readonly string[]> = {
   "app/lib": ["ActivityLog"],
   "app/lib/calendar": ["CalendarOutbox", "CalendarPublicationInitialization"],
   "app/lib/custom-fields": ["CustomField", "CustomFieldKind", "CustomFieldOption"],
+  "app/lib/list-columns": ["ListColumns"],
   "app/lib/equipment-kinds": [
     "EquipmentKind",
     "EquipmentFunctionGroup",

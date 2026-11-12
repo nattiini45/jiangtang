@@ -1,5 +1,6 @@
 import { db } from "~/lib/db.server";
 import type { RoomStatus } from "~/generated/prisma/client";
+import { equipmentKindFilter } from "~/lib/equipment-kinds/kinds.server";
 
 /**
  * Read-only queries for the rooms domain. (Room detail / dashboard queries are
@@ -113,6 +114,7 @@ export interface RoomListRow {
 export async function listRooms(
   opts?: {
     campusId?: string;
+    kindId?: string;
     status?: RoomStatus;
     q?: string;
   },
@@ -124,6 +126,7 @@ export async function listRooms(
     where: {
       campusId: opts?.campusId,
       status: opts?.status,
+      ...(opts?.kindId ? { equipment: { some: await equipmentKindFilter(opts.kindId) } } : {}),
       ...(opts?.q
         ? {
             OR: [
