@@ -25,6 +25,17 @@ const choice = (id: string, label: CalendarChoice["label"], defaultOn = true): C
 });
 const datesChoice = choice("dates", "calendar.kinds.dates");
 
+function linkedRooms(
+  room: CalendarEntry["rooms"][number] | null | undefined,
+  equipmentRoom: CalendarEntry["rooms"][number] | null | undefined,
+) {
+  return [
+    ...new Map(
+      [room, equipmentRoom].flatMap((item) => (item ? [[item.id, item] as const] : [])),
+    ).values(),
+  ];
+}
+
 function wholeDays(start: Date, end = start) {
   return {
     startsAt: new Date(berlinDayStartMs(berlinDayIndex(start))),
@@ -179,11 +190,7 @@ const tasks: CalendarSource = {
       title: row.title,
       ...wholeDays(row.startAt ?? row.dueAt!, row.dueAt!),
       href: `/tasks/${row.id}`,
-      rooms: row.ticket?.room
-        ? [row.ticket.room]
-        : row.ticket?.equipment?.room
-          ? [row.ticket.equipment.room]
-          : [],
+      rooms: linkedRooms(row.ticket?.room, row.ticket?.equipment?.room),
       equipment: row.ticket?.equipment
         ? [
             {
@@ -363,7 +370,7 @@ const faults: CalendarSource = {
       allDay: false,
       point: true,
       href: `/tickets/${row.id}`,
-      rooms: row.room ? [row.room] : row.equipment?.room ? [row.equipment.room] : [],
+      rooms: linkedRooms(row.room, row.equipment?.room),
       equipment: row.equipment
         ? [
             {

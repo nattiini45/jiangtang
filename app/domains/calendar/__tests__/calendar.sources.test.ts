@@ -277,6 +277,50 @@ describe("workspace calendar sources", () => {
     expect(data.bookings.some((booking) => booking.eventId === ids("event"))).toBe(true);
   });
 
+  it("keeps both ticket and equipment rooms for tasks and faults, without duplicates", async () => {
+    const room = await db.room.create({
+      data: { id: ids("direct-room"), name: "Direct room", slug: ids("direct-room") },
+    });
+    const ticket = await db.ticket.create({
+      data: {
+        id: ids("linked-fault"),
+        title: "Linked fault",
+        type: "INCIDENT",
+        occurredAt: date,
+        roomId: room.id,
+        equipmentId: ids("device"),
+      },
+    });
+    const task = await db.task.create({
+      data: { id: ids("linked-task"), title: "Linked work", dueAt: date, ticketId: ticket.id },
+    });
+    for (const roomId of [room.id, ids("room")]) {
+      const entries = (
+        await getWorkspaceCalendar({
+          ...range,
+          kinds: ["tasks", "faults"],
+          roomId,
+          equipmentId: ids("device"),
+        })
+      ).entries;
+      expect(entries.map((entry) => entry.id)).toEqual(
+        expect.arrayContaining([`task:${task.id}`, `fault:${ticket.id}`]),
+      );
+      for (const entry of entries.filter((entry) =>
+        [task.id, ticket.id].some((id) => entry.id.endsWith(id)),
+      ))
+        expect(entry.rooms.map((room) => room.id).sort()).toEqual([room.id, ids("room")].sort());
+    }
+    await db.ticket.update({ where: { id: ticket.id }, data: { roomId: ids("room") } });
+    const entries = (
+      await getWorkspaceCalendar({ ...range, kinds: ["tasks", "faults"], roomId: ids("room") })
+    ).entries;
+    for (const entry of entries.filter((entry) =>
+      [task.id, ticket.id].some((id) => entry.id.endsWith(id)),
+    ))
+      expect(entry.rooms).toHaveLength(1);
+  });
+
   it("propagates source failures and never silently drops a kind", async () => {
     const spy = vi
       .spyOn(calendarSources[0], "read")
