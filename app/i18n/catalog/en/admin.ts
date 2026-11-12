@@ -1,6 +1,10 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.structure.library.willInstallAs": "Will be installed as “{name}”",
+  "admin.structure.library.invalidInstitution": "Choose an institution type from the library.",
+  "admin.structure.library.invalidSelection":
+    "Choose 1 to 80 distinct device kinds from the library.",
   "admin.structure.archiveBeforeDelete": "Archive the device kind before deleting it.",
   "admin.structure.fieldReferences":
     "These fields still refer to the kind: {names}. Change the fields’ kind assignments first.",

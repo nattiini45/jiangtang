@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { msgKey } from "~/i18n";
 import library from "~/lib/equipment-kinds/library.json";
 import { db, type Tx } from "~/lib/db.server";
 import type { AuditActor } from "~/lib/audit.server";
@@ -11,14 +12,20 @@ export const libraryQuerySchema = z.object({
   institutionType: z
     .string()
     .optional()
-    .refine((value) => !value || library.institutionTypes.some((type) => type.key === value)),
+    .refine(
+      (value) => !value || library.institutionTypes.some((type) => type.key === value),
+      msgKey("admin.structure.library.invalidInstitution"),
+    ),
 });
 export const libraryInstallSchema = z.object({
   keys: z
     .array(z.string().min(1))
-    .min(1)
-    .max(KIND_LIMIT)
-    .refine((keys) => new Set(keys).size === keys.length),
+    .min(1, msgKey("admin.structure.library.invalidSelection"))
+    .max(KIND_LIMIT, msgKey("admin.structure.library.invalidSelection"))
+    .refine(
+      (keys) => new Set(keys).size === keys.length,
+      msgKey("admin.structure.library.invalidSelection"),
+    ),
 });
 
 export async function listKindLibrary(

@@ -1,5 +1,10 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.structure.library.willInstallAs": "Wird angelegt als „{name}“",
+  "admin.structure.library.invalidInstitution":
+    "Wählen Sie eine Art des Hauses aus der Bibliothek.",
+  "admin.structure.library.invalidSelection":
+    "Wählen Sie 1 bis 80 verschiedene Gerätearten aus der Bibliothek.",
   "admin.structure.archiveBeforeDelete": "Archivieren Sie die Geräteart, bevor Sie sie löschen.",
   "admin.structure.fieldReferences":
     "Diese Felder verwenden die Geräteart noch: {names}. Ändern Sie zuerst die Zuordnung der Felder.",

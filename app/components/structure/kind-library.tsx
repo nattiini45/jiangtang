@@ -30,6 +30,7 @@ export function KindLibrary({ library }: { library: Library }) {
         type="button"
         variant="secondary"
         onClick={() => {
+          fetcher.reset();
           setInstitution("");
           setSelected([]);
           dialog.current?.showModal();
@@ -39,6 +40,9 @@ export function KindLibrary({ library }: { library: Library }) {
       </Button>
       <dialog
         ref={dialog}
+        onCancel={(event) => {
+          if (busy) event.preventDefault();
+        }}
         aria-labelledby="kind-library-title"
         className="bg-card text-foreground shadow-surface-5 fixed inset-0 m-auto max-h-[calc(100dvh-3rem)] w-[min(48rem,calc(100%-3rem))] overflow-y-auto rounded-xl p-6 backdrop:bg-(--scrim)"
       >
@@ -124,6 +128,15 @@ export function KindLibrary({ library }: { library: Library }) {
                               >
                                 {t("admin.structure.library.installedAs", {
                                   name: kind.installedName,
+                                })}
+                              </span>
+                            ) : locale !== library.installationLocale ? (
+                              <span
+                                className="text-muted-foreground block truncate text-xs"
+                                title={kind.installationName}
+                              >
+                                {t("admin.structure.library.willInstallAs", {
+                                  name: kind.installationName,
                                 })}
                               </span>
                             ) : null}
