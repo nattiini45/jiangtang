@@ -1,6 +1,4 @@
 import * as React from "react";
-import { useFetcher } from "react-router";
-import type { loader as catalogLoader } from "~/routes/api.model-catalog/route";
 import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
@@ -58,8 +56,12 @@ export function EquipmentFormFields({
   const locale = useLocale();
   const t = useT();
   const [modelId, setModelId] = React.useState(defaults?.modelId ?? "");
-  const catalog = useFetcher<typeof catalogLoader>();
-  const loadCatalog = catalog.load;
+  const [catalog, setCatalog] = React.useState<{
+    kindId: string;
+    query: string;
+    models: { id: string; name: string; manufacturer: string }[];
+  }>();
+  const [catalogFailed, setCatalogFailed] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [picked, setPicked] = React.useState<{
     id: string;
@@ -82,11 +84,28 @@ export function EquipmentFormFields({
     Object.entries(DEFAULT_EQUIPMENT_KINDS).find(([, value]) => value.key === key)?.[0] ?? "OTHER";
   const [mobility, setMobility] = React.useState<string>(defaults?.mobility ?? "FIXED");
   React.useEffect(() => {
+    const controller = new AbortController();
     const timer = setTimeout(() => {
-      void loadCatalog(`/api/model-catalog?${new URLSearchParams({ kindId, query })}`);
+      setCatalogFailed(false);
+      void (async () => {
+        try {
+          const response = await fetch(
+            `/api/model-catalog?${new URLSearchParams({ kindId, query })}`,
+            { signal: controller.signal },
+          );
+          if (!response.ok) throw new Error(String(response.status));
+          const data = (await response.json()) as NonNullable<typeof catalog>;
+          if (!controller.signal.aborted) setCatalog(data);
+        } catch {
+          if (!controller.signal.aborted) setCatalogFailed(true);
+        }
+      })();
     }, 200);
-    return () => clearTimeout(timer);
-  }, [kindId, query, loadCatalog]);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [kindId, query, defaults?.modelId]);
   const available = [
     ...models.filter(
       (model) =>
@@ -99,7 +118,7 @@ export function EquipmentFormFields({
             `${model.manufacturer ?? ""} ${model.name}`.toLowerCase().includes(word),
           ),
     ),
-    ...(catalog.data?.kindId === kindId && catalog.data.query === query ? catalog.data.models : []),
+    ...(catalog?.kindId === kindId && catalog.query === query ? catalog.models : []),
   ];
   if (picked && !available.some((model) => model.id === picked.id)) available.push(picked);
   const pooled = mobility === "POOLED";
@@ -114,8 +133,10 @@ export function EquipmentFormFields({
             required
             onChange={(e) => {
               setKindId(e.currentTarget.value);
-              setModelId("");
-              setPicked(undefined);
+              if (modelId.startsWith("catalog:")) {
+                setModelId("");
+                setPicked(undefined);
+              }
             }}
           >
             <KindOptions groups={kinds} />
@@ -178,6 +199,11 @@ export function EquipmentFormFields({
               </option>
             ))}
           </Select>
+          {catalogFailed ? (
+            <p role="status" className="text-muted-foreground text-xs">
+              {t("inventory.catalog.unavailable")}
+            </p>
+          ) : null}
         </FormField>
       </div>
 

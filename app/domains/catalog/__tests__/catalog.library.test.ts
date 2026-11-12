@@ -22,6 +22,7 @@ import { setModelValues } from "../catalog.values.server";
 import { setEquipmentModelPorts } from "../catalog.ports.mutations.server";
 import { createEquipment } from "~/domains/inventory/inventory.mutations.server";
 import { listActivity, encodeActivityCursor } from "~/domains/activity/activity.queries.server";
+import { ValidationError } from "~/lib/errors.server";
 
 const ids: string[] = [],
   devices: string[] = [],
@@ -93,6 +94,42 @@ afterEach(async () => {
 });
 
 describe("shipped model catalog", () => {
+  it("skips a linked model moved to another kind without blocking other models", async () => {
+    const record = synthetic(),
+      pendingRecord = synthetic();
+    const linked = await apply(record, 1),
+      pending = await model(pendingRecord);
+    const computer = await db.equipmentKind.findUniqueOrThrow({ where: { systemKey: "computer" } });
+    await db.equipmentModel.update({
+      where: { id: linked.model.id },
+      data: { kindId: computer.id, category: "PC" },
+    });
+    expect(
+      (await reconcileModelCatalog({ version: 2, records: [record, pendingRecord] })).changed,
+    ).toEqual([pending.id]);
+    expect((await getModel(linked.model.id))!.catalogVersion).toBe(1);
+  });
+
+  it("does not pick between duplicate installation identities and maps an occupied key to validation", async () => {
+    const record = synthetic();
+    const first = await model(record),
+      second = await model(record, {
+        manufacturer: ` ${record.manufacturer.toUpperCase()} `,
+        name: record.name.toUpperCase(),
+      });
+    expect(await reconcileModelCatalog({ version: 1, records: [record] })).toEqual({
+      changed: [],
+      devices: [],
+    });
+    await apply(record, 1, first.id);
+    await expect(apply(record, 1, second.id)).rejects.toBeInstanceOf(ValidationError);
+    expect(await reconcileModelCatalog({ version: 1, records: [record] })).toEqual({
+      changed: [],
+      devices: [],
+    });
+    expect((await getModel(second.id))!.catalogKey).toBeNull();
+  });
+
   it("adds both control properties on the version 2 to 3 path and exports only explicit help", async () => {
     await db.customField.deleteMany({
       where: { systemKey: { in: ["projector.control_protocols", "projector.control_systems"] } },

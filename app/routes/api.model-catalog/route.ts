@@ -8,11 +8,11 @@ export async function loader({ request }: { request: Request }) {
     const url = new URL(request.url);
     const kindId = url.searchParams.get("kindId");
     const query = (url.searchParams.get("query") ?? "").slice(0, 200);
-    return {
+    return Response.json({
       models: await catalogModelOptions(kindId, query),
       kindId,
       query,
-    };
+    });
   } catch (error) {
     throw toErrorResponse(error);
   }

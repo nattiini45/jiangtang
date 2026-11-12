@@ -2,6 +2,8 @@ import type { inventoryDe } from "../de/inventory";
 
 export const inventoryEn = {
   "inventory.catalog.search": "Search models",
+  "inventory.catalog.unavailable":
+    "The catalog is unavailable. Search again or choose an existing model.",
   "inventory.catalog.onSave": "The data sheet will be filled in when you save.",
   "inventory.catalog.source": "Data from {manufacturer}, retrieved {date}.",
   "inventory.catalog.productPage": "Product page",

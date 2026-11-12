@@ -58,6 +58,14 @@ export async function applyCatalogModelInTx(
         include: { kind: true, ports: { orderBy: { position: "asc" } } },
       });
   if (modelId && !model) throw new NotFoundError();
+  if (modelId) {
+    const holder = await tx.equipmentModel.findUnique({
+      where: { catalogKey: record.key },
+      select: { id: true },
+    });
+    if (holder && holder.id !== modelId)
+      throw new ValidationError({}, [tr("inventory.catalog.alreadyLinked")]);
+  }
   if (!model) {
     const matches = (
       await tx.equipmentModel.findMany({
@@ -294,6 +302,25 @@ export async function reconcileModelCatalog(catalog: ModelCatalog | undefined = 
                   : DEFAULT_EQUIPMENT_KINDS[model.category].key) === record.kind,
             );
         if (matches.length !== 1) continue;
+        const record = matches[0];
+        const currentKind = model.kind
+          ? model.kind.systemKey
+          : DEFAULT_EQUIPMENT_KINDS[model.category].key;
+        if (currentKind !== record.kind) continue;
+        if (!model.catalogKey) {
+          const holder = await tx.equipmentModel.findUnique({
+            where: { catalogKey: record.key },
+            select: { id: true },
+          });
+          const identities = models.filter(
+            (entry) =>
+              normalize(entry.manufacturer) === normalize(record.manufacturer) &&
+              normalize(entry.name) === normalize(record.name) &&
+              (entry.kind ? entry.kind.systemKey : DEFAULT_EQUIPMENT_KINDS[entry.category].key) ===
+                record.kind,
+          );
+          if (holder || identities.length !== 1) continue;
+        }
         const applied = await applyCatalogModelInTx(
           tx,
           audit,

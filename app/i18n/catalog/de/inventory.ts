@@ -1,5 +1,7 @@
 export const inventoryDe = {
   "inventory.catalog.search": "Modell suchen",
+  "inventory.catalog.unavailable":
+    "Der Katalog ist gerade nicht erreichbar. Bitte erneut suchen oder ein vorhandenes Modell wählen.",
   "inventory.catalog.onSave": "Das Datenblatt wird beim Speichern übernommen.",
   "inventory.catalog.source": "Daten von {manufacturer}, abgerufen am {date}.",
   "inventory.catalog.productPage": "Produktseite",
