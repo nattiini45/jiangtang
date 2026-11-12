@@ -128,6 +128,15 @@ export const NAV: NavEntry[] = [
     adminArea: true,
   },
   {
+    to: "/admin/structure",
+    labelKey: "admin.structure.title",
+    icon: Settings,
+    end: false,
+    group: "people",
+    adminOnly: true,
+    adminArea: true,
+  },
+  {
     to: "/admin/search-index",
     labelKey: "nav.searchIndex",
     icon: Database,

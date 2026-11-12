@@ -1,7 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
-import { withoutEquipmentKind } from "./tools.server";
+import { withMcpEquipmentKind } from "./tools.server";
+import { getEquipment } from "~/domains/inventory/inventory.queries.server";
+import { getModel } from "~/domains/catalog/catalog.queries.server";
 import {
   createCampus,
   updateCampus,
@@ -129,9 +131,32 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
         id: "id" in result ? result.id : "bulk",
         op: definition.op,
       });
-      return definition.entityType === "equipment" || definition.entityType === "equipmentModel"
-        ? withoutEquipmentKind(result)
-        : result;
+      if (
+        "id" in result &&
+        (definition.entityType === "equipment" || definition.entityType === "equipmentModel")
+      ) {
+        const record =
+          definition.entityType === "equipment"
+            ? await getEquipment(result.id)
+            : await getModel(result.id);
+        if (record) return withMcpEquipmentKind({ ...result, kind: record.kind });
+      }
+      if (
+        definition.entityType === "equipment" &&
+        "items" in result &&
+        Array.isArray(result.items)
+      ) {
+        return {
+          ...result,
+          items: await Promise.all(
+            result.items.map(async (item: { id: string }) => {
+              const record = await getEquipment(item.id);
+              return record ? withMcpEquipmentKind({ ...item, kind: record.kind }) : item;
+            }),
+          ),
+        };
+      }
+      return result;
     });
   }
 

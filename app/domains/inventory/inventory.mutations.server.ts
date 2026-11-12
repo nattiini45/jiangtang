@@ -2,7 +2,11 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { applyEquipmentCustomValuesInTx } from "./inventory.custom-values.server";
 import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import type { Tx } from "~/lib/db.server";
-import { resolveEquipmentKind, type EquipmentKindInput } from "~/lib/equipment-kinds/kinds.server";
+import {
+  lockKindStructure,
+  resolveEquipmentKind,
+  type EquipmentKindInput,
+} from "~/lib/equipment-kinds/kinds.server";
 import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -11,6 +15,26 @@ import type { Equipment, Prisma } from "~/generated/prisma/client";
 import type { EquipmentCreateInput, EquipmentCsvRow } from "./inventory.schema";
 
 type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKindInput;
+
+export async function moveEquipmentKindInTx(
+  tx: Tx,
+  audit: AuditFn,
+  from: { id: string; name: string },
+  to: { id: string; name: string; category: Equipment["category"] },
+) {
+  const devices = await tx.equipment.findMany({ where: { kindId: from.id }, select: { id: true } });
+  await tx.equipment.updateMany({
+    where: { kindId: from.id },
+    data: { kindId: to.id, category: to.category },
+  });
+  for (const device of devices)
+    await audit({
+      action: "EquipmentUpdated",
+      entityType: "equipment",
+      entityId: device.id,
+      data: { kind: { from: { id: from.id, name: from.name }, to: { id: to.id, name: to.name } } },
+    });
+}
 
 /**
  * Equipment mutations. FIXED units live in a room; POOLED units float (roomId
@@ -144,6 +168,8 @@ export async function updateEquipment(
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
+    if (source.customValues !== undefined) await lockDefinitions(tx);
+    await lockKindStructure(tx);
     const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
     const input = { ...source, ...(await resolveEquipmentKind(tx, source, current.kindId)) };
     const custom =

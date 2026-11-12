@@ -198,7 +198,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **48 read tools and 81 write tools**. Their published schemas are
+Discovery currently returns **48 read tools and 85 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -218,13 +218,27 @@ calls are denied before executing domain mutations.
 Device and model reads also return `kind: { id, key, name, group: { id, name, position } }`.
 The key is a stable system key, or null for a custom kind; names are installation data.
 `list_device_kinds({ includeArchived?: boolean })` returns function groups in display order,
-each with its kinds (`id`, `key`, `name`, `groupId`). Archived groups and kinds are omitted
+each with its kinds (`id`, `key`, `name`, `groupId`, `position`, `archivedAt`, `deviceCount`, `modelCount`). Archived groups and kinds are omitted
 unless requested. Use these IDs with `list_equipment` or `list_equipment_models`' `kindId`
 filter; `category` remains a deprecated alias and is ignored when `kindId` is supplied.
 Device/model create and update tools accept `kindId` or `category`. A kind ID determines
 the category; a category-only update keeps the current kind when it maps to that category.
 `bulk_create_equipment` accepts `kindId` alongside its existing CSV fields; `kategorie`
 may be omitted when a kind ID is given. The CSV file format itself is unchanged.
+Device and model write results include the same kind summary as reads. An archived kind can
+only be kept by a record that already carries it, never newly selected.
+
+Admins can manage structure with `create_function_group({ name })`,
+`update_function_group({ id, name?, position?, archived? })`,
+`create_device_kind({ name, groupId })` and
+`update_device_kind({ id, name?, groupId?, position?, archived?, moveDevicesTo? })`.
+Positions are zero-based within the active group list or the kind's function group.
+Names have 1–60 characters and are unique among active entries without regard to case.
+There can be at most 80 active kinds and 30 active groups. Archive unused entries to make room.
+Archiving a used kind requires another active kind in `moveDevicesTo`: its devices and models
+move in the same audited transaction. Legacy category kinds can be renamed and regrouped, but
+cannot be archived. A group with active kinds cannot be archived. New kinds do not track frequency.
+These definition tools require an admin's read-write token; other roles are refused.
 Use `set_equipment_model_ports({ modelId, ports })` to replace and reorder templates;
 each port has `label`, `connector`, `direction` and `signal`. New devices copy templates
 in their creation transaction. Template edits never overwrite existing device ports.

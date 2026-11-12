@@ -124,10 +124,35 @@ export interface ReconcileReport {
   deletedOrphans: number;
 }
 
+export async function drainReindexJobs() {
+  const jobs = await db.searchIndexJob.findMany({
+    where: { op: "reindex", nextAttemptAt: { lte: new Date() } },
+    take: 500,
+    orderBy: { createdAt: "asc" },
+  });
+  for (const job of jobs) {
+    if (!(SOURCE_TYPES as readonly string[]).includes(job.sourceType)) continue;
+    try {
+      await reindexSource(job.sourceType as SourceType, job.sourceId);
+      await db.searchIndexJob.deleteMany({ where: { id: job.id, updatedAt: job.updatedAt } });
+    } catch (error) {
+      await db.searchIndexJob.updateMany({
+        where: { id: job.id, updatedAt: job.updatedAt },
+        data: {
+          attempts: { increment: 1 },
+          lastError: errorExcerpt(error),
+          nextAttemptAt: new Date(Date.now() + 30_000),
+        },
+      });
+    }
+  }
+}
+
 /** Reindex missing/stale sources and drop chunks whose source is gone. */
 export async function reconcileAll(
   opts: { refreshTypes?: SourceType[] } = {},
 ): Promise<ReconcileReport> {
+  await drainReindexJobs();
   const report: ReconcileReport = { reindexed: 0, deletedOrphans: 0 };
   for (const type of SOURCE_TYPES) {
     const versions = await listSourceVersions(type);

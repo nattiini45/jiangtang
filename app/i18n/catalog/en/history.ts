@@ -1,6 +1,14 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.EquipmentKindUpdated": "Device kind updated",
+  "history.action.EquipmentKindArchived": "Device kind archived",
+  "history.action.EquipmentKindRestored": "Device kind restored",
+  "history.action.EquipmentKindDeleted": "Device kind deleted",
+  "history.action.EquipmentFunctionGroupUpdated": "Function group updated",
+  "history.action.EquipmentFunctionGroupArchived": "Function group archived",
+  "history.action.EquipmentFunctionGroupRestored": "Function group restored",
+  "history.action.EquipmentFunctionGroupDeleted": "Function group deleted",
   "history.entity.customField": "Custom field",
   "history.action.CustomFieldCreated": "Field created",
   "history.action.CustomFieldUpdated": "Field updated",

@@ -364,10 +364,12 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     async ({ includeArchived }) =>
       (await listDeviceKinds(includeArchived)).map((group) => ({
         ...group,
-        kinds: group.kinds.map(({ systemKey, ...kind }) => ({
+        kinds: group.kinds.map(({ systemKey, _count, ...kind }) => ({
           ...kind,
           key: systemKey,
           groupId: group.id,
+          deviceCount: _count?.equipment ?? 0,
+          modelCount: _count?.models ?? 0,
         })),
       })),
   );
