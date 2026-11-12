@@ -288,7 +288,9 @@ export function StructurePage({
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.changed) setAdding(false);
   }, [fetcher.state, fetcher.data]);
-  const visibleGroups = groups.filter((group) => showArchived || !group.archivedAt);
+  const visibleGroups = groups
+    .filter((group) => showArchived || !group.archivedAt)
+    .sort((a, b) => Number(!!a.archivedAt) - Number(!!b.archivedAt));
   return (
     <div className="flex flex-col gap-5">
       <header>
@@ -368,7 +370,9 @@ export function StructurePage({
       ) : null}
       {entity === "kind" ? (
         visibleGroups.map((group) => {
-          const kinds = group.kinds.filter((kind) => showArchived || !kind.archivedAt);
+          const kinds = group.kinds
+            .filter((kind) => showArchived || !kind.archivedAt)
+            .sort((a, b) => Number(!!a.archivedAt) - Number(!!b.archivedAt));
           return (
             <section key={group.id} className="bg-card shadow-surface-2 overflow-hidden rounded-lg">
               <h2 className="bg-tint px-4 py-2 text-sm font-semibold">

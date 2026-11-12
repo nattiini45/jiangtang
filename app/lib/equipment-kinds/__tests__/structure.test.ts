@@ -19,7 +19,7 @@ import {
   updateFunctionGroup,
   KIND_LIMIT,
   GROUP_LIMIT,
-} from "../structure.mutations.server";
+} from "../structure.server";
 
 const prefix = `struct-${randomUUID().slice(0, 8)}-`;
 const actor = { name: "Synthetic structure admin" };
@@ -165,13 +165,13 @@ describe("structure rules against PostgreSQL", () => {
   it("reorders kinds within a group, regroups them and reorders groups", async () => {
     const { group, kind } = await fixture();
     const second = await createDeviceKind(actor, { name: `${prefix}Second`, groupId: group.id });
-    await updateDeviceKind(actor, second.id, { position: 0 });
+    expect((await updateDeviceKind(actor, second.id, { position: 0 })).position).toBe(0);
     expect(
       (await listDeviceKinds()).find((row) => row.id === group.id)?.kinds.map((row) => row.id),
     ).toEqual([second.id, kind.id]);
     const next = await createFunctionGroup(actor, { name: `${prefix}Next` });
     await updateDeviceKind(actor, second.id, { groupId: next.id });
-    await updateFunctionGroup(actor, next.id, { position: 0 });
+    expect((await updateFunctionGroup(actor, next.id, { position: 0 })).position).toBe(0);
     expect((await listDeviceKinds())[0].id).toBe(next.id);
     expect((await listDeviceKinds())[0].kinds[0].id).toBe(second.id);
   });

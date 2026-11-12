@@ -5,13 +5,13 @@ import {
   updateDeviceKind,
   createFunctionGroup,
   updateFunctionGroup,
-} from "~/domains/structure/structure.mutations.server";
+} from "~/lib/equipment-kinds/structure.server";
 import {
   groupCreateSchema,
   groupUpdateSchema,
   kindCreateSchema,
   kindUpdateSchema,
-} from "~/domains/structure/structure.schema";
+} from "~/lib/equipment-kinds/structure.schema";
 import { registerTool } from "./tools.server";
 import { mcpActor, type McpContext } from "./types.server";
 

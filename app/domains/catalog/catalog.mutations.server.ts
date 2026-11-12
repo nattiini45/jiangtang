@@ -13,6 +13,29 @@ import type { ModelCreateInput } from "./catalog.schema";
 
 type ModelWriteInput = Omit<ModelCreateInput, "category"> & EquipmentKindInput;
 
+export async function moveModelKindInTx(
+  tx: Tx,
+  audit: AuditFn,
+  from: { id: string; name: string },
+  to: { id: string; name: string; category: EquipmentModel["category"] },
+) {
+  const models = await tx.equipmentModel.findMany({
+    where: { kindId: from.id },
+    select: { id: true },
+  });
+  await tx.equipmentModel.updateMany({
+    where: { kindId: from.id },
+    data: { kindId: to.id, category: to.category },
+  });
+  for (const model of models)
+    await audit({
+      action: "EquipmentModelUpdated",
+      entityType: "equipmentModel",
+      entityId: model.id,
+      data: { kind: { from: { id: from.id, name: from.name }, to: { id: to.id, name: to.name } } },
+    });
+}
+
 /**
  * EquipmentModel mutations. Models have no status and an FK from Equipment blocks
  * hard-delete, so the catalog is create/edit only (retire-don't-delete).

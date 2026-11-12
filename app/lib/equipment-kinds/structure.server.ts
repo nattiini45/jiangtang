@@ -7,6 +7,9 @@ import { tr } from "~/i18n/request-locale.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { lockKindStructure, categoryForKind } from "~/lib/equipment-kinds/kinds.server";
 import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { queueEquipmentReindex } from "~/lib/search/jobs.server";
+import { moveEquipmentKindInTx } from "~/domains/inventory/inventory.mutations.server";
+import { moveModelKindInTx } from "~/domains/catalog/catalog.mutations.server";
 import {
   groupCreateSchema,
   groupUpdateSchema,
@@ -39,15 +42,10 @@ export async function queueKindDevices(tx: Tx, kindIds: string[]) {
     select: { id: true },
   });
   for (let offset = 0; offset < devices.length; offset += 500) {
-    const values = Prisma.join(
-      devices
-        .slice(offset, offset + 500)
-        .map(
-          ({ id }) =>
-            Prisma.sql`(gen_random_uuid()::text, 'EQUIPMENT', ${id}, 'reindex', now(), now(), now())`,
-        ),
+    await queueEquipmentReindex(
+      tx,
+      devices.slice(offset, offset + 500).map(({ id }) => id),
     );
-    await tx.$executeRaw`INSERT INTO "SearchIndexJob" (id, "sourceType", "sourceId", op, "nextAttemptAt", "createdAt", "updatedAt") VALUES ${values} ON CONFLICT ("sourceType", "sourceId", op) DO UPDATE SET "updatedAt" = clock_timestamp(), "nextAttemptAt" = now()`;
   }
 }
 
@@ -150,14 +148,17 @@ export async function updateFunctionGroup(
     )
       structureError("admin.structure.groupInUse");
     if (data.archived === false && current.archivedAt) await checkStructureLimit(tx, "group");
-    const group = await tx.equipmentFunctionGroup.update({
+    let group = await tx.equipmentFunctionGroup.update({
       where: { id },
       data: {
         name: data.name,
         archivedAt: data.archived === undefined ? undefined : data.archived ? new Date() : null,
       },
     });
-    if (data.position !== undefined) await reorder(tx, "group", id, data.position);
+    if (data.position !== undefined) {
+      await reorder(tx, "group", id, data.position);
+      group = await tx.equipmentFunctionGroup.findUniqueOrThrow({ where: { id } });
+    }
     await queueKindDevices(
       tx,
       (await tx.equipmentKind.findMany({ where: { groupId: id }, select: { id: true } })).map(
@@ -173,7 +174,7 @@ export async function updateFunctionGroup(
             : "EquipmentFunctionGroupRestored",
       entityType: "equipmentFunctionGroup",
       entityId: id,
-      data: { name: group.name, position: data.position ?? group.position },
+      data: { name: group.name, position: group.position },
     });
     return group;
   });
@@ -217,13 +218,8 @@ export async function updateDeviceKind(
     let deviceCount = 0;
     let modelCount = 0;
     if (data.archived) {
-      const devices = await tx.equipment.findMany({ where: { kindId: id }, select: { id: true } });
-      const models = await tx.equipmentModel.findMany({
-        where: { kindId: id },
-        select: { id: true },
-      });
-      deviceCount = devices.length;
-      modelCount = models.length;
+      deviceCount = await tx.equipment.count({ where: { kindId: id } });
+      modelCount = await tx.equipmentModel.count({ where: { kindId: id } });
       if (deviceCount || modelCount) {
         if (!data.moveDevicesTo || data.moveDevicesTo === id)
           structureError("admin.structure.moveRequired", "moveDevicesTo");
@@ -234,33 +230,20 @@ export async function updateDeviceKind(
         if (target.archivedAt || target.group.archivedAt)
           structureError("admin.structure.kindArchived", "moveDevicesTo");
         await queueKindDevices(tx, [id]);
-        const update = { kindId: target.id, category: categoryForKind(target.systemKey) };
-        await tx.equipment.updateMany({ where: { kindId: id }, data: update });
-        await tx.equipmentModel.updateMany({ where: { kindId: id }, data: update });
-        const change = {
-          kind: { from: { id, name: current.name }, to: { id: target.id, name: target.name } },
+        const destination = {
+          id: target.id,
+          name: target.name,
+          category: categoryForKind(target.systemKey),
         };
-        for (const device of devices)
-          await audit({
-            action: "EquipmentUpdated",
-            entityType: "equipment",
-            entityId: device.id,
-            data: change,
-          });
-        for (const model of models)
-          await audit({
-            action: "EquipmentModelUpdated",
-            entityType: "equipmentModel",
-            entityId: model.id,
-            data: change,
-          });
+        await moveEquipmentKindInTx(tx, audit, current, destination);
+        await moveModelKindInTx(tx, audit, current, destination);
       }
     }
     const max =
       data.groupId && data.groupId !== current.groupId
         ? await tx.equipmentKind.aggregate({ where: { groupId }, _max: { position: true } })
         : null;
-    const kind = await tx.equipmentKind.update({
+    let kind = await tx.equipmentKind.update({
       where: { id },
       data: {
         name: data.name,
@@ -269,7 +252,10 @@ export async function updateDeviceKind(
         archivedAt: data.archived === undefined ? undefined : data.archived ? new Date() : null,
       },
     });
-    if (data.position !== undefined) await reorder(tx, "kind", id, data.position, groupId);
+    if (data.position !== undefined) {
+      await reorder(tx, "kind", id, data.position, groupId);
+      kind = await tx.equipmentKind.findUniqueOrThrow({ where: { id } });
+    }
     await queueKindDevices(tx, [id]);
     await audit({
       action:
@@ -283,7 +269,7 @@ export async function updateDeviceKind(
       data: {
         name: kind.name,
         groupId,
-        position: data.position ?? kind.position,
+        position: kind.position,
         deviceCount,
         modelCount,
       },

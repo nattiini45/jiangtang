@@ -12,7 +12,7 @@ import {
 import { currentLocale } from "~/i18n/request-locale.server";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
-import { structureActionSchema } from "~/domains/structure/structure.schema";
+import { structureActionSchema } from "~/lib/equipment-kinds/structure.schema";
 import {
   createDeviceKind,
   createFunctionGroup,
@@ -20,7 +20,7 @@ import {
   listStructure,
   updateDeviceKind,
   updateFunctionGroup,
-} from "~/domains/structure/structure.mutations.server";
+} from "~/lib/equipment-kinds/structure.server";
 import { StructurePage } from "~/components/structure/structure-page";
 export { RouteErrorBoundary as ErrorBoundary } from "~/components/route-error-boundary";
 

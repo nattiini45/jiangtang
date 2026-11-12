@@ -14,6 +14,26 @@ import type { EquipmentCreateInput, EquipmentCsvRow } from "./inventory.schema";
 
 type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKindInput;
 
+export async function moveEquipmentKindInTx(
+  tx: Tx,
+  audit: AuditFn,
+  from: { id: string; name: string },
+  to: { id: string; name: string; category: Equipment["category"] },
+) {
+  const devices = await tx.equipment.findMany({ where: { kindId: from.id }, select: { id: true } });
+  await tx.equipment.updateMany({
+    where: { kindId: from.id },
+    data: { kindId: to.id, category: to.category },
+  });
+  for (const device of devices)
+    await audit({
+      action: "EquipmentUpdated",
+      entityType: "equipment",
+      entityId: device.id,
+      data: { kind: { from: { id: from.id, name: from.name }, to: { id: to.id, name: to.name } } },
+    });
+}
+
 /**
  * Equipment mutations. FIXED units live in a room; POOLED units float (roomId
  * forced null). Retire-don't-delete (FK RESTRICT from allocations). Substitution
