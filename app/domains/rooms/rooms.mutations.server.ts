@@ -1,4 +1,6 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
+import { applyRoomCustomValuesInTx } from "./rooms.custom-values.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import type { Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
@@ -246,6 +248,7 @@ function roomFields(
 
 export async function createRoom(actor: AuditActor, input: RoomCreateInput): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    if (input.customValues !== undefined) await lockDefinitions(tx);
     const location = await resolveLocation(tx, audit, input);
     const slug = await ensureUniqueSlug(input.name, (s) => roomSlugTaken(tx, s));
     let room;
@@ -261,11 +264,17 @@ export async function createRoom(actor: AuditActor, input: RoomCreateInput): Pro
       }
       throw e;
     }
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyRoomCustomValuesInTx(tx, room.id, input.customValues);
+    if (input.customValues !== undefined)
+      room = await tx.room.findUniqueOrThrow({ where: { id: room.id } });
     await audit({
       action: "RoomCreated",
       entityType: "room",
       entityId: room.id,
-      data: { name: room.name, slug: room.slug },
+      data: { name: room.name, slug: room.slug, ...custom },
     });
     return room;
   });
@@ -277,9 +286,13 @@ export async function updateRoom(
   input: RoomEditInput,
 ): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    const data =
+      input.customValues === undefined
+        ? undefined
+        : await applyRoomCustomValuesInTx(tx, id, input.customValues);
     const location = await resolveLocation(tx, audit, input);
     const room = await tx.room.update({ where: { id }, data: roomFields(input, location) });
-    await audit({ action: "RoomUpdated", entityType: "room", entityId: room.id });
+    await audit({ action: "RoomUpdated", entityType: "room", entityId: room.id, data });
     return room;
   });
 }
@@ -407,6 +420,7 @@ export async function bulkCreateRooms(
   return txWithAudit(
     actor,
     async (tx, audit) => {
+      if (rows.some((row) => row.customValues !== undefined)) await lockDefinitions(tx);
       const items: Pick<Room, "id" | "name" | "slug">[] = [];
       for (const row of rows) {
         let campusId: string | null = null;
@@ -438,11 +452,15 @@ export async function bulkCreateRooms(
             lastCheckedAt: row.lastCheckedAt ?? null,
           },
         });
+        const custom =
+          row.customValues === undefined
+            ? {}
+            : await applyRoomCustomValuesInTx(tx, room.id, row.customValues);
         await audit({
           action: "RoomCreated",
           entityType: "room",
           entityId: room.id,
-          data: { name: room.name, slug: room.slug, viaImport: true },
+          data: { name: room.name, slug: room.slug, viaImport: true, ...custom },
         });
         items.push({ id: room.id, name: room.name, slug: room.slug });
       }

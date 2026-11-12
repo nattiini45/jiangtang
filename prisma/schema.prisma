@@ -130,6 +130,7 @@ model Building {
 }
 
 model Room {
+  customValues Json @default("{}") @db.JsonB
   id         String  @id @default(cuid())
   slug       String  @unique
   name       String
@@ -293,6 +294,7 @@ model EquipmentModel {
 }
 
 model Equipment {
+  customValues Json @default("{}") @db.JsonB
   kindId String?
   kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
   ports    EquipmentPort[]

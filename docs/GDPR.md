@@ -9,6 +9,13 @@ Upgrades between releases keep the data. There is no upgrade path from a databas
 directory from before the first release. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
 not an upgrade path.
 
+## Custom-field history
+
+Custom-field changes on rooms and devices copy up to 20 changed values into the append-only
+audit log, with each text value limited to 200 characters. Clearing, archiving or deleting a
+custom field does not erase those historical snapshots; avoid putting sensitive personal data
+in custom fields unless the installation's retention and access policies cover that history.
+
 ## Personal time visibility
 
 Time entries are private by default, including from administrators. On a user's admin page,

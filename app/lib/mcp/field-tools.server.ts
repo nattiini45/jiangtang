@@ -15,8 +15,33 @@ import {
 } from "~/lib/custom-fields/definitions.server";
 import { registerTool } from "./tools.server";
 import { mcpActor, type McpContext } from "./types.server";
+import { setRoomCustomValues } from "~/domains/rooms/rooms.custom-values.server";
+import { setEquipmentCustomValues } from "~/domains/inventory/inventory.custom-values.server";
+import { withCustomValues } from "~/lib/custom-fields/values.server";
 
 export function registerFieldTools(server: McpServer, context: McpContext) {
+  registerTool(
+    server,
+    context,
+    {
+      name: "set_custom_values",
+      description:
+        "Merge custom values into a room or device by field key. Null clears a key; omitted keys and all built-in fields stay unchanged. Choice values accept option IDs or labels. The entire write is rejected if any field fails validation.",
+      schema: z.object({
+        scope: fieldScope,
+        id: z.string().min(1),
+        values: z.record(z.string(), z.unknown()),
+      }),
+      write: true,
+    },
+    async ({ scope, id, values }, ctx) => {
+      const result =
+        scope === "ROOM"
+          ? await setRoomCustomValues(mcpActor(ctx), id, values)
+          : await setEquipmentCustomValues(mcpActor(ctx), id, values);
+      return (await withCustomValues(scope, [result], true))[0];
+    },
+  );
   registerTool(
     server,
     context,
@@ -34,7 +59,7 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "create_custom_field",
       description:
-        "Define a custom field. No kindIds means all records in the scope. Keys and types are immutable. Admin write token required.",
+        "Define a custom field. No kindIds means all records in the scope. Keys are immutable. Admin write token required.",
       schema: createFieldSchema,
       role: "ADMIN",
       write: true,
@@ -47,7 +72,7 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "update_custom_field",
       description:
-        "Patch a field definition, including kindIds, order and archived (true to archive, false to restore). Omitted properties are unchanged. Admin write token required.",
+        "Patch a field definition, including kindIds, order and archived (true to archive, false to restore). Omitted properties are unchanged. Only TEXT to LONG_TEXT and CHOICE to MULTI_CHOICE (or back when no record has several selections) can change type. Admin write token required.",
       schema: updateFieldSchema,
       role: "ADMIN",
       write: true,

@@ -14,20 +14,56 @@ Names and labels are workspace data, not translated text.
 
 - `create_custom_field`: `{scope, key, name, type, kindIds?: string[], helpText?, section?, unit?, position?, showInList?, listPosition?, searchable?}`.
   Types are TEXT, LONG_TEXT, NUMBER, BOOLEAN, CHOICE, MULTI_CHOICE, DATE and LINK.
-  Keys and types are immutable; names and keys are unique per scope. An empty kind list
+  Keys are immutable; names and keys are unique per scope, including archived fields. An empty kind list
   means every device kind; room fields always apply to every room.
 - `update_custom_field`: `{id, ...changedProperties, archived?: boolean}`. Omitted
-  properties stay unchanged. Archive hides a field; restore reveals it again.
+  properties stay unchanged. Archive hides a field and keeps its values; restore reveals them again.
+  Type changes are limited to TEXT → LONG_TEXT, CHOICE → MULTI_CHOICE and the reverse choice
+  conversion when no record has more than one selection. Choice conversions preserve option IDs.
+  A type conversion writes one definition audit entry with its affected-record count, not one
+  update per record. To clear hidden values, restore the field and its applicability first.
 - `update_field_options`: `{fieldId, changes: [...]}`. Changes are
   `{op: "add", label, position?}`, `{op: "update", id, label?, position?, archived?}`
   or `{op: "delete", id}`. Retire with `archived: true`, restore with `false`.
   The batch is atomic; options cannot be merged.
-- `delete_custom_field`: `{id, confirm: true}`. Deletes an unused definition.
+- `delete_custom_field`: `{id, confirm: true}`. Deletes a definition only when no record holds a value.
+  Likewise, an option cannot be deleted while it is selected, even on a hidden or archived field.
 
 There can be at most 40 active fields applying to a record, 120 fields per scope,
 50 active options and 200 total options per field. Archive fields, narrow their kinds,
 retire options or delete unused definitions to make room. Definition changes append
 one audit entry with the connecting user's token attribution.
+
+### Record values
+
+`set_custom_values({scope: "ROOM" | "EQUIPMENT", id, values: {field_key: value}})`
+requires a write token, but not an admin role. It changes only supplied keys: `null` clears
+one value; omitted keys and built-in fields are untouched. Choice values accept option IDs
+or case-insensitive active labels; multiple choices take an array without duplicates.
+Other types accept strings, finite numbers with at most six decimals, booleans, calendar dates
+(`YYYY-MM-DD`) or HTTP(S) links. Short and long text allow 200 and 4,000 characters;
+all values on one record together may use at most 32 KB. No value is written if one fails.
+
+For example, define `{scope:"EQUIPMENT", key:"lamp_hours", name:"Lamp hours", type:"NUMBER", kindIds:["projector-kind-id"]}`,
+then call `set_custom_values({scope:"EQUIPMENT", id:"device-id", values:{lamp_hours:1234}})`.
+
+`create_room`, `create_equipment` and each row in both bulk-create tools accept `customValues`
+with that same field-key mapping. `update_room` and `update_equipment` still replace **every
+built-in editable field** (omitted optional built-ins are cleared), but omitted `customValues`
+is left untouched, and a supplied object merges by key. A kind change keeps now-inapplicable
+values in storage, hidden until the kind applies again.
+
+`get_room`, `get_equipment`, `list_rooms` and `list_equipment` return `customValues` keyed by
+field key with choices rendered as labels. Retired selections remain readable with a retired
+marker. Detail reads and `set_custom_values` also return applicable `customFields` definitions.
+Unknown stored field IDs and values of archived or non-applicable fields are not returned.
+List tools do not accept custom `fields` or `where` arguments.
+
+Value errors return status 422 with `detail.fieldErrors` plus `detail.errors`, for example
+`[{field:"lamp_hours", code:"not_a_number"}]`. Choice errors include `allowed` active labels;
+unknown, archived and non-applicable fields return `unknown_field`, `archived_field` and
+`not_applicable`. Text/record size failures return `limit`, with a localized message naming
+the limit and how to reduce the data. An invalid row rolls its whole bulk batch back.
 
 ## Credentials and connection
 
@@ -162,7 +198,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **48 read tools and 80 write tools**. Their published schemas are
+Discovery currently returns **48 read tools and 81 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.

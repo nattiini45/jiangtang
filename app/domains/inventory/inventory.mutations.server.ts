@@ -1,4 +1,6 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
+import { applyEquipmentCustomValuesInTx } from "./inventory.custom-values.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import type { Tx } from "~/lib/db.server";
 import { resolveEquipmentKind, type EquipmentKindInput } from "~/lib/equipment-kinds/kinds.server";
 import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
@@ -52,14 +54,21 @@ export async function createEquipment(
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
   return txWithAudit(actor, async (tx, audit) => {
+    if (source.customValues !== undefined) await lockDefinitions(tx);
     const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
-    const eq = await tx.equipment.create({ data: equipmentFields(input) });
+    let eq = await tx.equipment.create({ data: equipmentFields(input) });
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyEquipmentCustomValuesInTx(tx, eq.id, input.customValues, eq.kindId);
+    if (input.customValues !== undefined)
+      eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
     await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
       action: "EquipmentCreated",
       entityType: "equipment",
       entityId: eq.id,
-      data: { name: eq.name, category: eq.category, mobility: eq.mobility },
+      data: { name: eq.name, category: eq.category, mobility: eq.mobility, ...custom },
     });
     return eq;
   });
@@ -105,14 +114,21 @@ export async function createEquipmentInTx(
   audit: AuditFn,
   source: EquipmentWriteInput,
 ): Promise<Equipment> {
+  if (source.customValues !== undefined) await lockDefinitions(tx);
   const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
-  const eq = await tx.equipment.create({ data: equipmentFields(input) });
+  let eq = await tx.equipment.create({ data: equipmentFields(input) });
+  const custom =
+    input.customValues === undefined
+      ? {}
+      : await applyEquipmentCustomValuesInTx(tx, eq.id, input.customValues, eq.kindId);
+  if (input.customValues !== undefined)
+    eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
   await copyModelPortsInTx(tx, eq.id, eq.modelId);
   await audit({
     action: "EquipmentCreated",
     entityType: "equipment",
     entityId: eq.id,
-    data: { name: eq.name, category: eq.category, mobility: eq.mobility },
+    data: { name: eq.name, category: eq.category, mobility: eq.mobility, ...custom },
   });
   return eq;
 }
@@ -125,6 +141,10 @@ export async function updateEquipment(
   return txWithAudit(actor, async (tx, audit) => {
     const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
     const input = { ...source, ...(await resolveEquipmentKind(tx, source, current.kindId)) };
+    const custom =
+      input.customValues === undefined
+        ? undefined
+        : await applyEquipmentCustomValuesInTx(tx, id, input.customValues, input.kindId);
     const fields = equipmentFields(input);
     const { eq, auditData } =
       input.status === "RETIRED"
@@ -137,7 +157,10 @@ export async function updateEquipment(
       action: "EquipmentUpdated",
       entityType: "equipment",
       entityId: eq.id,
-      data: auditData,
+      data:
+        custom === undefined
+          ? auditData
+          : { ...(auditData as Prisma.InputJsonObject | undefined), ...custom },
     });
     return eq;
   });
@@ -269,6 +292,7 @@ export async function bulkCreateEquipment(
   return txWithAudit(
     actor,
     async (tx, audit) => {
+      if (rows.some((row) => row.customValues !== undefined)) await lockDefinitions(tx);
       const items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] = [];
       for (const row of rows) {
         // `EquipmentModel` belongs to `catalog/`, so `catalog/` writes it — and it
@@ -325,12 +349,16 @@ export async function bulkCreateEquipment(
             channelLabel: row.channelLabel ?? null,
           },
         });
+        const custom =
+          row.customValues === undefined
+            ? {}
+            : await applyEquipmentCustomValuesInTx(tx, eq.id, row.customValues, eq.kindId);
         await copyModelPortsInTx(tx, eq.id, eq.modelId);
         await audit({
           action: "EquipmentCreated",
           entityType: "equipment",
           entityId: eq.id,
-          data: { name: eq.name, viaImport: true },
+          data: { name: eq.name, viaImport: true, ...custom },
         });
         items.push({ id: eq.id, name: eq.name, category: eq.category, assetTag: eq.assetTag });
       }
