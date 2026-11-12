@@ -8,6 +8,8 @@ export const historyDe = {
   "history.action.EquipmentFunctionGroupRestored": "Funktionsgruppe wiederhergestellt",
   "history.action.EquipmentFunctionGroupDeleted": "Funktionsgruppe gelöscht",
   "history.entity.customField": "Eigenes Feld",
+  "history.entity.listColumns": "Listenspalten",
+  "history.action.ListColumnsChanged": "Listenspalten geändert",
   "history.action.CustomFieldCreated": "Feld erstellt",
   "history.action.CustomFieldUpdated": "Feld bearbeitet",
   "history.action.CustomFieldArchived": "Feld archiviert",

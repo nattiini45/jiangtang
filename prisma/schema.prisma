@@ -8,6 +8,12 @@
 // test asserts they exist and reject overlaps — never let `prisma db push`
 // reconcile them away.
 
+model ListColumns {
+  scope     CustomFieldScope @id
+  columns   String[]
+  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
+}
+
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"

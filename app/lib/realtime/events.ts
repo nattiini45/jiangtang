@@ -43,6 +43,7 @@ export const ENTITY_TYPES = [
   "equipmentKind",
   "equipmentFunctionGroup",
   "customField",
+  "listColumns",
   "equipment",
   "ticket",
   "event",

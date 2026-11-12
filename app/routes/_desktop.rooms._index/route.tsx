@@ -29,28 +29,43 @@ import { Select } from "~/components/ui/select";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { getListColumns, withListValues } from "~/lib/list-columns/columns.server";
+import { withFieldColumns } from "~/components/data-grid/field-columns";
+import { ColumnPicker } from "~/components/data-grid/column-picker";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
+import { KindOptions } from "~/components/inventory/kind-options";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "rooms.meta.list") }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const user = await requireUser(request);
   const url = new URL(request.url);
   const manage = url.searchParams.get("manage") === "campuses" ? "campuses" : null;
   const campusId = url.searchParams.get("campus") || undefined;
+  const kindId = url.searchParams.get("kindId") || undefined;
   const statusParam = url.searchParams.get("status") || "";
   const status = statusParam in RoomStatus ? (statusParam as RoomStatus) : undefined;
 
   // Campuses are always loaded: the list page's filter picker and the
   // manage-campuses view both need them.
   const campuses = await listCampuses();
-  const rooms = manage ? [] : await listRooms({ campusId, status });
+  const columnConfig = await getListColumns("ROOM", user.role === "ADMIN");
+  const rooms = await withListValues(
+    "ROOM",
+    manage ? [] : await listRooms({ campusId, status, kindId }),
+    columnConfig.columns,
+  );
+  const kinds = await listDeviceKinds();
   return {
     rooms,
     campuses,
     manage,
-    filters: { campus: campusId ?? "", status: status ?? "" },
+    kinds,
+    columnConfig,
+    canConfigure: user.role === "ADMIN",
+    filters: { campus: campusId ?? "", status: status ?? "", kindId: kindId ?? "" },
   };
 }
 
@@ -114,8 +129,15 @@ export async function action({ request }: Route.ActionArgs): Promise<CampusActio
 export default function RoomsList({ loaderData, actionData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
-  const columns = React.useMemo(() => roomColumns(t), [t]);
-  const { rooms, campuses, manage, filters } = loaderData;
+  const { rooms, campuses, manage, filters, kinds, columnConfig, canConfigure } = loaderData;
+  const columns = React.useMemo(
+    () => withFieldColumns(roomColumns<(typeof rooms)[number]>(t), columnConfig, locale),
+    [t, columnConfig, locale],
+  );
+  const builtins = roomColumns(t).map((column) => ({
+    id: String(column.id ?? ("accessorKey" in column ? column.accessorKey : "")),
+    label: String(column.header),
+  }));
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement>) =>
     e.currentTarget.form?.requestSubmit();
 
@@ -137,13 +159,16 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold">{t("rooms.list.title")}</h1>
           <p className="text-muted-foreground text-sm">{t("rooms.list.subtitle")}</p>
         </div>
         <div className="flex gap-2">
+          {canConfigure ? (
+            <ColumnPicker scope="ROOM" config={columnConfig} builtins={builtins} />
+          ) : null}
           <Button asChild variant="tertiary">
             <Link to="/rooms?manage=campuses">{t("rooms.list.manageCampuses")}</Link>
           </Button>
@@ -182,6 +207,16 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
             </option>
           ))}
         </Select>
+        <Select
+          name="kindId"
+          aria-label={t("inventory.list.filterKind")}
+          defaultValue={filters.kindId}
+          className="max-w-56"
+          onChange={autoSubmit}
+        >
+          <option value="">{t("inventory.list.allKinds")}</option>
+          <KindOptions groups={kinds} />
+        </Select>
         <noscript>
           <Button type="submit" variant="tertiary" size="compact">
             {t("rooms.list.filterSubmit")}
@@ -191,7 +226,8 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
 
       <DataGrid
         columns={columns}
-        growColumn="knownIssues"
+        growColumn="name"
+        stickyColumn="name"
         data={rooms}
         getRowId={(r) => r.id}
         emptyMessage={t("rooms.list.empty")}
