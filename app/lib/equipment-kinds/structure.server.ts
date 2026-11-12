@@ -10,7 +10,7 @@ import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 import { queueEquipmentReindex } from "~/lib/search/jobs.server";
 import { moveEquipmentKindInTx } from "~/domains/inventory/inventory.mutations.server";
 import { moveModelKindInTx } from "~/domains/catalog/catalog.mutations.server";
-import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
+import { moveKindFieldsInTx, lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import {
   groupCreateSchema,
   groupUpdateSchema,
@@ -89,12 +89,13 @@ export async function structureWrite<T>(
   entity: "kind" | "group",
   actor: AuditActor,
   work: Parameters<typeof txWithAudit<T>>[1],
+  writeDefinitions = false,
 ) {
   try {
     const result = await txWithAudit(
       actor,
       async (tx, audit) => {
-        await lockDefinitions(tx);
+        await lockDefinitions(tx, writeDefinitions);
         await lockKindStructure(tx);
         return work(tx, audit);
       },
@@ -211,75 +212,85 @@ export async function updateDeviceKind(
   input: z.input<typeof kindUpdateSchema>,
 ) {
   const data = kindUpdateSchema.parse(input);
-  return structureWrite("kind", actor, async (tx, audit) => {
-    const current = await tx.equipmentKind.findUniqueOrThrow({ where: { id } });
-    if (data.archived && current.systemKey && protectedKindKeys.includes(current.systemKey))
-      structureError("admin.structure.protected");
-    const groupId = data.groupId ?? current.groupId;
-    if (groupId !== current.groupId || data.archived === false) await activeGroup(tx, groupId);
-    if (data.archived === false && current.archivedAt) await checkStructureLimit(tx, "kind");
-    let deviceCount = 0;
-    let modelCount = 0;
-    if (data.archived) {
-      deviceCount = await tx.equipment.count({ where: { kindId: id } });
-      modelCount = await tx.equipmentModel.count({ where: { kindId: id } });
-      if (deviceCount || modelCount) {
-        if (!data.moveDevicesTo || data.moveDevicesTo === id)
-          structureError("admin.structure.moveRequired", "moveDevicesTo");
-        const target = await tx.equipmentKind.findUniqueOrThrow({
-          where: { id: data.moveDevicesTo },
-          include: { group: true },
-        });
-        if (target.archivedAt || target.group.archivedAt)
-          structureError("admin.structure.kindArchived", "moveDevicesTo");
-        await queueKindDevices(tx, [id]);
-        const destination = {
-          id: target.id,
-          name: target.name,
-          category: categoryForKind(target.systemKey),
-        };
-        await moveEquipmentKindInTx(tx, audit, current, destination);
-        await moveModelKindInTx(tx, audit, current, destination);
+  const movedFields: string[] = [];
+  const result = await structureWrite(
+    "kind",
+    actor,
+    async (tx, audit) => {
+      const current = await tx.equipmentKind.findUniqueOrThrow({ where: { id } });
+      if (data.archived && current.systemKey && protectedKindKeys.includes(current.systemKey))
+        structureError("admin.structure.protected");
+      const groupId = data.groupId ?? current.groupId;
+      if (groupId !== current.groupId || data.archived === false) await activeGroup(tx, groupId);
+      if (data.archived === false && current.archivedAt) await checkStructureLimit(tx, "kind");
+      let deviceCount = 0;
+      let modelCount = 0;
+      if (data.archived) {
+        deviceCount = await tx.equipment.count({ where: { kindId: id } });
+        modelCount = await tx.equipmentModel.count({ where: { kindId: id } });
+        if (deviceCount || modelCount || data.moveDevicesTo) {
+          if (!data.moveDevicesTo || data.moveDevicesTo === id)
+            structureError("admin.structure.moveRequired", "moveDevicesTo");
+          const target = await tx.equipmentKind.findUniqueOrThrow({
+            where: { id: data.moveDevicesTo },
+            include: { group: true },
+          });
+          if (target.archivedAt || target.group.archivedAt)
+            structureError("admin.structure.kindArchived", "moveDevicesTo");
+          movedFields.push(...(await moveKindFieldsInTx(tx, audit, current, target)));
+          await queueKindDevices(tx, [id]);
+          const destination = {
+            id: target.id,
+            name: target.name,
+            category: categoryForKind(target.systemKey),
+          };
+          await moveEquipmentKindInTx(tx, audit, current, destination);
+          await moveModelKindInTx(tx, audit, current, destination);
+        }
       }
-    }
-    const max =
-      data.groupId && data.groupId !== current.groupId
-        ? await tx.equipmentKind.aggregate({ where: { groupId }, _max: { position: true } })
-        : null;
-    let kind = await tx.equipmentKind.update({
-      where: { id },
-      data: {
-        name: data.name,
-        groupId,
-        position: max ? (max._max.position ?? -1) + 1 : undefined,
-        archivedAt: data.archived === undefined ? undefined : data.archived ? new Date() : null,
-      },
-    });
-    if (data.position !== undefined) {
-      await reorder(tx, "kind", id, data.position, groupId);
-      kind = await tx.equipmentKind.findUniqueOrThrow({ where: { id } });
-    }
-    if (kind.name !== current.name || kind.groupId !== current.groupId)
-      await queueKindDevices(tx, [id]);
-    await audit({
-      action:
-        data.archived === undefined
-          ? "EquipmentKindUpdated"
-          : data.archived
-            ? "EquipmentKindArchived"
-            : "EquipmentKindRestored",
-      entityType: "equipmentKind",
-      entityId: id,
-      data: {
-        name: kind.name,
-        groupId,
-        position: kind.position,
-        deviceCount,
-        modelCount,
-      },
-    });
-    return kind;
-  });
+      const max =
+        data.groupId && data.groupId !== current.groupId
+          ? await tx.equipmentKind.aggregate({ where: { groupId }, _max: { position: true } })
+          : null;
+      let kind = await tx.equipmentKind.update({
+        where: { id },
+        data: {
+          name: data.name,
+          groupId,
+          position: max ? (max._max.position ?? -1) + 1 : undefined,
+          archivedAt: data.archived === undefined ? undefined : data.archived ? new Date() : null,
+        },
+      });
+      if (data.position !== undefined) {
+        await reorder(tx, "kind", id, data.position, groupId);
+        kind = await tx.equipmentKind.findUniqueOrThrow({ where: { id } });
+      }
+      if (kind.name !== current.name || kind.groupId !== current.groupId)
+        await queueKindDevices(tx, [id]);
+      await audit({
+        action:
+          data.archived === undefined
+            ? "EquipmentKindUpdated"
+            : data.archived
+              ? "EquipmentKindArchived"
+              : "EquipmentKindRestored",
+        entityType: "equipmentKind",
+        entityId: id,
+        data: {
+          name: kind.name,
+          groupId,
+          position: kind.position,
+          deviceCount,
+          modelCount,
+        },
+      });
+      return kind;
+    },
+    Boolean(data.archived && data.moveDevicesTo),
+  );
+  for (const fieldId of movedFields)
+    await emitChange({ entityType: "customField", id: fieldId, op: "updated" });
+  return result;
 }
 
 export function deleteStructureEntry(actor: AuditActor, entity: "kind" | "group", id: string) {

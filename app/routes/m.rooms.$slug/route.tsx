@@ -1,4 +1,5 @@
 import { Form, Link, redirect } from "react-router";
+import { useState } from "react";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
@@ -69,6 +70,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
+  const [opened, setOpened] = useState<string[]>([]);
   const locale = useLocale();
   const t = useT();
   const { room, equipment, openTickets } = loaderData.data;
@@ -209,7 +211,29 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
                 </Link>
                 {e.fields.length ? (
                   <div className="px-3 pb-3">
-                    <FieldValues fields={e.fields} />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="compact"
+                      aria-expanded={opened.includes(e.id)}
+                      aria-label={`${t(opened.includes(e.id) ? "fields.values.hide" : "fields.values.show")}: ${t(
+                        "fields.values.forDevice",
+                        {
+                          name: e.name ?? e.modelName ?? e.kind.name,
+                        },
+                      )}`}
+                      aria-controls={`values-${e.id}`}
+                      onClick={() =>
+                        setOpened((ids) =>
+                          ids.includes(e.id) ? ids.filter((id) => id !== e.id) : [...ids, e.id],
+                        )
+                      }
+                    >
+                      {t(opened.includes(e.id) ? "fields.values.hide" : "fields.values.show")}
+                    </Button>
+                    <div id={`values-${e.id}`} hidden={!opened.includes(e.id)} className="py-3">
+                      {opened.includes(e.id) ? <FieldValues fields={e.fields} /> : null}
+                    </div>
                   </div>
                 ) : null}
               </li>

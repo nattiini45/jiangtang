@@ -78,7 +78,11 @@ describe("structure rules against PostgreSQL", () => {
       await expect(deleteStructureEntry(actor, "kind", kind.id)).rejects.toMatchObject({
         formErrors: [expect.stringContaining(field.name)],
       });
-      expect(await db.customFieldKind.count({ where: { fieldId: field.id } })).toBe(1);
+      expect(
+        (await db.customFieldKind.findMany({ where: { fieldId: field.id } }))
+          .map((link) => link.kindId)
+          .sort(),
+      ).toEqual([kind.id, target.id].sort());
     } finally {
       await db.customField.delete({ where: { id: field.id } });
     }

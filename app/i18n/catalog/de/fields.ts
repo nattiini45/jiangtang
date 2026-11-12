@@ -1,6 +1,80 @@
 export const fieldsDe = {
+  "fields.admin.saved": "Feld gespeichert.",
+  "fields.admin.labelInvalid": "Zwischen 1 und 80 Zeichen eingeben.",
+  "fields.admin.everyKindHint":
+    "Hier stehen nur Felder für alle Arten. Wählen Sie eine Geräteart, um auch ihre eigenen Felder zu sehen.",
+  "fields.admin.moveUp": "{name} nach oben verschieben",
+  "fields.admin.moveDown": "{name} nach unten verschieben",
+  "fields.admin.sectionMoveUp": "Abschnitt {name} nach oben verschieben",
+  "fields.admin.sectionMoveDown": "Abschnitt {name} nach unten verschieben",
+  "fields.error.inUseOne":
+    "{count} Datensatz enthält noch einen Wert für dieses Feld. Stellen Sie es wieder her und machen Sie es für den Datensatz gültig, bevor Sie seinen Wert leeren, oder lassen Sie es archiviert.",
+  "fields.error.ambiguousNumber":
+    "Diese Zahl ist mehrdeutig. Schreiben Sie {thousands} für Tausender oder {decimal} für eine Dezimalzahl.",
+  "fields.type.TEXT": "Text",
+  "fields.type.LONG_TEXT": "Langer Text",
+  "fields.type.NUMBER": "Zahl",
+  "fields.type.BOOLEAN": "Ja / Nein",
+  "fields.type.CHOICE": "Einfachauswahl",
+  "fields.type.MULTI_CHOICE": "Mehrfachauswahl",
+  "fields.type.DATE": "Datum",
+  "fields.type.LINK": "Link",
+  "fields.admin.scope": "Felder für",
+  "fields.admin.rooms": "Räume",
+  "fields.admin.devices": "Geräte",
+  "fields.admin.viewKind": "Geräteart",
+  "fields.admin.add": "Feld hinzufügen",
+  "fields.admin.addFirst": "Erstes Feld hinzufügen",
+  "fields.admin.empty": "Noch keine Felder vorhanden",
+  "fields.admin.emptyHelp": "Ergänzen Sie die Angaben, die Ihr Team auf seinen Formularen braucht.",
+  "fields.admin.edit": "Feld bearbeiten",
+  "fields.admin.type": "Typ",
+  "fields.admin.applies": "Gilt für",
+  "fields.admin.chosenKinds": "Ausgewählte Gerätearten",
+  "fields.admin.chooseOne": "Wählen Sie mindestens eine Geräteart.",
+  "fields.admin.moreSettings": "Weitere Einstellungen",
+  "fields.admin.section": "Abschnitt",
+  "fields.admin.unit": "Einheit",
+  "fields.admin.help": "Hilfetext",
+  "fields.admin.key": "Schlüssel für Agenten (schreibgeschützt)",
+  "fields.admin.typeLocked":
+    "Dieser Typ kann nicht geändert werden. Legen Sie für einen anderen Typ ein neues Feld an.",
+  "fields.admin.convertText":
+    "Vorhandener Text bleibt unverändert. Das Feld erlaubt danach bis zu 4.000 Zeichen.",
+  "fields.admin.convertMulti":
+    "Jede gespeicherte Auswahl wird zu einer Liste mit einer Option. Die Optionen und ihre IDs bleiben erhalten.",
+  "fields.admin.convertSingle":
+    "Das geht nur, wenn jeder Datensatz höchstens eine ausgewählte Option hat. Listen mit einer Option werden zu einer einzelnen Auswahl.",
+  "fields.admin.sectionUp": "Abschnitt nach oben",
+  "fields.admin.sectionDown": "Abschnitt nach unten",
+  "fields.admin.restoreOffer":
+    "Das archivierte Feld „{name}“ hat diesen Namen bereits. Stellen Sie es wieder her, um seine vorhandenen Werte zu behalten.",
+  "fields.admin.restoreExisting": "Dieses Feld wiederherstellen",
+  "fields.admin.reuseOffer":
+    "Das Feld „{name}“ gibt es bereits für andere Gerätearten als {type}. Verwenden Sie dieses Feld mit seinem Typ auch für diese Arten oder speichern Sie ein eigenes Feld.",
+  "fields.admin.reuse": "Dieses Feld auch hier verwenden",
+  "fields.admin.openHolder": "Vorhandenes Feld öffnen",
+  "fields.admin.archiveFirst": "Archivieren Sie dieses Feld, bevor Sie es löschen.",
+  "fields.admin.deleteConfirm":
+    "Das archivierte Feld „{name}“ und seine Optionen löschen? Das kann nicht rückgängig gemacht werden.",
+  "fields.admin.options": "Optionen",
+  "fields.admin.optionLabel": "Bezeichnung der Option",
+  "fields.admin.newOption": "Neue Option",
+  "fields.admin.addOption": "Option hinzufügen",
+  "fields.admin.deleteOptionConfirm":
+    "Die ungenutzte Option „{name}“ löschen? Das kann nicht rückgängig gemacht werden.",
+  "fields.admin.optionTaken":
+    "Eine aktive Option hat diese Bezeichnung bereits. Benennen Sie sie um oder archivieren Sie sie zuerst.",
+  "fields.admin.paste": "Mehrere einfügen",
+  "fields.admin.pasteHelp": "Eine Option pro Zeile",
+  "fields.admin.preview": "Vorschau",
+  "fields.admin.paste.new": "Neu",
+  "fields.admin.paste.repeat": "Wiederholt · übersprungen",
+  "fields.admin.paste.limit": "Über dem Limit · übersprungen",
+  "fields.admin.paste.invalid": "Zu lang · übersprungen",
+  "fields.admin.confirmPaste": "{count} Optionen hinzufügen",
   "fields.name.conflict":
-    "Das {state} Feld „{name}“ verwendet diesen Namen bereits für {coverage}. Wähle einen anderen Namen oder bearbeite zuerst dieses Feld.",
+    "Das {state} Feld „{name}“ verwendet diesen Namen bereits für {coverage}. Einen anderen Namen wählen oder zuerst dieses Feld bearbeiten.",
   "fields.name.active": "aktive",
   "fields.name.archived": "archivierte",
   "fields.name.allRooms": "alle Räume",
@@ -36,7 +110,7 @@ export const fieldsDe = {
   "fields.error.value": "Der Wert passt nicht zum Feldtyp. Das Datensatzschema prüfen.",
   "fields.error.option": "Eine aktive Option aus der Liste wählen, ohne doppelte Werte.",
   "fields.error.inUse":
-    "Dieses Feld hat noch Werte. Es wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder es archiviert lassen.",
+    "{count} Datensätze enthalten noch einen Wert für dieses Feld. Es wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder es archiviert lassen.",
   "fields.error.optionInUse":
     "Diese Option wird noch verwendet. Das Feld wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder die Option archivieren.",
   "fields.limit.text":
