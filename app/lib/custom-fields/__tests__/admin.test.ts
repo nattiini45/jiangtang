@@ -132,6 +132,11 @@ describe("field administration", () => {
     });
     const preview = previewOptions("New\nOld\nNEW\nLast", updated.options);
     expect(preview.map((row) => row.status)).toEqual(["new", "repeat", "repeat", "new"]);
+    expect(
+      previewOptions("Old\nOLD", [
+        { label: "Old", archivedAt: new Date("2040-01-01T00:00:00Z") },
+      ]).map((row) => row.status),
+    ).toEqual(["repeat", "repeat"]);
     updated = await updateFieldOptions(
       actor,
       {
