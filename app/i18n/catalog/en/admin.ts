@@ -1,6 +1,13 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.structure.library.installOne": "Add 1 device kind",
+  "admin.structure.fieldMoveLimit":
+    "Moving to “{target}” would exceed 40 active fields: {names}. Archive fields or change their device kinds first.",
+  "admin.structure.fieldMoveName":
+    "Fields named “{name}” for “{source}” and “{target}” would overlap. Rename one of the fields or change its device kinds before moving.",
+  "admin.structure.fieldsMove":
+    "These fields will also apply to the target kind. Their links to this kind stay in place:",
   "admin.structure.library.willInstallAs": "Will be installed as “{name}”",
   "admin.structure.library.invalidInstitution": "Choose an institution type from the library.",
   "admin.structure.library.invalidSelection":
@@ -32,7 +39,8 @@ export const adminEn = {
   "admin.structure.library.groupConflict":
     "Nothing was added. The group name “{name}” is taken; affected kinds: {kinds}. Rename the existing group.",
   "admin.structure.title": "Structure",
-  "admin.structure.subtitle": "Manage the device kinds and function groups your team uses.",
+  "admin.structure.subtitle": "Manage the device kinds, function groups and fields your team uses.",
+  "admin.structure.fields": "Fields",
   "admin.structure.tabs": "Structure sections",
   "admin.structure.kinds": "Device kinds",
   "admin.structure.groups": "Function groups",
@@ -55,7 +63,7 @@ export const adminEn = {
   "admin.structure.archiveTitle": "Archive “{name}”",
   "admin.structure.archiveAndMove": "Move and archive",
   "admin.structure.moveHelp":
-    "All devices and models move to the selected kind together. Their existing data is preserved. Kind-specific fields may be hidden at the destination; their kind assignments stay unchanged.",
+    "All devices and models move to the selected kind together. Their existing data and field values are preserved.",
   "admin.structure.moveTo": "Move devices and models to",
   "admin.structure.chooseKind": "Choose a device kind",
   "admin.structure.deleteConfirm": "Permanently delete “{name}”?",

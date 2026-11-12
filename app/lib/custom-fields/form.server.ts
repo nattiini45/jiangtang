@@ -3,6 +3,7 @@ import { ValidationError } from "~/lib/errors.server";
 import { getDefinitions, getRecordSchema, type FieldDefinition } from "./definitions.server";
 import { validateCustomValues } from "./values.server";
 import { postedValue, sameValue, valueObject, type Field } from "./fields";
+import { currentLocale, tr } from "~/i18n/request-locale.server";
 
 export function formDefinitions(definitions: FieldDefinition[]): Field[] {
   return definitions
@@ -38,6 +39,19 @@ export function valuesFromForm(form: FormData, fields: Field[], stored: unknown 
     const field = fields.find((field) => field.id === id);
     const entries = form.getAll(name);
     const raw = entries.length === 1 ? entries[0] : entries;
+    if (field?.type === "NUMBER" && typeof raw === "string") {
+      const german = currentLocale() === "de";
+      const ambiguous = german ? /^[1-9]\d{0,2}\.\d{3}$/ : /^[1-9]\d{0,2},\d{3}$/;
+      if (ambiguous.test(raw.trim()))
+        throw new ValidationError({
+          [name]: [
+            tr("fields.error.ambiguousNumber", {
+              thousands: raw.trim().replace(/[.,]/, ""),
+              decimal: raw.trim().replace(/[.,]/, german ? "," : "."),
+            }),
+          ],
+        });
+    }
     const value =
       field && entries.every((entry) => typeof entry === "string")
         ? postedValue(field, raw as string | string[])

@@ -9,14 +9,79 @@ export const fieldsEn = {
   "fields.columns.saved": "Columns saved for the team.",
   "fields.columns.invalid":
     "Choose up to 12 columns and keep the name first. Reload the list if needed.",
+  "fields.admin.saved": "Field saved.",
+  "fields.admin.labelInvalid": "Enter between 1 and 80 characters.",
+  "fields.admin.everyKindHint":
+    "Only fields for every kind are shown here. Choose a device kind to see its own fields too.",
+  "fields.admin.moveUp": "Move {name} up",
+  "fields.admin.moveDown": "Move {name} down",
+  "fields.admin.sectionMoveUp": "Move section {name} up",
+  "fields.admin.sectionMoveDown": "Move section {name} down",
+  "fields.error.inUseOne":
+    "{count} record still holds a value for this field. Restore it and make it apply to the record before clearing its value, or keep it archived.",
+  "fields.error.ambiguousNumber":
+    "This number is ambiguous. Use {thousands} for thousands or {decimal} for a decimal.",
   "fields.type.TEXT": "Text",
   "fields.type.LONG_TEXT": "Long text",
   "fields.type.NUMBER": "Number",
-  "fields.type.BOOLEAN": "Yes/no",
-  "fields.type.DATE": "Date",
-  "fields.type.LINK": "Link",
+  "fields.type.BOOLEAN": "Yes / no",
   "fields.type.CHOICE": "Single choice",
   "fields.type.MULTI_CHOICE": "Multiple choice",
+  "fields.type.DATE": "Date",
+  "fields.type.LINK": "Link",
+  "fields.admin.scope": "Fields for",
+  "fields.admin.rooms": "Rooms",
+  "fields.admin.devices": "Devices",
+  "fields.admin.viewKind": "Device kind",
+  "fields.admin.add": "Add field",
+  "fields.admin.addFirst": "Add the first field",
+  "fields.admin.empty": "No fields here yet",
+  "fields.admin.emptyHelp": "Add the details your team needs on its forms.",
+  "fields.admin.edit": "Edit field",
+  "fields.admin.type": "Type",
+  "fields.admin.applies": "Applies to",
+  "fields.admin.chosenKinds": "Chosen device kinds",
+  "fields.admin.chooseOne": "Choose at least one device kind.",
+  "fields.admin.moreSettings": "More settings",
+  "fields.admin.section": "Section",
+  "fields.admin.unit": "Unit",
+  "fields.admin.help": "Help text",
+  "fields.admin.key": "Key for agents (read-only)",
+  "fields.admin.typeLocked":
+    "This type cannot be changed. Create another field for a different type.",
+  "fields.admin.convertText":
+    "Existing text stays unchanged. The field will allow up to 4,000 characters.",
+  "fields.admin.convertMulti":
+    "Each saved selection becomes a list with one option. The options and their IDs stay unchanged.",
+  "fields.admin.convertSingle":
+    "This works only if every record has at most one selected option. Lists with one option become a single selection.",
+  "fields.admin.sectionUp": "Move section up",
+  "fields.admin.sectionDown": "Move section down",
+  "fields.admin.restoreOffer":
+    "The archived field “{name}” already has this name. Restore it to keep its existing values.",
+  "fields.admin.restoreExisting": "Restore this field",
+  "fields.admin.reuseOffer":
+    "The field “{name}” already exists for other device kinds as {type}. Reuse that field and its type for these kinds too, or save a separate field.",
+  "fields.admin.reuse": "Use this field here too",
+  "fields.admin.openHolder": "Open the existing field",
+  "fields.admin.archiveFirst": "Archive this field before deleting it.",
+  "fields.admin.deleteConfirm":
+    "Delete the archived field “{name}” and its options? This cannot be undone.",
+  "fields.admin.options": "Options",
+  "fields.admin.optionLabel": "Option label",
+  "fields.admin.newOption": "New option",
+  "fields.admin.addOption": "Add option",
+  "fields.admin.deleteOptionConfirm": "Delete the unused option “{name}”? This cannot be undone.",
+  "fields.admin.optionTaken":
+    "An active option already has this label. Rename it or archive it first.",
+  "fields.admin.paste": "Paste several",
+  "fields.admin.pasteHelp": "One option per line",
+  "fields.admin.preview": "Preview",
+  "fields.admin.paste.new": "New",
+  "fields.admin.paste.repeat": "Repeated · skipped",
+  "fields.admin.paste.limit": "Over the limit · skipped",
+  "fields.admin.paste.invalid": "Too long · skipped",
+  "fields.admin.confirmPaste": "Add {count} options",
   "fields.name.conflict":
     "The {state} field “{name}” already uses this name for {coverage}. Choose another name or edit that field first.",
   "fields.name.active": "active",
@@ -54,7 +119,7 @@ export const fieldsEn = {
   "fields.error.value": "The value does not match the field type. Check the record schema.",
   "fields.error.option": "Choose active options from the allowed list, without duplicates.",
   "fields.error.inUse":
-    "This field still has values. Restore it and make it apply to the affected records before clearing their values, or keep it archived.",
+    "{count} records still hold a value for this field. Restore it and make it apply to the affected records before clearing their values, or keep it archived.",
   "fields.error.optionInUse":
     "This option is still in use. Restore its field and make it apply to the affected records before clearing their values, or archive the option instead.",
   "fields.limit.text":

@@ -188,7 +188,12 @@ export function KindLibrary({ library }: { library: Library }) {
               {t("common.cancel")}
             </Button>
             <Button disabled={busy || !chosen.length || chosen.length > library.remaining}>
-              {t("admin.structure.library.install", { count: chosen.length })}
+              {t(
+                chosen.length === 1
+                  ? "admin.structure.library.installOne"
+                  : "admin.structure.library.install",
+                { count: chosen.length },
+              )}
             </Button>
           </footer>
         </fetcher.Form>
