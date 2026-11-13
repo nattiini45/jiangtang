@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/server";
+import { listRoomFunctions } from "~/domains/functions/functions.queries.server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { tr } from "~/i18n/request-locale.server";
@@ -328,7 +329,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
         "Create a ticket, including a born-resolved repair with a resolution. Dates must be ISO instants. Result includes legal next actions; inspect get_allowed_actions before later transitions.",
       schema: z.object({
         input: z
-          .object({ ...ticketCreateSchema.shape, ...ticketDates })
+          .object({ ...ticketCreateSchema.shape, ...ticketDates, functionKey: id.optional() })
           .refine((input) => input.status !== "CANCELLED", {
             path: ["status"],
             message: msgKey("err.mcp.useTransitionTicket"),
@@ -337,7 +338,18 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
       write: true,
     },
     async ({ input }, context) => {
-      const ticket = await createTicket(mcpActor(context), ticketCreateSchema.parse(input));
+      const definition = input.functionKey
+        ? (await listRoomFunctions()).find((row) => row.systemKey === input.functionKey)
+        : undefined;
+      if (input.functionKey && !definition) throw new NotFoundError(tr("functions.error.function"));
+      const ticket = await createTicket(
+        mcpActor(context),
+        ticketCreateSchema.parse({
+          ...input,
+          functionId: definition?.id ?? input.functionId,
+          channel: "MCP",
+        }),
+      );
       await emitChange({ entityType: "ticket", id: ticket.id, op: "created" });
       return { ...ticket, label: ticket.title, ...ticketActionMetadata(ticket.status) };
     },

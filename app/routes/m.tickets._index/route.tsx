@@ -50,6 +50,9 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
       <h1 className="text-lg font-semibold">{t("nav.tickets")}</h1>
+      <Button asChild className="min-h-11">
+        <Link to="/m/tickets/new">{t("functions.report")}</Link>
+      </Button>
       <Form method="get" className="flex flex-col gap-2">
         <Label htmlFor="ticket-search">{t("mobile.tickets.search")}</Label>
         {status ? <input type="hidden" name="status" value={status} /> : null}

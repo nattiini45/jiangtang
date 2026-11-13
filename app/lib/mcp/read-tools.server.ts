@@ -83,6 +83,7 @@ import { NotFoundError } from "~/lib/errors.server";
 import { registerTool } from "~/lib/mcp/tools.server";
 import type { McpContext } from "~/lib/mcp/types.server";
 import { withCustomValues } from "~/lib/custom-fields/values.server";
+import { listRoomFunctions, getFunctionStates } from "~/domains/functions/functions.queries.server";
 
 const id = z.string().trim().min(1).max(200);
 const byId = z.object({ id });
@@ -154,6 +155,31 @@ function timeUser(userId: string | undefined, context: McpContext) {
 }
 
 export function registerReadTools(server: McpServer, context: McpContext): void {
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_room_functions",
+      description:
+        "List installed room functions and the device kinds that carry them or lie on their signal path.",
+      schema: z.object({}),
+    },
+    async () => listRoomFunctions(),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "get_room_functions",
+      description:
+        "Read a room's derived function states, evidence and devices. No known fault is unconfirmed, never works.",
+      schema: z.object({ roomId: id }),
+    },
+    async ({ roomId }) => {
+      if (!(await getRoom(roomId))) throw new NotFoundError(tr("err.room.notFound"));
+      return getFunctionStates({ roomIds: [roomId] });
+    },
+  );
   registerTool(
     server,
     context,

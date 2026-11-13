@@ -22,6 +22,34 @@ import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 
 const isResolved = (s: TicketStatus) => s === TicketStatus.RESOLVED;
 
+async function validateFunctionLinks(
+  tx: Tx,
+  input: Pick<TicketCreateInput, "type" | "roomId" | "equipmentId" | "functionId" | "impact">,
+) {
+  if (input.impact && input.type !== "INCIDENT")
+    throw new ValidationError({ impact: [tr("functions.error.impact")] });
+  if (!input.functionId) return;
+  const definition = await tx.roomFunction.findFirst({
+    where: { id: input.functionId, archivedAt: null },
+    include: { kinds: true },
+  });
+  if (!definition || !input.roomId)
+    throw new ValidationError({ functionId: [tr("functions.error.function")] });
+  const devices = await tx.equipment.findMany({
+    where: {
+      roomId: input.roomId,
+      status: { not: "RETIRED" },
+      kindId: { in: definition.kinds.map((link) => link.kindId) },
+    },
+    select: { id: true },
+  });
+  if (
+    !devices.length ||
+    (input.equipmentId && !devices.some((device) => device.id === input.equipmentId))
+  )
+    throw new ValidationError({ functionId: [tr("functions.error.function")] });
+}
+
 /** Optional links (room / equipment / event). Empty → null (detached). */
 function ticketLinks(input: { roomId?: string; equipmentId?: string; eventId?: string }) {
   return {
@@ -49,6 +77,7 @@ export async function createTicketInTx(
   input: TicketCreateInput & { taskId?: string; id?: string },
 ): Promise<Ticket> {
   const resolved = isResolved(input.status);
+  await validateFunctionLinks(tx, input);
   const ticket = await tx.ticket.create({
     data: {
       ...(input.id ? { id: input.id } : {}),
@@ -58,6 +87,9 @@ export async function createTicketInTx(
       description: input.description ?? null,
       resolution: input.resolution ?? null,
       priority: input.priority ?? null,
+      functionId: input.functionId ?? null,
+      impact: input.type === "INCIDENT" ? (input.impact ?? "LIMITED") : null,
+      channel: input.channel ?? "DESKTOP",
       ...ticketLinks(input),
       taskId: input.taskId ?? null,
       reporterId: input.reporterId ?? null,
@@ -158,6 +190,19 @@ export async function updateTicket(
   input: TicketEditInput,
 ): Promise<Ticket> {
   return txWithAudit(actor, async (tx, audit) => {
+    const current = await tx.ticket.findUniqueOrThrow({ where: { id } });
+    if (input.impact && input.type !== "INCIDENT")
+      throw new ValidationError({ impact: [tr("functions.error.impact")] });
+    const functionId = input.functionId ?? current.functionId ?? undefined;
+    const impact =
+      input.type === "INCIDENT" ? (input.impact ?? current.impact ?? undefined) : undefined;
+    if (
+      (input.functionId !== undefined && input.functionId !== current.functionId) ||
+      (input.roomId ?? null) !== current.roomId ||
+      (input.equipmentId ?? null) !== current.equipmentId
+    ) {
+      await validateFunctionLinks(tx, { ...input, functionId, impact });
+    }
     const ticket = await tx.ticket.update({
       where: { id },
       data: {
@@ -165,6 +210,8 @@ export async function updateTicket(
         title: input.title,
         description: input.description ?? null,
         priority: input.priority ?? null,
+        functionId: functionId ?? null,
+        impact: impact ?? null,
         ...ticketLinks(input),
         // Only touch reporterId when the form actually supplied a value —
         // `undefined` here means "omitted", not "clear it", so a partial edit

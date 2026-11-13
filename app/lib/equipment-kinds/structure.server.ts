@@ -298,11 +298,13 @@ export function deleteStructureEntry(actor: AuditActor, entity: "kind" | "group"
     if (entity === "kind") {
       const kind = await tx.equipmentKind.findUniqueOrThrow({
         where: { id },
-        include: { _count: { select: { equipment: true, models: true } } },
+        include: { _count: { select: { equipment: true, models: true, roomFunctions: true } } },
       });
       if (kind.systemKey && protectedKindKeys.includes(kind.systemKey))
         structureError("admin.structure.protected");
       if (!kind.archivedAt) structureError("admin.structure.archiveBeforeDelete");
+      if (kind._count.roomFunctions)
+        throw new ValidationError({}, [tr("functions.error.kindInUse")]);
       const fields = await tx.customFieldKind.findMany({
         where: { kindId: id },
         select: { field: { select: { name: true } } },

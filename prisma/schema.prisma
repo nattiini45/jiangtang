@@ -213,6 +213,7 @@ model EquipmentKind {
   equipment Equipment[]
   models EquipmentModel[]
   customFields CustomFieldKind[]
+  roomFunctions RoomFunctionKind[]
 
   @@index([groupId])
 }
@@ -332,6 +333,7 @@ model Equipment {
   model    EquipmentModel?   @relation(fields: [modelId], references: [id])
   category EquipmentCategory
   status   EquipmentStatus   @default(OPERATIONAL)
+  statusSince DateTime? @db.Timestamptz(3)
   mobility EquipmentMobility @default(FIXED)
 
   name          String?
@@ -637,6 +639,11 @@ model Ticket {
   description String? // "why" / details
   resolution  String? // "how" (set when resolved; present at creation for born-resolved)
   priority    Int?
+  functionId String?
+  function RoomFunction? @relation(fields: [functionId], references: [id], onDelete: SetNull)
+  impact FaultImpact?
+  channel TicketChannel?
+  keepAsFix Boolean @default(false)
 
   roomId      String?
   room        Room?      @relation(fields: [roomId], references: [id])
@@ -671,6 +678,51 @@ model Ticket {
   @@index([status])
   @@index([type])
   @@index([occurredAt])
+  @@index([functionId])
+  @@index([roomId, status])
+}
+
+enum FunctionRole {
+  CARRIER
+  PATH
+}
+
+enum FaultImpact {
+  DOWN
+  LIMITED
+}
+
+enum TicketChannel {
+  DESKTOP
+  PHONE
+  ROUND
+  EMAIL
+  GLOBALVIEWER
+  MCP
+}
+
+model RoomFunction {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  renamed Boolean @default(false)
+  position Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  kinds RoomFunctionKind[]
+  tickets Ticket[]
+}
+
+model RoomFunctionKind {
+  functionId String
+  kindId String
+  role FunctionRole
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  kind EquipmentKind @relation(fields: [kindId], references: [id], onDelete: Restrict)
+
+  @@id([functionId, kindId])
+  @@index([kindId])
 }
 
 // ── Events (AV-supported specials) ───────────────────────────────────────────

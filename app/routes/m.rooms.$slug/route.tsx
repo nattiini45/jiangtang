@@ -1,5 +1,6 @@
 import { Form, Link, redirect } from "react-router";
 import { useState } from "react";
+import { RoomFunctions } from "~/components/rooms/room-functions";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
@@ -103,6 +104,12 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         <Link to={`/m?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
       </Button>
       <FieldValues fields={room.fields} foldAfter={8} />
+      <RoomFunctions
+        functions={loaderData.data.functions}
+        roomId={room.id}
+        roomStatus={room.status}
+        mobile
+      />
 
       <section className="flex min-w-0 flex-col gap-3">
         <h2 className="text-base font-semibold">{t("mobileDetails.schedule")}</h2>

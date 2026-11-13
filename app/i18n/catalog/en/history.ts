@@ -1,6 +1,7 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.RoomFunctionReconciled": "Function added from the library",
   "history.action.LibraryDevicePropertiesCopied": "Device properties copied from previous values",
   "history.action.LibraryPropertyReconciled": "Properties added from the library",
   "history.action.CatalogModelLinked": "Models linked to the catalog",
@@ -27,6 +28,7 @@ export const historyEn = {
   "history.action.CustomFieldOptionsChanged": "Property options updated",
   "history.entity.equipmentKind": "Device kind",
   "history.entity.equipmentFunctionGroup": "Function group",
+  "history.entity.roomFunction": "Function",
   "history.action.UserPermissionGranted": "Time-entry permission granted",
   "history.action.UserPermissionRevoked": "Time-entry permission revoked",
   "history.action.TimesheetViewed": "Time entries viewed",

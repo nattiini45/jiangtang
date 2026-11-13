@@ -81,7 +81,7 @@ describe.each(["en", "de"] as const)("work MCP actions in %s", (locale) => {
       for (const scope of ["READ_ONLY", "READ_WRITE"] as const) {
         const reader = await connect(scope);
         const tools = (await reader.listTools()).tools;
-        expect(tools).toHaveLength(139);
+        expect(tools).toHaveLength(141);
         expect(
           tools.find((tool) => tool.name === "get_allowed_actions")?.annotations?.readOnlyHint,
         ).toBe(true);

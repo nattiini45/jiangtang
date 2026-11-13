@@ -196,6 +196,8 @@ describe("read-only MCP coverage", () => {
       ...entityReads.map((name) => `get_${name}`),
       "get_project",
       "list_device_kinds",
+      "list_room_functions",
+      "get_room_functions",
       "get_allowed_actions",
       "check_booking_conflicts",
       "find_free_slot",
