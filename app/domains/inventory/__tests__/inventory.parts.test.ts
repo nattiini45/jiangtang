@@ -13,6 +13,8 @@ import { setModelPartFit } from "~/domains/catalog/catalog.parts.mutations.serve
 import { modelParts, partDetail } from "../inventory.parts.queries.server";
 import { updateStockItem } from "../inventory.stock.mutations.server";
 import { stockEditSchema } from "../inventory.stock.schema";
+import { updateModel } from "~/domains/catalog/catalog.mutations.server";
+import { updateDeviceKind } from "~/lib/equipment-kinds/structure.server";
 import parts from "~/lib/catalog/parts.json";
 import library from "~/lib/equipment-kinds/library.json";
 import * as emit from "~/lib/realtime/emit.server";
@@ -257,6 +259,55 @@ it("refuses receiving stock for a non-part model", async () => {
   const { host } = await fixture();
   await expect(addPartStock(actor, host.id, 1)).rejects.toBeInstanceOf(ValidationError);
   expect(await db.inventoryItem.count({ where: { modelId: host.id } })).toBe(0);
+});
+
+it("rejects non-part kind changes while either compatibility or stock references remain", async () => {
+  const { host, part, item } = await fixture();
+  const input = { name: part.name, kindId: host.kindId! };
+  const before = await db.activityLog.count();
+  await expect(updateModel(actor, part.id, input)).rejects.toBeInstanceOf(ValidationError);
+  expect((await db.equipmentModel.findUniqueOrThrow({ where: { id: part.id } })).kindId).toBe(
+    part.kindId,
+  );
+  expect(await db.activityLog.count()).toBe(before);
+  await linkStockModel(actor, item.id, null);
+  await expect(updateModel(actor, part.id, input)).rejects.toBeInstanceOf(ValidationError);
+  await linkStockModel(actor, item.id, part.id);
+  await setModelPartFit(actor, host.id, { partModelId: part.id, remove: true });
+  await expect(updateModel(actor, part.id, input)).rejects.toBeInstanceOf(ValidationError);
+  await linkStockModel(actor, item.id, null);
+  await expect(updateModel(actor, part.id, input)).resolves.toMatchObject({ kindId: host.kindId });
+});
+
+it("rejects bulk kind moves without changing the kind, references or audit", async () => {
+  const { host, part } = await fixture();
+  const kind = await db.equipmentKind.findUniqueOrThrow({ where: { id: part.kindId! } });
+  const before = await db.activityLog.count();
+  await expect(
+    updateDeviceKind(actor, kind.id, {
+      name: kind.name,
+      archived: true,
+      moveDevicesTo: host.kindId!,
+    }),
+  ).rejects.toBeInstanceOf(ValidationError);
+  expect(
+    (await db.equipmentKind.findUniqueOrThrow({ where: { id: kind.id } })).archivedAt,
+  ).toBeNull();
+  expect((await db.equipmentModel.findUniqueOrThrow({ where: { id: part.id } })).kindId).toBe(
+    kind.id,
+  );
+  expect(await db.modelPartFit.count({ where: { partModelId: part.id } })).toBe(1);
+  expect(await db.activityLog.count()).toBe(before);
+});
+
+it("allows a referenced part to move to another part kind without disabling stock actions", async () => {
+  const { part, device, item } = await fixture();
+  const kind = await db.equipmentKind.findUniqueOrThrow({
+    where: { systemKey: "rechargeable_battery" },
+  });
+  await updateModel(actor, part.id, { name: part.name, kindId: kind.id });
+  await takePartForDevice(actor, device.id, item.id);
+  expect((await db.inventoryItem.findUniqueOrThrow({ where: { id: item.id } })).quantity).toBe(1);
 });
 
 it("keeps manufacturer fits protected, allows manual unlinking and refuses inactive writers", async () => {

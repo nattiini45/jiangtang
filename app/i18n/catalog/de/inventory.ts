@@ -1,4 +1,6 @@
 export const inventoryDe = {
+  "parts.kindHasReferences":
+    "Dieses Modell wird als Teil verwendet. Bitte zuerst die passenden Modelle und den Bestand lösen, bevor du eine Geräteart wählst.",
   "parts.heading": "Teile für dieses Modell",
   "parts.empty": "Für dieses Modell sind noch keine passenden Teile hinterlegt.",
   "parts.count": "{count} im Bestand",

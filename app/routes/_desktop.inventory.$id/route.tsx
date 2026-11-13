@@ -288,7 +288,7 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         </Link>
       </div>
 
-      {eq.modelId ? (
+      {loaderData.parts.length ? (
         <ModelParts fits={loaderData.parts} deviceId={eq.id} retired={eq.status === "RETIRED"} />
       ) : null}
       {(["model", "device"] as const).map((from) => {

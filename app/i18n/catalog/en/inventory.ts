@@ -1,6 +1,8 @@
 import type { inventoryDe } from "../de/inventory";
 
 export const inventoryEn = {
+  "parts.kindHasReferences":
+    "This model is used as a part. Unlink its compatible models and stock before choosing a device kind.",
   "parts.heading": "Parts for this model",
   "parts.empty": "No compatible parts recorded for this model.",
   "parts.count": "{count} in stock",
