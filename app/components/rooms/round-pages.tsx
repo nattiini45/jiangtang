@@ -157,6 +157,7 @@ export function RoundIndex({
         </label>
         <div className="flex flex-wrap gap-2">
           <Button
+            type="button"
             className={buttonVariants({ variant: "secondary" })}
             onClick={() =>
               setSelected(
@@ -171,6 +172,7 @@ export function RoundIndex({
             {t("functions.rounds.all")}
           </Button>
           <Button
+            type="button"
             className={buttonVariants({ variant: "tertiary" })}
             onClick={() => setSelected(new Set())}
           >

@@ -91,6 +91,17 @@ test("starts a selected round, checks the room on a phone within two minutes and
   await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page.getByLabel(t("de", "functions.list.building")).selectOption(buildingName);
   await expect(page.locator('input[name="roomIds"]')).toHaveCount(70);
+  const roundsBeforeSelection = await db.round.count();
+  const none = page.getByRole("button", { name: t("de", "functions.rounds.none"), exact: true });
+  const all = page.getByRole("button", { name: t("de", "functions.rounds.all"), exact: true });
+  await expect(none).toHaveAttribute("type", "button");
+  await expect(all).toHaveAttribute("type", "button");
+  await none.click();
+  await expect(page.locator('input[name="roomIds"]')).toHaveCount(0);
+  await all.click();
+  await expect(page.locator('input[name="roomIds"]')).toHaveCount(70);
+  await expect(page).toHaveURL(/\/m\/rounds$/);
+  expect(await db.round.count()).toBe(roundsBeforeSelection);
   await page.getByLabel(t("de", "functions.rounds.name")).fill("Synthetic semester round");
   await page.getByRole("button", { name: t("de", "functions.rounds.start"), exact: true }).click();
   await expect(page).toHaveURL(/\/m\/rounds\/[^/]+$/);
