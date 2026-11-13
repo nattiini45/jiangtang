@@ -30,6 +30,9 @@ export default function MobileRoomsIndex({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex min-w-0 flex-col gap-4 px-4 py-4 [overflow-wrap:anywhere]">
       <h1 className="text-lg font-semibold">{t("nav.rooms")}</h1>
+      <Link to="/m/functions" className="min-h-11 text-sm underline underline-offset-4">
+        {t("functions.list.title")}
+      </Link>
       <ul className="bg-card shadow-surface-2 divide-y overflow-hidden rounded-lg">
         {rooms.map((r) => (
           <li key={r.id}>

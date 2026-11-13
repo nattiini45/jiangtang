@@ -85,7 +85,7 @@ test.afterAll(async () => {
   await db.$disconnect();
 });
 
-test("a room's four functions and their devices fit both desktop densities and languages", async ({
+test("a room's functions and their devices fit both desktop densities and languages", async ({
   page,
   baseURL,
 }) => {
@@ -100,10 +100,10 @@ test("a room's four functions and their devices fit both desktop densities and l
       await page.goto(`/rooms/${slug}`);
       await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
       const block = page.getByRole("region", { name: t(locale, "functions.title"), exact: true });
-      await expect(block.getByRole("heading", { level: 3 })).toHaveCount(4);
+      await expect(block.getByRole("heading", { level: 3 })).toHaveCount(5);
       await expect(
         block.getByText(t(locale, "functions.state.NO_KNOWN_FAULT"), { exact: true }),
-      ).toHaveCount(4);
+      ).toHaveCount(5);
       await expect(block.getByText("Synthetic projector 1", { exact: true })).toBeVisible();
       await expect(block.getByText("Synthetic microphone 6", { exact: true })).toBeVisible();
       await expect(

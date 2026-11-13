@@ -1,6 +1,7 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listRoomFunctions } from "~/domains/functions/functions.queries.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -78,6 +79,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     history,
     attachments,
     projects,
+    functionName: (await listRoomFunctions()).find((entry) => entry.id === ticket.functionId)?.name,
   };
 }
 
@@ -162,6 +164,11 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
 
       {/* Linked context */}
       <div className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {loaderData.functionName ? (
+          <span>
+            {loaderData.functionName} · {t(`functions.state.${ticket.impact ?? "LIMITED"}`)}
+          </span>
+        ) : null}
         {ticket.room ? (
           <span>
             {t("tickets.detail.room")}{" "}

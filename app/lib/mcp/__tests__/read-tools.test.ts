@@ -198,6 +198,7 @@ describe("read-only MCP coverage", () => {
       "list_device_kinds",
       "list_room_functions",
       "get_room_functions",
+      "list_not_working",
       "get_allowed_actions",
       "check_booking_conflicts",
       "find_free_slot",

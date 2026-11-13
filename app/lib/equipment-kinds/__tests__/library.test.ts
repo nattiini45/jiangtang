@@ -11,9 +11,11 @@ import { installLibraryKinds, listKindLibrary } from "../library.server";
 const actor = { name: "Synthetic library admin" };
 const ids: string[] = [];
 let baselineGroups: string[];
+let baselineFunctions: string[];
 beforeAll(async () => {
   await initializeEquipmentKinds();
   baselineGroups = (await db.equipmentFunctionGroup.findMany()).map((group) => group.id);
+  baselineFunctions = (await db.roomFunction.findMany()).map((row) => row.id);
 });
 afterEach(async () => {
   const owned = await db.equipmentKind.findMany({
@@ -25,6 +27,7 @@ afterEach(async () => {
   });
   await db.customFieldKind.deleteMany({ where: { kindId: { in: owned.map((kind) => kind.id) } } });
   await db.roomFunctionKind.deleteMany({ where: { kindId: { in: owned.map((kind) => kind.id) } } });
+  await db.roomFunction.deleteMany({ where: { id: { notIn: baselineFunctions } } });
   await db.customField.deleteMany({
     where: { id: { in: links.map((link) => link.fieldId) }, kinds: { none: {} } },
   });

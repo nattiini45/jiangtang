@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
@@ -50,15 +51,19 @@ export function TicketFormFields({
   equipment,
   users,
   defaults = {},
+  functions,
 }: {
   mode: "create" | "edit";
   rooms: TicketRoomOption[];
   equipment: TicketEquipmentOption[];
   users: AssignableUser[];
   defaults?: TicketDefaults;
+  functions?: { roomId: string; functionId: string; name: string }[];
 }) {
   const t = useT();
   const locale = useLocale();
+  const [roomId, setRoomId] = useState(defaults.roomId ?? "");
+  const [type, setType] = useState(defaults.type ?? TicketType.INCIDENT);
   const assigned = new Set(defaults.assigneeIds ?? []);
 
   return (
@@ -69,7 +74,11 @@ export function TicketFormFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField name="type" label={t("tickets.form.type")}>
-          <Select name="type" defaultValue={defaults.type ?? TicketType.INCIDENT}>
+          <Select
+            name="type"
+            value={type}
+            onChange={(event) => setType(event.target.value as TicketType)}
+          >
             {Object.values(TicketType).map((type) => (
               <option key={type} value={type}>
                 {ticketTypeLabel(locale, type)}
@@ -112,7 +121,7 @@ export function TicketFormFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField name="roomId" label={t("tickets.form.room")} hint={t("common.optional")}>
-          <Select name="roomId" defaultValue={defaults.roomId ?? ""}>
+          <Select name="roomId" value={roomId} onChange={(event) => setRoomId(event.target.value)}>
             <option value="">{t("tickets.form.noRoom")}</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
@@ -139,6 +148,32 @@ export function TicketFormFields({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {functions && roomId && type === "INCIDENT" ? (
+          <>
+            <FormField
+              name="functionId"
+              label={t("functions.list.function")}
+              hint={t("common.optional")}
+            >
+              <Select key={roomId} name="functionId" defaultValue="">
+                <option value="">{t("functions.choose")}</option>
+                {functions
+                  .filter((entry) => entry.roomId === roomId)
+                  .map((entry) => (
+                    <option key={entry.functionId} value={entry.functionId}>
+                      {entry.name}
+                    </option>
+                  ))}
+              </Select>
+            </FormField>
+            <FormField name="impact" label={t("functions.impact")}>
+              <Select name="impact" defaultValue="LIMITED">
+                <option value="LIMITED">{t("functions.state.LIMITED")}</option>
+                <option value="DOWN">{t("functions.state.DOWN")}</option>
+              </Select>
+            </FormField>
+          </>
+        ) : null}
         <FormField name="reporterId" label={t("tickets.form.reporter")} hint={t("common.optional")}>
           <Select name="reporterId" defaultValue={defaults.reporterId ?? ""}>
             <option value="">{t("tickets.form.noOne")}</option>

@@ -10566,6 +10566,63 @@
         "en": ["lectern", "connection"]
       },
       "position": 4
+    },
+    {
+      "key": "recording",
+      "de": "Aufzeichnung",
+      "en": "Recording",
+      "carriers": ["recorder", "streaming_encoder"],
+      "paths": ["camera", "video_mixer", "matrix", "dsp"],
+      "keywords": { "de": ["Aufzeichnung", "Aufnahme"], "en": ["recording", "capture"] },
+      "position": 5
+    },
+    {
+      "key": "conferencing",
+      "de": "Konferenz",
+      "en": "Conferencing",
+      "carriers": ["conferencing_system"],
+      "paths": ["camera", "microphone", "dsp", "display"],
+      "keywords": { "de": ["Konferenz", "Videokonferenz"], "en": ["conference", "video call"] },
+      "position": 6
+    },
+    {
+      "key": "hearing_assistance",
+      "de": "Hörunterstützung",
+      "en": "Hearing assistance",
+      "carriers": ["assistive_listening"],
+      "paths": ["dsp", "amplifier"],
+      "keywords": {
+        "de": ["Hörunterstützung", "Hörschleife"],
+        "en": ["hearing assistance", "hearing loop"]
+      },
+      "position": 7
+    },
+    {
+      "key": "lighting",
+      "de": "Beleuchtung",
+      "en": "Lighting",
+      "carriers": ["lighting_fixture", "room_lighting"],
+      "paths": ["lighting_console", "dimmer"],
+      "keywords": { "de": ["Licht", "Beleuchtung"], "en": ["light", "lighting"] },
+      "position": 8
+    },
+    {
+      "key": "discussion",
+      "de": "Diskussion",
+      "en": "Discussion",
+      "carriers": ["discussion_system"],
+      "paths": ["dsp", "amplifier", "loudspeaker"],
+      "keywords": { "de": ["Diskussion", "Sprechstelle"], "en": ["discussion", "delegate unit"] },
+      "position": 9
+    },
+    {
+      "key": "interpretation",
+      "de": "Dolmetschen",
+      "en": "Interpretation",
+      "carriers": ["interpretation_system"],
+      "paths": ["interpreter_booth", "dsp"],
+      "keywords": { "de": ["Dolmetschen", "Übersetzung"], "en": ["interpretation", "translation"] },
+      "position": 10
     }
   ]
 }

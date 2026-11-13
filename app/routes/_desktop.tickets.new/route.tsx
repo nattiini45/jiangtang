@@ -1,6 +1,7 @@
 import { Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { getFunctionStates } from "~/domains/functions/functions.queries.server";
 import { parseEnumParam, safeParseForm } from "~/lib/validation.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
@@ -30,7 +31,12 @@ export async function loader({ request }: Route.LoaderArgs) {
     eventId: url.searchParams.get("eventId"),
     type: parseEnumParam(TicketType, typeParam) ?? null,
   };
-  return { ...targets, defaults };
+  const functions = (await getFunctionStates()).map(({ roomId, functionId, name }) => ({
+    roomId,
+    functionId,
+    name,
+  }));
+  return { ...targets, defaults, functions };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -68,6 +74,7 @@ export default function NewTicket({ loaderData, actionData }: Route.ComponentPro
           equipment={equipment}
           users={users}
           defaults={defaults}
+          functions={loaderData.functions}
         />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>

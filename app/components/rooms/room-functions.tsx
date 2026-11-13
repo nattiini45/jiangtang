@@ -55,7 +55,7 @@ export function RoomFunctions({
               <li
                 key={row.functionId}
                 id={`function-${row.functionId}`}
-                className="flex min-w-0 flex-col gap-2 p-3"
+                className="flex min-w-0 scroll-mt-20 flex-col gap-2 p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="min-w-0 flex-1 truncate text-sm font-semibold" title={row.name}>
