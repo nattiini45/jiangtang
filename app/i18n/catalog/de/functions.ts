@@ -14,7 +14,6 @@ export const functionsDe = {
   "functions.types.bulk": "Raumtyp zuweisen",
   "functions.types.selected": "{count} Räume ausgewählt",
   "functions.types.select": "Raum auswählen: {name}",
-  "functions.types.selection": "Auswahl",
   "functions.types.saved": "Raumtyp gespeichert",
   "functions.types.invalid":
     "Raumtyp oder Funktion ist nicht mehr verfügbar. Lade die Seite neu und wähle erneut.",

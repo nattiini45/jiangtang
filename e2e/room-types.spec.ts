@@ -127,14 +127,13 @@ test("room types, expected functions and room selection fit both languages and d
             ).toBeVisible();
           }
           if (route === "/rooms" && width === 1920) {
-            const selection = await page
-              .locator('[role="columnheader"][data-column-id="selection"]')
-              .boundingBox();
             const name = await page
               .locator('[role="columnheader"][data-column-id="name"]')
               .boundingBox();
-            expect(selection!.width).toBeLessThan(120);
             expect(name!.width).toBeGreaterThan(250);
+            await expect(
+              page.locator('[role="cell"][data-column-id="name"]').first().getByRole("checkbox"),
+            ).toBeVisible();
           }
           if (locale === "de" && density === "comfortable") {
             if (width === 1280 && route === `/rooms/${slug}`)
@@ -263,29 +262,32 @@ test("SDK agents can find and change the room type and its per-room adjustment",
   const type = await db.roomType.findUniqueOrThrow({ where: { systemKey: "lecture_hall" } });
   const labels = await page.evaluate(
     async ({ id, modulePath }) => {
-      const { createAgent } = await import(modulePath);
-      const agent = createAgent();
+      const { uiAgent: agent } = await import(modulePath);
       const labels = agent
         .snapshot()
         .filter((entry: { offPage?: boolean }) => !entry.offPage)
         .map((entry: { label: string }) => entry.label);
-      await agent.act({
+      const result = await agent.act({
         steps: [
           { ref: "Raumtyp", action: "setValue", args: [id] },
           { ref: "Für diesen Raum anpassen", action: "setOpen", args: [true] },
         ],
       });
+      if (!result.ok) throw new Error(result.error?.message);
       return labels;
     },
-    { id: type.id, modulePath: "/@id/@ui-sdk/react/agent" },
+    { id: type.id, modulePath: "/app/lib/ui-agent.client.ts" },
   );
   expect(labels).toContain("Raumtyp");
   expect(labels.every(Boolean)).toBe(true);
   await expect(page.getByRole("combobox", { name: "Projektion", exact: true })).toBeVisible();
   await page.evaluate(async (modulePath) => {
-    const { createAgent } = await import(modulePath);
-    await createAgent().act({ steps: [{ ref: "Projektion", action: "setValue", args: ["no"] }] });
-  }, "/@id/@ui-sdk/react/agent");
+    const { uiAgent } = await import(modulePath);
+    const result = await uiAgent.act({
+      steps: [{ ref: "Projektion", action: "setValue", args: ["no"] }],
+    });
+    if (!result.ok) throw new Error(result.error?.message);
+  }, "/app/lib/ui-agent.client.ts");
   await expect(
     page.getByRole("textbox", { name: "Begründung für Projektion (optional)", exact: true }),
   ).toBeVisible();

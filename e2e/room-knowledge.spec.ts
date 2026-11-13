@@ -145,6 +145,12 @@ for (const locale of ["de", "en"] as const) {
         .getByRole("button", { name: t(locale, "rooms.col.name"), exact: true })
         .locator("..");
       const headers = nameHeader.locator("..").locator(":scope > div");
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+      });
       const narrowWidths = await headers.evaluateAll((elements) =>
         elements.map((element) => element.getBoundingClientRect().width),
       );

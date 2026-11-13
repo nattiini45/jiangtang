@@ -1,4 +1,5 @@
 import * as React from "react";
+import { flexRender, type CellContext } from "@tanstack/react-table";
 import { Form, Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
@@ -153,31 +154,36 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
   const [selected, setSelected] = React.useState<string[]>([]);
   const { rooms, campuses, manage, filters, kinds, columnConfig, canConfigure } = loaderData;
   const columns = React.useMemo(
-    () => [
-      {
-        id: "selection",
-        header: t("functions.types.selection"),
-        meta: { sizing: "short" as const },
-        enableSorting: false,
-        cell: ({ row }: { row: { original: (typeof rooms)[number] } }) => (
-          <Checkbox
-            aria-label={t("functions.types.select", { name: row.original.name })}
-            checked={selected.includes(row.original.id)}
-            onCheckedChange={(checked) =>
-              setSelected((ids) =>
-                checked ? [...ids, row.original.id] : ids.filter((id) => id !== row.original.id),
-              )
-            }
-            className="flex size-5 items-center justify-center rounded-sm shadow-[inset_0_0_0_1px_var(--input)] data-checked:bg-selected"
-          >
-            <CheckboxIndicator>
-              <Check aria-hidden className="size-4" />
-            </CheckboxIndicator>
-          </Checkbox>
-        ),
-      },
-      ...withFieldColumns(roomColumns<(typeof rooms)[number]>(t), columnConfig, locale),
-    ],
+    () =>
+      withFieldColumns(roomColumns<(typeof rooms)[number]>(t), columnConfig, locale).map(
+        (column) =>
+          column.id === "name" || ("accessorKey" in column && column.accessorKey === "name")
+            ? {
+                ...column,
+                cell: (context: CellContext<(typeof rooms)[number], unknown>) => (
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Checkbox
+                      aria-label={t("functions.types.select", { name: context.row.original.name })}
+                      checked={selected.includes(context.row.original.id)}
+                      onCheckedChange={(checked) =>
+                        setSelected((ids) =>
+                          checked
+                            ? [...ids, context.row.original.id]
+                            : ids.filter((id) => id !== context.row.original.id),
+                        )
+                      }
+                      className="flex size-5 shrink-0 items-center justify-center rounded-sm shadow-[inset_0_0_0_1px_var(--input)] data-checked:bg-selected"
+                    >
+                      <CheckboxIndicator>
+                        <Check aria-hidden className="size-4" />
+                      </CheckboxIndicator>
+                    </Checkbox>
+                    {flexRender(column.cell, context)}
+                  </div>
+                ),
+              }
+            : column,
+      ),
     [t, columnConfig, locale, selected],
   );
   const builtins = roomColumns(t).map((column) => ({

@@ -15,7 +15,6 @@ export const functionsEn = {
   "functions.types.bulk": "Assign room type",
   "functions.types.selected": "{count} rooms selected",
   "functions.types.select": "Select room: {name}",
-  "functions.types.selection": "Select",
   "functions.types.saved": "Room type saved",
   "functions.types.invalid":
     "The room type or function is no longer available. Reload the page and choose again.",

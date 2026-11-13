@@ -37,8 +37,7 @@ test("drag, reload, keyboard, fit and reset room column widths", async ({ page }
     await expect
       .poll(() =>
         page
-          .getByRole("columnheader")
-          .first()
+          .locator('[role="columnheader"][data-column-id="name"]')
           .evaluate((el) => el.clientWidth),
       )
       .toBeGreaterThan(140);
