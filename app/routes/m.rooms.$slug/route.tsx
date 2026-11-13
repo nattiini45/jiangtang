@@ -108,6 +108,9 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         functions={loaderData.data.functions}
         roomId={room.id}
         roomStatus={room.status}
+        roomSlug={room.slug}
+        knownIssues={room.knownIssues}
+        fixFunctions={loaderData.data.fixFunctions}
         mobile
       />
 

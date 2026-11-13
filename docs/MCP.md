@@ -357,6 +357,19 @@ device evidence and assignees. It uses the same computation as the room page.
 The function must be served in the selected room, and an optional device must belong to that
 function in that room. Tickets created by this tool record channel `MCP`.
 
+`create_ticket` and `transition_ticket` accept `keepAsFix: true` with a resolved incident or
+repair, a room, a function and nonblank `resolution` (what helped). A retained born-resolved
+repair without a device can record an earlier note even when the room no longer serves that
+function. `get_room_functions` includes `knownFixes`, newest resolution first, with each
+ticket's ID, title, resolution and resolvedAt. These remain readable after devices are retired.
+`list_not_working` includes the same fixes on affected functions.
+
+`update_ticket` can change `keepAsFix` and edit `resolution` on a resolved entry. Setting the
+flag false hides the fix without deleting its ticket or resolution; setting it true restores
+it. Reopening clears the resolution and flag. The room page can edit or drop a fix and
+explicitly move its earlier note into a repair, choosing a function; that move clears the old
+text in the same audited transaction, and its displayed date is the move date.
+
 ### Workflow discovery
 
 Use `get_allowed_actions({ entityType: "ticket", id })` before changing a ticket's status.

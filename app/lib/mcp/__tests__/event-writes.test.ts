@@ -542,6 +542,85 @@ describe("MCP event writer transactions", () => {
 });
 
 describe("MCP ticket and board workflow", () => {
+  it("retains, reads, edits, drops and reopens known fixes through the MCP boundary", async () => {
+    const definition = await db.roomFunction.findUniqueOrThrow({
+      where: { systemKey: "picture" },
+      include: { kinds: true },
+    });
+    const before = await db.equipment.findUniqueOrThrow({ where: { id: fixtures.equipmentId } });
+    await db.equipment.update({
+      where: { id: fixtures.equipmentId },
+      data: {
+        roomId: fixtures.roomId,
+        kindId: definition.kinds.find((kind) => kind.role === "CARRIER")!.kindId,
+      },
+    });
+    const readerServer = new McpServer({ name: "known-fix-reader", version: "1" });
+    registerReadTools(readerServer, principal);
+    const reader = new Client({ name: "known-fix-reader", version: "1" });
+    const [a, b] = InMemoryTransport.createLinkedPair();
+    await readerServer.connect(a);
+    await reader.connect(b);
+    try {
+      const input = {
+        title: `${run} known fix`,
+        roomId: fixtures.roomId,
+        functionId: definition.id,
+      };
+      const incident = await success("create_ticket", { input });
+      ticketIds.push(String(incident.id));
+      const rejected = await call("update_ticket", {
+        id: incident.id,
+        input: { ...input, resolution: "Not closed yet" },
+      });
+      expect(rejected.isError).toBe(true);
+      await success("transition_ticket", {
+        id: incident.id,
+        input: { status: "RESOLVED", resolution: "Switched input", keepAsFix: true },
+        confirm: true,
+      });
+      const repair = await success("create_ticket", {
+        input: {
+          ...input,
+          type: "REPAIR",
+          status: "RESOLVED",
+          resolution: "Changed cable",
+          keepAsFix: true,
+        },
+      });
+      ticketIds.push(String(repair.id));
+      const result = await reader.callTool({
+        name: "get_room_functions",
+        arguments: { roomId: fixtures.roomId },
+      });
+      expect(result.isError).not.toBe(true);
+      expect(JSON.stringify(result.structuredContent)).toContain("Switched input");
+      expect(JSON.stringify(result.structuredContent)).toContain("Changed cable");
+      await success("update_ticket", {
+        id: incident.id,
+        input: { ...input, keepAsFix: false, resolution: "Corrected help" },
+      });
+      expect(
+        await db.ticket.findUniqueOrThrow({ where: { id: String(incident.id) } }),
+      ).toMatchObject({ keepAsFix: false, resolution: "Corrected help" });
+      await success("update_ticket", { id: incident.id, input: { ...input, keepAsFix: true } });
+      await success("transition_ticket", {
+        id: incident.id,
+        input: { status: "OPEN" },
+        confirm: true,
+      });
+      expect(
+        await db.ticket.findUniqueOrThrow({ where: { id: String(incident.id) } }),
+      ).toMatchObject({ keepAsFix: false, resolution: null });
+    } finally {
+      await reader.close();
+      await readerServer.close();
+      await db.equipment.update({
+        where: { id: fixtures.equipmentId },
+        data: { roomId: before.roomId, kindId: before.kindId },
+      });
+    }
+  });
   it("creates, edits, starts, resolves through a lane and reopens a ticket with domain audit markers", async () => {
     const ticket = await success("create_ticket", {
       input: { title: `${run} ticket`, type: "INCIDENT", occurredAt: "2026-07-01T10:00:00+02:00" },

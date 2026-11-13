@@ -194,9 +194,7 @@ test("ticket capture confirms the saved ticket and cancellation requires a delib
   await expect(reopen).toBeVisible();
   expect((await db.ticket.findUniqueOrThrow({ where: { id } })).status).toBe("CANCELLED");
   await reopen.click();
-  await page
-    .getByLabel("Als gelöst markieren")
-    .fill("Empfänger neu verbunden und Funktion geprüft.");
+  await page.getByLabel("Was hat geholfen?").fill("Empfänger neu verbunden und Funktion geprüft.");
   const resolve = page.getByRole("button", { name: "Lösen", exact: true });
   await expectTarget(resolve, 48);
   await resolve.click();

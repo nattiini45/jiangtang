@@ -20,12 +20,13 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
+import { KnownFixes } from "~/components/rooms/room-functions";
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const [targets, functions] = await Promise.all([listTicketTargets(), getFunctionStates()]);
   const roomId = new URL(request.url).searchParams.get("roomId") ?? "";
-  return { rooms: targets.rooms, functions, roomId };
+  return { rooms: targets.rooms, functions: functions.filter((row) => row.devices.length), roomId };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -214,6 +215,7 @@ export default function ReportFault({ loaderData }: Route.ComponentProps) {
           <p className="text-sm text-muted-foreground">{t("functions.empty")}</p>
         ) : null}
       </fieldset>
+      {selected ? <KnownFixes fixes={selected.knownFixes} expanded /> : null}
       <fieldset>
         <legend className="mb-2 text-sm font-semibold">{t("functions.impact")}</legend>
         <div className="grid grid-cols-2 gap-2">

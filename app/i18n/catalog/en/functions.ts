@@ -1,5 +1,20 @@
 import type { functionsDe } from "../de/functions";
 export const functionsEn = {
+  "functions.fixes.resolvedOnly": "Only resolved entries can have their resolution edited.",
+  "functions.fixes.title": "Known fixes",
+  "functions.fixes.count": "Known fixes ({count})",
+  "functions.fixes.helped": "What helped?",
+  "functions.fixes.problem": "What went wrong?",
+  "functions.fixes.keep": "Keep as a known fix for this room",
+  "functions.fixes.edit": "Edit fix",
+  "functions.fixes.drop": "Stop showing as a known fix",
+  "functions.fixes.earlierNote": "Earlier note",
+  "functions.fixes.move": "Move to known fixes",
+  "functions.fixes.moveHelp":
+    "The note will be kept with the selected function. The old text field will be cleared with a history entry.",
+  "functions.fixes.noteChanged": "The note has changed. Reload the room and try again.",
+  "functions.fixes.invalid":
+    "A known fix needs a room, a function and a resolved fault or repair with a resolution.",
   "functions.list.title": "What doesn't work?",
   "functions.list.meta": "What doesn't work? · Jiangtang",
   "functions.list.count": "{count} limited or unavailable functions",

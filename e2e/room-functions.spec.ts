@@ -194,3 +194,121 @@ test("offline reporting keeps the form and never pretends to save", async ({
   );
   await context.setOffline(false);
 });
+
+test("a hall keeps what helped, moves its earlier note once, and offers fixes on the next report", async ({
+  page,
+  baseURL,
+}) => {
+  const functionId = (await db.roomFunction.findUniqueOrThrow({ where: { systemKey: "picture" } }))
+    .id;
+  const ticket = await db.ticket.create({
+    data: {
+      title: "Synthetic picture stays black",
+      type: "INCIDENT",
+      roomId,
+      functionId,
+      impact: "DOWN",
+    },
+  });
+  const note = "Synthetic earlier note:\nswitch HDMI to VGA and back.";
+  const helped = "Synthetic input switched; picture restored.";
+  await db.room.update({ where: { id: roomId }, data: { knownIssues: note } });
+  await page.context().addCookies([
+    { name: "locale", value: "de", url: baseURL! },
+    { name: "view", value: "mobile", url: baseURL! },
+  ]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/m/tickets/${ticket.id}`);
+  await page.getByRole("textbox", { name: t("de", "functions.fixes.helped") }).fill(helped);
+  await expect(page.getByRole("checkbox", { name: t("de", "functions.fixes.keep") })).toBeChecked();
+  await page.screenshot({ path: `${evidence}/phone-resolve.png`, fullPage: true });
+  await page.getByRole("button", { name: t("de", "tickets.detail.resolve"), exact: true }).click();
+  await expect
+    .poll(async () => (await db.ticket.findUniqueOrThrow({ where: { id: ticket.id } })).keepAsFix)
+    .toBe(true);
+  await page.goto(`/m/rooms/${slug}`);
+  const row = page.locator(`#function-${functionId}`);
+  await row.getByText(t("de", "functions.fixes.count", { count: 1 }), { exact: true }).click();
+  await expect(row.getByRole("paragraph").filter({ hasText: helped })).toBeVisible();
+  await page.getByText(t("de", "functions.fixes.earlierNote"), { exact: true }).click();
+  await page
+    .getByRole("combobox", { name: t("de", "functions.list.function"), exact: true })
+    .selectOption(functionId);
+  await page.getByRole("button", { name: t("de", "functions.fixes.move"), exact: true }).click();
+  await expect(
+    row.getByText(t("de", "functions.fixes.count", { count: 2 }), { exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(async () => (await db.room.findUniqueOrThrow({ where: { id: roomId } })).knownIssues)
+    .toBeNull();
+  await expect(row.getByRole("paragraph").filter({ hasText: note })).toBeVisible();
+  const moved = await db.ticket.findFirstOrThrow({
+    where: { roomId, type: "REPAIR", resolution: note },
+  });
+  expect(
+    await db.activityLog.count({
+      where: { entityId: roomId, data: { path: ["knownIssuesMovedToTicketId"], equals: moved.id } },
+    }),
+  ).toBe(1);
+  const replay = await page.request.post(`/rooms/${slug}/fixes`, {
+    form: { intent: "move", functionId, note },
+  });
+  expect(replay.ok()).toBe(true);
+  expect(await db.ticket.count({ where: { roomId, type: "REPAIR", resolution: note } })).toBe(1);
+  await page.getByRole("link", { name: t("de", "functions.report"), exact: true }).click();
+  await page.getByRole("radio", { name: "Projektion", exact: true }).check();
+  await expect(page.getByText(helped, { exact: true })).toBeVisible();
+  await expect(page.getByText(note, { exact: true })).toBeVisible();
+  await page.screenshot({ path: `${evidence}/phone-known-fixes.png`, fullPage: true });
+
+  for (const locale of ["de", "en"] as const)
+    for (const density of ["comfortable", "compact"]) {
+      await page.context().addCookies([
+        { name: "locale", value: locale, url: baseURL! },
+        { name: "density", value: density, url: baseURL! },
+        { name: "view", value: "desktop", url: baseURL! },
+      ]);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(`/rooms/${slug}`);
+      await row
+        .getByText(t(locale, "functions.fixes.count", { count: 2 }), { exact: true })
+        .click();
+      await expect(row.getByRole("paragraph").filter({ hasText: helped })).toBeVisible();
+      await expect(row.getByRole("paragraph").filter({ hasText: note })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      if (locale === "de" && density === "comfortable")
+        await page.screenshot({ path: `${evidence}/hall-known-fixes.png`, fullPage: true });
+      await page.setViewportSize({ width: 1920, height: 1080 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      await page.goto(`/tickets/new?roomId=${roomId}`);
+      await page
+        .getByRole("combobox", { name: t(locale, "functions.list.function"), exact: true })
+        .selectOption(functionId);
+      await expect(page.getByText(helped, { exact: true })).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+    }
+  await page.goto(`/rooms/${slug}`);
+  await row.getByText(t("en", "functions.fixes.count", { count: 2 }), { exact: true }).click();
+  const fix = row.getByRole("listitem").filter({ hasText: "Synthetic picture stays black" });
+  await fix.getByText(t("en", "functions.fixes.edit"), { exact: true }).click();
+  await fix
+    .getByRole("textbox", { name: t("en", "functions.fixes.helped") })
+    .fill("Synthetic corrected fix");
+  await fix.getByRole("button", { name: t("en", "common.save"), exact: true }).click();
+  await expect(
+    fix.getByRole("paragraph").filter({ hasText: "Synthetic corrected fix" }),
+  ).toBeVisible();
+  await fix.getByRole("button", { name: t("en", "functions.fixes.drop"), exact: true }).click();
+  await expect(
+    row.getByText(t("en", "functions.fixes.count", { count: 1 }), { exact: true }),
+  ).toBeVisible();
+  expect((await db.ticket.findUniqueOrThrow({ where: { id: ticket.id } })).resolution).toBe(
+    "Synthetic corrected fix",
+  );
+});

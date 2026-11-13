@@ -19,6 +19,12 @@ keeps the room first, uses large radio tiles for functions and impact, and puts 
 photo, device and title behind a disclosure. An optional note stays visible. Offline,
 the form remains in place and explicitly says it has not saved. No optimistic success.
 
+Known fixes unfold under their function on both room surfaces, with the fault, what helped
+and the resolution date. Editing and dropping stay inline. The earlier note is disclosed
+separately; choose a function, then move it explicitly. A new fault shows that function's
+known fixes before impact and notes, so the technician can try them first. Closing keeps
+the short required resolution and a default-on retention tick for a linked function.
+
 Check the hall in both languages and densities at 1280 and 1920 pixels. Check capture at
 390 pixels, including offline and saving, with a synthetic seventy-room installation and
 sixteen devices in the target room. Preserve DESIGN.md and the existing token primitives.

@@ -1,6 +1,7 @@
 import { db } from "~/lib/db.server";
 import {
   getFunctionStates,
+  listRoomFunctions,
   type RoomFunctionState,
 } from "~/domains/functions/functions.queries.server";
 import { withFieldValues } from "~/lib/custom-fields/display.server";
@@ -103,6 +104,7 @@ export interface DashboardRoom {
 }
 
 export interface RoomDashboardData {
+  fixFunctions: { id: string; name: string }[];
   functions: RoomFunctionState[];
   room: DashboardRoom;
   equipment: DashboardEquipment[];
@@ -191,6 +193,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   };
 
   return {
+    fixFunctions: (await listRoomFunctions()).map(({ id, name }) => ({ id, name })),
     functions: await getFunctionStates({ roomIds: [room.id] }),
     room: dashboardRoom,
     equipment,

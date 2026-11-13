@@ -112,6 +112,17 @@ export function FunctionList({
         </Link>
       ),
     },
+    {
+      id: "knownFixes",
+      header: t("functions.fixes.title"),
+      accessorFn: (row) => row.knownFixes.length,
+      meta: { sizing: "short" },
+      cell: ({ row: { original: row } }) => (
+        <Link to={href(row)} className="nums hover:underline">
+          {row.knownFixes.length}
+        </Link>
+      ),
+    },
   ];
   const submit = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) =>
     event.currentTarget.form?.requestSubmit();
@@ -232,6 +243,11 @@ export function FunctionList({
                   {badge(row)}
                 </span>
                 <span className="text-xs text-muted-foreground">{age(row)}</span>
+                {row.knownFixes.length ? (
+                  <span className="text-xs">
+                    {t("functions.fixes.count", { count: row.knownFixes.length })}
+                  </span>
+                ) : null}
                 <span className="truncate text-sm" title={cause(row)}>
                   {cause(row)}
                 </span>

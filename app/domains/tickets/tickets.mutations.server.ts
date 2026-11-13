@@ -22,9 +22,31 @@ import { CUID_PATTERN } from "~/domains/transfer/transfer.schema";
 
 const isResolved = (s: TicketStatus) => s === TicketStatus.RESOLVED;
 
+function validateKnownFix(ticket: {
+  keepAsFix?: boolean;
+  status: string;
+  type: string;
+  roomId?: string | null;
+  functionId?: string | null;
+  resolution?: string | null;
+}) {
+  if (
+    ticket.keepAsFix &&
+    (ticket.status !== "RESOLVED" ||
+      !["INCIDENT", "REPAIR"].includes(ticket.type) ||
+      !ticket.roomId ||
+      !ticket.functionId ||
+      !ticket.resolution?.trim())
+  )
+    throw new ValidationError({ keepAsFix: [tr("functions.fixes.invalid")] });
+}
+
 async function validateFunctionLinks(
   tx: Tx,
-  input: Pick<TicketCreateInput, "type" | "roomId" | "equipmentId" | "functionId" | "impact">,
+  input: Pick<
+    TicketCreateInput,
+    "type" | "roomId" | "equipmentId" | "functionId" | "impact" | "keepAsFix"
+  >,
 ) {
   if (input.impact && input.type !== "INCIDENT")
     throw new ValidationError({ impact: [tr("functions.error.impact")] });
@@ -35,6 +57,7 @@ async function validateFunctionLinks(
   });
   if (!definition || !input.roomId)
     throw new ValidationError({ functionId: [tr("functions.error.function")] });
+  if (input.type === "REPAIR" && input.keepAsFix && !input.equipmentId) return;
   const devices = await tx.equipment.findMany({
     where: {
       roomId: input.roomId,
@@ -77,6 +100,7 @@ export async function createTicketInTx(
   input: TicketCreateInput & { taskId?: string; id?: string },
 ): Promise<Ticket> {
   const resolved = isResolved(input.status);
+  validateKnownFix(input);
   await validateFunctionLinks(tx, input);
   const ticket = await tx.ticket.create({
     data: {
@@ -90,6 +114,7 @@ export async function createTicketInTx(
       functionId: input.functionId ?? null,
       impact: input.type === "INCIDENT" ? (input.impact ?? "LIMITED") : null,
       channel: input.channel ?? "DESKTOP",
+      keepAsFix: input.keepAsFix ?? false,
       ...ticketLinks(input),
       taskId: input.taskId ?? null,
       reporterId: input.reporterId ?? null,
@@ -106,7 +131,12 @@ export async function createTicketInTx(
     action: resolved ? "TicketResolved" : "TicketCreated",
     entityType: "ticket",
     entityId: ticket.id,
-    data: { type: ticket.type, title: ticket.title, bornResolved: resolved || undefined },
+    data: {
+      type: ticket.type,
+      title: ticket.title,
+      bornResolved: resolved || undefined,
+      ...(ticket.keepAsFix ? { keepAsFix: true } : {}),
+    },
     occurredAt: input.occurredAt ?? undefined,
   });
   return ticket;
@@ -190,7 +220,18 @@ export async function updateTicket(
   input: TicketEditInput,
 ): Promise<Ticket> {
   return txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT "id" FROM "Ticket" WHERE "id" = ${id} FOR UPDATE`;
     const current = await tx.ticket.findUniqueOrThrow({ where: { id } });
+    if (input.resolution !== undefined && current.status !== "RESOLVED")
+      throw new ValidationError({ resolution: [tr("functions.fixes.resolvedOnly")] });
+    validateKnownFix({
+      ...current,
+      ...input,
+      keepAsFix: input.keepAsFix ?? current.keepAsFix,
+      roomId: input.roomId ?? null,
+      functionId: input.functionId ?? current.functionId,
+      resolution: input.resolution ?? current.resolution,
+    });
     if (input.impact && input.type !== "INCIDENT")
       throw new ValidationError({ impact: [tr("functions.error.impact")] });
     const functionId = input.functionId ?? current.functionId ?? undefined;
@@ -212,6 +253,8 @@ export async function updateTicket(
         priority: input.priority ?? null,
         functionId: functionId ?? null,
         impact: impact ?? null,
+        ...(input.keepAsFix !== undefined ? { keepAsFix: input.keepAsFix } : {}),
+        ...(input.resolution !== undefined ? { resolution: input.resolution } : {}),
         ...ticketLinks(input),
         // Only touch reporterId when the form actually supplied a value —
         // `undefined` here means "omitted", not "clear it", so a partial edit
@@ -243,7 +286,6 @@ export async function transitionTicketInTx(
   await tx.$queryRaw`SELECT "id" FROM "Ticket" WHERE "id" = ${id} FOR UPDATE`;
   const current = await tx.ticket.findUnique({
     where: { id },
-    select: { status: true, resolvedAt: true },
   });
   if (!current) throw new NotFoundError(tr("work.err.ticket.notFound"));
 
@@ -279,14 +321,25 @@ export async function transitionTicketInTx(
     );
   }
 
+  validateKnownFix({
+    ...current,
+    ...input,
+    keepAsFix: edge.effect === "clearResolution" ? false : (input.keepAsFix ?? current.keepAsFix),
+    resolution: input.resolution ?? current.resolution,
+  });
+
   const ticket = await tx.ticket.update({
     where: { id },
     data: {
       status: input.status,
       ...(edge.effect === "resolve"
-        ? { resolution: input.resolution!, resolvedAt: current.resolvedAt ?? new Date() }
+        ? {
+            resolution: input.resolution!,
+            resolvedAt: current.resolvedAt ?? new Date(),
+            keepAsFix: input.keepAsFix ?? current.keepAsFix,
+          }
         : edge.effect === "clearResolution"
-          ? { resolution: null, resolvedAt: null }
+          ? { resolution: null, resolvedAt: null, keepAsFix: false }
           : {}),
     },
   });
@@ -295,7 +348,11 @@ export async function transitionTicketInTx(
     action: edge.audit,
     entityType: "ticket",
     entityId: ticket.id,
-    data: { from: current.status, to: input.status },
+    data: {
+      from: current.status,
+      to: input.status,
+      ...(ticket.keepAsFix || current.keepAsFix ? { keepAsFix: ticket.keepAsFix } : {}),
+    },
   });
   return ticket;
 }

@@ -31,11 +31,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     eventId: url.searchParams.get("eventId"),
     type: parseEnumParam(TicketType, typeParam) ?? null,
   };
-  const functions = (await getFunctionStates()).map(({ roomId, functionId, name }) => ({
-    roomId,
-    functionId,
-    name,
-  }));
+  const functions = (await getFunctionStates())
+    .filter((row) => row.devices.length)
+    .map(({ roomId, functionId, name, knownFixes }) => ({
+      roomId,
+      functionId,
+      name,
+      knownFixes,
+    }));
   return { ...targets, defaults, functions };
 }
 

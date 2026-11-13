@@ -37,6 +37,7 @@ import { Card, CardHeader, CardTitle } from "~/components/ui/card";
 import { Label } from "~/components/ui/label";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
+import { Checkbox } from "~/components/ui/checkbox";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
 
@@ -281,7 +282,7 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
           <Form method="post" id="resolve-ticket" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="_action" value="transition" />
             <input type="hidden" name="status" value="RESOLVED" />
-            <Label htmlFor="resolution">{t("tickets.detail.markResolved")}</Label>
+            <Label htmlFor="resolution">{t("functions.fixes.helped")}</Label>
             <Textarea
               id="resolution"
               name="resolution"
@@ -302,6 +303,12 @@ export default function TicketDetail({ loaderData, actionData }: Route.Component
               <p id="resolution-error" className="text-destructive text-xs" role="alert">
                 {actionData.fieldErrors.resolution[0]}
               </p>
+            ) : null}
+            {ticket.roomId && ticket.functionId && ticket.type !== "REQUEST" ? (
+              <Label className="flex min-h-11 items-center gap-2">
+                <Checkbox name="keepAsFix" defaultChecked />
+                {t("functions.fixes.keep")}
+              </Label>
             ) : null}
             <Button type="submit" disabled={busy} className="self-start">
               {t("tickets.detail.resolve")}

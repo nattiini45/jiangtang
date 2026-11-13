@@ -16,6 +16,7 @@ room's full-name tooltip and in the campus/building filters, rather than two ext
 Oldest evidence comes first; the age header reverses it. Unknown starts retain their explicit
 date fallback. Open faults and faulty devices share the evidence column, with full text in
 its tooltip and links to the room's function block.
+The compact known-fixes count opens the same block without taking width from the room name.
 
 The phone uses the same query in a single-column list, with filters and the sort picker
 behind a disclosure. Room number and building remain visible to distinguish similar names.
