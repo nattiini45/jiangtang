@@ -25,6 +25,8 @@ export const DESKTOP_PAGES = [
   "/campuses",
   "/capacity",
   "/calendar",
+  "/changes",
+  "/due",
   "/events",
   "/events/new",
   "/events/:id",
@@ -76,6 +78,8 @@ export const DESKTOP_PAGES = [
 ] as const;
 
 const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
+  "/due": { mobile: "/m/due" },
+  "/changes": { mobile: "/m/changes", query: ["cursor"] },
   "/rounds": { mobile: "/m/rounds" },
   "/rounds/:id": { mobile: "/m/rounds/:id" },
   "/functions": {
@@ -83,8 +87,8 @@ const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
     query: ["functionId", "campusId", "buildingId", "state", "unassigned", "sort"],
   },
   "/": { mobile: "/m" },
-  "/quick-entry": { mobile: "/m", query: ["roomId", "equipmentId", "type"] },
-  "/tickets/new": { mobile: "/m", query: ["roomId", "equipmentId", "type"] },
+  "/quick-entry": { mobile: "/m/quick-entry", query: ["roomId", "equipmentId", "type"] },
+  "/tickets/new": { mobile: "/m/quick-entry", query: ["roomId", "equipmentId", "type"] },
   "/board": { mobile: "/m/board" },
   "/calendar": {
     mobile: "/m/calendar",
@@ -93,7 +97,7 @@ const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
   "/events": { mobile: "/m/events", query: ["status"] },
   "/events/new": { mobile: "/m/events/new", query: ["date", "startsAt", "endsAt", "roomId"] },
   "/events/:id": { mobile: "/m/events/:id", query: ["date"] },
-  "/inventory/:id": { mobile: "/m" },
+  "/inventory/:id": { mobile: "/m/quick-entry" },
   "/inventory/stock": { mobile: "/m/inventory/stock", query: ["q", "hideUnassigned"] },
   "/inventory/stock/:id": { mobile: "/m/inventory/stock/:id" },
   "/locations": { mobile: "/m/locations" },
@@ -108,7 +112,7 @@ const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
   "/tasks": { mobile: "/m/tasks", query: ["all"] },
   "/tasks/new": { mobile: "/m/tasks/new" },
   "/tasks/:id": { mobile: "/m/tasks/:id" },
-  "/tickets": { mobile: "/m/tickets", query: ["q", "status"] },
+  "/tickets": { mobile: "/m/tickets", query: ["q", "status", "assignee"] },
   "/tickets/:id": { mobile: "/m/tickets/:id" },
   "/timesheet": { mobile: "/m/timesheet", query: ["week"] },
 };
@@ -178,6 +182,12 @@ export function viewPath(raw: string | null | undefined, view: View): string {
   if (sanitizeNext(url.pathname) === "/" && url.pathname !== "/")
     return view === "mobile" ? "/m" : "/";
   url.pathname = pagePath(url.pathname);
+  if (
+    view === "desktop" &&
+    url.pathname === "/m" &&
+    ["roomId", "equipmentId", "type"].some((key) => url.searchParams.has(key))
+  )
+    url.pathname = "/m/quick-entry";
   url.searchParams.delete("_routes");
   url.searchParams.delete("index");
   const desktop = matchPage(DESKTOP_PAGES, url.pathname);
@@ -192,8 +202,7 @@ export function viewPath(raw: string | null | undefined, view: View): string {
     query = equivalent?.query;
   } else if (view === "desktop" && mobile) {
     const equivalent = Object.entries(EQUIVALENTS).find(
-      ([path, value]) =>
-        path !== "/" && path !== "/tickets/new" && value.mobile === mobile.route.path,
+      ([path, value]) => path !== "/tickets/new" && value.mobile === mobile.route.path,
     );
     target = equivalent && generatePath(equivalent[0], mobile.params);
     query = equivalent?.[1].query;

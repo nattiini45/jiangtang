@@ -467,6 +467,7 @@ model UserPermission {
 }
 
 model User {
+  homeLayout Json?
   rounds Round[]
   checks RoomCheck[]
   functionOverrides FunctionOverride[]

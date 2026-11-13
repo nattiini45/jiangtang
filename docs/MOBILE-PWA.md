@@ -1,6 +1,13 @@
 # Mobile installation and updates
 
 The mobile web app starts at `/m`, with a standalone manifest and service-worker scope `/m`.
+The start shows the same five operational blocks and saved personal arrangement as the desktop
+home. Quick capture is one tap away at `/m/quick-entry`; captures queued by earlier versions at
+`/m?index` still replay through the original action contract.
+The worker precaches the quick-entry document and loader response. Once the worker controls the
+home, the shell also preloads the capture route modules, so the first offline visit can queue an
+entry without needing an earlier online visit to the form. The Capture installation shortcut
+opens the capture form rather than the home.
 The explicit manifest identity remains `/m/`, preserving the previous start-URL-derived identity.
 The scope includes the exact entry URL as well as `/m/…`. Web platform scopes use URL prefixes,
 not route boundaries; the worker explicitly passes through lookalikes such as `/mobile` and

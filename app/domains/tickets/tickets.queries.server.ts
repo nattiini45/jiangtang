@@ -20,12 +20,24 @@ export interface TicketListRow {
   resolvedAt: Date | null;
 }
 
+export function myOpenTicketWorkWhere(userId: string): Prisma.TicketWhereInput {
+  return {
+    status: { in: ["OPEN", "IN_PROGRESS"] },
+    assignees: { some: { id: userId } },
+    NOT: {
+      task: { is: { status: { notIn: ["DONE", "CANCELLED"] }, assignees: { some: { userId } } } },
+    },
+  };
+}
+
 export async function listTickets(
   opts?: {
     type?: TicketType;
     status?: TicketStatus;
     roomId?: string;
     equipmentId?: string;
+    assigneeId?: string;
+    openWorkForUser?: string;
     q?: string;
   },
   page: { offset?: number; limit?: number } = {},
@@ -34,10 +46,12 @@ export async function listTickets(
     skip: page.offset,
     take: page.limit,
     where: {
+      ...(opts?.openWorkForUser ? myOpenTicketWorkWhere(opts.openWorkForUser) : {}),
       type: opts?.type,
-      status: opts?.status,
+      ...(opts?.status ? { status: opts.status } : {}),
       roomId: opts?.roomId,
       equipmentId: opts?.equipmentId,
+      ...(opts?.assigneeId ? { assignees: { some: { id: opts.assigneeId } } } : {}),
       ...(opts?.q
         ? {
             OR: [

@@ -12,13 +12,14 @@
 // The shell cache holds signed-in content (SSR HTML, loader data, uploaded images, API answers),
 // keyed by URL and not by person. The sign-in page empties every "jiangtang-shell-*" cache
 // (app/lib/pwa/purge-caches.ts), so keep that prefix when bumping the version. Bump the version
-// when old entries must not survive: activate deletes any other jiangtang-* cache. v4 adds the
-// mobile parity shell pages (events/projects/notes/timesheet/…) to the install-time precache.
-const SHELL_CACHE = "jiangtang-shell-v4";
+// when old entries must not survive: activate deletes any other jiangtang-* cache.
+const SHELL_CACHE = "jiangtang-shell-v5";
 const ASSET_CACHE = "jiangtang-assets-v1";
 const SHELL_URLS = [
   "/m",
   "/m/",
+  "/m/quick-entry",
+  "/m/quick-entry.data",
   "/m/offline",
   "/m/rooms",
   "/m/tasks",
@@ -168,7 +169,7 @@ async function networkFirst(request, waitUntil) {
       waitUntil(cache.put(request, network.clone()).catch(() => undefined));
       // After the sign-in page emptied the cache, the next signed-in navigation restores the
       // offline page so a later outage still shows the app's own placeholder.
-      if (request.mode === "navigate") waitUntil(precache([OFFLINE_URL]));
+      if (request.mode === "navigate") waitUntil(precache([OFFLINE_URL, "/m/quick-entry", "/m/quick-entry.data"]));
     } else if (isSignedOutAnswer(network)) {
       waitUntil(caches.delete(SHELL_CACHE));
     }

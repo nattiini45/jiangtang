@@ -3,7 +3,7 @@ import { runPrefix } from "./run";
 import { db } from "~/lib/db.server";
 
 /**
- * Offline ticket entry on `/m`, the PWA's primary action. It uses the same
+ * Offline ticket entry on `/m/quick-entry`. It uses the same
  * capture queue as `/m/tasks/new`: offline, the entry queues; back online, the
  * replay creates the ticket exactly once (the queue's clientId is its id).
  * The queue holds form fields only, so an entry with photos is never queued
@@ -20,11 +20,11 @@ const PNG = Buffer.from(
   "base64",
 );
 
-/** `/m` is an index route: its action's data URL is `/m.data?index`. */
-const isEntryPost = (url: URL) => url.pathname === "/m.data";
+/** The capture route posts to its own data endpoint. */
+const isEntryPost = (url: URL) => url.pathname === "/m/quick-entry.data";
 
 async function openEntry(page: Page) {
-  await page.goto("/m");
+  await page.goto("/m/quick-entry");
   await expect(page.getByRole("heading", { name: "Eintrag erfassen" })).toBeVisible();
   // Before hydration a click is a native form POST, which offline is a browser
   // error page rather than the queue.
@@ -108,7 +108,7 @@ test.describe("without JavaScript", () => {
 
   test("the native form post reaches the entry action, not the /m layout", async ({ page }) => {
     const TITLE = `${RUN}Ohne-JS-${Date.now().toString(36)}`;
-    await page.goto("/m");
+    await page.goto("/m/quick-entry");
     await page.locator('input[name="title"]').fill(TITLE);
     await submitButton(page).click();
     await expect

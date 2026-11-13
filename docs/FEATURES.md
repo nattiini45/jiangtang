@@ -11,6 +11,19 @@ The interface is English and German; `DEFAULT_LOCALE` picks the installation lan
 visitor can switch with the language control. Times are stored as UTC and displayed in
 `Europe/Berlin`.
 
+## Home
+
+- Desktop Overview and the phone start show affected rooms, due rounds and function-state
+  confirmations, today's events and room bookings, assigned tasks/tickets and meaningful changes.
+- Each person can show, highlight, hide and reorder the five blocks with the inline Customise
+  control. Their arrangement is saved on the server and follows them across devices. New users
+  see all five with affected functions highlighted; empty blocks stay small.
+- Linked task/ticket pairs appear once in personal work while the assigned task is open. The
+  personal ticket list starts with that same open set; explicit status filters remain available.
+- The changes view includes faults opened, resolved, cancelled or reopened, manual function states and
+  completed rounds. It does not expose the administrator's audit feed or private time records.
+- Phone quick capture is at `/m/quick-entry`; older queued posts to `/m?index` still work.
+
 ## Rooms, locations and places
 
 - A places tree (campus → building → room, plus free-form storage locations) with a manage mode

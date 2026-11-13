@@ -1,6 +1,8 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.HomeLayoutUpdated": "Home arrangement updated",
+  "history.action.HomeRoundFinished": "Round completed",
   "history.entity.roomType": "Room type",
   "history.action.RoomTypeReconciled": "Room type added from the library",
   "history.action.RoomExpectationsChanged": "Expected functions changed",

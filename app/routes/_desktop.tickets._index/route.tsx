@@ -19,20 +19,26 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const actor = await requireUser(request);
   const url = new URL(request.url);
   const type = parseEnumParam(TicketType, url.searchParams.get("type"));
   const status = parseEnumParam(TicketStatus, url.searchParams.get("status"));
 
-  const tickets = await listTickets({ type, status });
-  return { tickets, filters: { type: type ?? "", status: status ?? "" } };
+  const mine = url.searchParams.get("assignee") === "me";
+  const tickets = await listTickets({
+    type,
+    status,
+    assigneeId: mine ? actor.id : undefined,
+    openWorkForUser: mine && !status ? actor.id : undefined,
+  });
+  return { tickets, mine, filters: { type: type ?? "", status: status ?? "" } };
 }
 
 export default function TicketsList({ loaderData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
   const columns = React.useMemo(() => ticketColumns(t, locale), [t, locale]);
-  const { tickets, filters } = loaderData;
+  const { tickets, filters, mine } = loaderData;
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement>) =>
     e.currentTarget.form?.requestSubmit();
 
@@ -40,7 +46,9 @@ export default function TicketsList({ loaderData }: Route.ComponentProps) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold">{t("tickets.list.title")}</h1>
+          <h1 className="text-xl font-bold">
+            {t(mine ? "dashboard.home.mine.ticketsTitle" : "tickets.list.title")}
+          </h1>
           <p className="text-muted-foreground mt-1">{t("tickets.list.subtitle")}</p>
         </div>
         <div className="flex gap-2">
@@ -54,6 +62,7 @@ export default function TicketsList({ loaderData }: Route.ComponentProps) {
       </div>
 
       <Form method="get" className="flex flex-wrap items-center gap-2">
+        {mine ? <input type="hidden" name="assignee" value="me" /> : null}
         <Select
           name="type"
           aria-label={t("tickets.list.filterType")}
@@ -75,7 +84,9 @@ export default function TicketsList({ loaderData }: Route.ComponentProps) {
           className="max-w-[14rem]"
           onChange={autoSubmit}
         >
-          <option value="">{t("tickets.list.allStatuses")}</option>
+          <option value="">
+            {t(mine ? "dashboard.home.mine.openTickets" : "tickets.list.allStatuses")}
+          </option>
           {Object.values(TicketStatus).map((s) => (
             <option key={s} value={s}>
               {ticketStatusLabel(locale, s)}

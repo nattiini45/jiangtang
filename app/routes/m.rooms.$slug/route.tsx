@@ -106,7 +106,7 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
       </div>
 
       <Button asChild className="min-h-11 w-full">
-        <Link to={`/m?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
+        <Link to={`/m/quick-entry?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
       </Button>
       <FieldValues fields={room.fields} foldAfter={8} />
       <RoomFunctions
@@ -210,7 +210,7 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
             {equipment.map((e) => (
               <li key={e.id}>
                 <Link
-                  to={`/m?roomId=${room.id}&equipmentId=${e.id}`}
+                  to={`/m/quick-entry?roomId=${room.id}&equipmentId=${e.id}`}
                   className="hover:bg-hover active:bg-selected flex min-h-12 flex-wrap items-center gap-2 px-3 py-3 text-sm"
                 >
                   <span className="min-w-0 flex-1">{e.name ?? e.modelName ?? "—"}</span>

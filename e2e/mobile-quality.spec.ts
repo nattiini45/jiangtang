@@ -52,7 +52,7 @@ for (const viewport of [
     expect(accessibility.violations).toEqual([]);
 
     const links = dialog.getByRole("navigation").getByRole("link");
-    await expect(links).toHaveCount(14);
+    await expect(links).toHaveCount(15);
     await expect(links.filter({ hasText: "Rundgänge" })).toHaveAttribute("href", "/m/rounds");
     await expect(links.filter({ hasText: "Was geht nicht?" })).toHaveAttribute(
       "href",
@@ -169,7 +169,7 @@ test("ticket capture confirms the saved ticket and cancellation requires a delib
   page,
 }) => {
   const title = `${RUN}Mikrofonempfänger im Hörsaal überprüfen`;
-  await page.goto("/m");
+  await page.goto("/m/quick-entry");
   await page.waitForSelector("html[data-hydrated]");
   await expectTarget(page.getByRole("link", { name: "Benachrichtigungen", exact: true }));
   await page.getByLabel("Was ist los?").fill(title);
@@ -290,11 +290,11 @@ test("a missing mobile task keeps its 404 status and offers capture recovery", a
   const recovery = page.getByRole("link", { name: "Zur Erfassung", exact: true });
   await expectTarget(recovery);
   await recovery.click();
-  await expect(page).toHaveURL(/\/m$/);
+  await expect(page).toHaveURL(/\/m\/quick-entry$/);
 });
 
 test("the photo picker allows an existing photo without forcing the camera", async ({ page }) => {
-  await page.goto("/m");
+  await page.goto("/m/quick-entry");
   await page.waitForSelector("html[data-hydrated]");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Foto auswählen", exact: true }).click();

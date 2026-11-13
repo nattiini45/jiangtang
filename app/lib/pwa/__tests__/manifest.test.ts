@@ -73,6 +73,9 @@ describe("PWA manifest", () => {
   });
 
   it("declares screenshots and shortcuts whose files exist and match their declared sizes", () => {
+    expect(manifest.shortcuts.find((shortcut) => shortcut.name === "Capture")?.url).toBe(
+      "/m/quick-entry",
+    );
     for (const shot of manifest.screenshots) {
       const png = readFileSync(iconFile(shot.src));
       expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
