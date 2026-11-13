@@ -1,4 +1,7 @@
-import { db } from "~/lib/db.server";
+import { db, type Tx } from "~/lib/db.server";
+import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { tr } from "~/i18n/request-locale.server";
+import { propertyLibrary } from "~/lib/equipment-kinds/properties";
 import { catalogSource } from "./catalog.library.server";
 import { listModelCatalog } from "~/lib/catalog/catalog.server";
 import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
@@ -11,6 +14,22 @@ import {
 import type { EquipmentCategory, EquipmentStatus } from "~/generated/prisma/client";
 
 /** Read-only queries for the EquipmentModel catalog. */
+
+export async function requirePartModel(modelId: string, tx: Tx = db) {
+  const model = await tx.equipmentModel.findUnique({
+    where: { id: modelId },
+    include: { kind: { include: { group: true } } },
+  });
+  if (!model) throw new NotFoundError();
+  if (
+    !model.kind ||
+    model.kind.archivedAt ||
+    model.kind.group.archivedAt ||
+    (model.kind.systemKey && !propertyLibrary.partKinds?.includes(model.kind.systemKey))
+  )
+    throw new ValidationError({}, [tr("parts.invalidFit")]);
+  return model;
+}
 
 export async function catalogModelOptions(kindId: string | null, query: string) {
   const kind = kindId

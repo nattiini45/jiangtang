@@ -600,8 +600,8 @@ it("ships bilingual renderable properties, valid units, conditions and cited sou
   expect(new Set(all.map((property) => property.key)).size).toBe(all.length);
   expect(
     propertyLibrary.kinds.filter((kind) => kind.properties?.length).map((kind) => kind.key),
-  ).toHaveLength(59);
-  expect(all).toHaveLength(550);
+  ).toHaveLength(106);
+  expect(all).toHaveLength(577);
   for (const property of all) {
     expect(property.de).not.toBe("");
     expect(property.en).not.toBe("");

@@ -1,6 +1,42 @@
 import type { inventoryDe } from "../de/inventory";
 
 export const inventoryEn = {
+  "parts.kindHasReferences":
+    "This model is used as a part. Unlink its compatible models and stock before choosing a device kind.",
+  "parts.heading": "Parts for this model",
+  "parts.empty": "No compatible parts recorded for this model.",
+  "parts.count": "{count} in stock",
+  "parts.required": "{count} required by this model",
+  "parts.source": "Manufacturer source",
+  "parts.takeNamed": "Take {name} for this device",
+  "parts.taken": "One taken. The stock count is updated.",
+  "parts.stockSource": "Take from",
+  "parts.stockAndFits": "Stock and compatibility",
+  "parts.quantity": "Quantity received",
+  "parts.addStock": "Add to stock",
+  "parts.stockAdded": "Added to stock.",
+  "parts.fits": "Fits these models and devices",
+  "parts.noFits": "No compatible models recorded yet.",
+  "parts.noDevices": "No devices of this model in the workspace.",
+  "parts.device": "Device",
+  "parts.room": "Room",
+  "parts.noRoom": "No room",
+  "parts.edit": "Link a compatible part",
+  "parts.editHelp":
+    "A link applies to every device of this model. Manufacturer links stay until the model is unlinked from the catalog.",
+  "parts.partModel": "Part model",
+  "parts.stockModel": "Assign stock",
+  "parts.noModel": "No part model",
+  "parts.link": "Link part",
+  "parts.createModel": "Create a part model",
+  "parts.removeNamed": "Unlink {name}",
+  "parts.saved": "Compatibility saved.",
+  "parts.invalid": "Check the part model and enter a whole quantity greater than zero.",
+  "parts.invalidFit":
+    "This part doesn't fit the device's current model. Reload and check the compatibility link.",
+  "parts.catalogFit":
+    "Unlink the model from the catalog before removing a manufacturer compatibility link.",
+  "parts.unavailable": "This stock is no longer available. Reload and choose an available item.",
   "inventory.catalog.search": "Search models",
   "inventory.catalog.unavailable":
     "The catalog is unavailable. Search again or choose an existing model.",

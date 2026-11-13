@@ -1,4 +1,9 @@
 export const historyDe = {
+  "history.action.StockModelLinked": "Bestand einem Teilemodell zugeordnet",
+  "history.action.ModelPartFitAdded": "Passendes Teil verknüpft",
+  "history.action.ModelPartFitRemoved": "Teileverknüpfung gelöst",
+  "history.action.ModelPartFitsUnlinked": "Teileangaben vom Katalog gelöst",
+  "history.action.PartTakenForDevice": "Teil für Gerät entnommen",
   "history.action.HomeLayoutUpdated": "Übersicht angepasst",
   "history.action.HomeRoundFinished": "Rundgang abgeschlossen",
   "history.entity.roomType": "Raumtyp",

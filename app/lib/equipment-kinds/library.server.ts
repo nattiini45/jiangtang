@@ -2,13 +2,48 @@ import { z } from "zod";
 import { msgKey } from "~/i18n";
 import library from "~/lib/equipment-kinds/library.json" with { type: "json" };
 import { db, type Tx } from "~/lib/db.server";
-import type { AuditActor } from "~/lib/audit.server";
+import type { AuditActor, AuditFn } from "~/lib/audit.server";
 import { workspaceLocale } from "~/i18n/locale.server";
 import { tr } from "~/i18n/request-locale.server";
 import { ValidationError } from "~/lib/errors.server";
 import { checkStructureLimit, KIND_LIMIT, structureWrite } from "./structure.server";
 import { reconcileLibraryInTx } from "~/lib/custom-fields/library.server";
 import { emitChange } from "~/lib/realtime/emit.server";
+
+export async function ensureLibraryPartKindsInTx(tx: Tx, audit: AuditFn, keys: string[]) {
+  let installed = false;
+  for (const key of new Set(keys)) {
+    if (await tx.equipmentKind.findUnique({ where: { systemKey: key } })) continue;
+    const definition = library.kinds.find((kind) => kind.key === key);
+    if (!definition || !library.partKinds.includes(key))
+      throw new ValidationError({}, [tr("inventory.catalog.kindRequired")]);
+    const group = await tx.equipmentFunctionGroup.findUniqueOrThrow({
+      where: { systemKey: definition.group },
+    });
+    if (group.archivedAt) throw new ValidationError({}, [tr("inventory.catalog.kindRequired")]);
+    await checkStructureLimit(tx, "kind");
+    const position = await tx.equipmentKind.aggregate({
+      where: { groupId: group.id },
+      _max: { position: true },
+    });
+    const kind = await tx.equipmentKind.create({
+      data: {
+        systemKey: key,
+        name: definition[workspaceLocale()],
+        groupId: group.id,
+        position: (position._max.position ?? -1) + 1,
+      },
+    });
+    await audit({
+      action: "EquipmentKindCreated",
+      entityType: "equipmentKind",
+      entityId: kind.id,
+      data: { name: kind.name, libraryKey: key },
+    });
+    installed = true;
+  }
+  if (installed) await reconcileLibraryInTx(tx, audit);
+}
 
 export const libraryQuerySchema = z.object({
   institutionType: z

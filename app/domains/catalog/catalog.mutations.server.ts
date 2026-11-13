@@ -12,8 +12,24 @@ import { modelExists } from "./catalog.queries.server";
 import type { ModelCreateInput } from "./catalog.schema";
 import { applyModelValuesInTx } from "./catalog.values.server";
 import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
+import { propertyLibrary } from "~/lib/equipment-kinds/properties";
 
 type ModelWriteInput = Omit<ModelCreateInput, "category"> & EquipmentKindInput;
+
+async function guardPartKindChange(tx: Tx, modelIds: string[], kindId: string) {
+  const kind = await tx.equipmentKind.findUniqueOrThrow({
+    where: { id: kindId },
+    select: { systemKey: true },
+  });
+  if (!kind.systemKey || propertyLibrary.partKinds?.includes(kind.systemKey)) return;
+  const referenced = await tx.equipmentModel.count({
+    where: {
+      id: { in: modelIds },
+      OR: [{ fitsModels: { some: {} } }, { stock: { some: {} } }],
+    },
+  });
+  if (referenced) throw new ValidationError({ kindId: [tr("parts.kindHasReferences")] });
+}
 
 export async function moveModelKindInTx(
   tx: Tx,
@@ -25,6 +41,11 @@ export async function moveModelKindInTx(
     where: { kindId: from.id },
     select: { id: true },
   });
+  await guardPartKindChange(
+    tx,
+    models.map((model) => model.id),
+    to.id,
+  );
   await tx.equipmentModel.updateMany({
     where: { kindId: from.id },
     data: { kindId: to.id, category: to.category },
@@ -84,15 +105,18 @@ export async function updateModel(
     throw new ValidationError({ name: [tr("places.err.model.nameTaken")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
-    if (input.customValues !== undefined) await lockDefinitions(tx);
+    await lockDefinitions(tx, true);
     await lockKindStructure(tx);
     const current = await tx.equipmentModel.findUniqueOrThrow({ where: { id } });
+    const kind = await resolveEquipmentKind(tx, input, current.kindId);
+    if (kind.kindId && kind.kindId !== current.kindId)
+      await guardPartKindChange(tx, [id], kind.kindId);
     const model = await tx.equipmentModel.update({
       where: { id },
       data: {
         manufacturer: input.manufacturer ?? null,
         name: input.name,
-        ...(await resolveEquipmentKind(tx, input, current.kindId)),
+        ...kind,
         specNotes: input.specNotes ?? null,
         manualUrl: input.manualUrl ?? null,
       },

@@ -307,6 +307,9 @@ model EquipmentKindsInitialization {
 }
 
 model EquipmentModel {
+  partFits ModelPartFit[] @relation("HostModel")
+  fitsModels ModelPartFit[] @relation("PartModel")
+  stock InventoryItem[]
   catalogKey String? @unique
   catalogSnapshot Json? @db.JsonB
   catalogVersion Int?
@@ -1361,6 +1364,8 @@ enum StockStatus {
 // two families live in harmony: an AV mixer IS an Equipment and also an
 // InventoryItem (stock-keeping view).
 model InventoryItem {
+  modelId String?
+  model EquipmentModel? @relation(fields: [modelId], references: [id], onDelete: Restrict)
   id       String @id @default(cuid())
   name     String
   sku      String?
@@ -1400,6 +1405,7 @@ model InventoryItem {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([vendorId])
+  @@index([modelId])
   @@index([locationId])
   @@index([equipmentId])
 
@@ -1412,6 +1418,21 @@ model InventoryItem {
   // "id"|"sku"|"serial">, so a nullable unique is a legal selector.
   @@unique([sku])
   @@unique([serial])
+}
+
+model ModelPartFit {
+  id String @id @default(cuid())
+  modelId String
+  model EquipmentModel @relation("HostModel", fields: [modelId], references: [id], onDelete: Cascade)
+  partModelId String
+  partModel EquipmentModel @relation("PartModel", fields: [partModelId], references: [id], onDelete: Restrict)
+  quantity Int?
+  sourceUrl String?
+  catalogKey String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([modelId, partModelId])
+  @@index([partModelId])
 }
 
 model Vendor {

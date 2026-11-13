@@ -1,5 +1,55 @@
 {
-  "version": 4,
+  "version": 5,
+  "partKinds": [
+    "mount",
+    "pen",
+    "screen_legs",
+    "drape_kit",
+    "mounting_kit",
+    "desk_lamp",
+    "headset",
+    "control_surface",
+    "windshield",
+    "desk_base",
+    "transmitter_adapter",
+    "microphone_cover",
+    "earphones",
+    "sound_calibrator",
+    "usb_receiver",
+    "camera_lens",
+    "recording_media",
+    "tally_light",
+    "bt_adapter",
+    "gobo",
+    "rigging_frame",
+    "charging_case",
+    "neck_loop",
+    "field_strength_meter",
+    "radio_gateway",
+    "environment_sensor",
+    "external_battery_module",
+    "nmc",
+    "ups_battery",
+    "safety_luminaire",
+    "fog_fluid",
+    "spark_granulate",
+    "confetti",
+    "co2_cylinder",
+    "pyro_article",
+    "rechargeable_battery",
+    "accessory",
+    "power_supply",
+    "charger",
+    "quick_release_plate",
+    "projector_lamp",
+    "projector_filter",
+    "projector_lens",
+    "wireless_battery",
+    "battery_stock",
+    "lamp_stock",
+    "filter_stock",
+    "remote"
+  ],
   "units": [
     { "key": "lm", "de": "lm", "en": "lm" },
     { "key": ":1", "de": ": 1", "en": ": 1" },
@@ -105,7 +155,19 @@
       "en": "Room fittings and built-in items",
       "position": 17
     },
-    { "key": "other", "de": "Sonstiges", "en": "Other", "position": 18 }
+    { "key": "other", "de": "Sonstiges", "en": "Other", "position": 18 },
+    {
+      "key": "microphones",
+      "de": "Mikrofone und Funk",
+      "en": "Microphones and wireless",
+      "position": 6
+    },
+    {
+      "key": "stock",
+      "de": "Lager, Verleih und Kleinteile",
+      "en": "Stock, loan and small parts",
+      "position": 19
+    }
   ],
   "sharedProperties": [
     {
@@ -408,6 +470,20 @@
         "ls:BHE_RWA",
         "ls:DGV17"
       ]
+    },
+    {
+      "key": "part_number",
+      "de": "Ersatzteilnummer",
+      "en": "Part number",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:PJ", "pd:E1", "pd:LC2", "trade_knowledge"]
     }
   ],
   "kinds": [
@@ -1981,6 +2057,504 @@
       "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
       "tier": "core",
       "properties": ["datasheet", "marking", "care", "contract_until", "notes"]
+    },
+    {
+      "key": "projector_lens",
+      "de": "Projektionsobjektiv",
+      "en": "Projection lens",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": [
+        "projector_lens.lens_class",
+        "projector_lens.throw_ratio",
+        "projector_lens.focal_length_min",
+        "projector_lens.focal_length_max",
+        "projector_lens.aperture",
+        "projector_lens.motorised",
+        "weight",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "projector_lamp",
+      "de": "Projektorlampe",
+      "en": "Projector lamp",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": [
+        "part_number",
+        "projector_lamp.product_page",
+        "projector_lamp.lamp_technology",
+        "projector_lamp.housing_included",
+        "projector_lamp.rated_life",
+        "projector_lamp.installed",
+        "weight",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "projector_filter",
+      "de": "Projektor-Luftfilter",
+      "en": "Projector air filter",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": [
+        "part_number",
+        "projector_filter.washable",
+        "weight",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "mount",
+      "de": "Halterung",
+      "en": "Mount",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "pen",
+      "de": "Eingabestift",
+      "en": "Pen",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "screen_legs",
+      "de": "Aufstellfüße",
+      "en": "Screen legs",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "drape_kit",
+      "de": "Abkaschierung",
+      "en": "Drape kit",
+      "group": "display",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "mounting_kit",
+      "de": "Montagezubehör",
+      "en": "Mounting kit",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "desk_lamp",
+      "de": "Pultleuchte",
+      "en": "Desk lamp",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "headset",
+      "de": "Hör-Sprech-Garnitur",
+      "en": "Headset",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "council", "trade_fair", "theatre"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "control_surface",
+      "de": "Bedienoberfläche",
+      "en": "Control surface",
+      "group": "audio",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "wireless_battery",
+      "de": "Akku für Funksysteme",
+      "en": "Rechargeable battery for wireless systems",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": [
+        "wireless_battery.chemistry",
+        "wireless_battery.capacity",
+        "wireless_battery.in_service",
+        "weight",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "windshield",
+      "de": "Windschutz",
+      "en": "Windshield",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "desk_base",
+      "de": "Tischfuß",
+      "en": "Desk base",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "transmitter_adapter",
+      "de": "Senderadapter",
+      "en": "Transmitter adapter",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "microphone_cover",
+      "de": "Bezug (Wurfmikrofon)",
+      "en": "Throwable microphone cover",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "council"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "earphones",
+      "de": "Ohrhörer",
+      "en": "Earphones",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "sound_calibrator",
+      "de": "Schallkalibrator",
+      "en": "Sound calibrator",
+      "group": "microphones",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "usb_receiver",
+      "de": "USB-Empfänger",
+      "en": "USB receiver",
+      "group": "control",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "camera_lens",
+      "de": "Kameraobjektiv",
+      "en": "Camera lens",
+      "group": "capture",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "recording_media",
+      "de": "Speichermedium",
+      "en": "Recording media",
+      "group": "capture",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "tally_light",
+      "de": "Tally-Leuchte",
+      "en": "Tally light",
+      "group": "capture",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "bt_adapter",
+      "de": "Bluetooth-Adapter",
+      "en": "Bluetooth adapter",
+      "group": "conferencing",
+      "institution_types": ["university", "event_hall", "council"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "lamp_stock",
+      "de": "Leuchtmittel",
+      "en": "Replacement lamp",
+      "group": "lighting",
+      "institution_types": ["university", "event_hall", "theatre"],
+      "tier": "special",
+      "properties": [
+        "lamp_stock.lamp_code",
+        "lamp_stock.base",
+        "lamp_stock.rated_life",
+        "lamp_stock.rated_electrical_data",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "filter_stock",
+      "de": "Farbfilter",
+      "en": "Colour filter (gel)",
+      "group": "lighting",
+      "institution_types": ["event_hall", "theatre"],
+      "tier": "special",
+      "properties": [
+        "filter_stock.purpose",
+        "part_number",
+        "filter_stock.dimensions",
+        "filter_stock.replacement_rule",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "gobo",
+      "de": "Gobo",
+      "en": "Gobo",
+      "group": "lighting",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "rigging_frame",
+      "de": "Flugrahmen",
+      "en": "Rigging frame",
+      "group": "stage",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "charging_case",
+      "de": "Ladekoffer",
+      "en": "Charging case",
+      "group": "interp",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "neck_loop",
+      "de": "Halsringschleife",
+      "en": "Neck loop",
+      "group": "assistive",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "field_strength_meter",
+      "de": "Feldstärkemessgerät",
+      "en": "Field strength meter",
+      "group": "assistive",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "radio_gateway",
+      "de": "Funk-Gateway",
+      "en": "Radio gateway",
+      "group": "signage",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "environment_sensor",
+      "de": "Umgebungssensor",
+      "en": "Environment sensor",
+      "group": "power",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "external_battery_module",
+      "de": "Externes Batteriemodul",
+      "en": "External battery module",
+      "group": "power",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "nmc",
+      "de": "Netzwerkmanagementkarte",
+      "en": "Network management card",
+      "group": "power",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "ups_battery",
+      "de": "USV-Batteriesatz",
+      "en": "UPS battery set",
+      "group": "power",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "safety_luminaire",
+      "de": "Sicherheitsleuchte",
+      "en": "Safety luminaire",
+      "group": "safety",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "fog_fluid",
+      "de": "Nebelfluid",
+      "en": "Fog fluid",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "spark_granulate",
+      "de": "Kaltfunkengranulat",
+      "en": "Cold spark granulate",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "confetti",
+      "de": "Konfetti (schwer entflammbar)",
+      "en": "Flame-retardant confetti",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "co2_cylinder",
+      "de": "CO₂-Flasche mit Steigrohr",
+      "en": "CO₂ cylinder with siphon",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "pyro_article",
+      "de": "Pyrotechnischer Gegenstand",
+      "en": "Pyrotechnic article",
+      "group": "safety",
+      "institution_types": ["event_hall", "theatre"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "battery_stock",
+      "de": "Batterie",
+      "en": "Battery",
+      "group": "stock",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": [
+        "battery_stock.form_factor",
+        "battery_stock.chemistry",
+        "battery_stock.capacity",
+        "battery_stock.expiry",
+        "datasheet",
+        "marking",
+        "care",
+        "contract_until",
+        "notes"
+      ]
+    },
+    {
+      "key": "rechargeable_battery",
+      "de": "Akku (gerätespezifisch)",
+      "en": "Rechargeable battery pack",
+      "group": "stock",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "accessory",
+      "de": "Zubehörteil",
+      "en": "Accessory",
+      "group": "stock",
+      "institution_types": ["university", "event_hall", "council", "theatre", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "power_supply",
+      "de": "Netzteil",
+      "en": "Power supply",
+      "group": "stock",
+      "institution_types": ["university", "event_hall", "council", "trade_fair"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "charger",
+      "de": "Ladegerät",
+      "en": "Charger",
+      "group": "stock",
+      "institution_types": ["university", "event_hall", "theatre", "trade_fair", "council"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
+    },
+    {
+      "key": "quick_release_plate",
+      "de": "Schnellwechselplatte",
+      "en": "Quick-release plate",
+      "group": "stock",
+      "institution_types": ["university", "event_hall", "council", "theatre"],
+      "tier": "special",
+      "properties": ["datasheet", "part_number", "notes"]
     }
   ],
   "properties": [
@@ -10503,6 +11077,395 @@
       "appliesIf": null,
       "help": { "de": null, "en": null },
       "sources": ["presets:S6"]
+    },
+    {
+      "key": "projector_lens.lens_class",
+      "de": "Objektivklasse",
+      "en": "Lens class",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "standard", "de": "Standard", "en": "Standard" },
+        { "key": "wide", "de": "Weitwinkel", "en": "Wide angle" },
+        { "key": "ust", "de": "Ultrakurzdistanz", "en": "Ultra short throw" },
+        { "key": "tele", "de": "Tele", "en": "Telephoto" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector_lens.throw_ratio",
+      "de": "Projektionsverhältnis",
+      "en": "Throw ratio",
+      "type": "RANGE",
+      "unit": ":1",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector_lens.focal_length_min",
+      "de": "Brennweite min.",
+      "en": "Minimum focal length",
+      "type": "NUMBER",
+      "unit": "mm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:ELPLM"]
+    },
+    {
+      "key": "projector_lens.focal_length_max",
+      "de": "Brennweite max.",
+      "en": "Maximum focal length",
+      "type": "NUMBER",
+      "unit": "mm",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:ELPLM"]
+    },
+    {
+      "key": "projector_lens.aperture",
+      "de": "Lichtstärke",
+      "en": "Aperture",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:ELPLM"]
+    },
+    {
+      "key": "projector_lens.motorised",
+      "de": "Motorisierte Einstellung",
+      "en": "Motorised adjustment",
+      "type": "BOOLEAN",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:E1"]
+    },
+    {
+      "key": "projector_lamp.product_page",
+      "de": "Herstellerseite des Lampenmoduls",
+      "en": "Manufacturer lamp-module page",
+      "type": "LINK",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "document",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:BLAMP"]
+    },
+    {
+      "key": "projector_lamp.lamp_technology",
+      "de": "Lampentechnologie",
+      "en": "Lamp technology",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "projector_lamp.housing_included",
+      "de": "Mit Lampengehäuse",
+      "en": "With lamp housing",
+      "type": "BOOLEAN",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:B1"]
+    },
+    {
+      "key": "projector_lamp.rated_life",
+      "de": "Nennlebensdauer mit Modus",
+      "en": "Rated life with mode",
+      "type": "NUMBER",
+      "unit": "h",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["pd:B1"]
+    },
+    {
+      "key": "projector_lamp.installed",
+      "de": "Einbaudatum",
+      "en": "Installation date",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "projector_filter.washable",
+      "de": "Waschbar",
+      "en": "Washable",
+      "type": "BOOLEAN",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "wireless_battery.chemistry",
+      "de": "Zellchemie",
+      "en": "Cell chemistry",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "li_ion", "de": "Lithium-Ionen", "en": "Lithium-ion" },
+        { "key": "nimh", "de": "Nickel-Metallhydrid", "en": "Nickel-metal hydride" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["mw:S15", "mw:S16"]
+    },
+    {
+      "key": "wireless_battery.capacity",
+      "de": "Kapazität",
+      "en": "Capacity",
+      "type": "NUMBER",
+      "unit": "mAh",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["mw:S27"]
+    },
+    {
+      "key": "wireless_battery.in_service",
+      "de": "In Betrieb seit",
+      "en": "In service since",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "lamp_stock.lamp_code",
+      "de": "Leuchtmittelbezeichnung",
+      "en": "Lamp designation",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["ls:ETC"]
+    },
+    {
+      "key": "lamp_stock.base",
+      "de": "Sockel",
+      "en": "Lamp base",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "lamp_stock.rated_life",
+      "de": "Nennlebensdauer mit Betriebsbedingungen",
+      "en": "Rated life with operating conditions",
+      "type": "NUMBER",
+      "unit": "h",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "lamp_stock.rated_electrical_data",
+      "de": "Elektrische Bemessungsdaten",
+      "en": "Electrical ratings",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["ls:ETC"]
+    },
+    {
+      "key": "filter_stock.purpose",
+      "de": "Filterzweck",
+      "en": "Filter function",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "air", "de": "Luftfilter", "en": "Air filter" },
+        { "key": "colour", "de": "Farbfilterfolie", "en": "Colour gel" },
+        { "key": "diffusion", "de": "Diffusionsfolie", "en": "Diffusion gel" },
+        { "key": "fluid", "de": "Fluidfilter", "en": "Fluid filter" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "filter_stock.dimensions",
+      "de": "Abmessungen / Zuschnitt",
+      "en": "Dimensions / cut size",
+      "type": "TEXT",
+      "unit": null,
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "filter_stock.replacement_rule",
+      "de": "Wechsel- und Reinigungsvorgaben",
+      "en": "Replacement and cleaning instructions",
+      "type": "LINK",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "document",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "battery_stock.form_factor",
+      "de": "Bauform (IEC 60086)",
+      "en": "Size (IEC 60086)",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "aa", "de": "AA", "en": "LR6 (Mignon)/AA / LR6" },
+        { "key": "aaa", "de": "AAA", "en": "LR03 (Micro)/AAA / LR03" },
+        { "key": "9v", "de": "9 V", "en": "6LR61 (E-Block)/9 V / 6LR61" },
+        { "key": "cr2032", "de": "CR2032 (Knopfzelle)", "en": "CR2032 coin cell" },
+        { "key": "c", "de": "C", "en": "LR14 (Baby)/C / LR14" },
+        { "key": "d", "de": "D", "en": "LR20 (Mono)/D / LR20" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["ls:TASCAM", "ls:HBRS", "trade_knowledge"]
+    },
+    {
+      "key": "battery_stock.chemistry",
+      "de": "Zellchemie",
+      "en": "Chemistry",
+      "type": "CHOICE",
+      "unit": null,
+      "options": [
+        { "key": "alkaline", "de": "Alkali-Mangan", "en": "alkaline" },
+        { "key": "nimh", "de": "NiMH-Akku", "en": "NiMH rechargeable" },
+        { "key": "lithium", "de": "Lithium (primär)", "en": "lithium (primary)" },
+        { "key": "li_ion", "de": "Li-Ionen-Akku", "en": "Li-ion rechargeable" }
+      ],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "must",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "battery_stock.capacity",
+      "de": "Kapazität",
+      "en": "Capacity",
+      "type": "NUMBER",
+      "unit": "mAh",
+      "options": [],
+      "level": "MODEL",
+      "nature": "specification",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
+    },
+    {
+      "key": "battery_stock.expiry",
+      "de": "Mindesthaltbarkeit",
+      "en": "Best before",
+      "type": "DATE",
+      "unit": null,
+      "options": [],
+      "level": "DEVICE",
+      "nature": "date",
+      "weight": "useful",
+      "appliesIf": null,
+      "help": { "de": null, "en": null },
+      "sources": ["trade_knowledge"]
     }
   ],
   "functions": [

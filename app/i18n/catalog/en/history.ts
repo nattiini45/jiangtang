@@ -1,6 +1,11 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.StockModelLinked": "Stock part model changed",
+  "history.action.ModelPartFitAdded": "Compatible part linked",
+  "history.action.ModelPartFitRemoved": "Part compatibility unlinked",
+  "history.action.ModelPartFitsUnlinked": "Catalog part links removed",
+  "history.action.PartTakenForDevice": "Part taken for device",
   "history.action.HomeLayoutUpdated": "Home arrangement updated",
   "history.action.HomeRoundFinished": "Round completed",
   "history.entity.roomType": "Room type",

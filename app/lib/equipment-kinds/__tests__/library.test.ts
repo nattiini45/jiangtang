@@ -47,8 +47,8 @@ async function install(keys: string[]) {
 
 it("ships only the scoped bilingual data, valid names, ordered groups and five institution types", () => {
   expect(library.institutionTypes).toHaveLength(5);
-  expect(library.kinds).toHaveLength(59);
-  expect(library.functionGroups).toHaveLength(18);
+  expect(library.kinds).toHaveLength(106);
+  expect(library.functionGroups).toHaveLength(20);
   for (const kind of library.kinds) {
     expect(Object.keys(kind).sort()).toEqual([
       "de",

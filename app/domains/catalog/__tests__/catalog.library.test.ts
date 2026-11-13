@@ -6,6 +6,7 @@ import { reconcileLibrary } from "~/lib/custom-fields/library.server";
 import { getFieldSchema } from "~/lib/custom-fields/schema.server";
 import { withFieldValues } from "~/lib/custom-fields/display.server";
 import { initializeEquipmentKinds } from "~/lib/equipment-kinds/kinds.server";
+import { ensureLibraryPartKindsInTx } from "~/lib/equipment-kinds/library.server";
 import {
   loadModelCatalog,
   modelCatalogSchema,
@@ -29,6 +30,7 @@ const ids: string[] = [],
   kindIds: string[] = [];
 let admin: { id: string; name: string };
 let originalFieldIds: string[];
+let originalKindIds: string[], originalModelIds: string[];
 const port = {
   label: "HDMI IN",
   connector: "HDMI",
@@ -80,12 +82,17 @@ async function values(modelId: string) {
   return (await getModel(modelId))!.customValues as Record<string, unknown>;
 }
 beforeAll(async () => {
+  originalKindIds = (await db.equipmentKind.findMany()).map((kind) => kind.id);
+  originalModelIds = (await db.equipmentModel.findMany()).map((model) => model.id);
   originalFieldIds = (await db.customField.findMany({ select: { id: true } })).map(
     (field) => field.id,
   );
 });
 afterAll(async () => {
+  await db.modelPartFit.deleteMany({ where: { model: { id: { notIn: originalModelIds } } } });
+  await db.equipmentModel.deleteMany({ where: { id: { notIn: originalModelIds } } });
   await db.customField.deleteMany({ where: { id: { notIn: originalFieldIds } } });
+  await db.equipmentKind.deleteMany({ where: { id: { notIn: originalKindIds } } });
 });
 beforeEach(async () => {
   await initializeEquipmentKinds();
@@ -103,6 +110,120 @@ afterEach(async () => {
 });
 
 describe("shipped model catalog", () => {
+  it("keeps unrelated fits and host data when a part kind is archived, then retries the missing fit", async () => {
+    const catalog = await loadModelCatalog();
+    const lampRecord = catalog.records.find((row) => row.key === "epson-eb-g7200w")!;
+    const laserRecord = catalog.records.find((row) => row.key === "epson-eb-l1750u")!;
+    const lampHost = await model(lampRecord),
+      laserHost = await model(laserRecord);
+    await txWithAudit(admin, (tx, audit) =>
+      ensureLibraryPartKindsInTx(tx, audit, ["projector_lamp"]),
+    );
+    const lampKind = await db.equipmentKind.findUniqueOrThrow({
+      where: { systemKey: "projector_lamp" },
+    });
+    await db.equipmentKind.update({ where: { id: lampKind.id }, data: { archivedAt: new Date() } });
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await reconcileModelCatalog({ version: 1, records: [lampRecord, laserRecord] });
+      expect((await getModel(lampHost.id))!.catalogKey).toBe(lampRecord.key);
+      expect((await getModel(laserHost.id))!.catalogKey).toBe(laserRecord.key);
+      const fits = await db.modelPartFit.findMany({
+        where: { modelId: { in: [lampHost.id, laserHost.id] } },
+        include: { partModel: true },
+      });
+      expect(fits.map((fit) => fit.partModel.name).sort()).toEqual(["ELPAF30", "ELPAF51"]);
+      expect(warning).toHaveBeenCalledWith(
+        expect.stringContaining("part skipped"),
+        expect.objectContaining({ partKey: "epson-elplp93" }),
+      );
+    } finally {
+      await db.equipmentKind.update({ where: { id: lampKind.id }, data: { archivedAt: null } });
+    }
+    await reconcileModelCatalog({ version: 1, records: [lampRecord, laserRecord] });
+    expect(await db.modelPartFit.count({ where: { modelId: lampHost.id } })).toBe(2);
+    expect(await db.modelPartFit.count({ where: { modelId: laserHost.id } })).toBe(1);
+  });
+
+  it("serializes simultaneous device saves selecting a catalog model without a lock upgrade", async () => {
+    const kindId = (await kind()).id;
+    const results = await Promise.allSettled(
+      [0, 1].map((index) =>
+        createEquipment(admin, {
+          name: `Synthetic catalog selection ${index}`,
+          category: "PROJECTOR",
+          status: "OPERATIONAL",
+          mobility: "FIXED",
+          kindId,
+          modelId: "catalog:epson-eb-g7200w",
+        }),
+      ),
+    );
+    for (const result of results) if (result.status === "fulfilled") devices.push(result.value.id);
+    expect(results.every((result) => result.status === "fulfilled")).toBe(true);
+    const host = await db.equipmentModel.findUniqueOrThrow({
+      where: { catalogKey: "epson-eb-g7200w" },
+    });
+    if (!originalModelIds.includes(host.id)) ids.push(host.id);
+    expect(await db.modelPartFit.count({ where: { modelId: host.id } })).toBe(2);
+  });
+
+  it("recovers a failed part SQL statement at its savepoint without losing the host or filter", async () => {
+    const record = (await loadModelCatalog()).records.find((row) => row.key === "epson-eb-g7200w")!;
+    const host = await model(record);
+    const warning = vi.spyOn(console, "error").mockImplementation(() => {});
+    await txWithAudit(admin, (tx, audit) =>
+      applyCatalogModelInTx(
+        tx,
+        async (entry) => {
+          if (
+            entry.action === "ModelPartFitAdded" &&
+            JSON.stringify(entry.data).includes('"ELPLP93"')
+          )
+            await tx.$executeRaw`INSERT INTO "ModelPartFit" (id, "modelId", "partModelId") VALUES (${randomUUID()}, ${host.id}, ${host.id})`;
+          await audit(entry);
+        },
+        record,
+        1,
+        host.id,
+      ),
+    );
+    expect((await getModel(host.id))!.catalogKey).toBe(record.key);
+    const fits = await db.modelPartFit.findMany({
+      where: { modelId: host.id },
+      include: { partModel: true },
+    });
+    expect(fits.map((fit) => fit.partModel.name)).toEqual(["ELPAF30"]);
+    expect(warning).toHaveBeenCalledTimes(1);
+    expect(
+      await db.activityLog.count({ where: { entityId: host.id, action: "ModelPartFitAdded" } }),
+    ).toBe(1);
+    await apply(record, 1, host.id);
+    expect(await db.modelPartFit.count({ where: { modelId: host.id } })).toBe(2);
+  });
+  it("adds the laser projector's sourced filter once even when its model data is already current", async () => {
+    const record = (await loadModelCatalog()).records.find(
+      (record) => record.key === "epson-eb-l1750u",
+    )!;
+    const host = await model(record);
+    await apply(record, 1, host.id);
+    const fits = await db.modelPartFit.findMany({
+      where: { modelId: host.id },
+      include: { partModel: true },
+    });
+    expect(fits).toHaveLength(1);
+    expect(fits[0]).toMatchObject({
+      partModel: { name: "ELPAF51" },
+      quantity: null,
+      catalogKey: record.key,
+    });
+    const before = await db.activityLog.count();
+    await apply(record, 1, host.id);
+    expect(await db.activityLog.count()).toBe(before);
+    expect(await db.modelPartFit.count({ where: { modelId: host.id } })).toBe(1);
+    await unlinkCatalogModel(admin, host.id);
+    expect(await db.modelPartFit.count({ where: { modelId: host.id } })).toBe(0);
+  });
   it("leaves the catalog version behind until missing library fields can be installed", async () => {
     const record = synthetic();
     const existing = await model(record);
@@ -200,9 +321,9 @@ describe("shipped model catalog", () => {
     ).toBe(0);
   });
 
-  it("validates every property, option, port and manufacturer source of all 140 records", async () => {
+  it("validates every property, option, port and manufacturer source of all 172 records", async () => {
     const file = await loadModelCatalog();
-    expect(file.records).toHaveLength(140);
+    expect(file.records).toHaveLength(172);
     expect(modelCatalogSchema.parse(file)).toEqual(file);
     const epson = file.records.find((record) => record.key === "epson-eb-l1750u")!;
     expect(epson.values).toMatchObject({

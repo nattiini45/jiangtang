@@ -171,7 +171,7 @@ const FOLDERS: Record<string, readonly string[]> = {
     "TwoFactor",
   ],
   "app/domains/board": [],
-  "app/domains/catalog": ["EquipmentModel", "EquipmentModelPort"],
+  "app/domains/catalog": ["EquipmentModel", "EquipmentModelPort", "ModelPartFit"],
   "app/domains/dashboard": [],
   "app/domains/events": ["Event", "EventRoomBooking", "EquipmentAllocation", "ServiceWindow"],
   "app/domains/inventory": [
