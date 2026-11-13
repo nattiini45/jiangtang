@@ -182,10 +182,14 @@ test("a desktop report shows its function on the detail and resolving refetches 
 }) => {
   await page.context().addCookies([{ name: "view", value: "desktop", url: baseURL! }]);
   await page.goto(`/tickets/new?roomId=${roomIds[32]}`);
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
   await page
     .getByRole("textbox", { name: t("de", "tickets.form.title"), exact: true })
     .fill("Synthetic desktop function fault");
   await page.getByRole("combobox", { name: "Funktion", exact: true }).selectOption(pictureId);
+  await expect(page.getByRole("combobox", { name: "Funktion", exact: true })).toHaveValue(
+    pictureId,
+  );
   await page.getByRole("combobox", { name: "Auswirkung", exact: true }).selectOption("DOWN");
   await page.getByRole("button", { name: t("de", "tickets.new.submit"), exact: true }).click();
   await expect(page).toHaveURL(/\/tickets\/[^/]+$/);
