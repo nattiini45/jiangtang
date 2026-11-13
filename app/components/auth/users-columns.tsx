@@ -10,7 +10,6 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     accessorKey: "name",
     header: t("admin.users.col.name"),
-    size: 180,
     cell: ({ row }) => (
       <Link
         to={`/admin/users/${row.original.id}`}
@@ -24,7 +23,6 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     accessorKey: "email",
     header: t("admin.users.col.email"),
-    size: 210,
     cell: ({ row }) => (
       <span className="truncate" title={row.original.email}>
         {row.original.email}
@@ -34,10 +32,10 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     accessorKey: "emailVerified",
     meta: {
+      sizing: "short",
       searchText: (row) => t(row.emailVerified ? "admin.users.verified" : "admin.users.unverified"),
     },
     header: t("admin.users.verification"),
-    size: 230,
     cell: ({ row }) => (
       <span className="text-muted-foreground text-xs">
         {t(row.original.emailVerified ? "admin.users.verified" : "admin.users.unverified")}
@@ -46,16 +44,15 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   },
   {
     accessorKey: "initials",
+    meta: { sizing: "short" },
     header: t("admin.users.col.initials"),
-    size: 75,
     cell: ({ row }) =>
       row.original.initials ? <MonoCell>{row.original.initials}</MonoCell> : dash,
   },
   {
     accessorKey: "role",
-    meta: { searchText: (row) => t(`auth.role.${row.role}`) },
+    meta: { sizing: "short", searchText: (row) => t(`auth.role.${row.role}`) },
     header: t("admin.users.col.role"),
-    size: 100,
     cell: ({ row }) => (
       <span className="text-muted-foreground">
         <RoleText role={row.original.role} />
@@ -64,9 +61,11 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   },
   {
     id: "isActive",
-    meta: { searchText: (row) => t(row.isActive ? "admin.users.active" : "admin.users.inactive") },
+    meta: {
+      sizing: "short",
+      searchText: (row) => t(row.isActive ? "admin.users.active" : "admin.users.inactive"),
+    },
     header: t("admin.users.col.status"),
-    size: 110,
     cell: ({ row }) =>
       row.original.isActive ? (
         <span className="text-status-operational text-xs">{t("admin.users.active")}</span>
@@ -77,11 +76,11 @@ export const usersColumns = (t: Translate): ColumnDef<UserListRow>[] => [
   {
     id: "twoFactorEnabled",
     meta: {
+      sizing: "short",
       searchText: (row) =>
         t(row.twoFactorEnabled ? "admin.users.twoFactorOn" : "admin.users.twoFactorOff"),
     },
     header: t("admin.users.col.twoFactor"),
-    size: 75,
     cell: ({ row }) =>
       row.original.twoFactorEnabled ? (
         <span className="text-status-operational text-xs">{t("admin.users.twoFactorOn")}</span>

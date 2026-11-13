@@ -18,7 +18,6 @@ export function projectColumns(t: Translate): ColumnDef<ProjectListRow>[] {
     {
       accessorKey: "name",
       header: t("projects.col.name"),
-      size: 260,
       cell: ({ row }) => (
         <Link to={`/projects/${row.original.slug}`} className="hover:underline">
           {row.original.color ? (
@@ -34,35 +33,33 @@ export function projectColumns(t: Translate): ColumnDef<ProjectListRow>[] {
     },
     {
       accessorKey: "status",
-      meta: { searchText: (row) => t(`status.project.${row.status}`) },
+      meta: { sizing: "short", searchText: (row) => t(`status.project.${row.status}`) },
       header: t("projects.col.status"),
-      size: 180,
       cell: ({ row }) => <StatusCell kind="project" value={row.original.status} />,
     },
     {
       accessorKey: "lead",
       meta: { searchText: (row) => row.lead?.name },
       header: t("projects.col.lead"),
-      size: 140,
       cell: ({ row }) =>
         row.original.lead ? <span className="text-sm">{row.original.lead.name}</span> : dash,
     },
     {
       accessorKey: "startAt",
+      meta: { sizing: "short" },
       header: t("projects.col.startAt"),
-      size: 110,
       cell: ({ row }) => <DateCell value={row.original.startAt} withTime={false} />,
     },
     {
       accessorKey: "dueAt",
+      meta: { sizing: "short" },
       header: t("projects.col.dueAt"),
-      size: 110,
       cell: ({ row }) => <DateCell value={row.original.dueAt} withTime={false} />,
     },
     {
       accessorKey: "tasks",
+      meta: { sizing: "short" },
       header: t("projects.col.tasks"),
-      size: 130,
       cell: ({ row }) => {
         const tasks = row.original.tasks;
         return (

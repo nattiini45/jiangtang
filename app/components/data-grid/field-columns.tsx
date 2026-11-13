@@ -21,7 +21,6 @@ export function withFieldColumns<T extends ListValues>(
     ...config.fields.map((field): ColumnDef<T> => ({
       id: fieldColumnId(field.id),
       header: field.name,
-      size: 180,
       accessorFn: (row) => fieldSortValue(field, row.values[field.id]),
       sortUndefined: "last",
       sortDescFirst: false,
@@ -32,7 +31,10 @@ export function withFieldColumns<T extends ListValues>(
           ? av - bv
           : collator.compare(String(av), String(bv));
       },
-      meta: { searchText: (row, locale) => fieldText(field, row.values[field.id], locale) },
+      meta: {
+        sizing: ["NUMBER", "BOOLEAN", "DATE", "CHOICE"].includes(field.type) ? "short" : "text",
+        searchText: (row, locale) => fieldText(field, row.values[field.id], locale),
+      },
       cell: ({ row }) => {
         const value = fieldDisplayValue(field, row.original.values[field.id], locale);
         const text = fieldText(field, row.original.values[field.id], locale);
@@ -52,12 +54,6 @@ export function withFieldColumns<T extends ListValues>(
     const column = all.find(
       (column) => (column.id ?? ("accessorKey" in column ? column.accessorKey : undefined)) === id,
     );
-    return column
-      ? [
-          id === "name" && config.columns.some((id) => id.startsWith("field:"))
-            ? { ...column, size: Math.max(column.size ?? 160, 220) }
-            : column,
-        ]
-      : [];
+    return column ? [column] : [];
   });
 }

@@ -121,6 +121,7 @@ export function StockPanel({
       </Form>
 
       <DataGrid
+        tableId="stock"
         columns={columns}
         data={items}
         getRowId={(i) => i.id}
