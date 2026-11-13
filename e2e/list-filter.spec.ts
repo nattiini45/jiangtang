@@ -65,7 +65,9 @@ for (const locale of ["de", "en"] as const) {
     await filter.fill(locale === "de" ? "Wartung" : "Maintenance");
     const hall = page.locator(`a[href='/rooms/${maintenance.slug}']`);
     await expect(hall).toBeVisible();
-    await expect(hall.locator("../..")).toContainText(t(locale, "status.room.MAINTENANCE_NEEDED"));
+    await expect(page.getByRole("row").filter({ has: hall })).toContainText(
+      t(locale, "status.room.MAINTENANCE_NEEDED"),
+    );
     await expect(page.locator(`a[href='/rooms/${operational.slug}']`)).toHaveCount(0);
     await filter.fill("MAINTENANCE_NEEDED");
     await expect(hall).toHaveCount(0);
