@@ -307,18 +307,20 @@ export async function retireRoom(actor: AuditActor, id: string): Promise<Room> {
 }
 
 export async function markRoomChecked(actor: AuditActor, id: string): Promise<Room> {
-  const room = await txWithAudit(actor, async (tx, audit) => {
-    const checked = await tx.room.update({ where: { id }, data: { lastCheckedAt: new Date() } });
-    await audit({
-      action: "RoomChecked",
-      entityType: "room",
-      entityId: id,
-      data: { lastCheckedAt: checked.lastCheckedAt!.toISOString() },
-    });
-    return checked;
-  });
+  const room = await txWithAudit(actor, (tx, audit) => markRoomCheckedInTx(tx, audit, id));
   await emitChange({ entityType: "room", id, op: "updated" });
   return room;
+}
+
+export async function markRoomCheckedInTx(tx: Tx, audit: AuditFn, id: string, now = new Date()) {
+  const checked = await tx.room.update({ where: { id }, data: { lastCheckedAt: now } });
+  await audit({
+    action: "RoomChecked",
+    entityType: "room",
+    entityId: id,
+    data: { lastCheckedAt: now.toISOString() },
+  });
+  return checked;
 }
 
 /**

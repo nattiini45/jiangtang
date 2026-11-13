@@ -91,6 +91,13 @@ export const NAV: NavEntry[] = [
   { to: "/search", labelKey: "nav.search", icon: Search, end: false, group: "work" },
   { to: "/rooms", labelKey: "nav.rooms", icon: Building2, end: false, group: "places" },
   {
+    to: "/rounds",
+    labelKey: "functions.rounds.title",
+    icon: ListTodo,
+    end: false,
+    group: "places",
+  },
+  {
     to: "/functions",
     labelKey: "functions.list.title",
     icon: CircleAlert,

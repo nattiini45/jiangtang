@@ -136,6 +136,9 @@ model Building {
 }
 
 model Room {
+  roundRooms RoundRoom[]
+  checks RoomCheck[]
+  functionOverrides FunctionOverride[]
   customValues Json @default("{}") @db.JsonB
   id         String  @id @default(cuid())
   slug       String  @unique
@@ -460,6 +463,9 @@ model UserPermission {
 }
 
 model User {
+  rounds Round[]
+  checks RoomCheck[]
+  functionOverrides FunctionOverride[]
   permissions UserPermission[]
   id       String   @id @default(cuid())
   email    String   @unique
@@ -632,6 +638,7 @@ model Invitation {
 // ── Tickets / work items ─────────────────────────────────────────────────────
 
 model Ticket {
+  checks RoomCheck[]
   id          String       @id @default(cuid())
   type        TicketType
   status      TicketStatus @default(OPEN)
@@ -702,6 +709,8 @@ enum TicketChannel {
 }
 
 model RoomFunction {
+  checks RoomCheck[]
+  overrides FunctionOverride[]
   id String @id @default(cuid())
   systemKey String? @unique
   name String
@@ -723,6 +732,67 @@ model RoomFunctionKind {
 
   @@id([functionId, kindId])
   @@index([kindId])
+}
+
+enum CheckResult {
+  WORKS
+  LIMITED
+  DOWN
+  NOT_CHECKED
+}
+
+model Round {
+  id String @id @default(cuid())
+  name String
+  startedById String?
+  startedBy User? @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt DateTime @default(now()) @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  rooms RoundRoom[]
+  checks RoomCheck[]
+}
+
+model RoundRoom {
+  roundId String
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roomId String
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  completedAt DateTime? @db.Timestamptz(3)
+  @@id([roundId, roomId])
+}
+
+model RoomCheck {
+  id String @id @default(cuid())
+  roundId String?
+  round Round? @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  roomId String
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  functionId String
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+  result CheckResult
+  note String?
+  ticketId String?
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  checkedById String?
+  checkedBy User? @relation(fields: [checkedById], references: [id], onDelete: SetNull)
+  checkedAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([roundId, roomId, functionId])
+  @@index([roomId, functionId, checkedAt(sort: Desc)])
+}
+
+model FunctionOverride {
+  id String @id @default(cuid())
+  roomId String
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  functionId String
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+  state CheckResult
+  reason String
+  setById String?
+  setBy User? @relation(fields: [setById], references: [id], onDelete: SetNull)
+  setAt DateTime @default(now()) @db.Timestamptz(3)
+  until DateTime? @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
 }
 
 // ── Events (AV-supported specials) ───────────────────────────────────────────

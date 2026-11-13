@@ -135,6 +135,9 @@ export const CONFIG = {
     environmentOnly: true,
   }),
   ACTIVITY_RETENTION_DAYS: variable("operations", 2555, positiveNumber, { environmentOnly: true }),
+  FUNCTION_CONFIRMATION_DAYS: variable("operations", 200, positiveNumber, {
+    environmentOnly: true,
+  }),
   WARRANTY_WINDOW_DAYS: variable("operations", 30, positiveNumber),
 } as const;
 

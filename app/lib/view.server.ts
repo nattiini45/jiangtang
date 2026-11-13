@@ -30,6 +30,8 @@ export const DESKTOP_PAGES = [
   "/events/:id",
   "/frequencies",
   "/functions",
+  "/rounds",
+  "/rounds/:id",
   "/import",
   "/inventory",
   "/inventory/new",
@@ -74,6 +76,8 @@ export const DESKTOP_PAGES = [
 ] as const;
 
 const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
+  "/rounds": { mobile: "/m/rounds" },
+  "/rounds/:id": { mobile: "/m/rounds/:id" },
   "/functions": {
     mobile: "/m/functions",
     query: ["functionId", "campusId", "buildingId", "state", "unassigned", "sort"],
@@ -113,6 +117,7 @@ export const MOBILE_PAGES = [
   ...new Set(Object.values(EQUIVALENTS).map(({ mobile }) => mobile)),
   "/m/offline",
   "/m/tickets/new",
+  "/m/rounds/:id/:roomId",
 ];
 
 function matchPage(patterns: readonly string[], pathname: string) {

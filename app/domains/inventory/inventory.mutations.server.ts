@@ -141,6 +141,24 @@ export async function createEquipment(
   return result;
 }
 
+export async function restoreEquipmentInTx(tx: Tx, audit: AuditFn, id: string) {
+  await tx.$queryRaw`SELECT id FROM "Equipment" WHERE id = ${id} FOR UPDATE`;
+  const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
+  if (current.status !== "FAULTY" && current.status !== "MAINTENANCE")
+    throw new ValidationError({}, [tr("functions.rounds.invalid")]);
+  const device = await tx.equipment.update({
+    where: { id },
+    data: { status: "OPERATIONAL", statusSince: new Date() },
+  });
+  await audit({
+    action: "EquipmentUpdated",
+    entityType: "equipment",
+    entityId: id,
+    data: { status: "OPERATIONAL", viaCheck: true },
+  });
+  return device;
+}
+
 /**
  * The in-transaction `Equipment` writer, for a caller that already owns a `tx`.
  *

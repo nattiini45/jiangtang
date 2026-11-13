@@ -94,6 +94,8 @@ const equivalents = [
   ["/events", "/m/events"],
   ["/calendar", "/m/calendar"],
   ["/functions", "/m/functions"],
+  ["/rounds", "/m/rounds"],
+  ["/rounds/round-1", "/m/rounds/round-1"],
   ["/events/new", "/m/events/new"],
   ["/events/event-1", "/m/events/event-1"],
   ["/inventory/stock", "/m/inventory/stock"],

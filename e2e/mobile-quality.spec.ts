@@ -52,7 +52,8 @@ for (const viewport of [
     expect(accessibility.violations).toEqual([]);
 
     const links = dialog.getByRole("navigation").getByRole("link");
-    await expect(links).toHaveCount(13);
+    await expect(links).toHaveCount(14);
+    await expect(links.filter({ hasText: "Rundgänge" })).toHaveAttribute("href", "/m/rounds");
     await expect(links.filter({ hasText: "Was geht nicht?" })).toHaveAttribute(
       "href",
       "/m/functions",

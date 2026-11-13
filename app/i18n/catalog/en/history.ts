@@ -1,6 +1,10 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.RoundStarted": "Round started",
+  "history.action.FunctionChecked": "Function checked",
+  "history.action.FunctionStateSet": "Function state set by hand",
+  "history.action.FunctionStateCleared": "Computed function state restored",
   "history.action.RoomFunctionReconciled": "Function added from the library",
   "history.action.LibraryDevicePropertiesCopied": "Device properties copied from previous values",
   "history.action.LibraryPropertyReconciled": "Properties added from the library",
