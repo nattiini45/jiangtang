@@ -3,23 +3,23 @@ import type { adminDe } from "../de/admin";
 export const adminEn = {
   "admin.structure.library.installOne": "Add 1 device kind",
   "admin.structure.fieldMoveLimit":
-    "Moving to “{target}” would exceed 40 active fields: {names}. Archive fields or change their device kinds first.",
+    "Moving to “{target}” would exceed 40 active properties: {names}. Archive properties or change their device kinds first.",
   "admin.structure.fieldMoveName":
-    "Fields named “{name}” for “{source}” and “{target}” would overlap. Rename one of the fields or change its device kinds before moving.",
+    "Properties named “{name}” for “{source}” and “{target}” would overlap. Rename one of the properties or change its device kinds before moving.",
   "admin.structure.fieldsMove":
-    "These fields will also apply to the target kind. Their links to this kind stay in place:",
+    "These properties will also apply to the target kind. Their links to this kind stay in place:",
   "admin.structure.library.willInstallAs": "Will be installed as “{name}”",
   "admin.structure.library.invalidInstitution": "Choose an institution type from the library.",
   "admin.structure.library.invalidSelection":
     "Choose 1 to 80 distinct device kinds from the library.",
   "admin.structure.archiveBeforeDelete": "Archive the device kind before deleting it.",
   "admin.structure.fieldReferences":
-    "These fields still refer to the kind: {names}. Change the fields’ kind assignments first.",
+    "These properties still refer to the kind: {names}. Change the properties’ kind assignments first.",
   "admin.structure.recordReferences":
     "This kind is still used by {devices} devices and {models} models. Move them first.",
   "admin.structure.library.add": "Add from the library",
   "admin.structure.library.help":
-    "Choose your institution and the device kinds you want. Only checked kinds are added; no fields are installed.",
+    "Choose your institution and the device kinds you want. Checked kinds are added with their library properties.",
   "admin.structure.library.institution": "Institution type",
   "admin.structure.library.chooseInstitution": "Choose an institution type",
   "admin.structure.library.remaining": "Room for {count} more device kinds.",
@@ -39,8 +39,9 @@ export const adminEn = {
   "admin.structure.library.groupConflict":
     "Nothing was added. The group name “{name}” is taken; affected kinds: {kinds}. Rename the existing group.",
   "admin.structure.title": "Structure",
-  "admin.structure.subtitle": "Manage the device kinds, function groups and fields your team uses.",
-  "admin.structure.fields": "Fields",
+  "admin.structure.subtitle":
+    "Manage the device kinds, function groups and properties your team uses.",
+  "admin.structure.fields": "Properties",
   "admin.structure.tabs": "Structure sections",
   "admin.structure.kinds": "Device kinds",
   "admin.structure.groups": "Function groups",
@@ -63,7 +64,7 @@ export const adminEn = {
   "admin.structure.archiveTitle": "Archive “{name}”",
   "admin.structure.archiveAndMove": "Move and archive",
   "admin.structure.moveHelp":
-    "All devices and models move to the selected kind together. Their existing data and field values are preserved.",
+    "All devices and models move to the selected kind together. Their existing data and property values are preserved.",
   "admin.structure.moveTo": "Move devices and models to",
   "admin.structure.chooseKind": "Choose a device kind",
   "admin.structure.deleteConfirm": "Permanently delete “{name}”?",

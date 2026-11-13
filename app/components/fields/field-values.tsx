@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Form } from "react-router";
 import { ExternalLink } from "lucide-react";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -11,11 +12,13 @@ export function FieldValues({
   foldAfter,
   essentialFirst = false,
   showLegend = true,
+  canClearLegacy = false,
 }: {
   fields: FilledField[];
   foldAfter?: number;
   essentialFirst?: boolean;
   showLegend?: boolean;
+  canClearLegacy?: boolean;
 }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -44,6 +47,25 @@ export function FieldValues({
                 <dt className="text-muted-foreground [overflow-wrap:anywhere]">{field.name}</dt>
                 <dd className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]">
                   <FieldValue field={field} />
+                  {field.legacyColumn ? (
+                    <div className="mt-1 text-muted-foreground text-xs">
+                      <p>{t("fields.legacy.retained")}</p>
+                      {canClearLegacy ? (
+                        <Form method="post">
+                          <input type="hidden" name="column" value={field.legacyColumn} />
+                          <Button
+                            type="submit"
+                            name="_action"
+                            value="clearLegacy"
+                            variant="ghost"
+                            size="compact"
+                          >
+                            {t("fields.legacy.clear")}
+                          </Button>
+                        </Form>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </dd>
               </div>
             ))}

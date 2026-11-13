@@ -14,7 +14,47 @@ import {
   legacyColumnValues,
   legacyPropertyValues,
   legacyProperties,
+  unmigratedLegacyValues,
 } from "~/lib/custom-fields/legacy.server";
+import { ValidationError } from "~/lib/errors.server";
+import { tr } from "~/i18n/request-locale.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
+
+export async function clearLegacyEquipmentValue(actor: AuditActor, id: string, column: string) {
+  await txWithAudit(actor, async (tx, audit) => {
+    await lockDefinitions(tx);
+    await tx.$queryRaw`SELECT id FROM "Equipment" WHERE id = ${id} FOR UPDATE`;
+    const device = await tx.equipment.findUniqueOrThrow({
+      where: { id },
+      include: { model: { select: { customValues: true } } },
+    });
+    const kindId =
+      device.kindId ??
+      (
+        await tx.equipmentKind.findUnique({
+          where: { systemKey: DEFAULT_EQUIPMENT_KINDS[device.category].key },
+        })
+      )?.id;
+    const retained = unmigratedLegacyValues(
+      await getFieldSchema("EQUIPMENT", {}, tx),
+      device,
+      kindId!,
+    );
+    const field = retained.find((field) => field.legacyColumn === column);
+    if (!field) throw new ValidationError({ legacy: [tr("fields.error.value")] });
+    await tx.equipment.update({ where: { id }, data: { [column]: null } });
+    await audit({
+      action: "EquipmentUpdated",
+      entityType: "equipment",
+      entityId: id,
+      data: {
+        clearedLegacyColumn: column,
+        custom: [{ name: field.name, from: field.value, to: null }],
+      },
+    });
+  });
+  await emitChange({ entityType: "equipment", id, op: "updated" });
+}
 
 export async function convertEquipmentCustomValuesInTx(tx: Tx, fieldId: string, multiple: boolean) {
   return tx.$executeRaw`UPDATE "Equipment" SET "customValues" = CASE

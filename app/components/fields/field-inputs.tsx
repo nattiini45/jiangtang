@@ -9,6 +9,7 @@ import { FieldValue } from "./field-values";
 import { useT } from "~/i18n/use-t";
 import {
   applies,
+  conditionHolds,
   fieldGroups,
   inputValue,
   postedValue,
@@ -26,7 +27,39 @@ export function FieldInputs(props: {
   modelValues?: unknown;
 }) {
   const t = useT();
-  const applicable = props.fields.filter((field) => applies(field, props.kindId));
+  const [draft, setDraft] = useState<Record<string, string | string[]>>({});
+  const before = valueObject(props.stored);
+  useEffect(() => {
+    setDraft((current) =>
+      Object.fromEntries(
+        Object.entries(current).filter(([id, value]) => {
+          const field = props.fields.find((field) => field.id === id);
+          return field && !sameValue(postedValue(field, value), valueObject(props.stored)[id]);
+        }),
+      ),
+    );
+  }, [props.fields, props.stored]);
+  const effective = {
+    ...before,
+    ...Object.fromEntries(
+      Object.entries(draft).flatMap(([id, value]) => {
+        const field = props.fields.find((field) => field.id === id);
+        return field ? [[id, postedValue(field, value)]] : [];
+      }),
+    ),
+  };
+  const applicable = props.fields.filter(
+    (field) =>
+      !field.hidden &&
+      applies(field, props.kindId) &&
+      conditionHolds(field, props.fields, effective, props.modelValues),
+  );
+  const editorProps = {
+    ...props,
+    draft,
+    onChange: (id: string, value: string | string[]) =>
+      setDraft((current) => ({ ...current, [id]: value })),
+  };
   const hidden = props.fields.filter(
     (field) =>
       !applies(field, props.kindId) && !sameValue(valueObject(props.stored)[field.id], null),
@@ -42,13 +75,13 @@ export function FieldInputs(props: {
           {t("fields.form.hidden", { count: hidden })}
         </p>
       ) : null}
-      <FieldEditor {...props} fields={essential} />
+      <FieldEditor {...editorProps} fields={essential} />
       {other.length ? (
         <details className="min-w-0">
           <summary className="cursor-pointer py-2 text-sm font-semibold">
             {t("fields.properties.more", { count: other.length })}
           </summary>
-          <FieldEditor {...props} fields={other} />
+          <FieldEditor {...editorProps} fields={other} />
         </details>
       ) : null}
     </>
@@ -58,35 +91,21 @@ export function FieldInputs(props: {
 function FieldEditor({
   fields,
   stored,
-  kindId,
   modelId,
   modelValues,
+  draft,
+  onChange,
 }: {
   fields: Field[];
   stored?: unknown;
-  kindId?: string;
   modelId?: string | null;
   modelValues?: unknown;
+  draft: Record<string, string | string[]>;
+  onChange: (id: string, value: string | string[]) => void;
 }) {
   const t = useT();
   const valuesError = useFieldError("customValues");
   const before = valueObject(stored);
-  const [draft, setDraft] = useState<Record<string, string | string[]>>({});
-  useEffect(() => {
-    setDraft((current) => {
-      const pending = Object.fromEntries(
-        Object.entries(current).filter(([id, value]) => {
-          const field = fields.find((field) => field.id === id);
-          return !field || !sameValue(postedValue(field, value), valueObject(stored)[id]);
-        }),
-      );
-      return Object.keys(pending).length === Object.keys(current).length ? current : pending;
-    });
-  }, [fields, stored]);
-  const applicable = fields.filter((field) => applies(field, kindId));
-  const hidden = fields.filter(
-    (field) => !applies(field, kindId) && !sameValue(before[field.id], null),
-  ).length;
   return (
     <>
       {valuesError ? (
@@ -94,16 +113,13 @@ function FieldEditor({
           {valuesError}
         </p>
       ) : null}
-      {hidden > 0 ? (
-        <p role="status" className="text-muted-foreground text-sm">
-          {t("fields.form.hidden", { count: hidden })}
-        </p>
-      ) : null}
-      {fieldGroups(applicable).map(({ section, fields }) => (
+      {fieldGroups(fields).map(({ section, fields }) => (
         <fieldset key={section} className="border-border min-w-0 rounded-lg border p-4">
-          <legend className="max-w-full px-1 text-base font-semibold [overflow-wrap:anywhere]">
-            {section || t("fields.moreDetails")}
-          </legend>
+          {section ? (
+            <legend className="max-w-full px-1 text-base font-semibold [overflow-wrap:anywhere]">
+              {section}
+            </legend>
+          ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             {fields.map((field) => {
               if (modelId && field.level === "MODEL") {
@@ -159,15 +175,7 @@ function FieldEditor({
                   <FieldControl
                     field={field}
                     value={value}
-                    onChange={(value) =>
-                      setDraft((draft) => {
-                        const next = { ...draft };
-                        if (sameValue(postedValue(field, value), before[field.id]))
-                          delete next[field.id];
-                        else next[field.id] = value;
-                        return next;
-                      })
-                    }
+                    onChange={(value) => onChange(field.id, value)}
                   />
                 </div>
               );

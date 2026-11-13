@@ -5,12 +5,15 @@ Jiangtang exposes workspace tools, read-only resources and planning prompts at
 agent. Your external client/model decides what to request, and may send returned workspace data
 to its provider: connect only clients you trust.
 
-## Custom field definitions
+## Property definitions
 
-An admin with a write token can define fields without a screen. `get_record_schema`
-accepts `{scope: "ROOM" | "EQUIPMENT", kindId?: string}` and returns active definitions
+An admin with a write token can define own properties without a screen. `get_record_schema`
+accepts `{scope: "ROOM" | "EQUIPMENT", kindId?: string, deviceId?: string}` and returns active definitions
 with ordered options, `libraryKey`, `origin` (`library` or `own`), `level` (`MODEL` or
-`DEVICE`), `unit` (`{key,label}` or null), `weight`, and option `key`s. Retired options
+`DEVICE`), `unit` (`{key,label}` or null), `weight`, `appliesIf` (`{property, values}` or null), and option `key`s.
+With `deviceId` (EQUIPMENT only), the device determines the kind and each property includes
+`conditionHolds`, evaluated against effective values: the model's value, else the device's.
+An empty controlling value makes the condition hold. Retired options
 retain `archivedAt` and cannot be selected. Library names, help, units and labels follow the
 request language; own-property text stays as entered. Unsupported types are omitted.
 
@@ -35,9 +38,13 @@ request language; own-property text stays as entered. Unsupported types are omit
 - `delete_custom_field`: `{id, confirm: true}`. Deletes a definition only when no record holds a value.
   Likewise, an option cannot be deleted while it is selected, even on a hidden or archived field.
 
-Library properties cannot be deleted or have their definition, options or kind links changed.
-Archive/restore and list/search flags remain available. Renaming and reordering library
-properties are not offered in this release.
+Library properties cannot be deleted or have their type, level, unit, options or kind links changed.
+`update_custom_field` allows `name`, `resetName: true` (mutually exclusive with `name`),
+`position`, `archived` (hide/show, retaining values) and list/search flags on library rows.
+Resetting the name restores the translated library name. Order belongs to the property row;
+a shared property keeps that position wherever it is used.
+The screen groups the order by model/device level and importance so moving within a group
+also changes the order on forms and pages; essential properties stay first.
 
 There can be at most 40 active own properties applying to a record, 120 own properties per scope,
 50 active options and 200 total options per field. Archive fields, narrow their kinds,
@@ -54,6 +61,11 @@ or case-insensitive active labels; multiple choices take an array without duplic
 Other types accept strings, finite numbers with at most six decimals, booleans, calendar dates
 (`YYYY-MM-DD`) or HTTP(S) links. Short and long text allow 200 and 4,000 characters;
 all values on one record together may use at most 32 KB. No value is written if one fails.
+Forms, imports and MCP refuse a new value for a property whose `appliesIf` fails, naming
+the controlling property. Conditions use the resulting values of the same write, including
+model values where applicable. Changing a controller never deletes stored dependent values;
+they stay hidden on pages and forms until the condition holds again. Null can clear a
+conditional value. Hidden library properties must be shown again before writing them.
 
 `set_model_values({modelId, values})` uses the same validation and merge rules for the model's
 MODEL-level library properties. For example, `{ "projector.light_source": "laser" }`

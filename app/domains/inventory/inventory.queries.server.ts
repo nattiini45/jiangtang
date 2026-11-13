@@ -121,6 +121,7 @@ export async function getEquipment(id: string) {
           name: true,
           manufacturer: true,
           manualUrl: true,
+          customValues: true,
           ports: { select: { label: true } },
         },
       },

@@ -1,8 +1,10 @@
 import type { Prisma } from "~/generated/prisma/client";
 import type { ResolvedField } from "./schema.server";
-import { applies, valueObject } from "./fields";
+import { applies, valueObject, conditionHolds } from "./fields";
 import { berlinLocalToUtc } from "~/lib/time.server";
 import { berlinDateInput } from "~/lib/format-date";
+import { compileCustomValues } from "./values.server";
+import type { FilledField } from "./fields";
 
 export const legacyProperties = {
   micKind: "microphone.type",
@@ -19,6 +21,46 @@ const micOptions = {
   BODYPACK: "bodypack_transmitter",
   GOOSENECK: "gooseneck",
 } as const;
+
+export function unmigratedLegacyValues(
+  fields: ResolvedField[],
+  device: Partial<Record<keyof typeof legacyProperties, unknown>> & {
+    customValues: unknown;
+    model?: { customValues: unknown } | null;
+  },
+  kindId: string,
+): FilledField[] {
+  const values = legacyPropertyValues(fields, kindId, device, device.customValues);
+  return fields.flatMap((field): FilledField[] => {
+    if (
+      field.hidden ||
+      !conditionHolds(field, fields, device.customValues, device.model?.customValues) ||
+      !Object.hasOwn(values, field.key) ||
+      compileCustomValues([{ ...field, archivedAt: null }], kindId).safeParse({
+        [field.key]: values[field.key],
+      }).success
+    )
+      return [];
+    const column = Object.keys(legacyProperties).find(
+      (column) => legacyProperties[column as keyof typeof legacyProperties] === field.libraryKey,
+    )!;
+    return [
+      {
+        id: field.id,
+        name: field.name,
+        type: "TEXT",
+        section: field.section,
+        position: field.position,
+        unit: null,
+        value: String(device[column as keyof typeof legacyProperties]),
+        from: "device",
+        origin: "library",
+        weight: "must",
+        legacyColumn: column,
+      },
+    ];
+  });
+}
 
 export function legacyPropertyValues(
   fields: ResolvedField[],

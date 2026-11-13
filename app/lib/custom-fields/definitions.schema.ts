@@ -54,6 +54,7 @@ export const updateFieldSchema = properties
     kindIds: z.array(z.string().min(1)).optional(),
     id: z.string().min(1),
     archived: z.boolean().optional(),
+    resetName: z.boolean().optional(),
     type: fieldType.exclude(["RANGE"]).optional(),
   })
   .strict();
