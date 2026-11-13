@@ -46,6 +46,7 @@ const NAV: { to: string; labelKey: MessageKey; icon: typeof Building2; end?: boo
 ];
 
 const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
+  { to: "/m/rounds", labelKey: "functions.rounds.title" },
   { to: "/m/functions", labelKey: "functions.list.title" },
   { to: "/m/locations", labelKey: "nav.locations" },
   { to: "/m/inventory/stock", labelKey: "nav.stock" },

@@ -1,4 +1,9 @@
-import type { EquipmentStatus, FaultImpact, FunctionRole } from "~/generated/prisma/client";
+import type {
+  CheckResult,
+  EquipmentStatus,
+  FaultImpact,
+  FunctionRole,
+} from "~/generated/prisma/client";
 
 type Device = {
   id: string;
@@ -15,7 +20,17 @@ type Fault = {
   occurredAt: Date;
 };
 
-export function deriveFunctionState(devices: Device[], faults: Fault[]) {
+export function deriveFunctionState(
+  devices: Device[],
+  faults: Fault[],
+  confirmation?: {
+    now: Date;
+    days: number;
+    evidenceAt: Date;
+    check?: { result: CheckResult; checkedAt: Date };
+    override?: { state: CheckResult; setAt: Date; until: Date | null; reason: string };
+  },
+) {
   const evidence: {
     state: "DOWN" | "LIMITED";
     since: Date | null;
@@ -62,5 +77,36 @@ export function deriveFunctionState(devices: Device[], faults: Fault[]) {
   const causes = evidence
     .filter((entry) => entry.state === state)
     .sort((a, b) => (a.since?.getTime() ?? -Infinity) - (b.since?.getTime() ?? -Infinity));
-  return { state, since: causes[0]?.since ?? null, causes };
+  let finalState: "WORKS" | typeof state = state;
+  let since = causes[0]?.since ?? null;
+  const check = confirmation?.check?.result !== "NOT_CHECKED" ? confirmation?.check : undefined;
+  const override = confirmation?.override;
+  const activeOverride =
+    confirmation &&
+    override &&
+    override.state !== "NOT_CHECKED" &&
+    override.setAt > confirmation.evidenceAt &&
+    (!check || override.setAt > check.checkedAt) &&
+    (!override.until || override.until > confirmation.now);
+  if (activeOverride) {
+    finalState = override.state as "WORKS" | "LIMITED" | "DOWN";
+    since = override.setAt;
+  } else if (
+    state === "NO_KNOWN_FAULT" &&
+    confirmation &&
+    check?.result === "WORKS" &&
+    check.checkedAt >= confirmation.evidenceAt &&
+    check.checkedAt <= confirmation.now &&
+    confirmation.now.getTime() - check.checkedAt.getTime() < confirmation.days * 86_400_000
+  ) {
+    finalState = "WORKS";
+    since = check.checkedAt;
+  }
+  return {
+    state: finalState,
+    since,
+    causes,
+    manualReason: activeOverride ? override.reason : null,
+    lastCheckedAt: check?.checkedAt ?? null,
+  };
 }

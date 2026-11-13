@@ -2,6 +2,7 @@ import { db } from "~/lib/db.server";
 import { currentLocale } from "~/i18n/request-locale.server";
 import library from "~/lib/equipment-kinds/library.json" with { type: "json" };
 import { deriveFunctionState } from "./functions.state";
+import { readConfig } from "~/lib/config.server";
 
 export async function listRoomFunctions() {
   const locale = currentLocale();
@@ -19,7 +20,7 @@ export async function listRoomFunctions() {
 }
 
 export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}) {
-  const [functions, rooms, devices, faults, fixes] = await Promise.all([
+  const [functions, rooms, devices, faults, fixes, checks, overrides] = await Promise.all([
     listRoomFunctions(),
     db.room.findMany({
       where: { id: roomIds ? { in: roomIds } : undefined },
@@ -35,7 +36,7 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
       },
     }),
     db.equipment.findMany({
-      where: { roomId: roomIds ? { in: roomIds } : { not: null }, status: { not: "RETIRED" } },
+      where: { roomId: roomIds ? { in: roomIds } : { not: null } },
       select: {
         id: true,
         name: true,
@@ -43,15 +44,16 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
         kindId: true,
         status: true,
         statusSince: true,
+        createdAt: true,
+        updatedAt: true,
         model: { select: { name: true } },
         kind: { select: { name: true } },
-        substitutedBy: { select: { id: true, status: true, name: true } },
+        substitutedBy: { select: { id: true, status: true, name: true, updatedAt: true } },
       },
     }),
     db.ticket.findMany({
       where: {
         type: "INCIDENT",
-        status: { in: ["OPEN", "IN_PROGRESS"] },
         OR: [
           { roomId: roomIds ? { in: roomIds } : { not: null } },
           { equipment: { roomId: roomIds ? { in: roomIds } : { not: null } } },
@@ -65,6 +67,8 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
         equipmentId: true,
         impact: true,
         occurredAt: true,
+        status: true,
+        updatedAt: true,
         assignees: { select: { id: true, name: true } },
       },
     }),
@@ -86,13 +90,21 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
       },
       orderBy: [{ resolvedAt: "desc" }, { id: "asc" }],
     }),
+    db.roomCheck.findMany({
+      where: { roomId: roomIds ? { in: roomIds } : undefined, result: { not: "NOT_CHECKED" } },
+      orderBy: [{ checkedAt: "desc" }, { id: "desc" }],
+      distinct: ["roomId", "functionId"],
+    }),
+    db.functionOverride.findMany({
+      where: { roomId: roomIds ? { in: roomIds } : undefined, endedAt: null },
+    }),
   ]);
   return rooms.flatMap((room) => {
     const installed = devices.filter((device) => device.roomId === room.id);
     return functions.flatMap((definition) => {
       const mapped = installed.flatMap((device) => {
         const mapping = definition.kinds.find((link) => link.kindId === device.kindId);
-        return mapping
+        return mapping && device.status !== "RETIRED"
           ? [
               {
                 ...device,
@@ -125,9 +137,43 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
           systemKey: definition.systemKey,
           name: definition.name,
           devices: mapped,
-          faults: relevant,
+          faults: relevant.filter(
+            (fault) => fault.status === "OPEN" || fault.status === "IN_PROGRESS",
+          ),
           knownFixes,
-          ...deriveFunctionState(mapped, relevant),
+          ...deriveFunctionState(
+            mapped,
+            relevant.filter((fault) => fault.status === "OPEN" || fault.status === "IN_PROGRESS"),
+            {
+              now: new Date(),
+              days: confirmationDays(),
+              evidenceAt: new Date(
+                Math.max(
+                  0,
+                  ...installed
+                    .filter((device) =>
+                      definition.kinds.some((link) => link.kindId === device.kindId),
+                    )
+                    .map((device) =>
+                      Math.max(
+                        (device.statusSince ?? device.createdAt).getTime(),
+                        device.updatedAt.getTime(),
+                        device.substitutedBy?.updatedAt.getTime() ?? 0,
+                      ),
+                    ),
+                  ...relevant.map((fault) =>
+                    Math.max(fault.updatedAt.getTime(), fault.occurredAt.getTime()),
+                  ),
+                ),
+              ),
+              check: checks.find(
+                (check) => check.roomId === room.id && check.functionId === definition.id,
+              ),
+              override: overrides.find(
+                (override) => override.roomId === room.id && override.functionId === definition.id,
+              ),
+            },
+          ),
         },
       ];
     });
@@ -135,6 +181,11 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
 }
 
 export type RoomFunctionState = Awaited<ReturnType<typeof getFunctionStates>>[number];
+
+export function confirmationDays() {
+  const days = readConfig("FUNCTION_CONFIRMATION_DAYS");
+  return Number.isInteger(days) && days > 0 ? days : 200;
+}
 
 export async function listNotWorking(
   options: {
@@ -151,7 +202,7 @@ export async function listNotWorking(
   return states
     .filter(
       (row) =>
-        row.state !== "NO_KNOWN_FAULT" &&
+        (row.state === "DOWN" || row.state === "LIMITED") &&
         (!options.functionId || row.functionId === options.functionId) &&
         (!options.functionKey || row.systemKey === options.functionKey) &&
         (!options.campusId || row.campusId === options.campusId) &&

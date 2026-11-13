@@ -242,22 +242,22 @@ BEGIN
 
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 28 CREATE TYPE = 28 enum types, 72 FOREIGN KEY = 72 contype 'f',
+  -- row: 29 CREATE TYPE = 29 enum types, 83 FOREIGN KEY = 83 contype 'f',
   -- 2 EXCLUDE USING = 2 contype 'x', and the sixteen named CHECKs.
-  SELECT count(*) = 28 INTO have
+  SELECT count(*) = 29 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 28 enum types the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 29 enum types the migrations create');
   END IF;
 
-  SELECT count(*) = 72 INTO have
+  SELECT count(*) = 83 INTO have
     FROM pg_constraint c
     JOIN pg_class r ON r.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = r.relnamespace
     WHERE n.nspname = 'public' AND c.contype = 'f';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 72 foreign keys the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 83 foreign keys the migrations create');
   END IF;
 
   SELECT count(*) = 2 INTO have
@@ -286,16 +286,16 @@ BEGIN
     missing := array_append(missing, 'ticket impact must be empty, DOWN or LIMITED');
   END IF;
 
-  -- Index floor, deliberately a floor: the 107 surviving CREATE INDEX statements are only
+  -- Index floor, deliberately a floor: the 110 surviving CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 107 is the number the
+  -- catalog total is NOT derivable from the migration text. 110 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 107 INTO have
+  SELECT count(*) >= 110 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 107 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 110 explicitly created indexes (pg_indexes count)');
   END IF;
 
   SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
@@ -375,12 +375,21 @@ BEGIN
     missing := array_append(missing, 'library option keys must be unique within their property');
   END IF;
 
+  SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE idx.relname = 'function_override_open' AND i.indisunique AND i.indisvalid
+      AND i.indrelid = '"FunctionOverride"'::regclass
+      AND pg_get_indexdef(i.indexrelid) LIKE '%("roomId", "functionId")%'
+      AND pg_get_expr(i.indpred, i.indrelid) = '("endedAt" IS NULL)') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'one open state set by hand per room and function');
+  END IF;
+
   IF array_length(missing, 1) IS NOT NULL THEN
     RAISE EXCEPTION 'Jiangtang invariant check FAILED — % missing invariant(s): %',
       array_length(missing, 1), array_to_string(missing, '; ')
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, 28 enums / 72 foreign keys / 16 CHECKs, >=107 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, one open function state, 29 enums / 83 foreign keys / 16 CHECKs, >=110 public indexes';
 END
 $verify$;

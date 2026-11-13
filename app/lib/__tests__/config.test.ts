@@ -31,6 +31,7 @@ const defaults: Partial<Record<ConfigName, unknown>> = {
   GENERATION_SYSTEM_ROLE: "system",
   LOG_LEVEL: "info",
   ACTIVITY_RETENTION_DAYS: 2555,
+  FUNCTION_CONFIRMATION_DAYS: 200,
   WARRANTY_WINDOW_DAYS: 30,
 };
 const emptyRetained = new Set<ConfigName>([
@@ -177,7 +178,7 @@ describe("configuration registry", () => {
   it("keeps About metadata value-free and based on raw presence, not parsed defaults", () => {
     vi.stubEnv("REQUIRE_ADMIN_TWO_FACTOR", "false");
     expect(environmentStatus().find((v) => v.name === "REQUIRE_ADMIN_TWO_FACTOR")?.set).toBe(true);
-    expect(ENVIRONMENT_VARIABLES).toHaveLength(42);
+    expect(ENVIRONMENT_VARIABLES).toHaveLength(43);
     expect(
       ENVIRONMENT_VARIABLES.every(
         (v) => Object.keys(v).sort().join() === "expectedUnset,group,name",

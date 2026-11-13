@@ -347,6 +347,29 @@ its devices, open faults, causes and the oldest evidence at the current level. A
 start means the status predates the function-state migration; no known fault is neutral and
 does not confirm that the function works.
 
+`start_round({ name, roomIds })` starts a round for an explicit room selection.
+`get_round({ id })` returns its rooms, done/open progress, checks and faults.
+`record_check({ roomId, functionKey, result, note?, roundId?, resolveFaults?, resolution?, restoreDevices? })`
+records `WORKS`, `LIMITED`, `DOWN` or `NOT_CHECKED`. `functionKey` also accepts the ID of a
+team-defined function. Limited and failed checks open a fault
+in the same audited transaction. Repeating a completed result in the same round returns that
+check rather than opening another fault. A skipped result can be completed later.
+Passing never silently closes faults or restores devices: supply the selected fault IDs with
+a nonblank resolution, or device IDs to restore, explicitly. A complete room updates its last
+check date; all completed rooms close the round. These writes require a write-scoped token.
+
+`WORKS` is green only when a recent passing check is at least as new as the evidence and no
+fault remains. `FUNCTION_CONFIRMATION_DAYS` sets the confirmation window (default 200 days).
+After the window it returns to `NO_KNOWN_FAULT`; read tools also return `lastCheckedAt`.
+`set_function_state({ roomId, functionKey, state, reason, until? })` lets an admin set `WORKS`,
+`LIMITED` or `DOWN`, with an optional ISO end instant. `clear_function_state({ roomId, functionKey })`
+returns to the computed state. Both require an admin and a write-scoped token. Newer evidence
+or a newer check ends the manual state's effect; its reason is returned as `manualReason` while active.
+Skipped checks leave the previous confirmation or manual state intact. A repeated failed check
+adds its note to the open function fault and can increase its impact, rather than duplicating it.
+Invalidation is conservative: later edits to linked faults or mapped devices, including metadata
+edits, also invalidate an earlier confirmation or state set by hand.
+
 `list_not_working({ functionId?, functionKey?, campusId?, buildingId?, state?, unassigned? })`
 returns limited and non-working room functions across rooms, oldest evidence first. `state` is
 `DOWN` or `LIMITED`; unknown starts sort first. Each row includes room identity, open faults,

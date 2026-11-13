@@ -1,4 +1,5 @@
-import { Link, useFetcher } from "react-router";
+import { Link, useFetcher, useRouteLoaderData } from "react-router";
+import { FunctionStateDialog } from "./function-state-dialog";
 import type { RoomFunctionState } from "~/domains/functions/functions.queries.server";
 import { useLocale, useT } from "~/i18n/use-t";
 import { formatDate, formatDateTime } from "~/i18n/format";
@@ -31,6 +32,9 @@ export function RoomFunctions({
 }) {
   const t = useT();
   const locale = useLocale();
+  const desktop = useRouteLoaderData<{ user: { role: string } }>("routes/_desktop");
+  const phone = useRouteLoaderData<{ user: { role: string } }>("routes/m");
+  const admin = (desktop ?? phone)?.user.role === "ADMIN";
   return (
     <section className="min-w-0" aria-labelledby="room-functions-title">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -60,7 +64,13 @@ export function RoomFunctions({
         <ul className="bg-card shadow-surface-2 divide-y rounded-lg">
           {functions.map((row) => {
             const tone =
-              row.state === "DOWN" ? "fault" : row.state === "LIMITED" ? "warning" : "neutral";
+              row.state === "DOWN"
+                ? "fault"
+                : row.state === "LIMITED"
+                  ? "warning"
+                  : row.state === "WORKS"
+                    ? "operational"
+                    : "neutral";
             return (
               <li
                 key={row.functionId}
@@ -80,11 +90,19 @@ export function RoomFunctions({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {row.causes.length
-                    ? row.since
-                      ? t("functions.since", { date: formatDateTime(locale, row.since) })
-                      : t("functions.before", { date: formatDate(locale, "2026-11-13T00:00:00Z") })
-                    : t("functions.never")}
+                  {row.manualReason
+                    ? t("functions.manual", { reason: row.manualReason })
+                    : row.state === "WORKS" && row.lastCheckedAt
+                      ? t("functions.confirmed", {
+                          date: formatDateTime(locale, row.lastCheckedAt),
+                        })
+                      : row.causes.length
+                        ? row.since
+                          ? t("functions.since", { date: formatDateTime(locale, row.since) })
+                          : t("functions.before", {
+                              date: formatDate(locale, "2026-11-13T00:00:00Z"),
+                            })
+                        : t("functions.never")}
                 </p>
                 {row.causes.map((cause, index) => {
                   const fault = row.faults.find((fault) => fault.id === cause.ticketId);
@@ -119,6 +137,7 @@ export function RoomFunctions({
                   ))}
                 </div>
                 <KnownFixes fixes={row.knownFixes} roomSlug={roomSlug} />
+                {admin ? <FunctionStateDialog roomId={roomId} functionId={row.functionId} /> : null}
               </li>
             );
           })}

@@ -10,6 +10,7 @@ import { registerAttachmentWrites } from "./attachment-writes.server";
 import { registerResources } from "./resources.server";
 import { registerPrompts } from "./prompts.server";
 import { registerStructureTools } from "./structure-tools.server";
+import { registerRoundTools } from "./round-tools.server";
 import type { McpContext } from "./types.server";
 
 export function createMcpServer(context: McpContext): McpServer {
@@ -27,6 +28,7 @@ export function createMcpServer(context: McpContext): McpServer {
   registerReadTools(server, context);
   registerPlaceWrites(server, context);
   registerStructureTools(server, context);
+  registerRoundTools(server, context);
   registerPortWrites(server, context);
   registerFieldTools(server, context);
   registerCatalogTools(server, context);

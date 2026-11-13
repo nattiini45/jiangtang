@@ -1,4 +1,8 @@
 export const historyDe = {
+  "history.action.RoundStarted": "Rundgang gestartet",
+  "history.action.FunctionChecked": "Funktion geprüft",
+  "history.action.FunctionStateSet": "Funktionszustand manuell festgelegt",
+  "history.action.FunctionStateCleared": "Berechneten Funktionszustand wiederhergestellt",
   "history.action.RoomFunctionReconciled": "Funktion aus der Bibliothek ergänzt",
   "history.action.LibraryDevicePropertiesCopied":
     "Geräteeigenschaften aus bisherigen Angaben übernommen",
