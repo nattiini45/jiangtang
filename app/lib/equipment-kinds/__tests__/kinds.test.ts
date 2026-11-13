@@ -149,6 +149,7 @@ describe("equipment kind database invariants", () => {
           await tx.equipment.updateMany({ data: { kindId: null } });
           await tx.equipmentModel.updateMany({ data: { kindId: null } });
           await tx.customFieldKind.deleteMany();
+          await tx.roomFunctionKind.deleteMany();
           await tx.equipmentKind.deleteMany();
           await tx.equipmentFunctionGroup.deleteMany();
           await tx.equipmentKindsInitialization.deleteMany();

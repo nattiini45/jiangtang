@@ -46,6 +46,8 @@ const NEW_BLOCKS = [
   "CustomField",
   "CustomFieldKind",
   "CustomFieldOption",
+  "RoomFunction",
+  "RoomFunctionKind",
 ] as const;
 
 /**
@@ -56,7 +58,7 @@ const NEW_BLOCKS = [
  */
 const NEW_RELATIONS_IN_EXISTING_BLOCKS: Record<string, string[]> = {
   Event: ["projectId"],
-  Ticket: ["taskId"],
+  Ticket: ["taskId", "functionId"],
   Equipment: ["kindId"],
   EquipmentModel: ["kindId"],
 };
@@ -352,8 +354,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(67);
-    expect(withAction).toBe(55);
+    expect(owning).toBe(70);
+    expect(withAction).toBe(58);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

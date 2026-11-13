@@ -1,0 +1,26 @@
+export const functionsDe = {
+  "functions.title": "Funktionen",
+  "functions.empty": "Noch keine Funktion durch Geräte belegt.",
+  "functions.state.NO_KNOWN_FAULT": "Keine Störung bekannt",
+  "functions.state.LIMITED": "Eingeschränkt",
+  "functions.state.DOWN": "Geht nicht",
+  "functions.never": "Noch nie bestätigt",
+  "functions.since": "Seit {date}",
+  "functions.before": "Seit vor dem {date}",
+  "functions.report": "Störung melden",
+  "functions.roomHint": "Mindestens eine Funktion geht nicht. Der Raumstatus ist unabhängig davon.",
+  "functions.impact": "Auswirkung",
+  "functions.choose": "Funktion wählen",
+  "functions.note": "Notiz (optional)",
+  "functions.offline":
+    "Offline: Die Meldung ist nicht gespeichert. Das Formular bleibt zum erneuten Senden erhalten.",
+  "functions.error.impact": "Eine Auswirkung gehört nur zu einer Störung.",
+  "functions.error.function": "Wähle eine Funktion und ein zugehöriges Gerät dieses Raums.",
+  "functions.error.required": "Wähle einen Raum, eine Funktion und die Auswirkung.",
+  "functions.error.kindInUse":
+    "Diese Geräteart gehört zu einer Funktion und kann nicht gelöscht werden. Lass sie archiviert.",
+  "functions.optional": "Foto und Gerät (optional)",
+  "functions.faultTitle": "{function}: {impact}",
+  "functions.saved": "Störung gespeichert",
+  "functions.back": "Zurück zum Raum",
+} as const;

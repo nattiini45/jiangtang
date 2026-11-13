@@ -24,6 +24,7 @@ afterEach(async () => {
     where: { kindId: { in: owned.map((kind) => kind.id) } },
   });
   await db.customFieldKind.deleteMany({ where: { kindId: { in: owned.map((kind) => kind.id) } } });
+  await db.roomFunctionKind.deleteMany({ where: { kindId: { in: owned.map((kind) => kind.id) } } });
   await db.customField.deleteMany({
     where: { id: { in: links.map((link) => link.fieldId) }, kinds: { none: {} } },
   });

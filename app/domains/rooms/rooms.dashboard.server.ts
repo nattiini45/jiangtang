@@ -1,4 +1,8 @@
 import { db } from "~/lib/db.server";
+import {
+  getFunctionStates,
+  type RoomFunctionState,
+} from "~/domains/functions/functions.queries.server";
 import { withFieldValues } from "~/lib/custom-fields/display.server";
 import type { FilledField } from "~/lib/custom-fields/fields";
 import {
@@ -99,6 +103,7 @@ export interface DashboardRoom {
 }
 
 export interface RoomDashboardData {
+  functions: RoomFunctionState[];
   room: DashboardRoom;
   equipment: DashboardEquipment[];
   openTickets: TicketSummary[];
@@ -186,6 +191,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   };
 
   return {
+    functions: await getFunctionStates({ roomIds: [room.id] }),
     room: dashboardRoom,
     equipment,
     openTickets: tickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS"),

@@ -100,6 +100,7 @@ it("materializes every shipped kind without exporting readings or relations", as
     for (const key of ["matrix.control_api", "dsp.control_protocol"])
       expect(libraryProperties.get(key)).toMatchObject({ de: name.de, en: name.en });
   } finally {
+    await db.roomFunctionKind.deleteMany({ where: { kindId: { in: added } } });
     await db.customFieldKind.deleteMany({ where: { kindId: { in: added } } });
     await db.equipmentKind.deleteMany({ where: { id: { in: added } } });
   }
@@ -854,7 +855,10 @@ it("installs projector properties in the kind-install transaction", async () => 
     );
   } finally {
     await db.customField.deleteMany({ where: { systemKey: { not: null } } });
-    if (installedId) await db.equipmentKind.delete({ where: { id: installedId } });
+    if (installedId) {
+      await db.roomFunctionKind.deleteMany({ where: { kindId: installedId } });
+      await db.equipmentKind.delete({ where: { id: installedId } });
+    }
     await db.equipmentKind.update({
       where: { id: original.id },
       data: { systemKey: original.systemKey, name: original.name },

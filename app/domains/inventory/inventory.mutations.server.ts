@@ -86,6 +86,7 @@ function equipmentFields(
     roomId: input.mobility === "POOLED" ? null : (input.roomId ?? null),
     mobility: input.mobility,
     status: input.status,
+    statusSince: new Date(),
     name: input.name ?? null,
     assetTag: input.assetTag ?? null,
     serial: input.serial ?? null,
@@ -228,6 +229,7 @@ export async function updateEquipment(
     );
     const fields = {
       ...equipmentFields(input),
+      statusSince: input.status !== current.status ? new Date() : current.statusSince,
       ...retainLegacyColumns(await getFieldSchema("EQUIPMENT", {}, tx), input.kindId, input),
     };
     const auditData =
@@ -268,9 +270,15 @@ async function retireEquipmentInTx(
   id: string,
   data: Prisma.EquipmentUncheckedUpdateInput = {},
 ) {
+  const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
   const eq = await tx.equipment.update({
     where: { id },
-    data: { ...data, status: "RETIRED", substitutingForId: null },
+    data: {
+      ...data,
+      status: "RETIRED",
+      statusSince: current.status === "RETIRED" ? current.statusSince : new Date(),
+      substitutingForId: null,
+    },
   });
   const clearedSpare = await tx.equipment.updateMany({
     where: { substitutingForId: id },
@@ -435,6 +443,7 @@ export async function bulkCreateEquipment(
             roomId,
             mobility: row.mobility,
             status: row.status,
+            statusSince: new Date(),
             name: row.name ?? null,
             assetTag: row.assetTag ?? null,
             serial: row.serial ?? null,

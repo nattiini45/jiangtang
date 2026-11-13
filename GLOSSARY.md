@@ -78,3 +78,93 @@ _Avoid_: presets, templates, Vorlagen
 The models Jiangtang ships with their data sheets, ports and manufacturer pages, from which a team
 picks instead of typing.
 _Avoid_: model catalog (for a team's own models), database, Modellkatalog
+
+## Functions
+
+**Function** (Funktion):
+A job a room does for the people using it, such as picture, sound and microphones or control,
+served by the devices of certain kinds.
+_Avoid_: feature, Ausstattungsmerkmal, capability, service
+
+**Carrier** (tragendes Gerät):
+A device kind a function needs at least one working unit of, such as the projector for the picture.
+_Avoid_: main device, primary device
+
+**Path device** (Gerät im Signalweg):
+A device kind a function's signal passes through without being the function itself, such as a
+matrix switcher or an extender.
+_Avoid_: infrastructure, intermediate device
+
+**Room type** (Raumtyp):
+A named class of room that lists the functions a room of that type should have.
+_Avoid_: room category, Raumart, template
+
+**Expected function** (erwartete Funktion):
+A function a room should have, from its room type or set for the room itself.
+_Avoid_: required function, Soll-Ausstattung
+
+**Gap** (Lücke):
+An expected function that no device in the room serves.
+_Avoid_: missing device, defect
+
+## State
+
+**Function state** (Funktionszustand):
+What Jiangtang concludes about a function in a room from its devices, open faults, checks and any
+state set by hand: works, limited, doesn't work, or no known fault.
+_Avoid_: room status (that is the room's typed status), health, availability
+
+**Works** (geht):
+The function was confirmed by a check that is newer than everything known against it and still
+inside the confirmation window.
+_Avoid_: ok, green, available
+
+**No known fault** (keine Störung bekannt):
+Nothing is known against the function, but no recent check confirms it.
+_Avoid_: works, ok, unknown
+
+**Limited** (eingeschränkt):
+The function can be used, but not fully: one of several carriers is out, a path device is out, or
+someone reported it so.
+_Avoid_: degraded, partial, warning
+
+**Doesn't work** (geht nicht):
+The function cannot be used: every carrier is out, or someone reported it so.
+_Avoid_: down (in the interface), broken, defekt
+
+**State set by hand** (manuell festgelegter Zustand):
+A function state a person sets with a reason; it holds until something newer is known about the
+function or until its end date.
+_Avoid_: override (in the interface), manual status
+
+## Work
+
+**Fault** (Störung):
+A ticket of type incident that says something in a room doesn't work or is limited, optionally
+naming the function and the device.
+_Avoid_: incident (in the interface), defect, issue, Defekt, Problem
+
+**Impact** (Auswirkung):
+How badly a fault affects its function: limited or doesn't work.
+_Avoid_: severity, priority
+
+**Channel** (Eingangsweg):
+How a fault reached the team: desktop, phone, round, e-mail, monitoring or an agent.
+_Avoid_: source (that is where a reading comes from), origin
+
+**Check** (Prüfung):
+One person's result for one function in one room at one time: works, limited, doesn't work or not
+checked.
+_Avoid_: test, inspection (that is a recurring legal check), Kontrolle
+
+**Round** (Rundgang):
+A walk through a set of rooms in which each room's functions are checked.
+_Avoid_: tour, inspection, Begehung
+
+**Confirmation window** (Bestätigungsfrist):
+How long a check counts as confirming a function; after it the function shows no known fault.
+_Avoid_: validity, expiry
+
+**Known fix** (bekannte Lösung):
+What helped with a fault in a room, kept with the room so the next person finds it.
+_Avoid_: known issue, workaround (as the record), tip, Hinweis

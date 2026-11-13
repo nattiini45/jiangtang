@@ -1,4 +1,5 @@
 import { Link, useFetcher } from "react-router";
+import { RoomFunctions } from "~/components/rooms/room-functions";
 import { useState } from "react";
 import { FieldValues } from "~/components/fields/field-values";
 import { ExternalLink } from "lucide-react";
@@ -94,6 +95,7 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
         </check.Form>
       </div>
 
+      <RoomFunctions functions={data.functions} roomId={room.id} roomStatus={room.status} />
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
           {room.knownIssues || room.tipsNotes ? (

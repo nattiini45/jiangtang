@@ -10504,5 +10504,68 @@
       "help": { "de": null, "en": null },
       "sources": ["presets:S6"]
     }
+  ],
+  "functions": [
+    {
+      "key": "picture",
+      "de": "Projektion",
+      "en": "Projection",
+      "carriers": ["projector", "display", "led_wall", "interactive_display"],
+      "paths": [
+        "matrix",
+        "presentation_switcher",
+        "extender",
+        "converter",
+        "avoip_decoder",
+        "screen"
+      ],
+      "keywords": {
+        "de": ["Beamer", "Bild", "Projektion"],
+        "en": ["projector", "picture", "projection"]
+      },
+      "position": 1
+    },
+    {
+      "key": "sound",
+      "de": "Ton und Mikrofone",
+      "en": "Sound and microphones",
+      "carriers": ["microphone", "audio_equipment", "loudspeaker", "wireless_receiver"],
+      "paths": ["dsp", "amplifier", "mixer", "matrix", "presentation_switcher"],
+      "keywords": {
+        "de": ["Mikro", "Ton"],
+        "en": ["microphone", "sound"]
+      },
+      "position": 2
+    },
+    {
+      "key": "control",
+      "de": "Steuerung",
+      "en": "Control",
+      "carriers": ["control_processor", "touch_panel", "remote"],
+      "paths": ["network_switch"],
+      "keywords": {
+        "de": ["Steuerung", "Bedienung"],
+        "en": ["control", "panel"]
+      },
+      "position": 3
+    },
+    {
+      "key": "lectern_connections",
+      "de": "Pultanschlüsse",
+      "en": "Lectern connections",
+      "carriers": [
+        "connection_panel",
+        "media_desk",
+        "computer",
+        "presentation_switcher",
+        "presentation_receiver"
+      ],
+      "paths": ["extender", "converter", "matrix", "avoip_encoder", "avoip_decoder"],
+      "keywords": {
+        "de": ["Pult", "Anschluss"],
+        "en": ["lectern", "connection"]
+      },
+      "position": 4
+    }
   ]
 }

@@ -1,4 +1,5 @@
 export const historyDe = {
+  "history.action.RoomFunctionReconciled": "Funktion aus der Bibliothek ergänzt",
   "history.action.LibraryDevicePropertiesCopied":
     "Geräteeigenschaften aus bisherigen Angaben übernommen",
   "history.action.LibraryPropertyReconciled": "Eigenschaften aus der Bibliothek ergänzt",
@@ -26,6 +27,7 @@ export const historyDe = {
   "history.action.CustomFieldOptionsChanged": "Eigenschaftsoptionen bearbeitet",
   "history.entity.equipmentKind": "Geräteart",
   "history.entity.equipmentFunctionGroup": "Funktionsgruppe",
+  "history.entity.roomFunction": "Funktion",
   "history.action.UserPermissionGranted": "Berechtigung für Zeiteinträge erteilt",
   "history.action.UserPermissionRevoked": "Berechtigung für Zeiteinträge entzogen",
   "history.action.TimesheetViewed": "Zeiteinträge angesehen",

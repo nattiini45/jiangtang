@@ -8,6 +8,7 @@ import { propertyLibrary, type PropertyLibrary } from "~/lib/equipment-kinds/pro
 import { fieldType } from "./definitions.schema";
 import { getFieldSchema } from "./schema.server";
 import { copyLegacyEquipmentPropertiesInTx } from "~/domains/inventory/inventory.custom-values.server";
+import { reconcileFunctionsInTx } from "~/domains/functions/functions.library.server";
 
 export async function reconcileLibraryInTx(
   tx: Tx,
@@ -15,6 +16,7 @@ export async function reconcileLibraryInTx(
   library: PropertyLibrary = propertyLibrary,
 ) {
   await lockDefinitions(tx, true);
+  await reconcileFunctionsInTx(tx, audit);
   const state = await tx.libraryState.findUnique({ where: { key: "library" } });
   if (state && state.version > library.version) return { fields: [], devices: [] };
   const refresh = !state || state.version < library.version;

@@ -254,7 +254,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **50 read tools and 89 write tools**. Their published schemas are
+Discovery currently returns **52 read tools and 89 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -338,6 +338,19 @@ default to 50, accept up to 100 per page, and expose domain filters. `list_activ
 limit. Rooms are bookable spaces; locations are separate storage/work places, not room IDs.
 
 Resource support varies by client; use the equivalent read tools when resources are not exposed.
+
+### Room functions and faults
+
+`list_room_functions({})` returns installed function definitions with carrier and path-device
+kind mappings. `get_room_functions({ roomId })` returns the room's derived state per function,
+its devices, open faults, causes and the oldest evidence at the current level. A null evidence
+start means the status predates the function-state migration; no known fault is neutral and
+does not confirm that the function works.
+
+`create_ticket` accepts `functionId` (or a library `functionKey`) and `impact` (`DOWN` or
+`LIMITED`). An impact is only valid for an `INCIDENT`; a missing impact counts as limited.
+The function must be served in the selected room, and an optional device must belong to that
+function in that room. Tickets created by this tool record channel `MCP`.
 
 ### Workflow discovery
 

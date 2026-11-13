@@ -701,6 +701,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261112150000_list_columns",
       "20261112180000_model_properties",
       "20261112190000_model_catalog",
+      "20261113080000_room_functions",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only
     // new symbol is a function.

@@ -107,6 +107,7 @@ const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
 export const MOBILE_PAGES = [
   ...new Set(Object.values(EQUIVALENTS).map(({ mobile }) => mobile)),
   "/m/offline",
+  "/m/tickets/new",
 ];
 
 function matchPage(patterns: readonly string[], pathname: string) {

@@ -242,22 +242,22 @@ BEGIN
 
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 25 CREATE TYPE = 25 enum types, 69 FOREIGN KEY = 69 contype 'f',
-  -- 2 EXCLUDE USING = 2 contype 'x', and the fifteen named CHECKs.
-  SELECT count(*) = 25 INTO have
+  -- row: 28 CREATE TYPE = 28 enum types, 72 FOREIGN KEY = 72 contype 'f',
+  -- 2 EXCLUDE USING = 2 contype 'x', and the sixteen named CHECKs.
+  SELECT count(*) = 28 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 25 enum types the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 28 enum types the migrations create');
   END IF;
 
-  SELECT count(*) = 69 INTO have
+  SELECT count(*) = 72 INTO have
     FROM pg_constraint c
     JOIN pg_class r ON r.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = r.relnamespace
     WHERE n.nspname = 'public' AND c.contype = 'f';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 69 foreign keys the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 72 foreign keys the migrations create');
   END IF;
 
   SELECT count(*) = 2 INTO have
@@ -269,24 +269,33 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 2 EXCLUDE constraints the baseline creates');
   END IF;
 
-  SELECT count(*) = 15 INTO have
+  SELECT count(*) = 16 INTO have
     FROM pg_constraint
-    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape', 'custom_field_library_scope', 'equipment_model_custom_values')
+    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape', 'custom_field_library_scope', 'equipment_model_custom_values', 'ticket_impact_values')
       AND contype = 'c';
   IF NOT have THEN
     missing := array_append(missing, 'room, timer, equipment kind/group or custom field CHECK constraints are missing');
   END IF;
 
-  -- Index floor, deliberately a floor: the 103 surviving CREATE INDEX statements are only
+  SELECT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ticket_impact_values' AND conrelid = '"Ticket"'::regclass
+      AND contype = 'c' AND convalidated AND pg_get_constraintdef(oid) LIKE '%impact%IS NULL%DOWN%LIMITED%'
+  ) INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'ticket impact must be empty, DOWN or LIMITED');
+  END IF;
+
+  -- Index floor, deliberately a floor: the 107 surviving CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 103 is the number the
+  -- catalog total is NOT derivable from the migration text. 107 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 103 INTO have
+  SELECT count(*) >= 107 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 103 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 107 explicitly created indexes (pg_indexes count)');
   END IF;
 
   SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
@@ -372,6 +381,6 @@ BEGIN
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, 25 enums / 69 foreign keys / 15 CHECKs, >=103 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, 28 enums / 72 foreign keys / 16 CHECKs, >=107 public indexes';
 END
 $verify$;
