@@ -25,6 +25,14 @@ import { FieldValues } from "~/components/fields/field-values";
 import { unlinkCatalogModel } from "~/domains/catalog/catalog.library.server";
 import { formatDate } from "~/i18n/format";
 import { useLocale } from "~/i18n/use-t";
+import {
+  modelParts,
+  partDetail,
+  partModelOptions,
+} from "~/domains/inventory/inventory.parts.queries.server";
+import { addPartStock } from "~/domains/inventory/inventory.parts.mutations.server";
+import { setModelPartFit } from "~/domains/catalog/catalog.parts.mutations.server";
+import { ModelParts, PartModel, EditModelParts } from "~/components/inventory/parts";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -43,6 +51,9 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (!detail) throw toErrorResponse(new NotFoundError(tr("err.model.notFound")));
   return {
     ...detail,
+    parts: await modelParts(params.id),
+    partDetail: await partDetail(params.id),
+    partOptions: await partModelOptions(params.id),
     canUnlink: actor.role === "ADMIN",
     kinds: await listDeviceKinds(false, detail.model.kind.id),
     fields: await getFormFields("EQUIPMENT"),
@@ -53,6 +64,25 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 export async function action({ request, params }: Route.ActionArgs) {
   const actor = await requireUser(request);
   const form = await request.clone().formData();
+  const intent = String(form.get("_action") ?? "");
+  if (["addPartStock", "addPartFit", "removePartFit"].includes(intent)) {
+    try {
+      if (intent === "addPartStock") await addPartStock(actor, params.id, form.get("quantity"));
+      else
+        await setModelPartFit(actor, params.id, {
+          partModelId: form.get("partModelId"),
+          remove: intent === "removePartFit",
+        });
+      return { partsSaved: true };
+    } catch (error) {
+      if (error instanceof ValidationError)
+        return {
+          partsError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
+        };
+      if (error instanceof z.ZodError) return { partsError: tr("parts.invalid") };
+      throw toErrorResponse(error);
+    }
+  }
   if (form.get("_action") === "unlinkCatalog") {
     try {
       await unlinkCatalogModel(actor, params.id);
@@ -116,7 +146,13 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
         </Link>
       </div>
 
-      <ModelAssetView stats={stats} instances={instances} />
+      {loaderData.partDetail?.isPart ? (
+        <PartModel modelId={model.id} detail={loaderData.partDetail} />
+      ) : null}
+      {loaderData.parts.length ? <ModelParts fits={loaderData.parts} /> : null}
+      {!loaderData.partDetail?.isPart || instances.length ? (
+        <ModelAssetView stats={stats} instances={instances} />
+      ) : null}
       {loaderData.filledFields.length || model.catalogKey || model.manualUrl ? (
         <section className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4">
           <h2 className="mb-3 text-base font-semibold">{t("fields.model.sheet")}</h2>
@@ -173,6 +209,7 @@ export default function ModelDetail({ loaderData, actionData }: Route.ComponentP
       ) : null}
 
       <ModelPortsEditor ports={model.ports} />
+      <EditModelParts modelId={model.id} fits={loaderData.parts} options={loaderData.partOptions} />
 
       <details className="bg-card shadow-surface-2 rounded-lg p-4">
         <summary className="cursor-pointer text-base font-semibold">

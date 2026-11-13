@@ -658,6 +658,12 @@
     "read": "page",
     "area": "lighting-stage-room"
   },
+  "ls:HBRS": {
+    "title": "Hochschule Bonn-Rhein-Sieg: Medientechnik zur Ausleihe (Sets)",
+    "url": "https://www.h-brs.de/de/bib/verleih-Sets",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
   "ls:HSNB": {
     "title": "Hochschule Neubrandenburg: Medientechnik-Ausleihe",
     "url": "https://www.hs-nb.de/zimt/medien-dienste/medientechnik-ausleihe/",
@@ -703,6 +709,12 @@
   "ls:SHOWTEC_BAR": {
     "title": "Showtec Pixel Bar 8 COB (IP20, mehrere DMX-Modi)",
     "url": "https://www.showtec-lights.com/en/41266-pixel-bar-8-cob.html",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:TASCAM": {
+    "title": "TASCAM DR-05X Handheld Recorder",
+    "url": "https://tascam.com/us/product/dr-05x",
     "read": "page",
     "area": "lighting-stage-room"
   },
@@ -799,6 +811,11 @@
     "url": "https://www.audio-technica.com/de-de/u857q",
     "area": "microphones-wireless"
   },
+  "mw:S27": {
+    "title": "MONACOR ATS-20R/T German and English instruction manual",
+    "url": "https://www.monacor.com/media/FLE/ATS-20R@BDA.pdf",
+    "area": "microphones-wireless"
+  },
   "mw:S29": {
     "title": "Bundesnetzagentur Vfg. 37/2026, Allgemeinzuteilung Funkmikrofone (full text read)",
     "url": "https://www.bundesnetzagentur.de/DE/Fachthemen/Telekommunikation/Frequenzen/Allgemeinzuteilungen/_DL/Mikrofone/vfg37_2026.pdf?__blob=publicationFile&v=3",
@@ -859,6 +876,11 @@
     "url": "https://www.benq.eu/de-de/business/projector/mh733.html",
     "area": "projection-displays"
   },
+  "pd:BLAMP": {
+    "title": "BenQ Deutschland: Projektor-Lampen (Ersatzlampe mit Artikelnummer)",
+    "url": "https://www.benq.eu/de-de/accessory/lamps.html",
+    "area": "projection-displays"
+  },
   "pd:D1": {
     "title": "ProLite LH4780SB-B1",
     "url": "https://iiyama.com/ie_en/products/prolite-lh4780sb-b1/",
@@ -872,6 +894,11 @@
   "pd:E1": {
     "title": "EB-PU1008W Projector | Professional | Projectors | Products | Epson Europe",
     "url": "https://www.epson.eu/en_EU/products/projector/professional/eb-pu1008w-projector/p/32084",
+    "area": "projection-displays"
+  },
+  "pd:ELPLM": {
+    "title": "Epson Objektiv ELPLM08, Händlerdatenblatt (F/1.65–2.27, Brennweite 24–38,2 mm)",
+    "url": "https://www.edu.de/epson-objektiv-elplm08-45476",
     "area": "projection-displays"
   },
   "pd:FLEXM": {

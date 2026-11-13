@@ -2,6 +2,7 @@ import { z } from "zod";
 import { modelPortsSchema } from "~/domains/inventory/inventory.ports.schema";
 import { propertiesForKind } from "~/lib/equipment-kinds/properties";
 import { compileCustomValues } from "~/lib/custom-fields/values.server";
+import parts from "./parts.json" with { type: "json" };
 
 export const catalogRecordSchema = z
   .object({
@@ -61,7 +62,7 @@ export type ModelCatalog = z.infer<typeof modelCatalogSchema>;
 let loaded: Promise<ModelCatalog> | undefined;
 export function loadModelCatalog() {
   return (loaded ??= import("./epson.json", { with: { type: "json" } }).then(({ default: data }) =>
-    modelCatalogSchema.parse(data),
+    modelCatalogSchema.parse({ ...data, records: [...data.records, ...parts.records] }),
   ));
 }
 export async function listModelCatalog({

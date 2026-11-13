@@ -21,6 +21,7 @@ import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { requirePermission } from "~/lib/rbac.server";
 import { tr } from "~/i18n/request-locale.server";
 import { applyModelValuesInTx } from "./catalog.values.server";
+import parts from "~/lib/catalog/parts.json" with { type: "json" };
 
 type Snapshot = {
   values: Record<string, unknown>;
@@ -35,7 +36,7 @@ const portValues = (
   ports.map(({ label, connector, direction, signal }) => ({ label, connector, direction, signal }));
 
 async function lockCatalog(tx: Tx) {
-  await lockDefinitions(tx);
+  await lockDefinitions(tx, true);
   await lockKindStructure(tx);
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended('model-catalog', 0))`;
 }
@@ -48,6 +49,10 @@ export async function applyCatalogModelInTx(
   modelId?: string,
 ) {
   await lockCatalog(tx);
+  if (parts.records.some((part) => part.key === record.key)) {
+    const { ensureLibraryPartKindsInTx } = await import("~/lib/equipment-kinds/library.server");
+    await ensureLibraryPartKindsInTx(tx, audit, [record.kind]);
+  }
   let model = modelId
     ? await tx.equipmentModel.findUnique({
         where: { id: modelId },
@@ -115,7 +120,11 @@ export async function applyCatalogModelInTx(
     include: { kind: true, ports: { orderBy: { position: "asc" } } },
   });
   if (model.catalogKey && (model.catalogVersion ?? 0) >= version)
-    return { model, devices: [] as string[], changed: false };
+    return {
+      model,
+      devices: [] as string[],
+      changed: await applyPartsInTx(tx, audit, record.key, model.id),
+    };
   const previous = model.catalogSnapshot as Snapshot | null;
   const fields = (await getFieldSchema("EQUIPMENT", {}, tx)).filter(
     (field) => field.libraryKey && field.level === "MODEL",
@@ -215,7 +224,55 @@ export async function applyCatalogModelInTx(
     entityId: model.id,
     data: { catalogKey: record.key, version, name: updated.name },
   });
+  await applyPartsInTx(tx, audit, record.key, model.id);
   return { model: updated, devices, changed: true };
+}
+
+async function applyPartsInTx(tx: Tx, audit: AuditFn, key: string, modelId: string) {
+  let changed = false;
+  for (const fit of parts.fits.filter((fit) => fit.modelKey === key)) {
+    await tx.$executeRawUnsafe("SAVEPOINT catalog_part_fit");
+    try {
+      const record = parts.records.find((part) => part.key === fit.partKey)!;
+      const { model: part } = await applyCatalogModelInTx(tx, audit, record, parts.version);
+      const existing = await tx.modelPartFit.findUnique({
+        where: { modelId_partModelId: { modelId, partModelId: part.id } },
+      });
+      if (existing) continue;
+      const relation = await tx.modelPartFit.create({
+        data: {
+          modelId,
+          partModelId: part.id,
+          quantity: fit.quantity,
+          sourceUrl: fit.sourceUrl,
+          catalogKey: key,
+        },
+      });
+      await audit({
+        action: "ModelPartFitAdded",
+        entityType: "equipmentModel",
+        entityId: modelId,
+        data: {
+          relationId: relation.id,
+          partModelId: part.id,
+          partNumber: record.name,
+          sourceUrl: fit.sourceUrl,
+          quantity: fit.quantity,
+        },
+      });
+      changed = true;
+    } catch (error) {
+      await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT catalog_part_fit");
+      console.error("[model-catalog] part skipped; will retry on next reconcile", {
+        modelId,
+        partKey: fit.partKey,
+        error,
+      });
+    } finally {
+      await tx.$executeRawUnsafe("RELEASE SAVEPOINT catalog_part_fit");
+    }
+  }
+  return changed;
 }
 
 export async function linkCatalogModel(actor: AuditActor, catalogKey: string, modelId?: string) {
@@ -246,6 +303,24 @@ export async function unlinkCatalogModel(actor: AuditActor, modelId: string) {
     });
     if (!model.catalogKey) return model;
     const previous = model.catalogSnapshot as Snapshot;
+    const fits = await tx.modelPartFit.findMany({
+      where: { modelId, catalogKey: model.catalogKey },
+    });
+    if (fits.length) {
+      await tx.modelPartFit.deleteMany({ where: { id: { in: fits.map((fit) => fit.id) } } });
+      await audit({
+        action: "ModelPartFitsUnlinked",
+        entityType: "equipmentModel",
+        entityId: modelId,
+        data: {
+          fits: fits.map(({ partModelId, sourceUrl, quantity }) => ({
+            partModelId,
+            sourceUrl,
+            quantity,
+          })),
+        },
+      });
+    }
     const fields = await getFieldSchema("EQUIPMENT", {}, tx);
     const values = valueObject(model.customValues);
     for (const field of fields) {

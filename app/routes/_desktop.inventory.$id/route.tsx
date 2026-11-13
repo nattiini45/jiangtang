@@ -50,6 +50,9 @@ import { qrSvg } from "~/lib/qr.server";
 import { useT } from "~/i18n/use-t";
 import { mutateEquipmentPort } from "~/domains/inventory/inventory.ports.mutations.server";
 import { EquipmentPorts } from "~/components/inventory/ports-editor";
+import { modelParts } from "~/domains/inventory/inventory.parts.queries.server";
+import { takePartForDevice } from "~/domains/inventory/inventory.parts.mutations.server";
+import { ModelParts } from "~/components/inventory/parts";
 import {
   connectEquipmentPorts,
   disconnectEquipmentPorts,
@@ -101,6 +104,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const qr = await qrSvg(qrHref);
   return {
     equipment,
+    parts: await modelParts(e.modelId),
     fields: await getFormFields("EQUIPMENT"),
     filledFields: [
       ...(await withFieldValues("EQUIPMENT", [e]))[0].fields,
@@ -127,6 +131,19 @@ export async function action({ request, params }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "update");
   const id = params.id;
+  if (intent === "takePart") {
+    try {
+      await takePartForDevice(actor, id, String(form.get("stockId") ?? ""));
+      return { partTaken: true };
+    } catch (error) {
+      if (error instanceof ValidationError)
+        return {
+          partError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
+        };
+      if (error instanceof NotFoundError) return { partError: tr("parts.unavailable") };
+      throw toErrorResponse(error);
+    }
+  }
   const portActions = {
     portAdd: "add",
     portUpdate: "update",
@@ -271,6 +288,9 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         </Link>
       </div>
 
+      {eq.modelId ? (
+        <ModelParts fits={loaderData.parts} deviceId={eq.id} retired={eq.status === "RETIRED"} />
+      ) : null}
       {(["model", "device"] as const).map((from) => {
         const fields = loaderData.filledFields.filter((field) => field.from === from);
         return fields.length || (from === "model" && eq.model?.manualUrl) ? (

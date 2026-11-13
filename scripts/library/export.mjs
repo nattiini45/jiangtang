@@ -9,6 +9,28 @@ const path = new URL("../../app/lib/equipment-kinds/library.json", import.meta.u
 const library = JSON.parse(await readFile(path, "utf8"));
 const kinds = library.kinds.filter((kind) => kind.key !== "audio_equipment");
 const audio = research.kinds.find((kind) => kind.key === "audio_equipment");
+const partKeys = new Set([
+  ...research.kinds.filter((kind) => kind.mapping === "part").map((kind) => kind.key),
+  "projector_lamp",
+  "projector_filter",
+  "projector_lens",
+  "wireless_battery",
+  "battery_stock",
+  "lamp_stock",
+  "filter_stock",
+  "remote",
+]);
+for (const source of research.kinds.filter((kind) => partKeys.has(kind.key))) {
+  if (kinds.some((kind) => kind.key === source.key)) continue;
+  kinds.push({
+    key: source.key,
+    de: source.de,
+    en: source.en,
+    group: source.group,
+    institution_types: Object.keys(source.tier),
+    tier: "special",
+  });
+}
 if (!audio) throw new Error("Missing researched kind: audio_equipment");
 kinds.splice(
   kinds.findIndex((kind) => kind.group === audio.group),
@@ -34,6 +56,13 @@ const types = {
   range: "RANGE",
 };
 const projector = research.kinds.find((kind) => kind.key === "projector");
+const groups = [...library.functionGroups];
+for (const key of new Set(kinds.map((kind) => kind.group))) {
+  if (groups.some((group) => group.key === key)) continue;
+  const source = research.function_groups.find((group) => group.key === key);
+  if (!source) throw new Error(`Missing function group: ${key}`);
+  groups.push({ key, de: source.de, en: source.en, position: source.position });
+}
 const shared = new Map(research.shared_properties.map((property) => [property.key, property]));
 const propertiesByKind = new Map(
   kinds.map((kind) => {
@@ -112,18 +141,21 @@ for (const property of [...propertiesByKind.values()].flat()) {
 const properties = [...unique.values()];
 const allSources = [...new Set(properties.flatMap((property) => property.sources))].sort();
 const output = {
-  version: Math.max(4, research.version),
+  version: Math.max(5, research.version),
+  partKinds: [...partKeys],
   units: research.units.map((unit) =>
     unit.key === ":1" ? { ...unit, de: ": 1", en: ": 1" } : unit,
   ),
   institutionTypes: library.institutionTypes,
-  functionGroups: library.functionGroups,
+  functionGroups: groups,
   sharedProperties: properties.filter((property) => !property.key.includes(".")),
   kinds: kinds.map(({ properties: _properties, ...kind }) => ({
     ...kind,
     properties: propertiesByKind.get(kind.key).map((property) => property.key),
   })),
   properties: properties.filter((property) => property.key.includes(".")),
+  functions: library.functions,
+  roomTypes: library.roomTypes,
 };
 const formatting = { ...(await resolveConfig(path.pathname)), parser: "json" };
 await writeFile(path, await format(JSON.stringify(output), formatting));

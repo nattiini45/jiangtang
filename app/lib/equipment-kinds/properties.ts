@@ -24,6 +24,7 @@ export type LibraryProperty = {
   sources: string[];
 };
 export type PropertyLibrary = {
+  partKinds?: string[];
   version: number;
   units: { key: string; de: string; en: string }[];
   kinds: { key: string; properties?: string[] }[];

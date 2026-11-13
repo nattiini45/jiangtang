@@ -1,12 +1,13 @@
 # Device-kind library
 
-The repository ships a bilingual catalog of 59 device kinds in 18 function groups for
+The repository ships a bilingual catalog of 106 device kinds in 20 function groups for
 universities and colleges, event and congress halls, councils, theatres and trade fairs.
 The data lives in `app/lib/equipment-kinds/library.json`; stable keys identify entries even
 after an installation renames them. Institution types narrow the list, and the core, common
 and special tiers help an administrator choose. They are suggestions, not requirements.
 
-Device kinds are not installed automatically. In **Administration → Structure →
+Device kinds are normally installed explicitly. The model catalog also installs the lamp
+and air-filter kinds needed by a linked projector, with their properties. In **Administration → Structure →
 Device kinds → Add from the library**, choose an institution type, review the checked core
 kinds and select the kinds your team needs. Common and special entries start unchecked.
 Existing entries show their installed name; archived entries and occupied names cannot be
@@ -29,7 +30,8 @@ kind is installed. The versioned file contains shared and kind-local
 properties, bilingual labels, units, choices, levels, weights, conditions and source IDs.
 `library-sources.json` holds the cited sources. Regenerate both with
 `node scripts/library/export.mjs /path/to/research.json`; the research input is not shipped.
-Readings and relations are not materialized. Ranges store `{ min, max }` in the property's
+Readings and general relations are not materialized as properties. Part compatibility has
+its own relation rows, described below. Ranges store `{ min, max }` in the property's
 unit; either bound may be null, but a filled minimum cannot exceed the maximum. Both empty
 bounds clear the value on a form; structured writers clear it with null. Pages format ranges
 in the reader's language. Catalog range values remain out of scope.
@@ -113,3 +115,33 @@ product page and retrieval date without visually separating catalog values from 
 Startup errors roll back and are logged without preventing application startup. Audit rows stay
 append-only; the activity feed folds each system startup step into a readable Jiangtang entry,
 including property rows written by earlier releases.
+
+## Parts and stock
+
+The library includes the 40 researched accessory kinds and the lamp, filter, lens and
+battery kinds, with their properties. A part model uses the ordinary model page. Its
+compatibility rows point from the device model to the part model; the page shows those
+models, other compatible catalog models and every matching device in the workspace.
+Models with devices appear first. A projector's page inherits these
+rows from its selected model. A compatibility link does not claim that a part is fitted.
+
+`scripts/catalog/parts.mjs` exports only verified lamp and air-filter part numbers from
+the researched model records. The 32 part models and 159 compatibility rows ship in
+`app/lib/catalog/parts.json`, each fit with its manufacturer's source address. Unknown
+quantities stay unknown. A laser projector has no invented replacement lamp: its data
+sheet shows the light source, while its parts list shows the verified filter.
+Picking or reconciling a catalog projector installs its part models and fits in the same
+audited transaction. Repeating the reconcile writes nothing. Unlinking removes the
+catalog-supplied fits but retains stock and house-entered fits. Startup failure rolls back
+and never prevents the app from starting. An unusable part (for example, an archived kind
+or an ambiguous model identity) rolls back to its own savepoint, is logged and retries on
+the next reconcile; the host model and other parts still land.
+
+Stock remains `InventoryItem`, linked through the nullable `modelId`. Existing stock is
+assigned explicitly on its stock page, never guessed from a name or SKU. New stock can
+be received on the part's page. Only stock not linked to a tracked device, with a positive quantity and an
+available or unrecorded status counts; loaned, requested and reserved items do not.
+Taking one from a chosen stock row decrements it atomically and records the part number,
+device and before/after counts in both stock and device histories. Concurrent attempts
+cannot take the same last unit. Readings, rated-life comparisons, orders and prices are
+not part of this workflow.

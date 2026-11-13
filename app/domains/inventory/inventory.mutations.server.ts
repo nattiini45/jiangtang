@@ -115,7 +115,7 @@ export async function createEquipment(
 ): Promise<Equipment> {
   const changes: CatalogChanges = { devices: [] };
   const result = await txWithAudit(actor, async (tx, audit) => {
-    await lockDefinitions(tx);
+    await lockDefinitions(tx, source.modelId?.startsWith("catalog:") ?? false);
     const input = await resolveCatalogSelection(
       tx,
       audit,
@@ -233,7 +233,7 @@ export async function updateEquipment(
 ): Promise<Equipment> {
   const changes: CatalogChanges = { devices: [] };
   const result = await txWithAudit(actor, async (tx, audit) => {
-    await lockDefinitions(tx);
+    await lockDefinitions(tx, source.modelId?.startsWith("catalog:") ?? false);
     await lockKindStructure(tx);
     const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
     const input = await resolveCatalogSelection(
