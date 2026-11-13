@@ -46,18 +46,13 @@ function Customise({
   const [draft, setDraft] = useState(layout);
   const [saved, setSaved] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
-  const submitted = useRef(false);
   const fetcher = useFetcher<{ ok: boolean }>();
   const pending = fetcher.state !== "idle";
   useEffect(() => {
-    if (fetcher.state === "submitting") submitted.current = true;
-    if (fetcher.state === "idle" && submitted.current) {
-      submitted.current = false;
-      if (fetcher.data?.ok) {
-        setOpen(false);
-        setSaved(true);
-        trigger.current?.focus();
-      }
+    if (fetcher.state === "idle" && fetcher.data?.ok) {
+      setOpen(false);
+      setSaved(true);
+      trigger.current?.focus();
     }
   }, [fetcher.state, fetcher.data]);
   const move = (index: number, offset: number) => {
@@ -70,6 +65,7 @@ function Customise({
       open={open}
       onOpenChange={(value) => {
         if (value) {
+          fetcher.reset();
           setDraft(layout);
           setSaved(false);
         }
