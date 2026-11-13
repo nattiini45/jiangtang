@@ -1,4 +1,21 @@
 export const functionsDe = {
+  "functions.fixes.resolvedOnly":
+    "Der Lösungstext kann nur bei gelösten Einträgen bearbeitet werden.",
+  "functions.fixes.title": "Bekannte Lösungen",
+  "functions.fixes.count": "Bekannte Lösungen ({count})",
+  "functions.fixes.helped": "Was hat geholfen?",
+  "functions.fixes.problem": "Was ging nicht?",
+  "functions.fixes.keep": "Als bekannte Lösung für diesen Raum behalten",
+  "functions.fixes.edit": "Lösung bearbeiten",
+  "functions.fixes.drop": "Nicht mehr als Lösung zeigen",
+  "functions.fixes.earlierNote": "Frühere Notiz",
+  "functions.fixes.move": "In bekannte Lösungen verschieben",
+  "functions.fixes.moveHelp":
+    "Die Notiz wird als Lösung der gewählten Funktion behalten. Das alte Textfeld wird dabei mit einem Eintrag im Verlauf geleert.",
+  "functions.fixes.noteChanged":
+    "Die Notiz wurde geändert. Lade den Raum neu und versuche es erneut.",
+  "functions.fixes.invalid":
+    "Eine bekannte Lösung braucht einen Raum, eine Funktion und eine gelöste Störung oder Reparatur mit Lösungstext.",
   "functions.list.title": "Was geht nicht?",
   "functions.list.meta": "Was geht nicht? · Jiangtang",
   "functions.list.count": "{count} eingeschränkte oder ausgefallene Funktionen",

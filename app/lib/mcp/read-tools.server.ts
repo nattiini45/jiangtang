@@ -194,7 +194,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_room_functions",
       description:
-        "Read a room's derived function states, evidence and devices. No known fault is unconfirmed, never works.",
+        "Read a room's derived function states, evidence, devices and known fixes (title, resolution and resolvedAt). No known fault is unconfirmed, never works.",
       schema: z.object({ roomId: id }),
     },
     async ({ roomId }) => {

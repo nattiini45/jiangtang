@@ -18,6 +18,10 @@ const emptyToUndefined = (v: unknown) => (typeof v === "string" && v.trim() === 
 const optionalText = z.preprocess(emptyToUndefined, z.string().trim().min(1).optional());
 const optionalId = z.preprocess(emptyToUndefined, z.string().min(1).optional());
 const optionalDate = z.preprocess(emptyToUndefined, z.coerce.date().optional());
+const optionalCheckbox = z.preprocess(
+  (value) => (value === "on" ? true : value === "false" ? false : value),
+  z.boolean().optional(),
+);
 const optionalPriority = z.preprocess(
   emptyToUndefined,
   z.coerce
@@ -45,6 +49,7 @@ const ticketContent = z.object({
   functionId: optionalId,
   impact: z.preprocess(emptyToUndefined, z.enum(["DOWN", "LIMITED"]).optional()),
   channel: z.enum(["DESKTOP", "PHONE", "ROUND", "EMAIL", "GLOBALVIEWER", "MCP"]).optional(),
+  keepAsFix: optionalCheckbox,
   eventId: optionalId,
   reporterId: optionalId,
   assigneeIds: idArray,
@@ -52,7 +57,7 @@ const ticketContent = z.object({
   occurredAt: optionalDate,
 });
 
-export const ticketEditSchema = ticketContent;
+export const ticketEditSchema = ticketContent.extend({ resolution: optionalText });
 
 // ── Create (content + born-resolved) ──────────────────────────────────────────
 export const ticketCreateSchema = ticketContent
@@ -82,6 +87,7 @@ export const ticketCreateSchema = ticketContent
 export const ticketTransitionSchema = z.object({
   status: z.enum(TicketStatus),
   resolution: optionalText,
+  keepAsFix: optionalCheckbox,
 });
 
 export type TicketContentInput = z.infer<typeof ticketContent>;

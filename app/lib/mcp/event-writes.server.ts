@@ -326,7 +326,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "create_ticket",
       description:
-        "Create a ticket, including a born-resolved repair with a resolution. Dates must be ISO instants. Result includes legal next actions; inspect get_allowed_actions before later transitions.",
+        "Create a ticket, including a born-resolved repair with a resolution. keepAsFix retains a resolved fault or repair with a room and function as a known fix. Dates must be ISO instants. Result includes legal next actions; inspect get_allowed_actions before later transitions.",
       schema: z.object({
         input: z
           .object({ ...ticketCreateSchema.shape, ...ticketDates, functionKey: id.optional() })
@@ -360,7 +360,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "update_ticket",
       description:
-        "Replace ticket content and assignees without changing its status. Dates must be ISO instants. Result includes legal next actions; see get_allowed_actions.",
+        "Replace ticket content and assignees without changing its status. keepAsFix retains or drops a resolved room/function fault or repair; resolution edits what helped. Dates must be ISO instants. Result includes legal next actions; see get_allowed_actions.",
       schema: z.object({
         id,
         input: ticketEditSchema
@@ -381,7 +381,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "transition_ticket",
       description:
-        "Change ticket status: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS. No self transitions. RESOLVED requires nonblank resolution. Refresh get_allowed_actions first; confirm:true is required.",
+        "Change ticket status: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS. No self transitions. RESOLVED requires nonblank resolution; keepAsFix optionally retains it for the linked room/function. Reopening clears both. Refresh get_allowed_actions first; confirm:true is required.",
       schema: z.object({ id, input: ticketTransitionSchema, confirm }),
       write: true,
       destructive: true,

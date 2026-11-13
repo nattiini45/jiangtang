@@ -19,7 +19,7 @@ export async function listRoomFunctions() {
 }
 
 export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}) {
-  const [functions, rooms, devices, faults] = await Promise.all([
+  const [functions, rooms, devices, faults, fixes] = await Promise.all([
     listRoomFunctions(),
     db.room.findMany({
       where: { id: roomIds ? { in: roomIds } : undefined },
@@ -68,6 +68,24 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
         assignees: { select: { id: true, name: true } },
       },
     }),
+    db.ticket.findMany({
+      where: {
+        roomId: roomIds ? { in: roomIds } : { not: null },
+        functionId: { not: null },
+        keepAsFix: true,
+        status: "RESOLVED",
+        type: { in: ["INCIDENT", "REPAIR"] },
+      },
+      select: {
+        id: true,
+        roomId: true,
+        functionId: true,
+        title: true,
+        resolution: true,
+        resolvedAt: true,
+      },
+      orderBy: [{ resolvedAt: "desc" }, { id: "asc" }],
+    }),
   ]);
   return rooms.flatMap((room) => {
     const installed = devices.filter((device) => device.roomId === room.id);
@@ -84,7 +102,10 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
             ]
           : [];
       });
-      if (!mapped.length) return [];
+      const knownFixes = fixes.filter(
+        (fix) => fix.roomId === room.id && fix.functionId === definition.id,
+      );
+      if (!mapped.length && !knownFixes.length) return [];
       const relevant = faults.filter((fault) =>
         fault.functionId
           ? fault.functionId === definition.id && fault.roomId === room.id
@@ -105,6 +126,7 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
           name: definition.name,
           devices: mapped,
           faults: relevant,
+          knownFixes,
           ...deriveFunctionState(mapped, relevant),
         },
       ];

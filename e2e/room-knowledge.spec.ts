@@ -83,10 +83,12 @@ for (const locale of ["de", "en"] as const) {
       await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
       const problems = page.getByText(problem, { exact: true });
       const notes = page.getByText(tips, { exact: true });
-      await expect(problems).toBeVisible();
+      await expect(problems).toBeHidden();
       expect((await notes.boundingBox())!.y + (await notes.boundingBox())!.height).toBeLessThan(
         800,
       );
+      await page.getByText(t(locale, "functions.fixes.earlierNote"), { exact: true }).click();
+      await expect(problems).toBeVisible();
       expect(await problems.evaluate((element) => getComputedStyle(element).whiteSpace)).toBe(
         "pre-wrap",
       );
@@ -223,6 +225,7 @@ for (const locale of ["de", "en"] as const) {
         .fill("Synthetic updated problem");
       await page.getByLabel(t(locale, "rooms.lastChecked"), { exact: true }).fill("2042-07-02");
       await page.getByRole("button", { name: t(locale, "rooms.edit.submit"), exact: true }).click();
+      await page.getByText(t(locale, "functions.fixes.earlierNote"), { exact: true }).click();
       await expect(page.getByText("Synthetic updated problem", { exact: true })).toBeVisible();
       await expect
         .poll(async () =>
