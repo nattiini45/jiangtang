@@ -1,5 +1,28 @@
 import type { functionsDe } from "../de/functions";
 export const functionsEn = {
+  "functions.state.MISSING": "Missing",
+  "functions.missing": "No carrier device in this room. This is a gap, not a fault.",
+  "functions.types.label": "Room type",
+  "functions.types.none": "No room type",
+  "functions.types.help":
+    "The room type defines which functions are expected. Without a type, they follow the devices.",
+  "functions.types.expects": "Expected: {functions}",
+  "functions.types.adjust": "Adjust for this room",
+  "functions.types.inherit": "From room type / devices",
+  "functions.types.expected": "Expected here",
+  "functions.types.dropped": "Not intended here",
+  "functions.types.note": "Reason for {function} (optional)",
+  "functions.types.bulk": "Assign room type",
+  "functions.types.selected": "{count} rooms selected",
+  "functions.types.select": "Select room: {name}",
+  "functions.types.saved": "Room type saved",
+  "functions.types.invalid":
+    "The room type or function is no longer available. Reload the page and choose again.",
+  "functions.rounds.emptyChecklist":
+    "There are no carrier devices or open function faults to check. You can finish this room. Gaps stay visible and are not counted as checks.",
+  "functions.rounds.noCarrier":
+    "No carrier device to check. This gap does not need a check result.",
+  "functions.rounds.finishEmpty": "Finish room with no checks",
   "functions.state.WORKS": "Works",
   "functions.state.NOT_CHECKED": "Not checked",
   "functions.confirmed": "Confirmed: {date}",

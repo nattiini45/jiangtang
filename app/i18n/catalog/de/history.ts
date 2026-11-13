@@ -1,4 +1,9 @@
 export const historyDe = {
+  "history.entity.roomType": "Raumtyp",
+  "history.action.RoomTypeReconciled": "Raumtyp aus der Bibliothek ergänzt",
+  "history.action.RoomExpectationsChanged": "Erwartete Funktionen geändert",
+  "history.action.RoomExpectationsCopied": "Erwartete Funktionen aus bisherigen Angaben übernommen",
+  "history.action.RoundRoomCompleted": "Raum ohne Prüfpunkte im Rundgang abgeschlossen",
   "history.action.RoundStarted": "Rundgang gestartet",
   "history.action.FunctionChecked": "Funktion geprüft",
   "history.action.FunctionStateSet": "Funktionszustand manuell festgelegt",

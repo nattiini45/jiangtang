@@ -136,6 +136,9 @@ model Building {
 }
 
 model Room {
+  roomTypeId String?
+  roomType RoomType? @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
+  functionExpectations RoomFunctionExpectation[]
   roundRooms RoundRoom[]
   checks RoomCheck[]
   functionOverrides FunctionOverride[]
@@ -186,6 +189,7 @@ model Room {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([campusId])
+  @@index([roomTypeId])
   @@index([status])
 }
 
@@ -709,6 +713,8 @@ enum TicketChannel {
 }
 
 model RoomFunction {
+  roomTypes RoomTypeFunction[]
+  expectations RoomFunctionExpectation[]
   checks RoomCheck[]
   overrides FunctionOverride[]
   id String @id @default(cuid())
@@ -732,6 +738,41 @@ model RoomFunctionKind {
 
   @@id([functionId, kindId])
   @@index([kindId])
+}
+
+model RoomType {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  renamed Boolean @default(false)
+  position Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  functions RoomTypeFunction[]
+  rooms Room[]
+}
+
+model RoomTypeFunction {
+  typeId String
+  functionId String
+  type RoomType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+
+  @@id([typeId, functionId])
+  @@index([functionId])
+}
+
+model RoomFunctionExpectation {
+  roomId String
+  functionId String
+  expected Boolean
+  note String?
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+
+  @@id([roomId, functionId])
+  @@index([functionId])
 }
 
 enum CheckResult {

@@ -90,20 +90,27 @@ export function RoomFunctions({
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {row.manualReason
-                    ? t("functions.manual", { reason: row.manualReason })
-                    : row.state === "WORKS" && row.lastCheckedAt
-                      ? t("functions.confirmed", {
-                          date: formatDateTime(locale, row.lastCheckedAt),
-                        })
-                      : row.causes.length
-                        ? row.since
-                          ? t("functions.since", { date: formatDateTime(locale, row.since) })
-                          : t("functions.before", {
-                              date: formatDate(locale, "2026-11-13T00:00:00Z"),
-                            })
-                        : t("functions.never")}
+                  {row.state === "MISSING"
+                    ? t("functions.missing")
+                    : row.manualReason
+                      ? t("functions.manual", { reason: row.manualReason })
+                      : row.state === "WORKS" && row.lastCheckedAt
+                        ? t("functions.confirmed", {
+                            date: formatDateTime(locale, row.lastCheckedAt),
+                          })
+                        : row.causes.length
+                          ? row.since
+                            ? t("functions.since", { date: formatDateTime(locale, row.since) })
+                            : t("functions.before", {
+                                date: formatDate(locale, "2026-11-13T00:00:00Z"),
+                              })
+                          : t("functions.never")}
                 </p>
+                {row.expectationNote ? (
+                  <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+                    {row.expectationNote}
+                  </p>
+                ) : null}
                 {row.causes.map((cause, index) => {
                   const fault = row.faults.find((fault) => fault.id === cause.ticketId);
                   const device = row.devices.find((device) => device.id === cause.deviceId);

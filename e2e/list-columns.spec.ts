@@ -272,9 +272,7 @@ test("300 rows and twelve columns fit inside the grid at both widths, languages 
             .fill(path === "/rooms" ? "Listensaal" : "Listengerät");
           await page.locator("[data-column-id='name']").first().getByRole("button").click();
           await expect(page.locator("aside").first()).toBeVisible();
-          await expect(
-            page.locator("main [data-column-id]").filter({ has: page.locator("button") }),
-          ).toHaveCount(12);
+          await expect(page.locator('main [role="columnheader"][data-column-id]')).toHaveCount(12);
           expect(
             await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           ).toBe(true);

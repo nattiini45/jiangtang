@@ -24,6 +24,7 @@ export function RoomCheckPage({
   checks: RoomCheck[];
 }) {
   const t = useT();
+  const finish = useFetcher<{ error?: string }>();
   const next = round.rooms.find((row) => !row.completedAt && row.roomId !== room.id);
   return (
     <div className="flex min-w-0 flex-col gap-5 p-4">
@@ -44,7 +45,23 @@ export function RoomCheckPage({
           )}
         />
       ))}
-      {!functions.length ? <p>{t("functions.empty")}</p> : null}
+      {!functions.some(
+        (row) => row.hasCarrier || row.faults.some((fault) => fault.functionId === row.functionId),
+      ) ? (
+        <finish.Form method="post" className="flex flex-col gap-3">
+          <p>{t("functions.rounds.emptyChecklist")}</p>
+          {finish.data?.error ? <p role="alert">{finish.data.error}</p> : null}
+          <Button
+            type="submit"
+            name="intent"
+            value="finishEmpty"
+            className={`${buttonVariants()} min-h-11 self-start`}
+            disabled={finish.state !== "idle"}
+          >
+            {t("functions.rounds.finishEmpty")}
+          </Button>
+        </finish.Form>
+      ) : null}
       {next ? (
         <Link
           className={`${buttonVariants()} min-h-11`}
@@ -136,10 +153,15 @@ function CheckFunction({
       <h2 id={`check-${row.functionId}`} className="text-base font-semibold">
         {row.name}
       </h2>
+      {row.state === "MISSING" ? (
+        <p className="my-2 text-sm text-muted-foreground">{t("functions.missing")}</p>
+      ) : null}
       <p className="my-2 text-xs text-muted-foreground">
         {row.devices.map((device) => device.name).join(" · ")}
       </p>
-      {current ? (
+      {!row.hasCarrier && !row.faults.some((fault) => fault.functionId === row.functionId) ? (
+        <p className="text-sm text-muted-foreground">{t("functions.rounds.noCarrier")}</p>
+      ) : current ? (
         <p role="status" className="text-sm font-semibold">
           {t("functions.rounds.saved")} · {t(`functions.state.${current.result}`)}
         </p>

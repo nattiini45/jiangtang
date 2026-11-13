@@ -16,6 +16,7 @@ import { Button } from "~/components/ui/button";
 import { berlinDateInput } from "~/lib/format-date";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { roomExpectationFields } from "~/domains/rooms/room-types.queries.server";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -33,7 +34,12 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const locale = resolveLocale(request);
   const [room, campuses] = await Promise.all([getRoomBySlug(params.slug), listCampuses()]);
   if (!room) throw toErrorResponse(new NotFoundError(t(locale, "err.room.notFound")));
-  return { room, campuses, fields: await getFormFields("ROOM") };
+  return {
+    room,
+    campuses,
+    fields: await getFormFields("ROOM"),
+    expectations: await roomExpectationFields(room.id),
+  };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -75,6 +81,7 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
 
   const defaults: RoomDefaults = {
     name: room.name,
+    roomTypeId: room.roomTypeId,
     roomNumber: room.roomNumber,
     campusId: room.campusId,
     buildingId: room.buildingId,
@@ -121,6 +128,7 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
           defaults={defaults}
           fields={loaderData.fields}
           stored={room.customValues}
+          expectations={loaderData.expectations}
         />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>

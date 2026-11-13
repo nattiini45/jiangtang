@@ -16,7 +16,8 @@ room should do without building one kind of room into the code.
   mapped to the device kinds that serve it. Each mapping is a carrier (the function needs one
   working unit) or a path device (the signal passes through it). Function groups are not used
   for this: they are cut by device, and one function crosses several of them. A team renames,
-  hides, maps and adds functions; the library adds a function once a carrier kind is installed.
+  hides, maps and adds functions; the library adds a function once a carrier kind is installed
+  or a shipped room type expects it. Expectations stay complete when a kind is not installed.
 - **Room types are data.** A room type lists the functions its rooms should have. A room adds or
   drops a function against its type with a note. A room without a type expects what its devices
   serve.
@@ -46,8 +47,8 @@ room should do without building one kind of room into the code.
   connections.
 - The typed room status and the known-issues note stay; the note moves into known fixes by hand,
   and both can be retired in a later release.
-- Teams other than universities get functions only for kinds they install, and room types only for
-  the functions they have.
+- Room types ship with all their expected functions. Missing carrier kinds do not hide those
+  expectations, and assigning a type never installs device kinds or creates devices.
 - The domain gives new incidents an impact (limited when unspecified) and rejects impact on
   other ticket types. The database restricts impact values but allows it to be empty on any
   type or retained when an older release changes the type. This keeps rollback writes working

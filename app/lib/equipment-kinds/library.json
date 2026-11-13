@@ -10531,10 +10531,7 @@
       "en": "Sound and microphones",
       "carriers": ["microphone", "audio_equipment", "loudspeaker", "wireless_receiver"],
       "paths": ["dsp", "amplifier", "mixer", "matrix", "presentation_switcher"],
-      "keywords": {
-        "de": ["Mikro", "Ton"],
-        "en": ["microphone", "sound"]
-      },
+      "keywords": { "de": ["Mikro", "Ton"], "en": ["microphone", "sound"] },
       "position": 2
     },
     {
@@ -10543,10 +10540,7 @@
       "en": "Control",
       "carriers": ["control_processor", "touch_panel", "remote"],
       "paths": ["network_switch"],
-      "keywords": {
-        "de": ["Steuerung", "Bedienung"],
-        "en": ["control", "panel"]
-      },
+      "keywords": { "de": ["Steuerung", "Bedienung"], "en": ["control", "panel"] },
       "position": 3
     },
     {
@@ -10561,10 +10555,7 @@
         "presentation_receiver"
       ],
       "paths": ["extender", "converter", "matrix", "avoip_encoder", "avoip_decoder"],
-      "keywords": {
-        "de": ["Pult", "Anschluss"],
-        "en": ["lectern", "connection"]
-      },
+      "keywords": { "de": ["Pult", "Anschluss"], "en": ["lectern", "connection"] },
       "position": 4
     },
     {
@@ -10623,6 +10614,158 @@
       "paths": ["interpreter_booth", "dsp"],
       "keywords": { "de": ["Dolmetschen", "Übersetzung"], "en": ["interpretation", "translation"] },
       "position": 10
+    }
+  ],
+  "roomTypes": [
+    {
+      "key": "auditorium",
+      "de": "Auditorium / Audimax",
+      "en": "Auditorium",
+      "position": 0,
+      "functions": [
+        "picture",
+        "sound",
+        "control",
+        "lectern_connections",
+        "recording",
+        "conferencing",
+        "hearing_assistance",
+        "lighting"
+      ]
+    },
+    {
+      "key": "lecture_hall",
+      "de": "Hörsaal",
+      "en": "Lecture hall",
+      "position": 1,
+      "functions": [
+        "picture",
+        "sound",
+        "control",
+        "lectern_connections",
+        "recording",
+        "hearing_assistance",
+        "lighting"
+      ]
+    },
+    {
+      "key": "seminar_room",
+      "de": "Seminarraum",
+      "en": "Seminar room",
+      "position": 2,
+      "functions": ["picture", "sound", "control", "lectern_connections", "conferencing"]
+    },
+    {
+      "key": "pc_pool",
+      "de": "PC-Pool / Rechnerraum",
+      "en": "Computer lab",
+      "position": 3,
+      "functions": ["picture", "lectern_connections"]
+    },
+    {
+      "key": "active_learning",
+      "de": "Active-Learning-Raum / Gruppenarbeitsraum",
+      "en": "Active learning room",
+      "position": 4,
+      "functions": ["picture", "sound", "control", "lectern_connections", "conferencing"]
+    },
+    {
+      "key": "meeting_room",
+      "de": "Besprechungs- / Sitzungsraum",
+      "en": "Meeting room",
+      "position": 5,
+      "functions": ["picture", "sound", "control", "lectern_connections", "conferencing"]
+    },
+    {
+      "key": "studio",
+      "de": "Aufnahmestudio",
+      "en": "Recording studio",
+      "position": 6,
+      "functions": ["picture", "sound", "recording", "lighting"]
+    },
+    {
+      "key": "council_chamber",
+      "de": "Ratssaal / Sitzungssaal",
+      "en": "Council chamber",
+      "position": 7,
+      "functions": [
+        "picture",
+        "sound",
+        "control",
+        "lectern_connections",
+        "recording",
+        "hearing_assistance",
+        "lighting",
+        "discussion",
+        "interpretation"
+      ]
+    },
+    {
+      "key": "event_hall",
+      "de": "Saal (Veranstaltungs- / Festsaal)",
+      "en": "Hall (event / ballroom)",
+      "position": 8,
+      "functions": [
+        "picture",
+        "sound",
+        "control",
+        "lectern_connections",
+        "recording",
+        "hearing_assistance",
+        "lighting",
+        "interpretation"
+      ]
+    },
+    {
+      "key": "conference_room",
+      "de": "Tagungsraum",
+      "en": "Conference room",
+      "position": 9,
+      "functions": [
+        "picture",
+        "sound",
+        "control",
+        "lectern_connections",
+        "conferencing",
+        "hearing_assistance",
+        "lighting",
+        "interpretation"
+      ]
+    },
+    {
+      "key": "stage",
+      "de": "Bühne",
+      "en": "Stage",
+      "position": 10,
+      "functions": ["picture", "sound", "lectern_connections", "lighting"]
+    },
+    {
+      "key": "control_room",
+      "de": "Regie- / Technikraum",
+      "en": "Control or technical room",
+      "position": 11,
+      "functions": ["picture", "lectern_connections", "recording"]
+    },
+    {
+      "key": "foyer",
+      "de": "Foyer",
+      "en": "Foyer",
+      "position": 12,
+      "functions": ["picture", "sound", "lectern_connections", "hearing_assistance", "lighting"]
+    },
+    {
+      "key": "exhibition_hall",
+      "de": "Messehalle",
+      "en": "Exhibition hall",
+      "position": 13,
+      "functions": ["picture", "sound", "lectern_connections"]
+    },
+    {
+      "key": "open_air",
+      "de": "Freigelände / Open-Air-Fläche",
+      "en": "Open-air area",
+      "position": 14,
+      "functions": ["picture", "sound"]
     }
   ]
 }

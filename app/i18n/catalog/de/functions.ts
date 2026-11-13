@@ -1,4 +1,27 @@
 export const functionsDe = {
+  "functions.state.MISSING": "Fehlt",
+  "functions.missing": "Kein tragendes Gerät im Raum. Das ist eine Lücke, keine Störung.",
+  "functions.types.label": "Raumtyp",
+  "functions.types.none": "Ohne Raumtyp",
+  "functions.types.help":
+    "Der Raumtyp legt fest, welche Funktionen erwartet werden. Ohne Typ ergeben sie sich aus den Geräten.",
+  "functions.types.expects": "Erwartet: {functions}",
+  "functions.types.adjust": "Für diesen Raum anpassen",
+  "functions.types.inherit": "Vom Raumtyp / den Geräten",
+  "functions.types.expected": "Hier erwartet",
+  "functions.types.dropped": "Hier nicht vorgesehen",
+  "functions.types.note": "Begründung für {function} (optional)",
+  "functions.types.bulk": "Raumtyp zuweisen",
+  "functions.types.selected": "{count} Räume ausgewählt",
+  "functions.types.select": "Raum auswählen: {name}",
+  "functions.types.saved": "Raumtyp gespeichert",
+  "functions.types.invalid":
+    "Raumtyp oder Funktion ist nicht mehr verfügbar. Lade die Seite neu und wähle erneut.",
+  "functions.rounds.emptyChecklist":
+    "Es gibt keine tragenden Geräte oder offenen Funktionsstörungen zu prüfen. Du kannst den Raum abschließen. Lücken bleiben sichtbar und gelten nicht als geprüft.",
+  "functions.rounds.noCarrier":
+    "Kein tragendes Gerät zu prüfen. Diese Lücke benötigt kein Prüfergebnis.",
+  "functions.rounds.finishEmpty": "Raum ohne Prüfpunkte abschließen",
   "functions.state.WORKS": "Geht",
   "functions.state.NOT_CHECKED": "Nicht geprüft",
   "functions.confirmed": "Bestätigt: {date}",

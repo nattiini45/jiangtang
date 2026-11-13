@@ -104,7 +104,7 @@ A function a room should have, from its room type or set for the room itself.
 _Avoid_: required function, Soll-Ausstattung
 
 **Gap** (Lücke):
-An expected function that no device in the room serves.
+An expected function with no carrier device in the room. Path devices alone do not fill a gap.
 _Avoid_: missing device, defect
 
 ## State

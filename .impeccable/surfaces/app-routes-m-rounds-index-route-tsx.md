@@ -8,7 +8,7 @@ related_targets: ["app/components/rooms/round-pages.tsx", "app/components/rooms/
 # Rounds and confirmation
 
 Mode: Operate. Preserve the application palette, density ladder and type hierarchy.
-Start from all rooms with installed functions; an explicit room selection defines the round.
+Start from all rooms with expected functions; an explicit room selection defines the round.
 Building filtering selects the visible scope. Lists support seventy rooms, grouped by building
 and ordered by room number. Room names take the extra width at 1920; at 1280 with the sidebar
 open they truncate, never push progress or actions offscreen. Both languages and densities apply.
@@ -22,3 +22,6 @@ or an explicitly named state set by hand. An expired confirmation becomes neutra
 
 Use UI SDK for new controls, keeping the existing control styles and photo capture.
 The stock UI SDK dialog handles the admin's state, reason and optional Berlin end date.
+Expected functions remain visible without a carrier but have no result controls. Gaps require
+no check, and installed extra functions stay checkable. If no functions can be checked, a
+separate finish action completes that room without claiming any function works.

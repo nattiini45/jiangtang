@@ -11,9 +11,12 @@ import { RoomFeatureToggles, type RoomFlags } from "./room-feature-toggles";
 import { useLocale, useT } from "~/i18n/use-t";
 import { FieldInputs } from "~/components/fields/field-inputs";
 import type { Field } from "~/lib/custom-fields/fields";
+import { RoomExpectationsFields } from "./room-expectations-fields";
+import type { roomExpectationFields } from "~/domains/rooms/room-types.queries.server";
 
 export interface RoomDefaults extends RoomFlags {
   name?: string;
+  roomTypeId?: string | null;
   roomNumber?: string | null;
   campusId?: string | null;
   buildingId?: string | null;
@@ -38,11 +41,13 @@ export function RoomFormFields({
   defaults,
   fields = [],
   stored,
+  expectations,
 }: {
   campuses: CampusWithBuildings[];
   defaults?: RoomDefaults;
   fields?: Field[];
   stored?: unknown;
+  expectations?: Awaited<ReturnType<typeof roomExpectationFields>>;
 }) {
   const locale = useLocale();
   const t = useT();
@@ -96,7 +101,10 @@ export function RoomFormFields({
         <Input name="lastCheckedAt" type="date" defaultValue={defaults?.lastCheckedAt ?? ""} />
       </FormField>
 
-      <RoomFeatureToggles defaults={defaults} />
+      {expectations ? (
+        <RoomExpectationsFields config={expectations} roomTypeId={defaults?.roomTypeId} />
+      ) : null}
+      <RoomFeatureToggles defaults={defaults} expectations={!!expectations} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <CapabilityListInput

@@ -2,7 +2,7 @@ import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { getRound } from "~/domains/functions/rounds.queries.server";
 import { getFunctionStates } from "~/domains/functions/functions.queries.server";
-import { recordCheck } from "~/domains/functions/rounds.mutations.server";
+import { recordCheck, finishEmptyRoundRoom } from "~/domains/functions/rounds.mutations.server";
 import { recordCheckSchema } from "~/domains/functions/rounds.schema";
 import { parseInput } from "~/lib/validation.server";
 import { NotFoundError, ValidationError, toErrorResponse } from "~/lib/errors.server";
@@ -16,7 +16,10 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const target = round?.rooms.find((row) => row.roomId === params.roomId);
   if (!round || !target) throw toErrorResponse(new NotFoundError());
   const functions = (await getFunctionStates({ roomIds: [params.roomId] })).filter(
-    (row) => row.devices.length,
+    (row) =>
+      row.expected ||
+      row.hasCarrier ||
+      row.faults.some((fault) => fault.functionId === row.functionId),
   );
   return {
     round,
@@ -29,6 +32,10 @@ export async function action({ request, params }: Route.ActionArgs) {
   const actor = await requireUser(request);
   try {
     const form = await request.formData();
+    if (form.get("intent") === "finishEmpty") {
+      await finishEmptyRoundRoom(actor, params.id, params.roomId);
+      return { finished: true };
+    }
     const input = parseInput(recordCheckSchema, {
       roomId: params.roomId,
       roundId: params.id,

@@ -64,10 +64,12 @@ async function validateFunctionLinks(
       status: { not: "RETIRED" },
       kindId: { in: definition.kinds.map((link) => link.kindId) },
     },
-    select: { id: true },
+    select: { id: true, kindId: true },
   });
   if (
-    !devices.length ||
+    !devices.some((device) =>
+      definition.kinds.some((link) => link.role === "CARRIER" && link.kindId === device.kindId),
+    ) ||
     (input.equipmentId && !devices.some((device) => device.id === input.equipmentId))
   )
     throw new ValidationError({ functionId: [tr("functions.error.function")] });

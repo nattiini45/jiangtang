@@ -1,6 +1,11 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.entity.roomType": "Room type",
+  "history.action.RoomTypeReconciled": "Room type added from the library",
+  "history.action.RoomExpectationsChanged": "Expected functions changed",
+  "history.action.RoomExpectationsCopied": "Expected functions copied from previous values",
+  "history.action.RoundRoomCompleted": "Room with no checks completed in round",
   "history.action.RoundStarted": "Round started",
   "history.action.FunctionChecked": "Function checked",
   "history.action.FunctionStateSet": "Function state set by hand",

@@ -9,6 +9,41 @@ import { recordFunctionFaultInTx } from "~/domains/tickets/tickets.checks.server
 import { startRoundSchema, recordCheckSchema, functionStateSchema } from "./rounds.schema";
 import { markRoomCheckedInTx } from "~/domains/rooms/rooms.mutations.server";
 import { restoreEquipmentInTx } from "~/domains/inventory/inventory.mutations.server";
+import type { Tx } from "~/lib/db.server";
+import { expectedFunctionIds, servedFunctionIds } from "./functions.expectations";
+
+async function checklist(tx: Tx, roomId: string) {
+  const room = await tx.room.findUniqueOrThrow({
+    where: { id: roomId },
+    include: {
+      roomType: { include: { functions: true } },
+      functionExpectations: true,
+      equipment: { where: { status: { not: "RETIRED" } }, select: { kindId: true, status: true } },
+    },
+  });
+  const functions = await tx.roomFunction.findMany({
+    where: { archivedAt: null },
+    include: { kinds: true },
+  });
+  const served = new Set(servedFunctionIds(functions, room.equipment));
+  const expected = expectedFunctionIds(room, [...served]);
+  const faults = await tx.ticket.findMany({
+    where: {
+      roomId,
+      functionId: { not: null },
+      type: "INCIDENT",
+      status: { in: ["OPEN", "IN_PROGRESS"] },
+    },
+    select: { functionId: true },
+  });
+  return functions
+    .map((fn) => ({
+      ...fn,
+      expected: expected.has(fn.id),
+      checkable: served.has(fn.id) || faults.some((fault) => fault.functionId === fn.id),
+    }))
+    .filter((fn) => fn.expected || fn.checkable);
+}
 
 function invalid() {
   return new ValidationError({}, [tr("functions.rounds.invalid")]);
@@ -18,20 +53,9 @@ export async function startRound(actor: AuditActor, raw: z.input<typeof startRou
   const input = startRoundSchema.parse(raw);
   const roomIds = [...new Set(input.roomIds)];
   const round = await txWithAudit(actor, async (tx, audit) => {
-    if (
-      (await tx.room.count({
-        where: {
-          id: { in: roomIds },
-          equipment: {
-            some: {
-              status: { not: "RETIRED" },
-              kind: { roomFunctions: { some: { function: { archivedAt: null } } } },
-            },
-          },
-        },
-      })) !== roomIds.length
-    )
-      throw invalid();
+    for (const roomId of roomIds) {
+      if (!(await checklist(tx, roomId)).length) throw invalid();
+    }
     const row = await tx.round.create({
       data: {
         name: input.name,
@@ -83,19 +107,9 @@ export async function recordCheck(actor: AuditActor, raw: z.input<typeof recordC
         throw invalid();
     }
     await tx.$queryRaw`SELECT id FROM "Equipment" WHERE "roomId" = ${input.roomId} ORDER BY id FOR UPDATE`;
-    const functions = await tx.roomFunction.findMany({
-      where: {
-        archivedAt: null,
-        kinds: {
-          some: {
-            kind: { equipment: { some: { roomId: input.roomId, status: { not: "RETIRED" } } } },
-          },
-        },
-      },
-      include: { kinds: true },
-    });
+    const functions = await checklist(tx, input.roomId);
     const definition = functions.find((row) => row.id === input.functionId);
-    if (!definition) throw invalid();
+    if (!definition?.checkable) throw invalid();
     const devices = await tx.equipment.findMany({
       where: {
         roomId: input.roomId,
@@ -201,7 +215,11 @@ export async function recordCheck(actor: AuditActor, raw: z.input<typeof recordC
       const checks = await tx.roomCheck.findMany({
         where: { roundId: input.roundId, roomId: input.roomId, result: { not: "NOT_CHECKED" } },
       });
-      if (functions.every((fn) => checks.some((check) => check.functionId === fn.id))) {
+      if (
+        functions
+          .filter((fn) => fn.checkable)
+          .every((fn) => checks.some((check) => check.functionId === fn.id))
+      ) {
         await tx.roundRoom.update({
           where: { roundId_roomId: { roundId: input.roundId, roomId: input.roomId } },
           data: { completedAt: now },
@@ -284,4 +302,30 @@ export async function clearFunctionState(
   });
   await emitChange({ entityType: "room", id: roomId, op: "updated" });
   return result;
+}
+
+export async function finishEmptyRoundRoom(actor: AuditActor, roundId: string, roomId: string) {
+  await txWithAudit(actor, async (tx, audit) => {
+    await tx.$queryRaw`SELECT id FROM "Room" WHERE id = ${roomId} FOR UPDATE`;
+    await tx.$queryRaw`SELECT id FROM "Round" WHERE id = ${roundId} FOR UPDATE`;
+    const target = await tx.roundRoom.findUnique({
+      where: { roundId_roomId: { roundId, roomId } },
+    });
+    if (!target || (await checklist(tx, roomId)).some((fn) => fn.checkable)) throw invalid();
+    if (target.completedAt) return;
+    const now = new Date();
+    await tx.roundRoom.update({
+      where: { roundId_roomId: { roundId, roomId } },
+      data: { completedAt: now },
+    });
+    await audit({
+      action: "RoundRoomCompleted",
+      entityType: "room",
+      entityId: roomId,
+      data: { roundId, emptyChecklist: true },
+    });
+    if (!(await tx.roundRoom.count({ where: { roundId, completedAt: null } })))
+      await tx.round.update({ where: { id: roundId }, data: { closedAt: now } });
+  });
+  await emitChange({ entityType: "room", id: roomId, op: "updated" });
 }

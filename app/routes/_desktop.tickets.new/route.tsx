@@ -32,7 +32,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     type: parseEnumParam(TicketType, typeParam) ?? null,
   };
   const functions = (await getFunctionStates())
-    .filter((row) => row.devices.length)
+    .filter((row) => row.hasCarrier)
     .map(({ roomId, functionId, name, knownFixes }) => ({
       roomId,
       functionId,

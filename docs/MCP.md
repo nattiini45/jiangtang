@@ -341,19 +341,40 @@ Resource support varies by client; use the equivalent read tools when resources 
 
 ### Room functions and faults
 
-`list_room_functions({})` returns installed function definitions with carrier and path-device
+`list_room_functions({})` returns available function definitions with carrier and path-device
 kind mappings. `get_room_functions({ roomId })` returns the room's derived state per function,
 its devices, open faults, causes and the oldest evidence at the current level. A null evidence
 start means the status predates the function-state migration; no known fault is neutral and
 does not confirm that the function works.
 
-`start_round({ name, roomIds })` starts a round for an explicit room selection.
+`list_room_types({})` reads the room types and their expected function IDs. Read-only tokens
+can use it. `set_room_type({ roomId, type })` accepts a library key or type ID; null removes
+the type. `set_function_expected({ roomId, functionKey, expected, note? })` adds or drops an
+expectation for one room; null restores inheritance. Both setters need a write token and
+preserve the other per-room adjustments. They update the four previous feature flags too.
+The effective expectations are the type's functions plus additions minus removals. Untyped
+rooms start from their carrier devices, not path devices. An expected function without a carrier returns `MISSING`, never
+an automatic fault or a row in `list_not_working`. An explicit open fault or a current manual
+state is still evidence, even after the last carrier retires. A passing check alone cannot
+make a missing carrier green. Gaps are not offered as new fault choices, and new function faults
+need a carrier. Existing explicit faults remain readable and resolvable after retirement.
+
+`update_room` retains its previous replace semantics for the legacy fields, including false
+for omitted feature flags. `roomTypeId`, `expectations` and `customValues` are preserved when
+omitted. Explicit expectation rows merge per function; expected null restores inheritance.
+When expectations are omitted, the four legacy flags update their corresponding expectations.
+
+`start_round({ name, roomIds })` starts a round for an explicit room selection with expected functions.
 `get_round({ id })` returns its rooms, done/open progress, checks and faults.
 `record_check({ roomId, functionKey, result, note?, roundId?, resolveFaults?, resolution?, restoreDevices? })`
 records `WORKS`, `LIMITED`, `DOWN` or `NOT_CHECKED`. `functionKey` also accepts the ID of a
 team-defined function. Limited and failed checks open a fault
 in the same audited transaction. Repeating a completed result in the same round returns that
 check rather than opening another fault. A skipped result can be completed later.
+Expected gaps remain visible in a round but have no result buttons and do not require a check.
+Functions with a carrier or an existing open function fault remain checkable even when the
+type does not expect them. A room with no checkable functions can be finished on the phone
+without recording a passing check or changing its last-check date.
 Passing never silently closes faults or restores devices: supply the selected fault IDs with
 a nonblank resolution, or device IDs to restore, explicitly. A complete room updates its last
 check date; all completed rooms close the round. These writes require a write-scoped token.
