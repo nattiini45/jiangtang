@@ -81,7 +81,7 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     {
       accessorKey: "state",
       meta: {
-        sizing: "short",
+        sizing: "text",
         searchText: (row) => t(`admin.invitations.lifecycle.${row.state}`, { date: "" }).trim(),
       },
       header: t("admin.users.col.status"),

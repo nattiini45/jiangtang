@@ -48,7 +48,8 @@ test("drag, reload, keyboard, fit and reset room column widths", async ({ page }
   const width = () => header.evaluate((element) => element.getBoundingClientRect().width);
   const initial = await width();
   const campus = page.locator('[role="cell"][data-column-id="campusName"]').first();
-  await expect(campus).toHaveAttribute("title", "Westpark");
+  await expect(campus).not.toHaveAttribute("title");
+  await expect(campus.locator("[title]")).toHaveAttribute("title", "Westpark");
   await expect.poll(() => header.evaluate((element) => element.clientWidth)).toBeGreaterThan(300);
   const handle = header.getByRole("separator");
   const box = (await handle.boundingBox())!;

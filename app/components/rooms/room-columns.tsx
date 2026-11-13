@@ -29,6 +29,7 @@ export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): 
     },
     {
       accessorKey: "campusName",
+      meta: { sizing: "short" },
       header: t("rooms.col.campus"),
       cell: ({ row }) => (
         <span className="truncate text-sm" title={row.original.campusName ?? undefined}>

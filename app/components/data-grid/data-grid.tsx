@@ -298,7 +298,13 @@ export function DataGrid<TData>({
                         role="cell"
                         data-column-id={cell.column.id}
                         ref={(element) => {
-                          if (element) element.title = element.textContent ?? "";
+                          if (!element) return;
+                          const text = element.textContent ?? "";
+                          const hasTitle = [
+                            ...element.querySelectorAll<HTMLElement>("[title]"),
+                          ].some((child) => child.title.includes(text));
+                          if (!text || hasTitle) element.removeAttribute("title");
+                          else element.title = text;
                         }}
                         className={cn(
                           "shrink-0 content-center truncate px-3",

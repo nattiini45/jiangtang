@@ -151,12 +151,18 @@ for (const locale of ["de", "en"] as const) {
       await page.setViewportSize({ width: 1600, height: 800 });
       await expect
         .poll(async () => (await nameHeader.boundingBox())!.width)
-        .toBeCloseTo(narrowNameWidth + 320, 0);
+        .toBeCloseTo(narrowNameWidth + 160, 0);
       const wideWidths = await headers.evaluateAll((elements) =>
         elements.map((element) => element.getBoundingClientRect().width),
       );
-      expect(wideWidths.filter((_, index) => index !== 0)).toEqual(
-        narrowWidths.filter((_, index) => index !== 0),
+      const issuesIndex = await headers.evaluateAll((elements) =>
+        elements.findIndex(
+          (element) => (element as HTMLElement).dataset.columnId === "knownIssues",
+        ),
+      );
+      expect(wideWidths[issuesIndex]).toBeCloseTo(narrowWidths[issuesIndex] + 160, 0);
+      expect(wideWidths.filter((_, index) => index !== 0 && index !== issuesIndex)).toEqual(
+        narrowWidths.filter((_, index) => index !== 0 && index !== issuesIndex),
       );
       expect((await issuesCell.boundingBox())!.width).toBeCloseTo(
         (await issuesHeader.boundingBox())!.width,
