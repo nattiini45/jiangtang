@@ -1,7 +1,10 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
 import { z } from "zod";
 import type { Route } from "./+types/route";
-import { requireUser } from "~/lib/auth.server";
+import { requireUser, requireRole } from "~/lib/auth.server";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
+import { unmigratedLegacyValues } from "~/lib/custom-fields/legacy.server";
+import { clearLegacyEquipmentValue } from "~/domains/inventory/inventory.custom-values.server";
 import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 import { withFieldValues } from "~/lib/custom-fields/display.server";
 import { FieldValues } from "~/components/fields/field-values";
@@ -64,7 +67,7 @@ export function meta({ data, matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  await requireUser(request);
+  const user = await requireUser(request);
   const e = await getEquipment(params.id);
   if (!e) throw toErrorResponse(new NotFoundError(tr("err.equipment.notFound")));
   // For pooled units, fetch availability over the next 30 days (utilization view).
@@ -99,7 +102,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   return {
     equipment,
     fields: await getFormFields("EQUIPMENT"),
-    filledFields: (await withFieldValues("EQUIPMENT", [e]))[0].fields,
+    filledFields: [
+      ...(await withFieldValues("EQUIPMENT", [e]))[0].fields,
+      ...unmigratedLegacyValues(await getFieldSchema("EQUIPMENT"), e, e.kind.id),
+    ],
+    canClearLegacy: user.role === "ADMIN",
     kinds,
     models,
     rooms,
@@ -165,6 +172,11 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
   }
   try {
+    if (intent === "clearLegacy") {
+      await requireRole(request, "ADMIN");
+      await clearLegacyEquipmentValue(actor, id, String(form.get("column") ?? ""));
+      return redirect(`/inventory/${id}`);
+    }
     if (intent === "retire") {
       const eq = await retireEquipment(actor, id);
       await emitChange({ entityType: "equipment", id: eq.id, op: "updated" });
@@ -269,6 +281,7 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
             <FieldValues
               showLegend={false}
               fields={fields}
+              canClearLegacy={loaderData.canClearLegacy}
               essentialFirst={fields.some((field) => field.origin === "library")}
             />
             {from === "model" && eq.model?.manualUrl ? (

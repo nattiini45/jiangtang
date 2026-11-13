@@ -1,4 +1,16 @@
 export const fieldsDe = {
+  "fields.error.condition":
+    "Diese Eigenschaft gilt beim aktuellen Wert von „{name}“ nicht. Ändern Sie zuerst „{name}“.",
+  "fields.library.resetName": "Bibliotheksnamen verwenden",
+  "fields.library.hide": "{name} ausblenden",
+  "fields.library.show": "{name} wieder anzeigen",
+  "fields.library.hidden": "Ausgeblendet ({count})",
+  "fields.weight.must": "Wesentlich",
+  "fields.weight.useful": "Ergänzend",
+  "fields.weight.special": "Speziell",
+  "fields.legacy.retained":
+    "Dieser bisherige Wert konnte nicht in die Eigenschaft übernommen werden. Er bleibt hier unverändert erhalten.",
+  "fields.legacy.clear": "Bisherigen Wert leeren",
   "fields.range.min": "{name}: Minimum",
   "fields.range.max": "{name}: Maximum",
   "fields.library.protected":
@@ -24,16 +36,16 @@ export const fieldsDe = {
   "fields.columns.saved": "Spalten für das Team gespeichert.",
   "fields.columns.invalid":
     "Wähle höchstens 12 Spalten und lasse den Namen an erster Stelle. Lade die Liste bei Bedarf neu.",
-  "fields.admin.saved": "Feld gespeichert.",
+  "fields.admin.saved": "Eigenschaft gespeichert.",
   "fields.admin.labelInvalid": "Zwischen 1 und 80 Zeichen eingeben.",
   "fields.admin.everyKindHint":
-    "Hier stehen nur Felder für alle Arten. Wählen Sie eine Geräteart, um auch ihre eigenen Felder zu sehen.",
+    "Hier stehen nur Eigenschaften für alle Arten. Wählen Sie eine Geräteart, um auch ihre eigenen Eigenschaften zu sehen.",
   "fields.admin.moveUp": "{name} nach oben verschieben",
   "fields.admin.moveDown": "{name} nach unten verschieben",
   "fields.admin.sectionMoveUp": "Abschnitt {name} nach oben verschieben",
   "fields.admin.sectionMoveDown": "Abschnitt {name} nach unten verschieben",
   "fields.error.inUseOne":
-    "{count} Datensatz enthält noch einen Wert für dieses Feld. Stellen Sie es wieder her und machen Sie es für den Datensatz gültig, bevor Sie seinen Wert leeren, oder lassen Sie es archiviert.",
+    "{count} Datensatz enthält noch einen Wert für diese Eigenschaft. Stellen Sie sie wieder her und machen Sie sie für den Datensatz gültig, bevor Sie ihren Wert leeren, oder lassen Sie sie archiviert.",
   "fields.error.ambiguousNumber":
     "Diese Zahl ist mehrdeutig. Schreiben Sie {thousands} für Tausender oder {decimal} für eine Dezimalzahl.",
   "fields.type.TEXT": "Text",
@@ -45,15 +57,15 @@ export const fieldsDe = {
   "fields.type.DATE": "Datum",
   "fields.type.LINK": "Link",
   "fields.type.RANGE": "Bereich",
-  "fields.admin.scope": "Felder für",
+  "fields.admin.scope": "Eigenschaften für",
   "fields.admin.rooms": "Räume",
   "fields.admin.devices": "Geräte",
   "fields.admin.viewKind": "Geräteart",
-  "fields.admin.add": "Feld hinzufügen",
-  "fields.admin.addFirst": "Erstes Feld hinzufügen",
-  "fields.admin.empty": "Noch keine Felder vorhanden",
+  "fields.admin.add": "Eigene Eigenschaft hinzufügen",
+  "fields.admin.addFirst": "Erste eigene Eigenschaft hinzufügen",
+  "fields.admin.empty": "Noch keine eigenen Eigenschaften vorhanden",
   "fields.admin.emptyHelp": "Ergänzen Sie die Angaben, die Ihr Team auf seinen Formularen braucht.",
-  "fields.admin.edit": "Feld bearbeiten",
+  "fields.admin.edit": "Eigene Eigenschaft bearbeiten",
   "fields.admin.type": "Typ",
   "fields.admin.applies": "Gilt für",
   "fields.admin.chosenKinds": "Ausgewählte Gerätearten",
@@ -64,9 +76,9 @@ export const fieldsDe = {
   "fields.admin.help": "Hilfetext",
   "fields.admin.key": "Schlüssel für Agenten (schreibgeschützt)",
   "fields.admin.typeLocked":
-    "Dieser Typ kann nicht geändert werden. Legen Sie für einen anderen Typ ein neues Feld an.",
+    "Dieser Typ kann nicht geändert werden. Legen Sie für einen anderen Typ eine neue eigene Eigenschaft an.",
   "fields.admin.convertText":
-    "Vorhandener Text bleibt unverändert. Das Feld erlaubt danach bis zu 4.000 Zeichen.",
+    "Vorhandener Text bleibt unverändert. Die Eigenschaft erlaubt danach bis zu 4.000 Zeichen.",
   "fields.admin.convertMulti":
     "Jede gespeicherte Auswahl wird zu einer Liste mit einer Option. Die Optionen und ihre IDs bleiben erhalten.",
   "fields.admin.convertSingle":
@@ -74,15 +86,15 @@ export const fieldsDe = {
   "fields.admin.sectionUp": "Abschnitt nach oben",
   "fields.admin.sectionDown": "Abschnitt nach unten",
   "fields.admin.restoreOffer":
-    "Das archivierte Feld „{name}“ hat diesen Namen bereits. Stellen Sie es wieder her, um seine vorhandenen Werte zu behalten.",
-  "fields.admin.restoreExisting": "Dieses Feld wiederherstellen",
+    "Die archivierte Eigenschaft „{name}“ hat diesen Namen bereits. Stellen Sie sie wieder her, um ihre vorhandenen Werte zu behalten.",
+  "fields.admin.restoreExisting": "Diese Eigenschaft wiederherstellen",
   "fields.admin.reuseOffer":
-    "Das Feld „{name}“ gibt es bereits für andere Gerätearten als {type}. Verwenden Sie dieses Feld mit seinem Typ auch für diese Arten oder speichern Sie ein eigenes Feld.",
-  "fields.admin.reuse": "Dieses Feld auch hier verwenden",
-  "fields.admin.openHolder": "Vorhandenes Feld öffnen",
-  "fields.admin.archiveFirst": "Archivieren Sie dieses Feld, bevor Sie es löschen.",
+    "Die Eigenschaft „{name}“ gibt es bereits für andere Gerätearten als {type}. Verwenden Sie diese Eigenschaft mit ihrem Typ auch für diese Arten oder speichern Sie eine eigene Eigenschaft.",
+  "fields.admin.reuse": "Diese Eigenschaft auch hier verwenden",
+  "fields.admin.openHolder": "Vorhandene Eigenschaft öffnen",
+  "fields.admin.archiveFirst": "Archivieren Sie diese Eigenschaft, bevor Sie sie löschen.",
   "fields.admin.deleteConfirm":
-    "Das archivierte Feld „{name}“ und seine Optionen löschen? Das kann nicht rückgängig gemacht werden.",
+    "Die archivierte Eigenschaft „{name}“ und ihre Optionen löschen? Das kann nicht rückgängig gemacht werden.",
   "fields.admin.options": "Optionen",
   "fields.admin.optionLabel": "Bezeichnung der Option",
   "fields.admin.newOption": "Neue Option",
@@ -100,7 +112,7 @@ export const fieldsDe = {
   "fields.admin.paste.invalid": "Zu lang · übersprungen",
   "fields.admin.confirmPaste": "{count} Optionen hinzufügen",
   "fields.name.conflict":
-    "Das {state} Feld „{name}“ verwendet diesen Namen bereits für {coverage}. Einen anderen Namen wählen oder zuerst dieses Feld bearbeiten.",
+    "Die {state} Eigenschaft „{name}“ verwendet diesen Namen bereits für {coverage}. Einen anderen Namen wählen oder zuerst diese Eigenschaft bearbeiten.",
   "fields.name.active": "aktive",
   "fields.name.archived": "archivierte",
   "fields.name.allRooms": "alle Räume",
@@ -125,36 +137,39 @@ export const fieldsDe = {
   "fields.values.newTab": "Öffnet in neuem Tab",
   "fields.error.encoding": "Ungültige Unicode-Zeichen oder Nullzeichen entfernen.",
   "fields.error.type":
-    "Nur Text zu Langtext und Einfachauswahl zu Mehrfachauswahl (oder zurück) sind möglich. Ein neues Feld für einen anderen Typ anlegen.",
+    "Nur Text zu Langtext und Einfachauswahl zu Mehrfachauswahl (oder zurück) sind möglich. Eine neue eigene Eigenschaft für einen anderen Typ anlegen.",
   "fields.error.multiple":
-    "{count} Datensätze haben mehrere Werte. Die Auswahl auf einen Wert reduzieren, bevor der Feldtyp geändert wird.",
-  "fields.error.unknown": "Dieses Feld gibt es nicht. Das aktuelle Datensatzschema abrufen.",
-  "fields.error.archived": "Dieses Feld ist archiviert. Es zuerst wiederherstellen.",
+    "{count} Datensätze haben mehrere Werte. Die Auswahl auf einen Wert reduzieren, bevor der Eigenschaftstyp geändert wird.",
+  "fields.error.unknown": "Diese Eigenschaft gibt es nicht. Das aktuelle Datensatzschema abrufen.",
+  "fields.error.archived": "Diese Eigenschaft ist archiviert. Sie zuerst wiederherstellen.",
   "fields.error.applicable":
-    "Dieses Feld gilt nicht für die Geräteart. Das passende Datensatzschema verwenden.",
+    "Diese Eigenschaft gilt nicht für die Geräteart. Das passende Datensatzschema verwenden.",
   "fields.error.number": "Eine endliche Zahl mit höchstens 6 Nachkommastellen eingeben.",
-  "fields.error.value": "Der Wert passt nicht zum Feldtyp. Das Datensatzschema prüfen.",
+  "fields.error.value": "Der Wert passt nicht zum Eigenschaftstyp. Das Datensatzschema prüfen.",
   "fields.error.option": "Eine aktive Option aus der Liste wählen, ohne doppelte Werte.",
   "fields.error.inUse":
-    "{count} Datensätze enthalten noch einen Wert für dieses Feld. Es wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder es archiviert lassen.",
+    "{count} Datensätze enthalten noch einen Wert für diese Eigenschaft. Sie wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder sie archiviert lassen.",
   "fields.error.optionInUse":
-    "Diese Option wird noch verwendet. Das Feld wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder die Option archivieren.",
+    "Diese Option wird noch verwendet. Die Eigenschaft wiederherstellen und für die betroffenen Datensätze gültig machen, bevor die Werte geleert werden, oder die Option archivieren.",
   "fields.limit.text":
-    "Text darf höchstens 200 Zeichen enthalten. Den Text kürzen oder ein Langtextfeld verwenden.",
+    "Text darf höchstens 200 Zeichen enthalten. Den Text kürzen oder eine Langtexteigenschaft verwenden.",
   "fields.limit.longText":
     "Langtext darf höchstens 4.000 Zeichen enthalten. Den Text kürzen oder eine Notiz verlinken.",
   "fields.limit.bytes":
     "Werte dürfen pro Datensatz höchstens 32 KB belegen. Werte kürzen, leeren oder durch einen Link ersetzen.",
   "fields.option.retired": "{label} (archiviert)",
   "fields.limit.fields":
-    "Höchstens 40 aktive Felder pro Datensatz. Ein Feld archivieren oder auf andere Gerätearten beschränken.",
-  "fields.limit.total": "Höchstens 120 Felder pro Bereich. Ein ungenutztes Feld löschen.",
+    "Höchstens 40 aktive Eigenschaften pro Datensatz. Eine Eigenschaft archivieren oder auf andere Gerätearten beschränken.",
+  "fields.limit.total":
+    "Höchstens 120 Eigenschaften pro Bereich. Eine ungenutzte Eigenschaft löschen.",
   "fields.limit.options":
-    "Höchstens 50 aktive Optionen pro Feld. Eine Option archivieren oder löschen.",
-  "fields.limit.totalOptions": "Höchstens 200 Optionen pro Feld. Eine ungenutzte Option löschen.",
-  "fields.error.roomKinds": "Raumfelder gelten für alle Räume. Gerätearten entfernen.",
+    "Höchstens 50 aktive Optionen pro Eigenschaft. Eine Option archivieren oder löschen.",
+  "fields.limit.totalOptions":
+    "Höchstens 200 Optionen pro Eigenschaft. Eine ungenutzte Option löschen.",
+  "fields.error.roomKinds": "Raumeigenschaften gelten für alle Räume. Gerätearten entfernen.",
   "fields.error.kind":
     "Eine Geräteart fehlt, ist archiviert oder doppelt. Aktive Gerätearten auswählen.",
-  "fields.error.unit": "Nur Zahlenfelder haben eine Einheit. Die Einheit entfernen.",
-  "fields.error.choice": "Nur Auswahlfelder haben Optionen. Ein Auswahlfeld verwenden.",
+  "fields.error.unit": "Nur Zahleneigenschaften haben eine Einheit. Die Einheit entfernen.",
+  "fields.error.choice":
+    "Nur Auswahleigenschaften haben Optionen. Eine Auswahleigenschaft verwenden.",
 } as const;

@@ -8,6 +8,7 @@ import { applies, fieldGroups } from "./fields";
 import { getDefinitions, lockDefinitions } from "./definitions.server";
 import { createFieldSchema, updateFieldSchema, fieldOptionsSchema } from "./definitions.schema";
 import { isLibraryProperty } from "~/lib/equipment-kinds/properties";
+import { getFieldSchema } from "./schema.server";
 
 export const fieldMoveSchema = z.object({
   id: z.string().min(1),
@@ -55,11 +56,45 @@ export async function moveCustomField(actor: AuditActor, input: z.input<typeof f
   await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
     const field = await tx.customField.findUniqueOrThrow({ where: { id } });
-    if (isLibraryProperty(field))
+    const library = isLibraryProperty(field);
+    if (library && (section || !kindId))
       throw new ValidationError({ id: [tr("fields.library.protected")] });
-    const all = (await getDefinitions(field.scope, tx)).filter(
-      (field) => !isLibraryProperty(field),
-    );
+    if (library) {
+      const fields = await getFieldSchema(field.scope, { kindId }, tx);
+      const selected = fields.find((row) => row.id === id);
+      const rows = fields
+        .filter(
+          (row) =>
+            row.origin === "library" &&
+            !row.hidden &&
+            row.level === selected?.level &&
+            row.weight === selected?.weight,
+        )
+        .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+      const index = rows.findIndex((row) => row.id === id);
+      const target = index + (direction === "up" ? -1 : 1);
+      if (index === -1 || target < 0 || target >= rows.length) return;
+      if (rows[index].position === rows[target].position) {
+        for (const [position, row] of rows.entries())
+          await tx.customField.update({ where: { id: row.id }, data: { position } });
+        rows.forEach((row, position) => {
+          row.position = position;
+        });
+      }
+      for (const [row, position] of [
+        [rows[index], rows[target].position],
+        [rows[target], rows[index].position],
+      ] as const)
+        await tx.customField.update({ where: { id: row.id }, data: { position } });
+      await audit({
+        action: "CustomFieldUpdated",
+        entityType: "customField",
+        entityId: id,
+        data: { order: [rows[index].id, rows[target].id], direction },
+      });
+      return;
+    }
+    const all = (await getDefinitions(field.scope, tx)).filter((row) => !isLibraryProperty(row));
     const visible = (row: (typeof all)[number]) =>
       (showArchived || !row.archivedAt) && (field.scope === "ROOM" || applies(row, kindId));
     const shown = all.filter(visible);

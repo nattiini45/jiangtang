@@ -2,11 +2,11 @@
 export const adminDe = {
   "admin.structure.library.installOne": "1 Geräteart hinzufügen",
   "admin.structure.fieldMoveLimit":
-    "Beim Verschieben nach „{target}“ würden mehr als 40 aktive Felder gelten: {names}. Archivieren Sie zuerst Felder oder ändern Sie deren Gerätearten.",
+    "Beim Verschieben nach „{target}“ würden mehr als 40 aktive Eigenschaften gelten: {names}. Archivieren Sie zuerst Eigenschaften oder ändern Sie deren Gerätearten.",
   "admin.structure.fieldMoveName":
-    "Felder namens „{name}“ für „{source}“ und „{target}“ würden sich überschneiden. Benennen Sie vor dem Verschieben eines der Felder um oder ändern Sie seine Gerätearten.",
+    "Eigenschaften namens „{name}“ für „{source}“ und „{target}“ würden sich überschneiden. Benennen Sie vor dem Verschieben eine der Eigenschaften um oder ändern Sie ihre Gerätearten.",
   "admin.structure.fieldsMove":
-    "Diese Felder gelten danach auch für die Zielart. Ihre Verknüpfungen zu dieser Art bleiben bestehen:",
+    "Diese Eigenschaften gelten danach auch für die Zielart. Ihre Verknüpfungen zu dieser Art bleiben bestehen:",
   "admin.structure.library.willInstallAs": "Wird angelegt als „{name}“",
   "admin.structure.library.invalidInstitution":
     "Wählen Sie eine Art des Hauses aus der Bibliothek.",
@@ -14,12 +14,12 @@ export const adminDe = {
     "Wählen Sie 1 bis 80 verschiedene Gerätearten aus der Bibliothek.",
   "admin.structure.archiveBeforeDelete": "Archivieren Sie die Geräteart, bevor Sie sie löschen.",
   "admin.structure.fieldReferences":
-    "Diese Felder verwenden die Geräteart noch: {names}. Ändern Sie zuerst die Zuordnung der Felder.",
+    "Diese Eigenschaften verwenden die Geräteart noch: {names}. Ändern Sie zuerst die Zuordnung der Eigenschaften.",
   "admin.structure.recordReferences":
     "Die Geräteart wird noch von {devices} Geräten und {models} Modellen verwendet. Verschieben Sie diese zuerst.",
   "admin.structure.library.add": "Aus der Bibliothek hinzufügen",
   "admin.structure.library.help":
-    "Wählen Sie Ihr Haus und die gewünschten Gerätearten. Nur die angekreuzten Arten werden hinzugefügt; Felder werden nicht installiert.",
+    "Wählen Sie Ihr Haus und die gewünschten Gerätearten. Die angekreuzten Arten werden mit ihren Bibliothekseigenschaften hinzugefügt.",
   "admin.structure.library.institution": "Art des Hauses",
   "admin.structure.library.chooseInstitution": "Art des Hauses wählen",
   "admin.structure.library.remaining": "Noch {count} Gerätearten möglich.",
@@ -39,8 +39,9 @@ export const adminDe = {
   "admin.structure.library.groupConflict":
     "Nichts wurde hinzugefügt. Der Gruppenname „{name}“ ist belegt; betroffen: {kinds}. Benennen Sie die vorhandene Gruppe um.",
   "admin.structure.title": "Struktur",
-  "admin.structure.subtitle": "Gerätearten, Funktionsgruppen und Felder für Ihr Haus verwalten.",
-  "admin.structure.fields": "Felder",
+  "admin.structure.subtitle":
+    "Gerätearten, Funktionsgruppen und Eigenschaften für Ihr Haus verwalten.",
+  "admin.structure.fields": "Eigenschaften",
   "admin.structure.tabs": "Strukturbereiche",
   "admin.structure.kinds": "Gerätearten",
   "admin.structure.groups": "Funktionsgruppen",
@@ -63,7 +64,7 @@ export const adminDe = {
   "admin.structure.archiveTitle": "„{name}“ archivieren",
   "admin.structure.archiveAndMove": "Verschieben und archivieren",
   "admin.structure.moveHelp":
-    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten und Feldwerte bleiben erhalten.",
+    "Alle Geräte und Modelle wechseln gemeinsam zur gewählten Geräteart. Ihre bisherigen Daten und Eigenschaftswerte bleiben erhalten.",
   "admin.structure.moveTo": "Geräte und Modelle verschieben nach",
   "admin.structure.chooseKind": "Geräteart wählen",
   "admin.structure.deleteConfirm": "„{name}“ endgültig löschen?",

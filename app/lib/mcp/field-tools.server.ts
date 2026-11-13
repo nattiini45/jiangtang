@@ -61,10 +61,14 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "get_record_schema",
       description:
-        "Read active custom fields and their options for ROOM or EQUIPMENT. Supply kindId for kind-specific device fields. Retired options remain marked archivedAt and cannot be selected.",
-      schema: z.object({ scope: fieldScope, kindId: z.string().optional() }),
+        "Read active properties and their options for ROOM or EQUIPMENT, including appliesIf conditions. Supply kindId for kind-specific properties, or deviceId to resolve the device kind and return conditionHolds against effective model/device values. Retired options remain marked archivedAt and cannot be selected.",
+      schema: z.object({
+        scope: fieldScope,
+        kindId: z.string().optional(),
+        deviceId: z.string().optional(),
+      }),
     },
-    ({ scope, kindId }) => getRecordSchema(scope, kindId),
+    ({ scope, kindId, deviceId }) => getRecordSchema(scope, kindId, deviceId),
   );
   registerTool(
     server,
@@ -85,7 +89,7 @@ export function registerFieldTools(server: McpServer, context: McpContext) {
     {
       name: "update_custom_field",
       description:
-        "Patch a field definition, including kindIds, order and archived (true to archive, false to restore). Omitted properties are unchanged. Only TEXT to LONG_TEXT and CHOICE to MULTI_CHOICE (or back when no record has several selections) can change type. Admin write token required.",
+        "Patch a property. Library rows allow name, resetName=true to use the library name, position, archived (hide/restore, retaining values), showInList, listPosition and searchable only. Their type, level, unit, options and kind links are protected. Own properties also allow kindIds and compatible type conversions. Omitted properties are unchanged. Admin write token required.",
       schema: updateFieldSchema,
       role: "ADMIN",
       write: true,

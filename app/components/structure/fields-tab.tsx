@@ -7,6 +7,7 @@ import { applies, fieldGroups } from "~/lib/custom-fields/fields";
 import { Button } from "~/components/ui/button";
 import { Select } from "~/components/ui/select";
 import { FieldPanel } from "./field-panel";
+import { LibraryPropertyRow } from "./library-property-row";
 
 export type StructureFields = Awaited<ReturnType<typeof loader>>["fields"];
 export type StructureGroups = Awaited<ReturnType<typeof loader>>["groups"];
@@ -243,11 +244,15 @@ export function FieldsTab({
           ) : null}
           {scope === "EQUIPMENT"
             ? libraryKinds.map((kind) => {
-                const properties = fields.filter(
-                  (field) =>
-                    field.origin === "library" &&
-                    field.kinds.some((link) => link.kindId === kind.id),
-                );
+                const properties = fields
+                  .filter(
+                    (field) =>
+                      field.origin === "library" &&
+                      field.kinds.some((link) => link.kindId === kind.id),
+                  )
+                  .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
+                const active = properties.filter((field) => !field.hidden);
+                const hidden = properties.filter((field) => field.hidden);
                 return (
                   <section key={kind.id} className="mt-5 min-w-0">
                     <h2 className="mb-2 text-base font-semibold [overflow-wrap:anywhere]">
@@ -258,21 +263,50 @@ export function FieldsTab({
                         {t("fields.library.title", { count: properties.length })}
                       </summary>
                       <ul className="mt-3 divide-y">
-                        {properties.map((field) => (
-                          <li
-                            key={field.id}
-                            className="flex min-w-0 items-start justify-between gap-4 py-row text-sm"
-                          >
-                            <span className="min-w-0 [overflow-wrap:anywhere]">
-                              {field.name}
-                              {field.unit ? ` · ${field.unit}` : ""}
-                            </span>
-                            <span className="text-muted-foreground shrink-0 text-xs">
-                              {t(`fields.level.${field.level}`)}
-                            </span>
-                          </li>
-                        ))}
+                        {(["MODEL", "DEVICE"] as const).flatMap((level) =>
+                          (["must", "useful", "special"] as const).map((weight) => {
+                            const rows = active.filter(
+                              (field) => field.level === level && field.weight === weight,
+                            );
+                            return rows.length ? (
+                              <li key={`${level}-${weight}`} className="py-2">
+                                <h3 className="text-muted-foreground py-2 text-xs font-semibold">
+                                  {t(`fields.level.${level}`)} · {t(`fields.weight.${weight}`)}
+                                </h3>
+                                <ul className="divide-y">
+                                  {rows.map((field, index) => (
+                                    <LibraryPropertyRow
+                                      key={field.id}
+                                      field={field}
+                                      kindId={kind.id}
+                                      first={index === 0}
+                                      last={index === rows.length - 1}
+                                    />
+                                  ))}
+                                </ul>
+                              </li>
+                            ) : null;
+                          }),
+                        )}
                       </ul>
+                      {hidden.length ? (
+                        <details className="mt-3">
+                          <summary className="cursor-pointer text-sm">
+                            {t("fields.library.hidden", { count: hidden.length })}
+                          </summary>
+                          <ul className="mt-2 divide-y">
+                            {hidden.map((field) => (
+                              <LibraryPropertyRow
+                                key={field.id}
+                                field={field}
+                                kindId={kind.id}
+                                first
+                                last
+                              />
+                            ))}
+                          </ul>
+                        </details>
+                      ) : null}
                     </details>
                   </section>
                 );

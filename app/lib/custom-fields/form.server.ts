@@ -8,7 +8,7 @@ import { currentLocale, tr } from "~/i18n/request-locale.server";
 
 export function formDefinitions(definitions: (FieldDefinition | ResolvedField)[]): Field[] {
   return definitions
-    .filter((field) => !field.archivedAt)
+    .filter((field) => !field.archivedAt || ("origin" in field && field.origin === "library"))
     .map((field) => ({
       id: field.id,
       key: field.key,
@@ -19,6 +19,8 @@ export function formDefinitions(definitions: (FieldDefinition | ResolvedField)[]
       weight: "weight" in field ? field.weight : "useful",
       origin: "origin" in field ? field.origin : "own",
       libraryKey: "libraryKey" in field ? field.libraryKey : null,
+      hidden: !!field.archivedAt,
+      appliesIf: "appliesIf" in field ? field.appliesIf : null,
       section: field.section,
       helpText: field.helpText,
       position: field.position,
@@ -27,6 +29,7 @@ export function formDefinitions(definitions: (FieldDefinition | ResolvedField)[]
         id: option.id,
         label: option.label,
         archived: !!option.archivedAt,
+        key: option.systemKey,
       })),
     }));
 }

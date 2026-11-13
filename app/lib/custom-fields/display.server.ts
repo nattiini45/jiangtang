@@ -2,17 +2,23 @@ import type { FilledField } from "./fields";
 import type { CustomFieldScope } from "~/generated/prisma/client";
 import { withCustomValues, rendered } from "./values.server";
 import { getFieldSchema } from "./schema.server";
-import { valueObject } from "./fields";
+import { valueObject, conditionHolds } from "./fields";
 import type { Prisma } from "~/generated/prisma/client";
 
 export async function modelFieldValues(model: { kind: { id: string }; customValues: unknown }) {
-  const fields = (await getFieldSchema("EQUIPMENT", { kindId: model.kind.id })).filter(
-    (field) => !field.hidden && field.level === "MODEL",
-  );
+  const fields = await getFieldSchema("EQUIPMENT", { kindId: model.kind.id });
   const stored = valueObject(model.customValues);
   return fields.flatMap((field): FilledField[] => {
     const value = rendered(field, stored[field.id] as Prisma.JsonValue, true);
-    if (value == null || value === "" || (Array.isArray(value) && !value.length)) return [];
+    if (
+      field.hidden ||
+      field.level !== "MODEL" ||
+      !conditionHolds(field, fields, stored) ||
+      value == null ||
+      value === "" ||
+      (Array.isArray(value) && !value.length)
+    )
+      return [];
     return [
       {
         id: field.id,

@@ -3,7 +3,7 @@ import { Prisma } from "~/generated/prisma/client";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import { getFieldSchema } from "~/lib/custom-fields/schema.server";
-import { applies, valueObject } from "~/lib/custom-fields/fields";
+import { applies, valueObject, conditionHolds } from "~/lib/custom-fields/fields";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -84,18 +84,29 @@ export async function withListValues<T extends { id: string; kind?: { id: string
   const ids = columns.filter((id) => id.startsWith("field:")).map((id) => id.slice(6));
   if (!ids.length || !records.length)
     return records.map((record) => ({ ...record, values: {} as Record<string, ListValue> }));
-  const fields = (await getFieldSchema(scope)).filter(
-    (field) => !field.archivedAt && ids.includes(field.id),
-  );
+  const definitions = await getFieldSchema(scope);
+  const fields = definitions.filter((field) => !field.archivedAt && ids.includes(field.id));
+  const readIds = [
+    ...new Set([
+      ...ids,
+      ...definitions
+        .filter((controller) =>
+          fields.some((field) => field.appliesIf?.property === controller.libraryKey),
+        )
+        .map((field) => field.id),
+    ]),
+  ];
   const table = scope === "ROOM" ? Prisma.sql`"Room"` : Prisma.sql`"Equipment"`;
-  const modelIds = fields.filter((field) => field.level === "MODEL").map((field) => field.id);
+  const modelIds = definitions
+    .filter((field) => readIds.includes(field.id) && field.level === "MODEL")
+    .map((field) => field.id);
   const effective =
     scope === "EQUIPMENT" && modelIds.length
       ? Prisma.sql`r."customValues" || COALESCE((SELECT jsonb_object_agg(mv.key, mv.value) FROM jsonb_each(m."customValues") mv WHERE mv.key IN (${Prisma.join(modelIds)}) AND mv.value <> 'null'::jsonb), '{}'::jsonb)`
       : Prisma.sql`r."customValues"`;
   const selected = await db.$queryRaw<{ id: string; values: unknown }[]>(Prisma.sql`
     SELECT r.id, COALESCE((SELECT jsonb_object_agg(v.key, v.value)
-      FROM jsonb_each(${effective}) v WHERE v.key IN (${Prisma.join(ids)})), '{}'::jsonb) AS values
+      FROM jsonb_each(${effective}) v WHERE v.key IN (${Prisma.join(readIds)})), '{}'::jsonb) AS values
     FROM ${table} r ${scope === "EQUIPMENT" && modelIds.length ? Prisma.sql`LEFT JOIN "EquipmentModel" m ON m.id = r."modelId"` : Prisma.empty} WHERE r.id IN (${Prisma.join(records.map((record) => record.id))})
   `);
   const values = new Map(selected.map((record) => [record.id, valueObject(record.values)]));
@@ -104,7 +115,9 @@ export async function withListValues<T extends { id: string; kind?: { id: string
     values: Object.fromEntries(
       fields.flatMap((field) => {
         const value = values.get(record.id)?.[field.id];
-        return value != null && (scope === "ROOM" || applies(field, record.kind?.id))
+        return value != null &&
+          (scope === "ROOM" || applies(field, record.kind?.id)) &&
+          conditionHolds(field, definitions, values.get(record.id))
           ? [[field.id, value as ListValue]]
           : [];
       }),

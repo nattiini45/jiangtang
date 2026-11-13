@@ -3,7 +3,11 @@ import type { Tx } from "~/lib/db.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import { getFieldSchema } from "~/lib/custom-fields/schema.server";
-import { validateCustomValues, customValueChanges } from "~/lib/custom-fields/values.server";
+import {
+  validateCustomValues,
+  validateConditions,
+  customValueChanges,
+} from "~/lib/custom-fields/values.server";
 import { valueObject } from "~/lib/custom-fields/fields";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { ValidationError, NotFoundError } from "~/lib/errors.server";
@@ -41,6 +45,7 @@ export async function applyModelValuesInTx(
   );
   const patch = validateCustomValues(fields, values, kindId);
   const before = valueObject(rows[0]?.customValues);
+  validateConditions(fields, patch, before);
   const after = { ...before, ...patch.set };
   for (const id of patch.removed) delete after[id];
   const sizes = await tx.$queryRaw<

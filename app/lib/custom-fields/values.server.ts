@@ -11,7 +11,8 @@ import type { CustomValuesInput } from "./values.schema";
 import { fieldString, fieldType } from "./definitions.schema";
 import { getFieldSchema, effectiveValues } from "./schema.server";
 import type { RangeValue } from "./fields";
-import { sameValue } from "./fields";
+import { sameValue, conditionHolds } from "./fields";
+import type { ResolvedField } from "./schema.server";
 
 type ValueDefinition = Pick<
   FieldDefinition,
@@ -209,6 +210,28 @@ export function rendered(
   return value;
 }
 
+export function validateConditions(
+  fields: ResolvedField[],
+  patch: ReturnType<typeof validateCustomValues>,
+  before: Record<string, unknown>,
+  model?: unknown,
+) {
+  const after = { ...before, ...patch.set };
+  for (const id of patch.removed) delete after[id];
+  for (const field of fields) {
+    if (
+      Object.hasOwn(patch.set, field.id) &&
+      !sameValue(patch.set[field.id], before[field.id]) &&
+      !conditionHolds(field, fields, after, model)
+    ) {
+      const controller = fields.find((entry) => entry.libraryKey === field.appliesIf?.property)!;
+      throw new ValidationError({
+        [field.key]: [tr("fields.error.condition", { name: controller.name })],
+      });
+    }
+  }
+}
+
 export function customValueChanges(
   definitions: ValueDefinition[],
   before: Prisma.JsonObject,
@@ -286,6 +309,12 @@ export async function prepareCustomValues(
     values,
     kindId === undefined ? rows[0]?.kindId : kindId,
   );
+  const modelRows = effectiveModelId
+    ? await tx.$queryRaw<
+        { customValues: Prisma.JsonObject }[]
+      >`SELECT "customValues" FROM "EquipmentModel" WHERE id = ${effectiveModelId} FOR SHARE`
+    : [];
+  validateConditions(definitions, patch, before, modelRows[0]?.customValues);
   const size = await tx.$queryRaw<
     Array<{ bytes: number }>
   >`SELECT pg_column_size((${JSON.stringify(before)}::jsonb || ${JSON.stringify(patch.set)}::jsonb) - ${patch.removed}::text[]) AS bytes`;
@@ -340,18 +369,21 @@ export async function withCustomValues<T extends { id: string }>(
                   kind.systemKey === DEFAULT_EQUIPMENT_KINDS[row.category as EquipmentCategory].key,
               )?.id
             : undefined;
-      const applicable = definitions.filter((field) => !field.archivedAt && applies(field, kindId));
-      const effective = effectiveValues(
-        applicable,
-        row?.customValues,
+      const modelValues =
         row &&
-          "model" in row &&
-          row.model &&
-          typeof row.model === "object" &&
-          "customValues" in row.model
+        "model" in row &&
+        row.model &&
+        typeof row.model === "object" &&
+        "customValues" in row.model
           ? row.model.customValues
-          : undefined,
+          : undefined;
+      const applicable = definitions.filter(
+        (field) =>
+          !field.archivedAt &&
+          applies(field, kindId) &&
+          conditionHolds(field, definitions, row?.customValues, modelValues),
       );
+      const effective = effectiveValues(applicable, row?.customValues, modelValues);
       const customValues = Object.fromEntries(
         applicable
           .filter((field) => effective[field.id].value != null)

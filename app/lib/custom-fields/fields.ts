@@ -9,7 +9,9 @@ export type Field = Pick<
   weight?: "must" | "useful" | "special";
   origin?: "library" | "own";
   libraryKey?: string | null;
-  options: { id: string; label: string; archived: boolean }[];
+  hidden?: boolean;
+  appliesIf?: { property: string; values: string[] } | null;
+  options: { id: string; label: string; archived: boolean; key?: string | null }[];
 };
 
 export type RangeValue = { min: number | null; max: number | null };
@@ -19,6 +21,7 @@ export type FilledField = Pick<Field, "id" | "name" | "type" | "section" | "posi
   from?: "model" | "device";
   origin?: "own" | "library";
   weight?: "must" | "useful" | "special";
+  legacyColumn?: string;
 };
 
 export function applies(field: { kinds: { kindId: string }[] }, kindId?: string | null) {
@@ -29,6 +32,30 @@ export function valueObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+export function conditionHolds(
+  field: { appliesIf?: { property: string; values: string[] } | null },
+  fields: {
+    id: string;
+    libraryKey?: string | null;
+    level?: string;
+    options: { id: string; key?: string | null; systemKey?: string | null }[];
+  }[],
+  device: unknown,
+  model?: unknown,
+) {
+  if (!field.appliesIf) return true;
+  const controller = fields.find((entry) => entry.libraryKey === field.appliesIf!.property);
+  if (!controller) return true;
+  const value =
+    (controller.level === "MODEL" ? valueObject(model)[controller.id] : undefined) ??
+    valueObject(device)[controller.id];
+  if (value == null || value === "" || (Array.isArray(value) && !value.length)) return true;
+  return (Array.isArray(value) ? value : [value]).some((value) => {
+    const option = controller.options.find((entry) => entry.id === value);
+    return field.appliesIf!.values.includes(String(option?.key ?? option?.systemKey ?? value));
+  });
 }
 
 export function fieldGroups<

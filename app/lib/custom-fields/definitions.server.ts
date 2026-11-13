@@ -9,10 +9,15 @@ import type { z } from "zod";
 import { convertRoomCustomValuesInTx } from "~/domains/rooms/rooms.custom-values.server";
 import { convertEquipmentCustomValuesInTx } from "~/domains/inventory/inventory.custom-values.server";
 import { convertModelCustomValuesInTx } from "~/domains/catalog/catalog.values.server";
-import { applies } from "./fields";
+import { applies, conditionHolds } from "./fields";
 import { deriveFieldKey } from "./admin";
 import { getFieldSchema } from "./schema.server";
-import { propertiesForKind, isLibraryProperty } from "~/lib/equipment-kinds/properties";
+import {
+  propertiesForKind,
+  isLibraryProperty,
+  libraryProperties,
+} from "~/lib/equipment-kinds/properties";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 export { applies } from "./fields";
 
 export const definitionInclude = {
@@ -29,10 +34,39 @@ export function getDefinitions(scope: CustomFieldScope, tx: Tx = db) {
   });
 }
 
-export async function getRecordSchema(scope: CustomFieldScope, kindId?: string) {
-  return (await getFieldSchema(scope)).filter(
-    (field) => !field.archivedAt && applies(field, kindId),
-  );
+export async function getRecordSchema(scope: CustomFieldScope, kindId?: string, deviceId?: string) {
+  if (deviceId && scope !== "EQUIPMENT") fieldError("deviceId", tr("fields.error.applicable"));
+  const device = deviceId
+    ? await db.equipment.findUnique({
+        where: { id: deviceId },
+        include: { model: true },
+      })
+    : null;
+  if (deviceId && !device) throw new NotFoundError();
+  if (device)
+    kindId =
+      device.kindId ??
+      (
+        await db.equipmentKind.findUnique({
+          where: { systemKey: DEFAULT_EQUIPMENT_KINDS[device.category].key },
+        })
+      )?.id;
+  const fields = await getFieldSchema(scope);
+  return fields
+    .filter((field) => !field.hidden && applies(field, kindId))
+    .map((field) => ({
+      ...field,
+      ...(device
+        ? {
+            conditionHolds: conditionHolds(
+              field,
+              fields,
+              device.customValues,
+              device.model?.customValues,
+            ),
+          }
+        : {}),
+    }));
 }
 
 export async function lockDefinitions(tx: Tx, write = false) {
@@ -92,6 +126,7 @@ async function checkFieldName(
   name: string,
   kindIds: string[],
   excludeId?: string,
+  libraryKey?: string | null,
 ) {
   if (scope === "EQUIPMENT") {
     const kinds = await tx.equipmentKind.findMany({
@@ -99,8 +134,10 @@ async function checkFieldName(
     });
     if (
       kinds.some((kind) =>
-        propertiesForKind(kind.systemKey).some((property) =>
-          [property.de, property.en].some((label) => label.toLowerCase() === name.toLowerCase()),
+        propertiesForKind(kind.systemKey).some(
+          (property) =>
+            property.key !== libraryKey &&
+            [property.de, property.en].some((label) => label.toLowerCase() === name.toLowerCase()),
         ),
       )
     )
@@ -261,7 +298,7 @@ export async function updateCustomField(
   actor: AuditActor,
   input: z.input<typeof updateFieldSchema>,
 ) {
-  const { id, archived, kindIds, ...columns } = updateFieldSchema.parse(input);
+  const { id, archived, kindIds, resetName, ...columns } = updateFieldSchema.parse(input);
   const result = await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUnique({ where: { id }, include: definitionInclude });
@@ -270,10 +307,13 @@ export async function updateCustomField(
       isLibraryProperty(before) &&
       (kindIds !== undefined ||
         Object.keys(columns).some(
-          (key) => !["showInList", "listPosition", "searchable"].includes(key),
+          (key) => !["name", "position", "showInList", "listPosition", "searchable"].includes(key),
         ))
     )
       fieldError("id", tr("fields.library.protected"));
+    if (resetName && (!isLibraryProperty(before) || columns.name !== undefined))
+      fieldError("resetName", tr("fields.library.protected"));
+    if (resetName) columns.name = libraryProperties.get(before.systemKey!)!.de;
     if (kindIds)
       await checkKinds(
         tx,
@@ -288,6 +328,7 @@ export async function updateCustomField(
         columns.name ?? before.name,
         kindIds ?? before.kinds.map((link) => link.kindId),
         id,
+        before.systemKey,
       );
     let convertedRecords = 0;
     if (columns.type && columns.type !== before.type) {
@@ -334,6 +375,16 @@ export async function updateCustomField(
       where: { id },
       data: {
         ...columns,
+        ...(isLibraryProperty(before) && (columns.name !== undefined || resetName)
+          ? {
+              renamed:
+                !resetName &&
+                ![
+                  libraryProperties.get(before.systemKey!)!.de,
+                  libraryProperties.get(before.systemKey!)!.en,
+                ].includes(columns.name!),
+            }
+          : {}),
         ...(archived !== undefined && Boolean(before.archivedAt) !== archived
           ? { archivedAt: archived ? new Date() : null }
           : {}),
