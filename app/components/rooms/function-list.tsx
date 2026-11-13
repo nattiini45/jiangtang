@@ -58,7 +58,6 @@ export function FunctionList({
     {
       accessorKey: "roomName",
       header: t("tickets.form.room"),
-      size: 250,
       cell: ({ row: { original: row } }) => (
         <Link
           to={href(row)}
@@ -75,7 +74,6 @@ export function FunctionList({
     {
       accessorKey: "name",
       header: t("functions.list.function"),
-      size: 142,
       cell: ({ row: { original: row } }) => (
         <Link to={href(row)} className="truncate hover:underline" title={row.name}>
           {row.name}
@@ -85,16 +83,15 @@ export function FunctionList({
     {
       accessorKey: "state",
       header: t("functions.list.state"),
-      size: 138,
-      meta: { searchText: (row) => t(`functions.state.${row.state}`) },
+      meta: { sizing: "short", searchText: (row) => t(`functions.state.${row.state}`) },
       cell: ({ row }) => badge(row.original),
     },
     {
       id: "since",
+      meta: { sizing: "short" },
       accessorFn: (row) => row.since?.getTime() ?? Number.MIN_SAFE_INTEGER,
       sortDescFirst: false,
       header: t("functions.list.age"),
-      size: 144,
       enableGlobalFilter: false,
       cell: ({ row: { original: row } }) => (
         <span
@@ -109,7 +106,6 @@ export function FunctionList({
       id: "cause",
       accessorFn: cause,
       header: t("functions.list.cause"),
-      size: 260,
       cell: ({ row: { original: row } }) => (
         <Link to={href(row)} className="truncate hover:underline" title={cause(row)}>
           {cause(row)}

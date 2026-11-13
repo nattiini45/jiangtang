@@ -15,7 +15,6 @@ export function equipmentColumns<T extends EquipmentListRow = EquipmentListRow>(
       accessorKey: "name",
       meta: { searchText: (row) => row.name ?? row.modelName ?? row.kind.name },
       header: t("inventory.col.device"),
-      size: 220,
       cell: ({ row }) => (
         <Link
           to={`/inventory/${row.original.id}`}
@@ -31,7 +30,6 @@ export function equipmentColumns<T extends EquipmentListRow = EquipmentListRow>(
       accessorFn: (row) => row.kind.name,
       meta: { searchText: (row) => row.kind.name },
       header: t("inventory.kind"),
-      size: 140,
       cell: ({ row }) => (
         <span className="truncate" title={row.original.kind.name}>
           {row.original.kind.name}
@@ -40,14 +38,13 @@ export function equipmentColumns<T extends EquipmentListRow = EquipmentListRow>(
     },
     {
       accessorKey: "assetTag",
+      meta: { sizing: "short" },
       header: t("inventory.col.assetTag"),
-      size: 120,
       cell: ({ row }) =>
         row.original.assetTag ? <MonoCell>{row.original.assetTag}</MonoCell> : dash,
     },
     {
       accessorKey: "roomName",
-      size: 120,
       meta: { searchText: (row) => row.roomName || t("inventory.col.pool") },
       header: t("inventory.col.room"),
       cell: ({ row }) =>
@@ -74,9 +71,8 @@ export function equipmentColumns<T extends EquipmentListRow = EquipmentListRow>(
     },
     {
       accessorKey: "status",
-      meta: { searchText: (row) => t(`status.equipment.${row.status}`) },
+      meta: { sizing: "short", searchText: (row) => t(`status.equipment.${row.status}`) },
       header: t("inventory.col.status"),
-      size: 150,
       cell: ({ row }) => <StatusCell kind="equipment" value={row.original.status} />,
     },
   ];

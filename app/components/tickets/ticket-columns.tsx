@@ -11,9 +11,8 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
   return [
     {
       accessorKey: "type",
-      meta: { searchText: (row) => ticketTypeLabel(locale, row.type) },
+      meta: { sizing: "short", searchText: (row) => ticketTypeLabel(locale, row.type) },
       header: t("tickets.col.type"),
-      size: 110,
       cell: ({ row }) => (
         <span className="text-muted-foreground text-xs">
           {ticketTypeLabel(locale, row.original.type)}
@@ -23,7 +22,6 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
     {
       accessorKey: "title",
       header: t("tickets.col.title"),
-      size: 320,
       cell: ({ row }) => (
         <Link to={`/tickets/${row.original.id}`} className="truncate hover:underline">
           {row.original.title}
@@ -33,7 +31,6 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
     {
       accessorKey: "roomName",
       header: t("tickets.col.room"),
-      size: 180,
       cell: ({ row }) =>
         row.original.roomSlug ? (
           <Link to={`/rooms/${row.original.roomSlug}`} className="text-sm hover:underline">
@@ -45,18 +42,17 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
     },
     {
       accessorKey: "status",
-      meta: { searchText: (row) => t(`status.ticket.${row.status}`) },
+      meta: { sizing: "short", searchText: (row) => t(`status.ticket.${row.status}`) },
       header: t("tickets.col.status"),
-      size: 130,
       cell: ({ row }) => <StatusCell kind="ticket" value={row.original.status} />,
     },
     {
       accessorKey: "priority",
       meta: {
+        sizing: "short",
         searchText: (row) => (row.priority != null ? priorityLabel(locale, row.priority) : null),
       },
       header: t("tickets.col.priority"),
-      size: 90,
       cell: ({ row }) =>
         row.original.priority != null ? (
           <span className="text-sm">{priorityLabel(locale, row.original.priority)}</span>
@@ -67,7 +63,6 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
     {
       id: "assignees",
       header: t("tickets.col.assignees"),
-      size: 130,
       accessorFn: (r) => r.assignees.join(" "),
       cell: ({ row }) =>
         row.original.assignees.length ? (
@@ -78,8 +73,8 @@ export function ticketColumns(t: Translate, locale: Locale): ColumnDef<TicketLis
     },
     {
       accessorKey: "occurredAt",
+      meta: { sizing: "short" },
       header: t("tickets.col.occurredAt"),
-      size: 150,
       cell: ({ row }) => <DateCell value={row.original.occurredAt} withTime={false} />,
     },
   ];

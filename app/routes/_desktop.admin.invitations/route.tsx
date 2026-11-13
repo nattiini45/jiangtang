@@ -57,7 +57,6 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     {
       accessorKey: "email",
       header: t("admin.users.col.email"),
-      size: 200,
       cell: ({ row }) => (
         <span className="truncate" title={row.original.email}>
           {row.original.email}
@@ -67,7 +66,6 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     {
       accessorKey: "name",
       header: t("admin.users.col.name"),
-      size: 130,
       cell: ({ row }) => (
         <span className="truncate" title={row.original.name}>
           {row.original.name}
@@ -76,18 +74,17 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     },
     {
       accessorKey: "role",
-      meta: { searchText: (row) => t(`auth.role.${row.role}`) },
+      meta: { sizing: "short", searchText: (row) => t(`auth.role.${row.role}`) },
       header: t("admin.users.col.role"),
-      size: 75,
       cell: ({ row }) => t(`auth.role.${row.original.role}`),
     },
     {
       accessorKey: "state",
       meta: {
+        sizing: "text",
         searchText: (row) => t(`admin.invitations.lifecycle.${row.state}`, { date: "" }).trim(),
       },
       header: t("admin.users.col.status"),
-      size: 240,
       cell: ({ row }) => {
         const invitation = row.original;
         const date = invitation.acceptedAt ?? invitation.revokedAt ?? invitation.expiresAt;
@@ -104,7 +101,6 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
       id: "invitedBy",
       meta: { searchText: (row) => row.invitedBy?.name || t("admin.invitations.unknown") },
       header: t("admin.invitations.by"),
-      size: 110,
       cell: ({ row }) => (
         <span className="truncate" title={row.original.invitedBy?.email}>
           {row.original.invitedBy?.name || t("admin.invitations.unknown")}
@@ -113,8 +109,8 @@ export default function Invitations({ loaderData, actionData }: Route.ComponentP
     },
     {
       id: "actions",
+      meta: { sizing: "short" },
       header: t("admin.invitations.actions"),
-      size: 230,
       cell: ({ row }) => (
         <Form method="post" className="flex gap-2">
           <input type="hidden" name="id" value={row.original.id} />

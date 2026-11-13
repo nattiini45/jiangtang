@@ -3,6 +3,7 @@ import type { Locale } from "~/i18n/locales";
 
 export type ColumnDef<TData, TValue = unknown> = TableColumnDef<TData, TValue> & {
   meta?: {
+    sizing?: "short" | "text";
     searchText?: (row: TData, locale: Locale) => string | null | undefined;
   };
 };

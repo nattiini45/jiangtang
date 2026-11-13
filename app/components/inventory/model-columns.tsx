@@ -27,7 +27,6 @@ export function modelColumns(t: Translate, _locale: Locale): ColumnDef<ModelList
           {row.original.name}
         </Link>
       ),
-      size: 240,
     },
     {
       id: "kind",
@@ -42,14 +41,14 @@ export function modelColumns(t: Translate, _locale: Locale): ColumnDef<ModelList
     },
     {
       accessorKey: "instanceCount",
+      meta: { sizing: "short" },
       header: t("inventory.col.devices"),
       cell: ({ row }) => <span className="nums text-sm">{row.original.instanceCount}</span>,
-      size: 90,
     },
     {
       accessorKey: "faultyCount",
+      meta: { sizing: "short" },
       header: t("inventory.col.faulty"),
-      size: 90,
       cell: ({ row }) =>
         row.original.faultyCount > 0 ? (
           <span className="text-status-fault nums text-sm">{row.original.faultyCount}</span>

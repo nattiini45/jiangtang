@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTable, getCoreRowModel, getSortedRowModel } from "@tanstack/react-table";
 import { withFieldColumns } from "~/components/data-grid/field-columns";
+import { layoutWidths } from "~/components/data-grid/column-widths";
 import {
   fieldSortValue,
   fieldText,
@@ -25,13 +26,20 @@ describe("typed list columns", () => {
   it("preserves the default name width and reserves readable names beside field columns", () => {
     const builtins = [{ accessorKey: "name", size: 142 }];
     expect(withFieldColumns(builtins, { columns: ["name"], fields: [] }, "de")[0].size).toBe(142);
-    expect(
-      withFieldColumns(
-        builtins,
-        { columns: ["name", "field:property"], fields: [field("TEXT")] },
-        "de",
-      )[0].size,
-    ).toBe(220);
+    const columns = withFieldColumns(
+      builtins,
+      { columns: ["name", "field:property"], fields: [field("TEXT")] },
+      "de",
+    );
+    expect(columns[0].size).toBe(142);
+    expect(columns[1].meta?.sizing).toBe("text");
+    const measured = columns.map((column, index) => ({
+      id: column.id ?? "name",
+      short: column.meta?.sizing === "short",
+      content: index === 0 ? 400 : 200,
+    }));
+    expect(layoutWidths(measured, 800, {})).toEqual({ name: 460, "field:property": 340 });
+    expect(layoutWidths(measured, 320, {})).toEqual({ name: 160, "field:property": 160 });
   });
   it.each<[ListField["type"], ListValue, ListValue]>([
     ["TEXT", "Ähre", "Zebra"],

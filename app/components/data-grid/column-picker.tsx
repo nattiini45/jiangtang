@@ -11,6 +11,7 @@ import {
 } from "~/lib/list-columns/columns";
 import { useT } from "~/i18n/use-t";
 import type { action } from "~/routes/list-columns/route";
+import { resetWidths } from "./column-widths";
 
 export function ColumnPicker({
   scope,
@@ -191,6 +192,9 @@ function PickerForm({
         </p>
       ) : null}
       <div className="flex flex-wrap justify-between gap-2">
+        <Button type="button" variant="ghost" onClick={() => resetWidths()}>
+          {t("common.dataGrid.resetWidths")}
+        </Button>
         <Button
           type="button"
           variant="ghost"

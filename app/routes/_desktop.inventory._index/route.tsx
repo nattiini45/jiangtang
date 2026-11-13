@@ -285,6 +285,7 @@ function EquipmentPanel({
       </Form>
 
       <DataGrid
+        widthsMenu={!canConfigure}
         growColumn="name"
         stickyColumn="name"
         columns={columns}

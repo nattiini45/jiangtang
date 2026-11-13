@@ -225,6 +225,7 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
       </Form>
 
       <DataGrid
+        widthsMenu={!canConfigure}
         columns={columns}
         growColumn="name"
         stickyColumn="name"

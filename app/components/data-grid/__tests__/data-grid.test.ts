@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { DataGrid, type DataGridProps } from "~/components/data-grid/data-grid";
+import { layoutWidths, readWidths, saveWidths } from "../column-widths";
 
 vi.mock("~/i18n/use-t", () => ({ useT: () => (key: string) => key, useLocale: () => "de" }));
 vi.mock("@tanstack/react-virtual", () => ({
@@ -23,22 +24,54 @@ const props: DataGridProps<{ name: string; notes: string }> = {
   ],
 };
 
-describe("DataGrid growing column", () => {
-  it("keeps the selected column's base width and grows its header and every cell", () => {
+describe("DataGrid column widths", () => {
+  it("aligns headers and cells using the shared layout", () => {
     const html = renderToStaticMarkup(
       createElement(DataGrid<(typeof props.data)[number]>, { ...props, growColumn: "notes" }),
     );
-    expect(html.match(/width:176px;flex-grow:1/g)).toHaveLength(3);
-    expect(html.match(/width:142px;flex-grow:0/g)).toHaveLength(3);
-    expect(html.match(/flex-grow:1/g)).toHaveLength(3);
+    expect(html.match(/width:160px/g)).toHaveLength(6);
+    expect(html.match(/role="separator"/g)).toHaveLength(2);
   });
 
-  it.each([undefined, "missing"])("preserves fixed sizing when growColumn is %s", (growColumn) => {
-    const html = renderToStaticMarkup(
-      createElement(DataGrid<(typeof props.data)[number]>, { ...props, growColumn }),
-    );
-    expect(html).not.toContain("flex-grow:1");
-    expect(html.match(/width:176px;flex-grow:0/g)).toHaveLength(3);
-    expect(html.match(/width:142px;flex-grow:0/g)).toHaveLength(3);
+  const columns = [
+    { id: "name", short: false, content: 400 },
+    { id: "status", short: true, content: 100 },
+    { id: "notes", short: false, content: 200 },
+  ];
+  it("fits short columns and shares spare space between text columns", () => {
+    expect(layoutWidths(columns, 1000, {})).toEqual({ name: 510, status: 100, notes: 390 });
+  });
+  it("shrinks text fairly without squeezing it below its readable minimum", () => {
+    const widths = layoutWidths(columns, 450, {});
+    expect(widths.name + widths.status + widths.notes).toBe(450);
+    expect(widths.name).toBeGreaterThanOrEqual(160);
+    expect(widths.notes).toBeGreaterThanOrEqual(160);
+    expect(layoutWidths(columns, 200, {})).toEqual({ name: 160, status: 100, notes: 160 });
+  });
+  it("keeps resized columns fixed while other text uses the remaining space", () => {
+    expect(layoutWidths(columns, 1000, { notes: 450 })).toEqual({
+      name: 450,
+      status: 100,
+      notes: 450,
+    });
+  });
+  it.each(["broken", "null", "[]", '{"name":-1,"status":"100"}', '{"name":2001}'])(
+    "ignores invalid stored widths: %s",
+    (value) => {
+      vi.stubGlobal("localStorage", { getItem: () => value });
+      expect(readWidths("table")).toEqual({});
+      vi.unstubAllGlobals();
+    },
+  );
+  it("loads only numeric widths and tolerates unavailable browser storage", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => '{"name":360,"status":64,"notes":2000}',
+      setItem: () => {
+        throw new Error("Storage unavailable");
+      },
+    });
+    expect(readWidths("table")).toEqual({ name: 360, status: 64, notes: 2000 });
+    expect(() => saveWidths("table", { name: 360 })).not.toThrow();
+    vi.unstubAllGlobals();
   });
 });

@@ -43,7 +43,6 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     {
       accessorKey: "name",
       header: t("inventory.stock.col.item"),
-      size: 240,
       cell: ({ row }) => (
         <Link to={`/inventory/stock/${row.original.id}`} className="hover:underline">
           {row.original.name}
@@ -52,8 +51,8 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "quantity",
+      meta: { sizing: "short" },
       header: t("inventory.stock.col.quantity"),
-      size: 90,
       cell: ({ row }) => (
         <span className="nums text-sm">
           {/* Quantity without its unit is half a number — "3" of what? The unit is a
@@ -65,14 +64,14 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "sku",
+      meta: { sizing: "short" },
       header: t("inventory.stock.col.sku"),
-      size: 130,
       cell: ({ row }) => (row.original.sku ? <MonoCell>{row.original.sku}</MonoCell> : dash),
     },
     {
       accessorKey: "serial",
+      meta: { sizing: "short" },
       header: t("inventory.stock.col.serial"),
-      size: 150,
       cell: ({ row }) => (row.original.serial ? <MonoCell>{row.original.serial}</MonoCell> : dash),
     },
     {
@@ -132,9 +131,11 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "status",
-      meta: { searchText: (row) => (row.status ? t(`status.stock.${row.status}`) : null) },
+      meta: {
+        sizing: "short",
+        searchText: (row) => (row.status ? t(`status.stock.${row.status}`) : null),
+      },
       header: t("inventory.stock.col.status"),
-      size: 200,
       // The localized label, not the enum key — nobody reads ON_LOAN.
       cell: ({ row }) =>
         row.original.status ? (
@@ -147,8 +148,8 @@ export function stockColumns(t: Translate): ColumnDef<StockListRow>[] {
     },
     {
       accessorKey: "warrantyExpiresAt",
+      meta: { sizing: "short" },
       header: t("inventory.stock.col.warranty"),
-      size: 140,
       // A warranty date, not a warranty *state*: "expiring soon" is a judgement the
       // expiry sweep owns, and a list that computed its own would disagree with it.
       cell: ({ row }) => <DateCell value={row.original.warrantyExpiresAt} withTime={false} />,

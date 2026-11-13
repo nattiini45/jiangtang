@@ -14,6 +14,9 @@ import type { Density } from "~/lib/theme.server";
 import { currentDensity, PREF_CHANGED_EVENT } from "~/lib/prefs";
 import { useLocale, useT } from "~/i18n/use-t";
 import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
+import { resetWidths, MIN_WIDTH, MAX_WIDTH } from "./column-widths";
+import { useColumnWidths } from "./use-column-widths";
 import { canFilterColumn, filterGridText, searchableColumns, type ColumnDef } from "./filtering";
 
 /**
@@ -38,6 +41,8 @@ export interface DataGridProps<TData> {
   maxHeight?: number | string;
   className?: string;
   growColumn?: string;
+  tableId?: string;
+  widthsMenu?: boolean;
   stickyColumn?: string;
   getRowId?: (row: TData, index: number) => string;
   initialSorting?: SortingState;
@@ -51,7 +56,8 @@ export function DataGrid<TData>({
   emptyMessage,
   maxHeight = 600,
   className,
-  growColumn,
+  tableId = "list",
+  widthsMenu = true,
   stickyColumn,
   getRowId,
   initialSorting = [],
@@ -95,6 +101,16 @@ export function DataGrid<TData>({
   const rows = table.getRowModel().rows;
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const rowHeight = ROW_HEIGHT[effectiveDensity];
+  const { widths, resize, fit } = useColumnWidths(
+    table,
+    scrollRef,
+    tableId,
+    locale,
+    data,
+    filterColumns,
+    effectiveDensity,
+  );
+  const totalWidth = Object.values(widths).reduce((sum, width) => sum + width, 0);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -110,15 +126,32 @@ export function DataGrid<TData>({
         className,
       )}
     >
-      {filter ? (
-        <div className="border-b p-2">
-          <Input
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder={t("common.dataGrid.filterPlaceholder")}
-            aria-label={t("common.dataGrid.filterLabel")}
-            className="h-8 max-w-xs bg-transparent"
-          />
+      {filter || widthsMenu ? (
+        <div className="flex items-center justify-between gap-2 border-b p-2">
+          {filter ? (
+            <Input
+              value={globalFilter}
+              onChange={(e) => setGlobalFilter(e.target.value)}
+              placeholder={t("common.dataGrid.filterPlaceholder")}
+              aria-label={t("common.dataGrid.filterLabel")}
+              className="h-8 max-w-xs bg-transparent"
+            />
+          ) : (
+            <span />
+          )}
+          {widthsMenu ? (
+            <details className="relative shrink-0">
+              <summary className="hover:bg-hover flex h-control cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-semibold">
+                {t("fields.columns.title")}
+                <ChevronDown className="size-4" />
+              </summary>
+              <div className="bg-card shadow-surface-3 absolute right-0 z-30 mt-2 w-max rounded-lg p-2">
+                <Button type="button" variant="ghost" onClick={() => resetWidths(tableId)}>
+                  {t("common.dataGrid.resetWidths")}
+                </Button>
+              </div>
+            </details>
+          ) : null}
         </div>
       ) : null}
 
@@ -129,7 +162,7 @@ export function DataGrid<TData>({
         className="overflow-auto"
         style={{ maxHeight }}
       >
-        <div style={{ minWidth: table.getTotalSize() }}>
+        <div style={{ width: totalWidth, minWidth: "100%" }}>
           {/* Header */}
           <div role="rowgroup" className="bg-card sticky top-0 z-10">
             {table.getHeaderGroups().map((hg) => (
@@ -150,12 +183,11 @@ export function DataGrid<TData>({
                             : undefined
                       }
                       className={cn(
-                        "text-muted-foreground flex h-control shrink-0 items-center px-3 text-xs font-semibold",
+                        "text-muted-foreground relative flex h-control shrink-0 items-center px-3 text-xs font-semibold",
                         header.column.id === stickyColumn && "bg-card sticky left-0 z-20",
                       )}
                       style={{
-                        width: header.getSize(),
-                        flexGrow: header.column.id === growColumn ? 1 : 0,
+                        width: widths[header.column.id],
                       }}
                     >
                       {header.isPlaceholder ? null : (
@@ -169,7 +201,10 @@ export function DataGrid<TData>({
                             sorted && "text-foreground",
                           )}
                         >
-                          <span className="truncate">
+                          <span
+                            className="truncate"
+                            title={String(header.column.columnDef.header ?? "")}
+                          >
                             {flexRender(header.column.columnDef.header, header.getContext())}
                           </span>
                           {canSort ? (
@@ -183,6 +218,52 @@ export function DataGrid<TData>({
                           ) : null}
                         </button>
                       )}
+                      <div
+                        role="separator"
+                        tabIndex={0}
+                        aria-orientation="vertical"
+                        aria-label={t("common.dataGrid.resizeColumn", {
+                          name: String(header.column.columnDef.header ?? header.column.id),
+                        })}
+                        aria-valuemin={MIN_WIDTH}
+                        aria-valuemax={MAX_WIDTH}
+                        aria-valuenow={Math.round(widths[header.column.id])}
+                        title={t("common.dataGrid.resizeHelp")}
+                        className="hover:bg-border focus-visible:bg-border absolute inset-y-0 right-0 z-10 w-2 touch-none cursor-col-resize select-none"
+                        onDoubleClick={() => fit(header.column.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") fit(header.column.id);
+                          else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                            resize(
+                              header.column.id,
+                              widths[header.column.id] +
+                                (event.key === "ArrowRight" ? 1 : -1) * (event.shiftKey ? 40 : 10),
+                            );
+                          } else return;
+                          event.preventDefault();
+                        }}
+                        onPointerDown={(event) => {
+                          if (event.button !== 0) return;
+                          event.preventDefault();
+                          event.currentTarget.focus();
+                          event.currentTarget.setPointerCapture(event.pointerId);
+                          event.currentTarget.dataset.startX = String(event.clientX);
+                          event.currentTarget.dataset.startWidth = String(widths[header.column.id]);
+                        }}
+                        onPointerMove={(event) => {
+                          if (event.currentTarget.hasPointerCapture(event.pointerId))
+                            resize(
+                              header.column.id,
+                              Number(event.currentTarget.dataset.startWidth) +
+                                event.clientX -
+                                Number(event.currentTarget.dataset.startX),
+                            );
+                        }}
+                        onPointerUp={(event) => {
+                          if (event.currentTarget.hasPointerCapture(event.pointerId))
+                            event.currentTarget.releasePointerCapture(event.pointerId);
+                        }}
+                      />
                     </div>
                   );
                 })}
@@ -216,14 +297,22 @@ export function DataGrid<TData>({
                         key={cell.id}
                         role="cell"
                         data-column-id={cell.column.id}
+                        ref={(element) => {
+                          if (!element) return;
+                          const text = element.textContent ?? "";
+                          const hasTitle = [
+                            ...element.querySelectorAll<HTMLElement>("[title]"),
+                          ].some((child) => child.title.includes(text));
+                          if (!text || hasTitle) element.removeAttribute("title");
+                          else element.title = text;
+                        }}
                         className={cn(
-                          "flex shrink-0 items-center truncate px-3",
+                          "shrink-0 content-center truncate px-3",
                           cell.column.id === stickyColumn &&
                             "bg-card sticky left-0 z-10 group-hover:bg-[image:linear-gradient(var(--hover),var(--hover))]",
                         )}
                         style={{
-                          width: cell.column.getSize(),
-                          flexGrow: cell.column.id === growColumn ? 1 : 0,
+                          width: widths[cell.column.id],
                         }}
                       >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -9,15 +9,14 @@ export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): 
   return [
     {
       accessorKey: "roomNumber",
+      meta: { sizing: "short" },
       header: t("rooms.col.roomNumber"),
-      size: 98,
       cell: ({ row }) =>
         row.original.roomNumber ? <span className="nums">{row.original.roomNumber}</span> : dash,
     },
     {
       accessorKey: "name",
       header: t("rooms.col.name"),
-      size: 142,
       cell: ({ row }) => (
         <Link
           to={`/rooms/${row.original.slug}`}
@@ -30,8 +29,8 @@ export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): 
     },
     {
       accessorKey: "campusName",
+      meta: { sizing: "short" },
       header: t("rooms.col.campus"),
-      size: 90,
       cell: ({ row }) => (
         <span className="truncate text-sm" title={row.original.campusName ?? undefined}>
           {row.original.campusName ?? "—"}
@@ -40,15 +39,14 @@ export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): 
     },
     {
       accessorKey: "status",
-      meta: { searchText: (row) => t(`status.room.${row.status}`) },
+      meta: { sizing: "short", searchText: (row) => t(`status.room.${row.status}`) },
       header: t("rooms.col.status"),
-      size: 174,
       cell: ({ row }) => <StatusCell kind="room" value={row.original.status} />,
     },
     {
       accessorKey: "capacity",
+      meta: { sizing: "short" },
       header: t("rooms.col.capacity"),
-      size: 82,
       cell: ({ row }) =>
         row.original.capacity != null ? (
           <span className="nums">{row.original.capacity}</span>
@@ -58,15 +56,14 @@ export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): 
     },
     {
       accessorKey: "equipmentCount",
+      meta: { sizing: "short" },
       header: t("rooms.col.equipment"),
-      size: 80,
       cell: ({ row }) => <span className="nums">{row.original.equipmentCount}</span>,
     },
     {
       accessorFn: (row) => row.knownIssues ?? "",
       id: "knownIssues",
       header: t("rooms.knownIssues"),
-      size: 176,
       cell: ({ row }) =>
         row.original.knownIssues ? (
           <span className="truncate" title={row.original.knownIssues}>
@@ -79,9 +76,9 @@ export function roomColumns<T extends RoomListRow = RoomListRow>(t: Translate): 
     {
       accessorFn: (row) => row.lastCheckedAt?.getTime(),
       id: "lastCheckedAt",
+      meta: { sizing: "short" },
       enableGlobalFilter: false,
       header: t("rooms.lastChecked"),
-      size: 146,
       sortUndefined: "last",
       sortingFn: "basic",
       cell: ({ row }) => <DateCell value={row.original.lastCheckedAt} withTime={false} />,
