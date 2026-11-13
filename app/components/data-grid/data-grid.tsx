@@ -40,6 +40,7 @@ export interface DataGridProps<TData> {
   growColumn?: string;
   stickyColumn?: string;
   getRowId?: (row: TData, index: number) => string;
+  initialSorting?: SortingState;
 }
 
 export function DataGrid<TData>({
@@ -53,11 +54,12 @@ export function DataGrid<TData>({
   growColumn,
   stickyColumn,
   getRowId,
+  initialSorting = [],
 }: DataGridProps<TData>) {
   const t = useT();
   const locale = useLocale();
   const filterColumns = React.useMemo(() => searchableColumns(columns, locale), [columns, locale]);
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>(initialSorting);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const filterValue = React.useMemo(
     () => (globalFilter ? { text: globalFilter, locale } : undefined),

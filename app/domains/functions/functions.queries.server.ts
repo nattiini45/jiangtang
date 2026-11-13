@@ -23,7 +23,16 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
     listRoomFunctions(),
     db.room.findMany({
       where: { id: roomIds ? { in: roomIds } : undefined },
-      select: { id: true, slug: true, status: true },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        roomNumber: true,
+        campusId: true,
+        buildingId: true,
+        campus: { select: { name: true } },
+        building: { select: { name: true } },
+      },
     }),
     db.equipment.findMany({
       where: { roomId: roomIds ? { in: roomIds } : { not: null }, status: { not: "RETIRED" } },
@@ -56,6 +65,7 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
         equipmentId: true,
         impact: true,
         occurredAt: true,
+        assignees: { select: { id: true, name: true } },
       },
     }),
   ]);
@@ -84,6 +94,12 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
         {
           roomId: room.id,
           roomSlug: room.slug,
+          roomName: room.name,
+          roomNumber: room.roomNumber,
+          campusId: room.campusId,
+          buildingId: room.buildingId,
+          campusName: room.campus?.name ?? null,
+          buildingName: room.building?.name ?? null,
           functionId: definition.id,
           systemKey: definition.systemKey,
           name: definition.name,
@@ -97,3 +113,36 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
 }
 
 export type RoomFunctionState = Awaited<ReturnType<typeof getFunctionStates>>[number];
+
+export async function listNotWorking(
+  options: {
+    functionId?: string;
+    functionKey?: string;
+    campusId?: string;
+    buildingId?: string;
+    state?: "DOWN" | "LIMITED";
+    unassigned?: boolean;
+    newestFirst?: boolean;
+  } = {},
+) {
+  const states = await getFunctionStates();
+  return states
+    .filter(
+      (row) =>
+        row.state !== "NO_KNOWN_FAULT" &&
+        (!options.functionId || row.functionId === options.functionId) &&
+        (!options.functionKey || row.systemKey === options.functionKey) &&
+        (!options.campusId || row.campusId === options.campusId) &&
+        (!options.buildingId || row.buildingId === options.buildingId) &&
+        (!options.state || row.state === options.state) &&
+        (!options.unassigned || row.faults.every((fault) => !fault.assignees.length)),
+    )
+    .sort((a, b) => {
+      const age = (a.since?.getTime() ?? -Infinity) - (b.since?.getTime() ?? -Infinity);
+      return Number.isNaN(age) || age === 0
+        ? a.roomName.localeCompare(b.roomName) || a.functionId.localeCompare(b.functionId)
+        : options.newestFirst
+          ? -age
+          : age;
+    });
+}

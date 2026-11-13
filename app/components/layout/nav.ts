@@ -1,5 +1,6 @@
 import {
   ArrowDownUp,
+  CircleAlert,
   ArrowLeft,
   BarChart3,
   Boxes,
@@ -89,6 +90,13 @@ export const NAV: NavEntry[] = [
   },
   { to: "/search", labelKey: "nav.search", icon: Search, end: false, group: "work" },
   { to: "/rooms", labelKey: "nav.rooms", icon: Building2, end: false, group: "places" },
+  {
+    to: "/functions",
+    labelKey: "functions.list.title",
+    icon: CircleAlert,
+    end: false,
+    group: "places",
+  },
   { to: "/locations", labelKey: "nav.locations", icon: MapPin, end: false, group: "places" },
   { to: "/inventory", labelKey: "nav.inventory", icon: Boxes, end: false, group: "places" },
   { to: "/tickets", labelKey: "nav.tickets", icon: Ticket, end: false, group: "service" },

@@ -83,7 +83,11 @@ import { NotFoundError } from "~/lib/errors.server";
 import { registerTool } from "~/lib/mcp/tools.server";
 import type { McpContext } from "~/lib/mcp/types.server";
 import { withCustomValues } from "~/lib/custom-fields/values.server";
-import { listRoomFunctions, getFunctionStates } from "~/domains/functions/functions.queries.server";
+import {
+  listRoomFunctions,
+  getFunctionStates,
+  listNotWorking,
+} from "~/domains/functions/functions.queries.server";
 
 const id = z.string().trim().min(1).max(200);
 const byId = z.object({ id });
@@ -155,6 +159,24 @@ function timeUser(userId: string | undefined, context: McpContext) {
 }
 
 export function registerReadTools(server: McpServer, context: McpContext): void {
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_not_working",
+      description:
+        "List limited and non-working room functions with evidence, oldest first. No known fault is not confirmation. Null starts sort before known dates.",
+      schema: z.object({
+        functionId: id.optional(),
+        functionKey: id.optional(),
+        campusId: id.optional(),
+        buildingId: id.optional(),
+        state: z.enum(["DOWN", "LIMITED"]).optional(),
+        unassigned: z.boolean().optional(),
+      }),
+    },
+    async (input) => listNotWorking(input),
+  );
   registerTool(
     server,
     context,

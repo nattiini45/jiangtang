@@ -29,6 +29,7 @@ export const DESKTOP_PAGES = [
   "/events/new",
   "/events/:id",
   "/frequencies",
+  "/functions",
   "/import",
   "/inventory",
   "/inventory/new",
@@ -73,6 +74,10 @@ export const DESKTOP_PAGES = [
 ] as const;
 
 const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
+  "/functions": {
+    mobile: "/m/functions",
+    query: ["functionId", "campusId", "buildingId", "state", "unassigned", "sort"],
+  },
   "/": { mobile: "/m" },
   "/quick-entry": { mobile: "/m", query: ["roomId", "equipmentId", "type"] },
   "/tickets/new": { mobile: "/m", query: ["roomId", "equipmentId", "type"] },

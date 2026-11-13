@@ -74,6 +74,7 @@ async function installedPropertyCount() {
 
 it("materializes every shipped kind without exporting readings or relations", async () => {
   const existing = await db.equipmentKind.findMany();
+  const existingFunctions = (await db.roomFunction.findMany()).map((row) => row.id);
   const group = await db.equipmentFunctionGroup.findFirstOrThrow();
   const added: string[] = [];
   try {
@@ -101,6 +102,7 @@ it("materializes every shipped kind without exporting readings or relations", as
       expect(libraryProperties.get(key)).toMatchObject({ de: name.de, en: name.en });
   } finally {
     await db.roomFunctionKind.deleteMany({ where: { kindId: { in: added } } });
+    await db.roomFunction.deleteMany({ where: { id: { notIn: existingFunctions } } });
     await db.customFieldKind.deleteMany({ where: { kindId: { in: added } } });
     await db.equipmentKind.deleteMany({ where: { id: { in: added } } });
   }
