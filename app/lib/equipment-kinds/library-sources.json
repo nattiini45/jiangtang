@@ -144,6 +144,11 @@
     "url": "https://www.monacor.com/media/FLE/ETS-210TW_WS@BDA.pdf",
     "area": "audio-systems"
   },
+  "au:PS_MON": {
+    "title": "Powersoft: Monitoring and Diagnostics (ArmoníaPlus / Health+)",
+    "url": "https://www.powersoft.com/en/technologies/monitoring-and-diagnotics",
+    "area": "audio-systems"
+  },
   "au:QSYS_QRC": {
     "title": "Q-SYS Help: QRC Commands (StatusGet / EngineStatus)",
     "url": "https://help.qsys.com/Content/External_Control_APIs/QRC/QRC_Commands.htm",
@@ -197,6 +202,11 @@
   "cc:aki_usv": {
     "title": "AKI USV: USV-Klassifizierung nach DIN EN 62040-3 (VFI, VI, VFD)",
     "url": "https://www.aki-usv.com/produkte/usv-klassifizierung",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:amx_nx2200": {
+    "title": "AMX NX-2200 NetLinx NX Integrated Controller",
+    "url": "https://www.amx.com/en-US/products/nx-2200",
     "area": "control-conference-infrastructure"
   },
   "cc:apc_smartups": {
@@ -272,6 +282,11 @@
   "cc:dini_viktas": {
     "title": "DINI AG VIKTAS: Realisierung von Videokonferenzen (Hinweise, Jan 2016)",
     "url": "https://dini.de/fileadmin/ag/viktas/hinweise_2016.pdf",
+    "area": "control-conference-infrastructure"
+  },
+  "cc:epiphan_fw": {
+    "title": "Epiphan: Firmware 4.24.4 for Pearl (product news, 2026-04-27)",
+    "url": "https://www.epiphan.com/product-news/firmware-4-24-4-smarter-panopto-workflows-and-improved-recording-reliabil",
     "area": "control-conference-infrastructure"
   },
   "cc:fixed": {
@@ -688,6 +703,12 @@
     "read": "page",
     "area": "lighting-stage-room"
   },
+  "ls:NODE": {
+    "title": "ENTTEC ODE Mk3 User Manual",
+    "url": "https://support.enttec.com/user-manuals/ode-mk3",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
   "ls:PAR": {
     "title": "Vari-Lite VL800 PROPAR",
     "url": "https://www.vari-lite.com/global/products/vl800-propar",
@@ -709,6 +730,12 @@
   "ls:SHOWTEC_BAR": {
     "title": "Showtec Pixel Bar 8 COB (IP20, mehrere DMX-Modi)",
     "url": "https://www.showtec-lights.com/en/41266-pixel-bar-8-cob.html",
+    "read": "page",
+    "area": "lighting-stage-room"
+  },
+  "ls:SPLIT": {
+    "title": "ENTTEC DIN RDS4 Mk2",
+    "url": "https://www.enttec.com/product/dmx-usb-interfaces/dmx-rdm-splitter/",
     "read": "page",
     "area": "lighting-stage-room"
   },
@@ -901,6 +928,11 @@
     "url": "https://www.edu.de/epson-objektiv-elplm08-45476",
     "area": "projection-displays"
   },
+  "pd:EP": {
+    "title": "\n        FAQ Article Page | Epson Europe",
+    "url": "https://www.epson.eu/en_EU/faq/KA-01646",
+    "area": "projection-displays"
+  },
   "pd:FLEXM": {
     "title": "Unit LED: soft and bendable flexible LED module",
     "url": "https://www.unit-led.com/soft-flexible-led-module",
@@ -969,6 +1001,11 @@
   "pd:P1": {
     "title": "PT-RZ970/RZ770/RZ660 Series FAQ | FAQ | Projector | Panasonic Global",
     "url": "https://docs.connect.panasonic.com/projector/faq/rz970/",
+    "area": "projection-displays"
+  },
+  "pd:PFAQ": {
+    "title": "Panasonic PT-MZ880 Series FAQ: projector runtime via STATUS",
+    "url": "https://docs.connect.panasonic.com/projector/faq/mz880/",
     "area": "projection-displays"
   },
   "pd:PJ": {

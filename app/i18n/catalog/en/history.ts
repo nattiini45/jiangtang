@@ -1,6 +1,7 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.action.EquipmentReadingRecorded": "Reading recorded",
   "history.action.StockModelLinked": "Stock part model changed",
   "history.action.ModelPartFitAdded": "Compatible part linked",
   "history.action.ModelPartFitRemoved": "Part compatibility unlinked",

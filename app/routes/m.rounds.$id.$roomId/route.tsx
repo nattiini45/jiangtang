@@ -8,6 +8,8 @@ import { parseInput } from "~/lib/validation.server";
 import { NotFoundError, ValidationError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { RoomCheckPage } from "~/components/rooms/room-check";
+import { readingDevices } from "~/domains/readings/readings.queries.server";
+import { readingFromForm } from "~/domains/readings/readings.routes.server";
 export { roundPageMeta as meta } from "~/components/rooms/round-pages";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
@@ -23,6 +25,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   );
   return {
     round,
+    readingDevices: await readingDevices({ roomId: params.roomId }),
     room: target.room,
     functions,
     checks: round.checks.filter((row) => row.roomId === params.roomId),
@@ -32,6 +35,12 @@ export async function action({ request, params }: Route.ActionArgs) {
   const actor = await requireUser(request);
   try {
     const form = await request.formData();
+    if (form.get("intent") === "reading") {
+      const devices = await readingDevices({ roomId: params.roomId });
+      const equipmentId = String(form.get("equipmentId") ?? "");
+      if (!devices.some((device) => device.id === equipmentId)) throw new NotFoundError();
+      return readingFromForm(form, actor, equipmentId, params.id);
+    }
     if (form.get("intent") === "finishEmpty") {
       await finishEmptyRoundRoom(actor, params.id, params.roomId);
       return { finished: true };

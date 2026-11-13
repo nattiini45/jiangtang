@@ -169,7 +169,14 @@ export function ModelParts({
       className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4"
       aria-label={t("parts.heading")}
     >
-      <h2 className="mb-3 text-base font-semibold">{t("parts.heading")}</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-base font-semibold">{t("parts.heading")}</h2>
+        {deviceId && !retired ? (
+          <Link to={`/inventory/${deviceId}/readings`} className={`${LINK} text-sm`}>
+            {t("readings.replace")}
+          </Link>
+        ) : null}
+      </div>
       {!fits.length ? (
         <p className="text-muted-foreground text-sm">{t("parts.empty")}</p>
       ) : (

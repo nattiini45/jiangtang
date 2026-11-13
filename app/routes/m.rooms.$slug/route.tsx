@@ -23,6 +23,7 @@ import { categoryLabel } from "~/components/inventory/labels";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { readingDevices } from "~/domains/readings/readings.queries.server";
 
 /**
  * Mobile room detail. A condensed view of the desktop dashboard —
@@ -58,6 +59,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     const qr = await qrSvg(qrHref);
     return {
       data,
+      readingDeviceIds: (await readingDevices({ roomId: data.room.id })).map((device) => device.id),
       attachments,
       qr,
       qrHref,
@@ -224,6 +226,14 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
                     })}
                   </span>
                 </Link>
+                {loaderData.readingDeviceIds.includes(e.id) ? (
+                  <Link
+                    to={`/m/inventory/${e.id}/readings`}
+                    className="inline-flex min-h-12 items-center px-3 text-sm underline underline-offset-4"
+                  >
+                    {t("readings.enterAndHistory")}
+                  </Link>
+                ) : null}
                 {e.fields.length ? (
                   <div className="px-3 pb-3">
                     <Button

@@ -11,17 +11,21 @@ import { MobilePhotoCapture } from "~/components/mobile/mobile-photo-capture";
 import type { RoomFunctionState } from "~/domains/functions/functions.queries.server";
 import type { getRound } from "~/domains/functions/rounds.queries.server";
 import type { RoomCheck } from "~/generated/prisma/client";
+import type { ReadingDevice } from "~/domains/readings/readings.queries.server";
+import { RoundReadings } from "~/components/inventory/readings";
 
 export function RoomCheckPage({
   round,
   room,
   functions,
   checks,
+  readingDevices,
 }: {
   round: NonNullable<Awaited<ReturnType<typeof getRound>>>;
   room: { id: string; slug: string; name: string };
   functions: RoomFunctionState[];
   checks: RoomCheck[];
+  readingDevices: ReadingDevice[];
 }) {
   const t = useT();
   const finish = useFetcher<{ error?: string }>();
@@ -62,6 +66,7 @@ export function RoomCheckPage({
           </Button>
         </finish.Form>
       ) : null}
+      <RoundReadings devices={readingDevices} roundId={round.id} roomId={room.id} />
       {next ? (
         <Link
           className={`${buttonVariants()} min-h-11`}

@@ -1,6 +1,7 @@
 import library from "./library.json" with { type: "json" };
 
 export type LibraryProperty = {
+  store?: "VALUE" | "READING";
   key: string;
   de: string;
   en: string;

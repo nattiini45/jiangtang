@@ -138,6 +138,10 @@ export const CONFIG = {
   FUNCTION_CONFIRMATION_DAYS: variable("operations", 200, positiveNumber, {
     environmentOnly: true,
   }),
+  READING_DUE_MARGIN_PERCENT: variable("operations", 10, (raw, fallback) => {
+    const value = raw?.trim() ? Number(raw) : fallback;
+    return Number.isFinite(value) && value >= 0 && value <= 100 ? value : fallback;
+  }),
   WARRANTY_WINDOW_DAYS: variable("operations", 30, positiveNumber),
 } as const;
 

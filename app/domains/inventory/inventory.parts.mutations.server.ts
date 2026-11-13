@@ -8,6 +8,9 @@ import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import { requirePartModel } from "~/domains/catalog/catalog.queries.server";
 import { createStockInTx } from "./inventory.stock.mutations.server";
 import { availablePartStock } from "./inventory.parts.queries.server";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
+import { readingRules } from "~/domains/readings/readings.policy";
+import { appendReadingInTx } from "~/domains/readings/readings.mutations.server";
 
 export async function addPartStock(actor: AuditActor, modelId: string, quantity: unknown) {
   const count = z.coerce.number().int().min(1).max(2147483647).parse(quantity);
@@ -54,7 +57,12 @@ export async function linkStockModel(actor: AuditActor, stockId: string, modelId
   await emitChange({ entityType: "inventory-item", id: stockId, op: "updated" });
 }
 
-export async function takePartForDevice(actor: AuditActor, equipmentId: string, stockId: string) {
+export async function takePartForDevice(
+  actor: AuditActor,
+  equipmentId: string,
+  stockId: string,
+  replace = false,
+) {
   const result = await txWithAudit(actor, async (tx, audit) => {
     await requirePermission(actor, "equipment.edit", tx);
     await lockDefinitions(tx);
@@ -74,12 +82,29 @@ export async function takePartForDevice(actor: AuditActor, equipmentId: string, 
     if (!changed.count) throw new ValidationError({}, [tr("parts.unavailable")]);
     const after = await tx.inventoryItem.findUniqueOrThrow({ where: { id: stock.id } });
     const part = await requirePartModel(stock.modelId, tx);
+    const measures = replace
+      ? await getFieldSchema("EQUIPMENT", { store: "READING", kindId: device.kindId }, tx)
+      : [];
+    for (const field of measures) {
+      if (!readingRules[field.libraryKey ?? ""]?.partKinds?.includes(part.kind?.systemKey ?? ""))
+        continue;
+      await appendReadingInTx(tx, audit, actor, {
+        equipmentId,
+        fieldId: field.id,
+        value: 0,
+        observedAt: new Date(),
+        source: "replacement",
+        sourceRef: stockId,
+        partModelId: part.id,
+      });
+    }
     const data = {
       stockId,
       equipmentId,
       modelId: device.modelId,
       partModelId: part.id,
       partNumber: part.name,
+      ...(replace ? { replaced: true } : {}),
       quantity: 1,
       from: after.quantity + 1,
       to: after.quantity,

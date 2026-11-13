@@ -53,6 +53,8 @@ import { EquipmentPorts } from "~/components/inventory/ports-editor";
 import { modelParts } from "~/domains/inventory/inventory.parts.queries.server";
 import { takePartForDevice } from "~/domains/inventory/inventory.parts.mutations.server";
 import { ModelParts } from "~/components/inventory/parts";
+import { readingDevices } from "~/domains/readings/readings.queries.server";
+import { DeviceReadings } from "~/components/inventory/readings";
 import {
   connectEquipmentPorts,
   disconnectEquipmentPorts,
@@ -104,6 +106,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const qr = await qrSvg(qrHref);
   return {
     equipment,
+    readings: (await readingDevices({ id: e.id }))[0] ?? null,
     parts: await modelParts(e.modelId),
     fields: await getFormFields("EQUIPMENT"),
     filledFields: [
@@ -327,6 +330,13 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
           )
         }
       />
+      {loaderData.readings ? (
+        <DeviceReadings
+          device={loaderData.readings}
+          action={`/inventory/${eq.id}/readings`}
+          summary
+        />
+      ) : null}
 
       {eq.status !== "RETIRED" ? (
         <SubstitutionControl

@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { useLocale, useT } from "~/i18n/use-t";
 import { formatDate, formatDateTime } from "~/i18n/format";
 import type { getHomeDue } from "~/domains/dashboard/home.queries.server";
+import { ReadingDueRows } from "~/components/inventory/readings";
 const LINK =
   "min-w-0 truncate underline-offset-4 decoration-(--input) hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 function Rows({ children }: { children: React.ReactNode }) {
@@ -11,13 +12,16 @@ export function DueItems({
   due,
   mobile = false,
   limit = Infinity,
+  headingLevel = 3,
 }: {
   due: Awaited<ReturnType<typeof getHomeDue>>;
   mobile?: boolean;
   limit?: number;
+  headingLevel?: 2 | 3;
 }) {
   const t = useT();
   const locale = useLocale();
+  const Heading = headingLevel === 2 ? "h2" : "h3";
   const path = (href: string) => (mobile ? `/m${href}` : href);
   const roomPath = (slug: string) => `${path(`/rooms/${slug}`)}#functions`;
   const more = (total: number, shown: number) =>
@@ -31,13 +35,20 @@ export function DueItems({
   );
   return (
     <>
-      {!due.roundCount && !due.overrideCount && !due.confirmationCount ? (
+      {!due.roundCount && !due.overrideCount && !due.confirmationCount && !due.readings.length ? (
         empty()
       ) : (
         <>
+          {due.readings.length ? (
+            <div className="mb-3">
+              <Heading className="text-sm font-semibold">{t("readings.dueHeading")}</Heading>
+              <ReadingDueRows rows={due.readings.slice(0, limit)} mobile={mobile} />
+              {more(due.readings.length, Math.min(limit, due.readings.length))}
+            </div>
+          ) : null}
           {due.roundCount ? (
             <div className="mb-3">
-              <h3 className="text-sm font-semibold">{t("functions.rounds.title")}</h3>
+              <Heading className="text-sm font-semibold">{t("functions.rounds.title")}</Heading>
               <Rows>
                 {due.rounds.slice(0, limit).map((round) => (
                   <li key={round.id} className="py-2">
@@ -59,9 +70,9 @@ export function DueItems({
           ) : null}
           {due.overrideCount ? (
             <div className="mb-3">
-              <h3 className="text-sm font-semibold">
+              <Heading className="text-sm font-semibold">
                 {t("dashboard.home.overrides", { count: due.overrideCount })}
-              </h3>
+              </Heading>
               <Rows>
                 {due.overrides.slice(0, limit).map((row) => (
                   <li key={row.id} className="py-2">
@@ -87,9 +98,9 @@ export function DueItems({
           ) : null}
           {due.confirmationCount ? (
             <div>
-              <h3 className="text-sm font-semibold">
+              <Heading className="text-sm font-semibold">
                 {t("dashboard.home.confirmations", { count: due.confirmationCount })}
-              </h3>
+              </Heading>
               <Rows>
                 {due.confirmations.slice(0, limit).map((row) => (
                   <li key={row.id} className="py-2">
@@ -138,7 +149,7 @@ export function DuePage({
       </Link>
       <h1 className="text-xl font-bold">{t("dashboard.home.due.title")}</h1>
       <div className="min-w-0 rounded-lg bg-card p-4 shadow-surface-2">
-        <DueItems due={due} mobile={mobile} />
+        <DueItems due={due} mobile={mobile} headingLevel={2} />
       </div>
     </div>
   );

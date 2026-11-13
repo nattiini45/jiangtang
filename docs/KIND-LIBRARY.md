@@ -30,8 +30,9 @@ kind is installed. The versioned file contains shared and kind-local
 properties, bilingual labels, units, choices, levels, weights, conditions and source IDs.
 `library-sources.json` holds the cited sources. Regenerate both with
 `node scripts/library/export.mjs /path/to/research.json`; the research input is not shipped.
-Readings and general relations are not materialized as properties. Part compatibility has
-its own relation rows, described below. Ranges store `{ min, max }` in the property's
+Reading definitions use `CustomField.store = READING`; their values are append-only rows,
+never ordinary property values. General relations are not materialized as properties. Part
+compatibility has its own relation rows, described below. Ranges store `{ min, max }` in the property's
 unit; either bound may be null, but a filled minimum cannot exceed the maximum. Both empty
 bounds clear the value on a form; structured writers clear it with null. Pages format ranges
 in the reader's language. Catalog range values remain out of scope.
@@ -143,5 +144,35 @@ be received on the part's page. Only stock not linked to a tracked device, with 
 available or unrecorded status counts; loaned, requested and reserved items do not.
 Taking one from a chosen stock row decrements it atomically and records the part number,
 device and before/after counts in both stock and device histories. Concurrent attempts
-cannot take the same last unit. Readings, rated-life comparisons, orders and prices are
-not part of this workflow.
+cannot take the same last unit. Taking a part alone does not claim it was installed. Use
+**Replace part** to record an installation and reset its matching counter atomically with
+the withdrawal. Orders and prices are not part of this workflow.
+
+## Readings and service limits
+
+The library supplies 36 reading definitions for its installed kinds: hours, battery levels,
+versions, reported states and other observations. Enter a value and its observation time on
+the device's readings page, on the phone, or inline during a round. An observation records
+its source, person and time separately from its insertion time. Corrections append another
+row. The latest observation wins; ties use insertion time and then ID. History shows the
+latest 100 entries. Retiring a device keeps its reading history.
+
+`EquipmentReading` and its same-transaction audit are append-only. PostgreSQL rejects updates
+and deletes with an ENABLE ALWAYS trigger; referenced devices, definitions, people and part
+models cannot be deleted out from underneath a reading. Typed entries cannot claim network
+provenance. Network polling is not implemented. A round can still accept optional readings
+after its function checks have completed; this does not reopen or change the checks.
+
+`reading-rules.json` connects counters to applicable model lives and part intervals. Projector
+light-source hours use the appropriate rated life, not the eco-mode figure. Filter models can
+record a replacement interval in operating hours; it is empty until supplied by the team.
+Only a known fitted part, or an unambiguous compatible part, contributes its interval. No
+reading, interval, battery-health threshold or projected usage is invented. The smallest
+applicable recorded limit wins. A stock installation appends zero only for its matching
+counter and records the part model; a filter change never resets light-source hours.
+
+The device, home and full due list share the same projection. `READING_DUE_MARGIN_PERCENT`
+sets the remaining-life margin for **Due soon** (0–100, default 10). At the limit the device
+is **Due**. Readings older than 365 days explicitly lower confidence; the due list puts
+stale readings first, then the most overdue ratio, then the oldest observation. It does not
+create recurring inspection plans or predict missing readings.
