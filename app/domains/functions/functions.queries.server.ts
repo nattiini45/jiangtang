@@ -20,7 +20,10 @@ export async function listRoomFunctions() {
   }));
 }
 
-export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}) {
+export async function getFunctionStates({
+  roomIds,
+  now = new Date(),
+}: { roomIds?: string[]; now?: Date } = {}) {
   const [functions, rooms, devices, faults, fixes, checks, overrides] = await Promise.all([
     listRoomFunctions(),
     db.room.findMany({
@@ -135,7 +138,7 @@ export async function getFunctionStates({ roomIds }: { roomIds?: string[] } = {}
         const hasCarrier = mapped.some((device) => device.role === "CARRIER");
         if (!isExpected && !hasCarrier && !knownFixes.length && !openFaults.length) return [];
         const derived = deriveFunctionState(mapped, openFaults, {
-          now: new Date(),
+          now,
           days: confirmationDays(),
           evidenceAt: new Date(
             Math.max(

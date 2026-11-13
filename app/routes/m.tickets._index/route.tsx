@@ -34,26 +34,35 @@ const STATUS_CHIPS: TicketStatus[] = [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const actor = await requireUser(request);
   const url = new URL(request.url);
   // Validate against the enum like the desktop list — garbage is ignored.
   const status = parseEnumParam(TicketStatus, url.searchParams.get("status"));
   const q = url.searchParams.get("q")?.trim() || undefined;
-  const tickets = await listTickets({ status, q });
-  return { tickets, status: status ?? "", q: q ?? "" };
+  const mine = url.searchParams.get("assignee") === "me";
+  const tickets = await listTickets({
+    status,
+    q,
+    assigneeId: mine ? actor.id : undefined,
+    openWorkForUser: mine && !status ? actor.id : undefined,
+  });
+  return { tickets, status: status ?? "", q: q ?? "", mine };
 }
 
 export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps) {
-  const { tickets, status, q } = loaderData;
+  const { tickets, status, q, mine } = loaderData;
   const t = useT();
   const locale = useLocale();
   return (
     <div className="flex flex-col gap-4 px-4 py-4">
-      <h1 className="text-lg font-semibold">{t("nav.tickets")}</h1>
+      <h1 className="text-lg font-semibold">
+        {t(mine ? "dashboard.home.mine.ticketsTitle" : "nav.tickets")}
+      </h1>
       <Button asChild className="min-h-11">
         <Link to="/m/tickets/new">{t("functions.report")}</Link>
       </Button>
       <Form method="get" className="flex flex-col gap-2">
+        {mine ? <input type="hidden" name="assignee" value="me" /> : null}
         <Label htmlFor="ticket-search">{t("mobile.tickets.search")}</Label>
         {status ? <input type="hidden" name="status" value={status} /> : null}
         <div className="flex gap-2">
@@ -74,14 +83,14 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
       {/* Status filter as a segmented control (each segment is a 44px tap target). */}
       <div className="bg-tint grid grid-cols-2 rounded-xl p-0.5">
         <SegmentLink
-          to={`/m/tickets?${new URLSearchParams({ q })}`}
+          to={`/m/tickets?${new URLSearchParams({ q, ...(mine ? { assignee: "me" } : {}) })}`}
           active={status === ""}
-          label={t("common.all")}
+          label={t(mine ? "dashboard.home.mine.openTickets" : "common.all")}
         />
         {STATUS_CHIPS.map((value) => (
           <SegmentLink
             key={value}
-            to={`/m/tickets?${new URLSearchParams({ q, status: value })}`}
+            to={`/m/tickets?${new URLSearchParams({ q, status: value, ...(mine ? { assignee: "me" } : {}) })}`}
             active={status === value}
             label={ticketStatusLabel(locale, value)}
           />
@@ -116,7 +125,7 @@ export default function MobileTicketsIndex({ loaderData }: Route.ComponentProps)
               action={
                 q || status
                   ? { to: "/m/tickets", label: t("mobile.filters.clear") }
-                  : { to: "/m", label: t("mobile.entry.submit") }
+                  : { to: "/m/quick-entry", label: t("mobile.entry.submit") }
               }
             />
           </li>

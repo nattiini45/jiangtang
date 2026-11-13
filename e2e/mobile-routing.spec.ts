@@ -6,7 +6,7 @@ const TABLET_UA = devices["iPad (gen 7)"].userAgent;
 test("equipment QR entry retains the equipment as a capture default", async ({ page, baseURL }) => {
   await page.context().addCookies([{ name: "view", value: "mobile", url: baseURL! }]);
   await page.goto("/inventory/seed_equipment_projector_a01");
-  await expect(page).toHaveURL(/\/m\?equipmentId=seed_equipment_projector_a01$/);
+  await expect(page).toHaveURL(/\/m\/quick-entry\?equipmentId=seed_equipment_projector_a01$/);
   await expect(page.locator('select[name="equipmentId"]')).toHaveValue(
     "seed_equipment_projector_a01",
   );

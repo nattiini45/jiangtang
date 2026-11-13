@@ -93,7 +93,7 @@ for (const theme of ["light", "dark"] as const) {
     }
     await expect(
       page.getByRole("link", { name: `Eintrag zu ${runPrefix()}Projektor erfassen` }),
-    ).toHaveAttribute("href", `/m?roomId=${room.id}&equipmentId=${equipmentId}`);
+    ).toHaveAttribute("href", `/m/quick-entry?roomId=${room.id}&equipmentId=${equipmentId}`);
     const booking = page.getByRole("link").filter({ hasText: event.title });
     await expect(booking).toContainText("09:00");
     await expect(booking).toContainText("12:00");

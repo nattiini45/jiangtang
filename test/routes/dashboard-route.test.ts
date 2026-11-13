@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { db } from "~/lib/db.server";
 import type { AuthUser } from "~/lib/auth.server";
-import { reindexSource } from "~/lib/search/indexer.server";
+import { defaultHomeLayout } from "~/domains/dashboard/home-layout";
 
 /**
  * `/` — the workspace dashboard. The loader composes one real query per
@@ -36,6 +36,7 @@ vi.mock("~/lib/auth.server", async (importOriginal) => {
 });
 
 const route = await import("~/routes/_desktop._index/route");
+const preference = await import("~/routes/home-layout/route");
 
 // The actor-aware demo seed assigns work to the loading admin — the FK needs a
 // real User row, so the mock actor gets one (and its rows are removed after).
@@ -50,10 +51,6 @@ beforeAll(async () => {
       isActive: true,
     },
   });
-  // The search-health card counts index chunks, and the demo seed indexes nothing. Without
-  // this the card's count depended on whether another test file had indexed something first.
-  const note = await db.note.findFirstOrThrow({ select: { id: true } });
-  await reindexSource("NOTE", note.id);
 });
 
 afterAll(async () => {
@@ -72,18 +69,7 @@ afterAll(async () => {
   await db.$disconnect();
 });
 
-const load = () =>
-  route.loader({ request: new Request("http://localhost/") } as never) as Promise<{
-    isAdmin: boolean;
-    due: { dueTodayCount: number; overdueCount: number };
-    blocked: unknown[];
-    myWork: { taskCount: number; estimateMinutes: number };
-    myTickets: { ticketCount: number };
-    recent: unknown[];
-    storage: { attachmentCount: number; totalBytes: number; backend: string };
-    searchHealth: { state: string; note: string; chunks: number; embedded: number };
-    empty: boolean;
-  }>;
+const load = () => route.loader({ request: new Request("http://localhost/") } as never);
 
 const postDemo = () =>
   route.action({
@@ -97,17 +83,19 @@ const postDemo = () =>
 describe("/ loader", () => {
   it("composes every card from its real query", async () => {
     const data = await load();
-    expect(data.empty).toBe(false); // the dev corpus is seeded
-    expect(typeof data.due.dueTodayCount).toBe("number");
-    expect(Array.isArray(data.blocked)).toBe(true);
-    expect(typeof data.myWork.estimateMinutes).toBe("number");
-    expect(typeof data.myTickets.ticketCount).toBe("number");
-    expect(Array.isArray(data.recent)).toBe(true);
-    // Live health (was a "…folgt" stub): a real state + counts.
-    expect(["lexical", "semantisch", "gestört"]).toContain(data.searchHealth.state);
-    expect(data.searchHealth.note.length).toBeGreaterThan(0);
-    expect(data.searchHealth.chunks).toBeGreaterThan(0);
-    expect(data.storage.backend.length).toBeGreaterThan(0);
+    expect(data.home.layout).toEqual([
+      { id: "faults", mode: "highlight" },
+      { id: "due", mode: "show" },
+      { id: "today", mode: "show" },
+      { id: "mine", mode: "show" },
+      { id: "activity", mode: "show" },
+    ]);
+    expect(typeof data.home.faults.roomCount).toBe("number");
+    expect(Array.isArray(data.home.due.rounds)).toBe(true);
+    expect(Array.isArray(data.home.today.events)).toBe(true);
+    expect(typeof data.home.mine.taskCount).toBe("number");
+    expect(typeof data.home.mine.ticketCount).toBe("number");
+    expect(Array.isArray(data.home.activity)).toBe(true);
   });
 });
 
@@ -127,4 +115,40 @@ describe("/ action — load-demo", () => {
     expect(second.skipped).toBe(first.created + first.skipped);
     TEST_USER.role = "MEMBER";
   });
+});
+
+describe("home preferences", () => {
+  it("saves only the authenticated actor even if another user ID is submitted", async () => {
+    const layout = defaultHomeLayout();
+    layout[4].mode = "hide";
+    const result = await preference.action({
+      request: new Request("http://localhost/home-layout", {
+        method: "POST",
+        body: new URLSearchParams({ layout: JSON.stringify(layout), userId: "forged-user" }),
+      }),
+    } as never);
+    expect(result).toEqual({ ok: true });
+    expect((await load()).home.layout).toEqual(layout);
+    expect(await db.user.count({ where: { id: "forged-user" } })).toBe(0);
+  });
+
+  it.each([
+    "not-json",
+    "[]",
+    JSON.stringify([...defaultHomeLayout().slice(0, 4), { id: "faults", mode: "show" }]),
+  ])(
+    "rejects malformed or duplicate layouts without overwriting the saved preference",
+    async (layout) => {
+      const previous = (await load()).home.layout;
+      const response = await preference.action({
+        request: new Request("http://localhost/home-layout", {
+          method: "POST",
+          body: new URLSearchParams({ layout }),
+        }),
+      } as never);
+      expect(response).toBeInstanceOf(Response);
+      expect((response as Response).status).toBe(422);
+      expect((await load()).home.layout).toEqual(previous);
+    },
+  );
 });

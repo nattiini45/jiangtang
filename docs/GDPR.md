@@ -25,8 +25,9 @@ Each person's desktop and mobile timesheet names the active people who can see t
 Opening someone else's timesheet is recorded at most once per viewer, person and Europe/Berlin day.
 
 The workspace activity page and its MCP tool require `audit.view` (admins by default). Members
-retain per-record history and the dashboard's recent-activity card; that card omits time-entry
-activity and time-access metadata. Time-entry audit rows are visible only to the entry's owner
+retain per-record history and the home's curated operational changes; that view includes only
+faults opened/resolved/cancelled/reopened, manual function states and completed rounds, not time-entry
+activity, account changes or time-access metadata. Time-entry audit rows are visible only to the entry's owner
 or holders of `time.viewOthers`, including after deletion; `audit.view` alone grants no access
 to other people's time-entry activity. Grant, revoke and view-accountability rows remain visible
 to everyone with `audit.view`. The same ownership rule guards time-entry record history.

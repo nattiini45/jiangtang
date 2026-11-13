@@ -29,7 +29,7 @@ export function MobileRouteErrorBoundary() {
         <p className="text-muted-foreground nums text-xs">{t("common.error.status", { status })}</p>
         <div className="flex flex-wrap gap-2">
           <Button asChild className="min-h-11">
-            <Link to="/m">{t("mobile.error.capture")}</Link>
+            <Link to="/m/quick-entry">{t("mobile.error.capture")}</Link>
           </Button>
           {!missing ? (
             <Button asChild variant="secondary" className="min-h-11">

@@ -226,7 +226,7 @@ function loadWorker(network: (url: string) => FakeResponse) {
 }
 
 const cachedUrls = (w: ReturnType<typeof loadWorker>) =>
-  [...(w.caches.stores.get("jiangtang-shell-v4")?.keys() ?? [])].sort();
+  [...(w.caches.stores.get("jiangtang-shell-v5")?.keys() ?? [])].sort();
 
 const asStorage = (w: ReturnType<typeof loadWorker>) => w.caches as unknown as CacheStorage;
 
@@ -319,7 +319,7 @@ describe("service worker caching", () => {
       // The answer is out while the write is still pending ...
       expect(res.body).toBe(`body of ${path}`);
       expect(worker.caches.stores.get("jiangtang-assets-v1")?.size ?? 0).toBe(0);
-      expect(worker.caches.stores.get("jiangtang-shell-v4")?.size ?? 0).toBe(0);
+      expect(worker.caches.stores.get("jiangtang-shell-v5")?.size ?? 0).toBe(0);
       // ... and that write is what waitUntil holds on to.
       expect(waited).toHaveLength(1);
       expect(await settled(Promise.all(waited))).toBe(false);
@@ -374,7 +374,7 @@ describe("service worker caching", () => {
 
     await worker.request("/api/tickets");
 
-    expect(worker.caches.stores.has("jiangtang-shell-v4")).toBe(false);
+    expect(worker.caches.stores.has("jiangtang-shell-v5")).toBe(false);
   });
 
   describe("built-in offline placeholder", () => {
@@ -475,6 +475,8 @@ describe("service worker caching", () => {
       [
         "/m",
         "/m/",
+        "/m/quick-entry",
+        "/m/quick-entry.data",
         "/m/offline",
         "/m/rooms",
         "/m/tasks",
@@ -503,13 +505,14 @@ describe("service worker caching", () => {
     await worker.caches.open("jiangtang-shell-v1");
     await worker.caches.open("jiangtang-shell-v2");
     await worker.caches.open("jiangtang-shell-v4");
+    await worker.caches.open("jiangtang-shell-v5");
     await worker.caches.open("jiangtang-assets-v1");
 
     await worker.activate();
 
     expect([...worker.caches.stores.keys()].sort()).toEqual([
       "jiangtang-assets-v1",
-      "jiangtang-shell-v4",
+      "jiangtang-shell-v5",
     ]);
   });
 

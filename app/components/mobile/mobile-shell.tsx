@@ -1,9 +1,17 @@
 import * as React from "react";
-import { Form, Link, NavLink, useFetchers, useLocation, useNavigation } from "react-router";
+import {
+  Form,
+  Link,
+  NavLink,
+  PrefetchPageLinks,
+  useFetchers,
+  useLocation,
+  useNavigation,
+} from "react-router";
 import { motion } from "motion/react";
 import {
   Bell,
-  Camera,
+  House,
   Building2,
   Ticket,
   MoreHorizontal,
@@ -41,11 +49,12 @@ export interface MobileUser {
 const NAV: { to: string; labelKey: MessageKey; icon: typeof Building2; end?: boolean }[] = [
   { to: "/m/rooms", labelKey: "nav.rooms", icon: Building2 },
   { to: "/m/tasks", labelKey: "nav.tasks", icon: ListTodo },
-  { to: "/m", labelKey: "mobile.nav.entry", icon: Camera, end: true },
+  { to: "/m", labelKey: "nav.overview", icon: House, end: true },
   { to: "/m/tickets", labelKey: "nav.tickets", icon: Ticket },
 ];
 
 const MORE_LINKS: { to: string; labelKey: MessageKey }[] = [
+  { to: "/m/quick-entry", labelKey: "mobile.nav.entry" },
   { to: "/m/rounds", labelKey: "functions.rounds.title" },
   { to: "/m/functions", labelKey: "functions.list.title" },
   { to: "/m/locations", labelKey: "nav.locations" },
@@ -85,6 +94,7 @@ export function MobileShell({
   // Replays the capture queue on mount + `online`, and gives the badge.
   const { pending, authRequired } = useOfflineQueue();
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [captureReady, setCaptureReady] = React.useState(false);
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const moreRef = React.useRef<HTMLButtonElement>(null);
   const navigation = useNavigation();
@@ -93,6 +103,14 @@ export function MobileShell({
   const { pathname } = useLocation();
   const moreActive =
     menuOpen || MORE_LINKS.some(({ to }) => pathname === to || pathname.startsWith(`${to}/`));
+
+  React.useEffect(() => {
+    if (!("serviceWorker" in navigator) || !("controller" in navigator.serviceWorker)) return;
+    const update = () => setCaptureReady(Boolean(navigator.serviceWorker.controller));
+    update();
+    navigator.serviceWorker.addEventListener("controllerchange", update);
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", update);
+  }, []);
 
   React.useEffect(() => {
     if (!menuOpen) return;
@@ -122,6 +140,7 @@ export function MobileShell({
       className="mobile-shell bg-background text-foreground flex min-h-screen flex-col text-sm"
     >
       <NavPendingIndicator />
+      {captureReady ? <PrefetchPageLinks page="/m/quick-entry" /> : null}
       <p role="status" className="sr-only">
         {busy ? t("mobile.loading") : ""}
       </p>

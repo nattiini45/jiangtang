@@ -1,4 +1,6 @@
 export const historyDe = {
+  "history.action.HomeLayoutUpdated": "Übersicht angepasst",
+  "history.action.HomeRoundFinished": "Rundgang abgeschlossen",
   "history.entity.roomType": "Raumtyp",
   "history.action.RoomTypeReconciled": "Raumtyp aus der Bibliothek ergänzt",
   "history.action.RoomExpectationsChanged": "Erwartete Funktionen geändert",
