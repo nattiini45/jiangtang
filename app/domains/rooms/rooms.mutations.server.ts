@@ -2,6 +2,8 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { applyRoomCustomValuesInTx } from "./rooms.custom-values.server";
 import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import { emitChange } from "~/lib/realtime/emit.server";
+import { applyRoomExpectationsInTx } from "./room-types.mutations.server";
+import { legacyFunctionFlags } from "~/domains/functions/functions.expectations";
 import type { Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
@@ -264,6 +266,8 @@ export async function createRoom(actor: AuditActor, input: RoomCreateInput): Pro
       }
       throw e;
     }
+    await writeRoomExpectations(tx, audit, room.id, input);
+    room = await tx.room.findUniqueOrThrow({ where: { id: room.id } });
     const custom =
       input.customValues === undefined
         ? {}
@@ -286,15 +290,45 @@ export async function updateRoom(
   input: RoomEditInput,
 ): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    const previous = await tx.room.findUniqueOrThrow({ where: { id } });
     const data =
       input.customValues === undefined
         ? undefined
         : await applyRoomCustomValuesInTx(tx, id, input.customValues);
     const location = await resolveLocation(tx, audit, input);
-    const room = await tx.room.update({ where: { id }, data: roomFields(input, location) });
+    await tx.room.update({ where: { id }, data: roomFields(input, location) });
+    await writeRoomExpectations(tx, audit, id, input, previous);
+    const room = await tx.room.findUniqueOrThrow({ where: { id } });
     await audit({ action: "RoomUpdated", entityType: "room", entityId: room.id, data });
     return room;
   });
+}
+
+async function writeRoomExpectations(
+  tx: Tx,
+  audit: AuditFn,
+  roomId: string,
+  input: Pick<
+    RoomCreateInput,
+    "roomTypeId" | "expectations" | (typeof legacyFunctionFlags)[keyof typeof legacyFunctionFlags]
+  >,
+  previous?: Room,
+) {
+  let expectations = input.expectations;
+  if (expectations === undefined) {
+    const functions = await tx.roomFunction.findMany({ where: { archivedAt: null } });
+    expectations = Object.entries(legacyFunctionFlags).flatMap(([key, flag]) => {
+      const fn = functions.find((fn) => fn.systemKey === key);
+      return fn && (input[flag] || previous?.[flag])
+        ? [{ functionId: fn.id, expected: input[flag] }]
+        : [];
+    });
+  }
+  if (input.roomTypeId !== undefined || input.expectations !== undefined || expectations.length)
+    await applyRoomExpectationsInTx(tx, audit, roomId, {
+      roomTypeId: input.roomTypeId,
+      expectations,
+    });
 }
 
 /** Retire (never delete — FK RESTRICT from bookings): status → OUT_OF_SERVICE. */
@@ -338,7 +372,7 @@ export async function cloneRoom(
     await lockDefinitions(tx);
     const source = await tx.room.findUnique({
       where: { slug: sourceSlug },
-      include: { equipment: true },
+      include: { equipment: true, functionExpectations: true },
     });
     if (!source) throw new NotFoundError(tr("places.err.room.sourceNotFound"));
 
@@ -403,13 +437,22 @@ export async function cloneRoom(
       }
     }
 
+    if (input.copyFeatures)
+      await applyRoomExpectationsInTx(tx, audit, room.id, {
+        roomTypeId: source.roomTypeId,
+        expectations: source.functionExpectations.map((row) => ({
+          functionId: row.functionId,
+          expected: row.expected,
+          note: row.note ?? undefined,
+        })),
+      });
     await audit({
       action: "RoomCloned",
       entityType: "room",
       entityId: room.id,
       data: { fromId: source.id, fromSlug: source.slug, copiedEquipment },
     });
-    return room;
+    return tx.room.findUniqueOrThrow({ where: { id: room.id } });
   });
 }
 
@@ -457,6 +500,7 @@ export async function bulkCreateRooms(
             lastCheckedAt: row.lastCheckedAt ?? null,
           },
         });
+        await writeRoomExpectations(tx, audit, room.id, row);
         const custom =
           row.customValues === undefined
             ? {}

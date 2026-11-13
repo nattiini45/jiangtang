@@ -3,11 +3,14 @@ import type { Tx } from "~/lib/db.server";
 import type { AuditFn } from "~/lib/audit.server";
 import { workspaceLocale } from "~/i18n/locale.server";
 
-export async function reconcileFunctionsInTx(tx: Tx, audit: AuditFn) {
+export async function reconcileFunctionsInTx(tx: Tx, audit: AuditFn, includeExpected = false) {
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('room-functions'))::text`;
   const kinds = await tx.equipmentKind.findMany({ where: { systemKey: { not: null } } });
   for (const definition of library.functions) {
-    if (!kinds.some((kind) => !kind.archivedAt && definition.carriers.includes(kind.systemKey!)))
+    if (
+      !includeExpected &&
+      !kinds.some((kind) => !kind.archivedAt && definition.carriers.includes(kind.systemKey!))
+    )
       continue;
     let row = await tx.roomFunction.findUnique({ where: { systemKey: definition.key } });
     const created = !row;

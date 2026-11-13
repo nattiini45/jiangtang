@@ -2,7 +2,9 @@ import * as React from "react";
 import { Form, Link, redirect } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
-import { formDataToObject, safeParse } from "~/lib/validation.server";
+import { formDataToObject, safeParse, parseInput } from "~/lib/validation.server";
+import { setRoomType } from "~/domains/rooms/room-types.mutations.server";
+import { setRoomTypeSchema } from "~/domains/rooms/room-types.schema";
 import { resolveLocale } from "~/i18n/locale.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
@@ -34,6 +36,10 @@ import { withFieldColumns } from "~/components/data-grid/field-columns";
 import { ColumnPicker } from "~/components/data-grid/column-picker";
 import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { KindOptions } from "~/components/inventory/kind-options";
+import { listRoomTypes } from "~/domains/rooms/room-types.queries.server";
+import { RoomTypeBulk } from "~/components/rooms/room-type-bulk";
+import { Checkbox, CheckboxIndicator } from "@ui-sdk/react/checkbox";
+import { Check } from "lucide-react";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "rooms.meta.list") }];
@@ -60,6 +66,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const kinds = await listDeviceKinds();
   return {
     rooms,
+    roomTypes: await listRoomTypes(),
     campuses,
     manage,
     kinds,
@@ -74,13 +81,26 @@ export async function loader({ request }: Route.LoaderArgs) {
  * manage-mode moved into `/rooms?manage=campuses`; the forms in
  * `CampusesManager` post to this route.
  */
-export async function action({ request }: Route.ActionArgs): Promise<CampusActionData | Response> {
+export async function action({
+  request,
+}: Route.ActionArgs): Promise<CampusActionData | Response | { saved?: boolean; error?: string }> {
   const actor = await requireUser(request);
   const locale = resolveLocale(request);
   const obj = formDataToObject(await request.formData());
   const intent = String(obj._action ?? "");
   try {
     switch (intent) {
+      case "setRoomType": {
+        const type = String(obj.roomTypeId ?? "none");
+        await setRoomType(
+          actor,
+          parseInput(setRoomTypeSchema, {
+            roomIds: Array.isArray(obj.roomIds) ? obj.roomIds : obj.roomIds ? [obj.roomIds] : [],
+            roomTypeId: type === "none" ? null : type,
+          }),
+        );
+        return { saved: true };
+      }
       case "createCampus": {
         const r = safeParse(campusCreateSchema, obj, locale);
         if (!r.success) return { intent, fieldErrors: r.fieldErrors };
@@ -115,6 +135,7 @@ export async function action({ request }: Route.ActionArgs): Promise<CampusActio
     }
   } catch (e) {
     if (e instanceof ValidationError) {
+      if (intent === "setRoomType") return { error: t(locale, "functions.types.invalid") };
       return {
         intent,
         id: String(obj.id ?? ""),
@@ -129,10 +150,35 @@ export async function action({ request }: Route.ActionArgs): Promise<CampusActio
 export default function RoomsList({ loaderData, actionData }: Route.ComponentProps) {
   const locale = useLocale();
   const t = useT();
+  const [selected, setSelected] = React.useState<string[]>([]);
   const { rooms, campuses, manage, filters, kinds, columnConfig, canConfigure } = loaderData;
   const columns = React.useMemo(
-    () => withFieldColumns(roomColumns<(typeof rooms)[number]>(t), columnConfig, locale),
-    [t, columnConfig, locale],
+    () => [
+      {
+        id: "selection",
+        header: t("functions.types.selection"),
+        meta: { sizing: "short" as const },
+        enableSorting: false,
+        cell: ({ row }: { row: { original: (typeof rooms)[number] } }) => (
+          <Checkbox
+            aria-label={t("functions.types.select", { name: row.original.name })}
+            checked={selected.includes(row.original.id)}
+            onCheckedChange={(checked) =>
+              setSelected((ids) =>
+                checked ? [...ids, row.original.id] : ids.filter((id) => id !== row.original.id),
+              )
+            }
+            className="flex size-5 items-center justify-center rounded-sm shadow-[inset_0_0_0_1px_var(--input)] data-checked:bg-selected"
+          >
+            <CheckboxIndicator>
+              <Check aria-hidden className="size-4" />
+            </CheckboxIndicator>
+          </Checkbox>
+        ),
+      },
+      ...withFieldColumns(roomColumns<(typeof rooms)[number]>(t), columnConfig, locale),
+    ],
+    [t, columnConfig, locale, selected],
   );
   const builtins = roomColumns(t).map((column) => ({
     id: String(column.id ?? ("accessorKey" in column ? column.accessorKey : "")),
@@ -153,7 +199,10 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
             <Link to="/rooms">{t("nav.rooms")}</Link>
           </Button>
         </div>
-        <CampusesManager campuses={campuses} actionData={actionData} />
+        <CampusesManager
+          campuses={campuses}
+          actionData={actionData && "intent" in actionData ? actionData : undefined}
+        />
       </div>
     );
   }
@@ -224,6 +273,10 @@ export default function RoomsList({ loaderData, actionData }: Route.ComponentPro
         </noscript>
       </Form>
 
+      <RoomTypeBulk
+        ids={selected.filter((id) => rooms.some((room) => room.id === id))}
+        types={loaderData.roomTypes}
+      />
       <DataGrid
         widthsMenu={!canConfigure}
         columns={columns}

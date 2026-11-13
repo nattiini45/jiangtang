@@ -1,4 +1,5 @@
 import { db } from "~/lib/db.server";
+import { listRoomTypes } from "./room-types.queries.server";
 import {
   getFunctionStates,
   listRoomFunctions,
@@ -76,6 +77,7 @@ export interface DashboardEquipment extends Pick<
 }
 
 export interface DashboardRoom {
+  roomTypeName?: string | null;
   fields: FilledField[];
   id: string;
   slug: string;
@@ -165,6 +167,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   }));
 
   const dashboardRoom: DashboardRoom = {
+    roomTypeName: (await listRoomTypes()).find((type) => type.id === room.roomTypeId)?.name ?? null,
     fields: (await withFieldValues("ROOM", [room]))[0].fields,
     id: room.id,
     slug: room.slug,

@@ -14,6 +14,7 @@ import { Button } from "~/components/ui/button";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { roomExpectationFields } from "~/domains/rooms/room-types.queries.server";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "rooms.meta.new") }];
@@ -21,7 +22,11 @@ export function meta({ matches }: Route.MetaArgs) {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
-  return { campuses: await listCampuses(), fields: await getFormFields("ROOM") };
+  return {
+    campuses: await listCampuses(),
+    fields: await getFormFields("ROOM"),
+    expectations: await roomExpectationFields(),
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -54,7 +59,11 @@ export default function NewRoom({ loaderData, actionData }: Route.ComponentProps
         </Link>
       </div>
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
-        <RoomFormFields campuses={loaderData.campuses} fields={loaderData.fields} />
+        <RoomFormFields
+          campuses={loaderData.campuses}
+          fields={loaderData.fields}
+          expectations={loaderData.expectations}
+        />
         <div className="flex gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.creating") : t("rooms.new.submit")}

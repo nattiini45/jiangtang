@@ -25,6 +25,11 @@ separately; choose a function, then move it explicitly. A new fault shows that f
 known fixes before impact and notes, so the technician can try them first. Closing keeps
 the short required resolution and a default-on retention tick for a linked function.
 
+Room types supply expected functions, with missing carriers shown last in a neutral state:
+“Fehlt”, never a fault color. Type selection lives in the room form, with its complete
+expected-function summary and per-room additions/removals one disclosure away. Bulk assignment
+uses row selection above the existing room grid. Preserve the name column's growth.
+
 Check the hall in both languages and densities at 1280 and 1920 pixels. Check capture at
 390 pixels, including offline and saving, with a synthetic seventy-room installation and
 sixteen devices in the target room. Preserve DESIGN.md and the existing token primitives.

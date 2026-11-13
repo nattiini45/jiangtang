@@ -26,7 +26,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   await requireUser(request);
   const [targets, functions] = await Promise.all([listTicketTargets(), getFunctionStates()]);
   const roomId = new URL(request.url).searchParams.get("roomId") ?? "";
-  return { rooms: targets.rooms, functions: functions.filter((row) => row.devices.length), roomId };
+  return {
+    rooms: targets.rooms,
+    functions: functions.filter((row) => row.hasCarrier),
+    roomId,
+  };
 }
 
 export async function action({ request }: Route.ActionArgs) {

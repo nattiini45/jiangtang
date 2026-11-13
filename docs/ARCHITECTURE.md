@@ -45,6 +45,12 @@ The schema lives in `prisma/schema.prisma`. The main families:
 Library properties use ordinary `CustomField` rows with stable keys and MODEL/DEVICE levels;
 model values live in `EquipmentModel.customValues`, and `getFieldSchema` resolves labels for all readers.
 
+Room types and expectations are data: `RoomTypeFunction` lists a type's expected functions;
+`RoomFunctionExpectation` adds or drops one for a room. `getFunctionStates` combines those with
+carrier/path-device evidence. Missing carriers are gaps, never automatic faults. Startup adds
+the shipped type content and copies true legacy room flags once, guarded by `LibraryState`;
+failures roll back that transaction and retry at the next start without blocking the app.
+
 ### Rooms and locations
 
 Rooms and locations are two independent concepts, and both stay. Do not merge them, and do not

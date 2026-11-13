@@ -105,7 +105,9 @@ test("a room's functions and their devices fit both desktop densities and langua
         block.getByText(t(locale, "functions.state.NO_KNOWN_FAULT"), { exact: true }),
       ).toHaveCount(5);
       await expect(block.getByText("Synthetic projector 1", { exact: true })).toBeVisible();
-      await expect(block.getByText("Synthetic microphone 6", { exact: true })).toBeVisible();
+      await expect(
+        block.locator(`#function-${soundId}`).getByText("Synthetic microphone 6", { exact: true }),
+      ).toBeVisible();
       await expect(
         page.getByRole("button", { name: t(locale, "functions.report"), exact: true }),
       ).toBeVisible();

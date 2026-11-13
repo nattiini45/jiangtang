@@ -5,7 +5,12 @@ export async function roundTargets() {
   const states = await getFunctionStates();
   const rooms = new Map(
     states
-      .filter((row) => row.devices.length)
+      .filter(
+        (row) =>
+          row.expected ||
+          row.hasCarrier ||
+          row.faults.some((fault) => fault.functionId === row.functionId),
+      )
       .map((row) => [
         row.roomId,
         {

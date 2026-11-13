@@ -89,6 +89,11 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-lg font-bold">{room.name}</h1>
         </div>
+        {room.roomTypeName ? (
+          <p className="text-sm text-muted-foreground">
+            {t("functions.types.label")}: {room.roomTypeName}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted-foreground">{t("mobileDetails.roomStatus")}</span>
           <StatusBadge kind="room" value={room.status} />

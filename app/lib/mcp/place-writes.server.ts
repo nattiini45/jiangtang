@@ -215,7 +215,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_room",
       description:
-        "Replace every built-in editable room field by ID, not slug. Omitted optional built-in fields are cleared. customValues is the exception: omitted leaves values untouched; supplied keys merge, null clears a key. Check and renewal instants require an ISO timestamp with an offset.",
+        "Replace the previous built-in editable room fields by ID, not slug; omitted optional fields are cleared and omitted feature flags become false. roomTypeId, expectations and customValues are preserved when omitted. Expectations merge per function (expected null restores inheritance); customValues merge per key (null clears a key). When expectations are omitted, legacy feature flags update the corresponding expectations. Check and renewal instants require an ISO timestamp with an offset.",
       schema: z.object({ id, input: roomEditSchema.safeExtend(roomInstants) }),
       entityType: "room",
       op: "updated",

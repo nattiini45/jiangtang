@@ -74,6 +74,7 @@ export function RoomDashboard({ data }: { data: RoomDashboardData }) {
         </div>
       </div>
       <p className="text-muted-foreground text-sm">
+        {room.roomTypeName ? `${t("functions.types.label")}: ${room.roomTypeName} · ` : ""}
         {meta || t("rooms.dashboard.noLocation")}
         {room.capacity != null ? ` · ${t("rooms.dashboard.seats", { count: room.capacity })}` : ""}
         {room.owner ? ` · ${room.owner}` : ""}
