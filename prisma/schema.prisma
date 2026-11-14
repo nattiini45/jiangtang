@@ -247,7 +247,28 @@ enum FieldLevel {
   DEVICE
 }
 
+model EquipmentReading {
+  id String @id @default(cuid())
+  equipmentId String
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  fieldId String
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  value Json @db.JsonB
+  observedAt DateTime @db.Timestamptz(3)
+  source String
+  sourceRef String?
+  partModelId String?
+  partModel EquipmentModel? @relation(fields: [partModelId], references: [id], onDelete: Restrict)
+  recordedById String?
+  recordedBy User? @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([equipmentId, fieldId, observedAt(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+}
+
 model CustomField {
+  store String @default("VALUE")
+  readings EquipmentReading[]
   id String @id @default(cuid())
   scope CustomFieldScope
   key String
@@ -307,6 +328,7 @@ model EquipmentKindsInitialization {
 }
 
 model EquipmentModel {
+  readings EquipmentReading[]
   partFits ModelPartFit[] @relation("HostModel")
   fitsModels ModelPartFit[] @relation("PartModel")
   stock InventoryItem[]
@@ -332,6 +354,7 @@ model EquipmentModel {
 }
 
 model Equipment {
+  readings EquipmentReading[]
   customValues Json @default("{}") @db.JsonB
   kindId String?
   kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
@@ -470,6 +493,7 @@ model UserPermission {
 }
 
 model User {
+  readings EquipmentReading[]
   homeLayout Json?
   rounds Round[]
   checks RoomCheck[]

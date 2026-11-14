@@ -88,7 +88,7 @@ const propertiesByKind = new Map(
               applies_if: shared.get(reference.key).applies_if,
             }
           : reference;
-        if (property.reading || !types[property.type]) return [];
+        if (!types[property.type]) return [];
         const protocol = ["control_protocol", "control_api"].includes(property.key)
           ? projector.properties.find((property) => property.key === "control_protocols")
           : null;
@@ -102,6 +102,7 @@ const propertiesByKind = new Map(
             options: property.options ?? [],
             level: property.level.toUpperCase(),
             nature: property.nature,
+            ...(property.reading ? { store: "READING" } : {}),
             weight: property.weight ?? "useful",
             appliesIf: property.applies_if
               ? {
@@ -125,6 +126,25 @@ const propertiesByKind = new Map(
   }),
 );
 const unique = new Map();
+for (const kind of ["projector_filter", "filter_stock"]) {
+  propertiesByKind.get(kind).push({
+    key: `${kind}.service_interval`,
+    de: "Wechselintervall (Betriebsstunden)",
+    en: "Replacement interval (operating hours)",
+    type: "NUMBER",
+    unit: "h",
+    options: [],
+    level: "MODEL",
+    nature: "specification",
+    weight: "useful",
+    appliesIf: null,
+    help: {
+      de: "Nach Herstellerangabe eintragen. Ohne Angabe wird keine Fälligkeit berechnet.",
+      en: "Enter the manufacturer's interval. No due state is calculated without a value.",
+    },
+    sources: [],
+  });
+}
 for (const property of [...propertiesByKind.values()].flat()) {
   const previous = unique.get(property.key);
   if (previous) {
@@ -139,9 +159,10 @@ for (const property of [...propertiesByKind.values()].flat()) {
   });
 }
 const properties = [...unique.values()];
+properties.find((property) => property.key === "battery_stock.quantity").unit = "pcs";
 const allSources = [...new Set(properties.flatMap((property) => property.sources))].sort();
 const output = {
-  version: Math.max(5, research.version),
+  version: Math.max(6, research.version),
   partKinds: [...partKeys],
   units: research.units.map((unit) =>
     unit.key === ":1" ? { ...unit, de: ": 1", en: ": 1" } : unit,

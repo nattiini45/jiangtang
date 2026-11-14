@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "~/lib/db.server";
 import { initializeEquipmentKinds } from "../kinds.server";
-import { propertyLibrary, libraryProperties } from "../properties";
+import { propertyLibrary, libraryProperties, propertiesForKind } from "../properties";
 import { reconcileLibrary } from "~/lib/custom-fields/library.server";
 import { register } from "../properties.boot.server";
 import { installLibraryKinds } from "../library.server";
@@ -72,7 +72,13 @@ async function installedPropertyCount() {
   ).size;
 }
 
-it("materializes every shipped kind without exporting readings or relations", async () => {
+it("materializes every shipped kind while keeping readings out of ordinary values", async () => {
+  expect(propertiesForKind("projector").every((property) => property.store !== "READING")).toBe(
+    true,
+  );
+  expect(
+    propertiesForKind("projector", true).some((property) => property.store === "READING"),
+  ).toBe(true);
   const existing = await db.equipmentKind.findMany();
   const existingFunctions = (await db.roomFunction.findMany()).map((row) => row.id);
   const group = await db.equipmentFunctionGroup.findFirstOrThrow();
@@ -93,7 +99,9 @@ it("materializes every shipped kind without exporting readings or relations", as
       const fields = await getFieldSchema("EQUIPMENT", { kindId: kind.id });
       expect(fields.map((field) => field.libraryKey).sort()).toEqual(
         [
-          ...propertyLibrary.kinds.find((entry) => entry.key === kind.systemKey)!.properties!,
+          ...propertyLibrary.kinds
+            .find((entry) => entry.key === kind.systemKey)!
+            .properties!.filter((key) => libraryProperties.get(key)?.store !== "READING"),
         ].sort(),
       );
     }
@@ -601,7 +609,8 @@ it("ships bilingual renderable properties, valid units, conditions and cited sou
   expect(
     propertyLibrary.kinds.filter((kind) => kind.properties?.length).map((kind) => kind.key),
   ).toHaveLength(106);
-  expect(all).toHaveLength(577);
+  expect(all.filter((property) => property.store !== "READING")).toHaveLength(579);
+  expect(all.filter((property) => property.store === "READING")).toHaveLength(36);
   for (const property of all) {
     expect(property.de).not.toBe("");
     expect(property.en).not.toBe("");

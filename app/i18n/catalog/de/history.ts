@@ -1,4 +1,5 @@
 export const historyDe = {
+  "history.action.EquipmentReadingRecorded": "Messwert eingetragen",
   "history.action.StockModelLinked": "Bestand einem Teilemodell zugeordnet",
   "history.action.ModelPartFitAdded": "Passendes Teil verknüpft",
   "history.action.ModelPartFitRemoved": "Teileverknüpfung gelöst",

@@ -153,6 +153,7 @@ function walkProd(absDir: string): string[] {
  * judged against `app/domains/rooms` and reported rather than skipped.
  */
 const FOLDERS: Record<string, readonly string[]> = {
+  "app/domains/readings": ["EquipmentReading"],
   "app/domains/activity": [],
   "app/domains/analytics": [],
   "app/domains/api-tokens": ["PersonalAccessToken"],

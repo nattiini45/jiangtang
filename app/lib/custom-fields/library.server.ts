@@ -56,6 +56,7 @@ export async function reconcileLibraryInTx(
         field = fields.find(
           (row) =>
             !row.systemKey &&
+            property.store !== "READING" &&
             row.type === property.type &&
             (property.unit
               ? [property.unit, unit?.de, unit?.en].some(
@@ -117,6 +118,7 @@ export async function reconcileLibraryInTx(
               name: property[locale],
               type: property.type,
               level: property.level,
+              store: property.store ?? "VALUE",
               unit:
                 property.type === "NUMBER" && property.unit
                   ? library.units.find((unit) => unit.key === property.unit)?.[locale]

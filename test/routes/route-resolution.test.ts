@@ -122,6 +122,8 @@ const TABLE: Array<{ url: string; id: string }> = [
   // — the existing owners —
   { url: "/inventory", id: "routes/_desktop.inventory._index" },
   { url: "/inventory/gear-01", id: "routes/_desktop.inventory.$id" },
+  { url: "/inventory/gear-01/readings", id: "routes/_desktop.inventory.$id_.readings" },
+  { url: "/m/inventory/gear-01/readings", id: "routes/m.inventory.$id.readings" },
   { url: "/inventory/new", id: "routes/_desktop.inventory.new" },
   { url: "/inventory/import", id: "routes/_desktop.inventory.import" },
   { url: "/inventory/models", id: "routes/_desktop.inventory.models._index" },

@@ -33,7 +33,7 @@ function tzOffsetMs(date: Date, tz: string): number {
     if (p.type !== "literal") map[p.type] = Number(p.value);
   }
   const asUtc = Date.UTC(map.year, map.month - 1, map.day, map.hour, map.minute, map.second);
-  return asUtc - date.getTime();
+  return asUtc - Math.floor(date.getTime() / 1000) * 1000;
 }
 
 /**
@@ -53,7 +53,10 @@ export function berlinLocalToUtc(local: string): Date {
 }
 
 /** UTC instant → "YYYY-MM-DDTHH:mm" Berlin wall-clock (for datetime-local inputs). */
-export function utcToBerlinLocal(date: Date): string {
+export function utcToBerlinLocal(
+  date: Date,
+  precision: "minute" | "millisecond" = "minute",
+): string {
   const dtf = new Intl.DateTimeFormat("sv-SE", {
     timeZone: BERLIN_TZ,
     hourCycle: "h23",
@@ -62,7 +65,9 @@ export function utcToBerlinLocal(date: Date): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: precision === "millisecond" ? "2-digit" : undefined,
+    fractionalSecondDigits: precision === "millisecond" ? 3 : undefined,
   });
   // sv-SE yields "YYYY-MM-DD HH:mm"; normalize the separator.
-  return dtf.format(date).replace(" ", "T");
+  return dtf.format(date).replace(" ", "T").replace(",", ".");
 }

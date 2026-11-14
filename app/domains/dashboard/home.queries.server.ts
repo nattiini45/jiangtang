@@ -8,6 +8,7 @@ import {
 import { readHomeLayout } from "./home-layout";
 import { listHomeChanges } from "./home-activity.queries.server";
 import { myOpenTicketWorkWhere } from "~/domains/tickets/tickets.queries.server";
+import { dueReadings } from "~/domains/readings/readings.queries.server";
 
 export async function getHome(userId: string, now = new Date()) {
   const day = berlinDayIndex(now);
@@ -194,5 +195,6 @@ export async function getHomeDue(functions: RoomFunctionState[], now = new Date(
     overrideCount: overrides.length,
     confirmations,
     confirmationCount: confirmations.length,
+    readings: await dueReadings(now),
   };
 }

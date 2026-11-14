@@ -21,11 +21,20 @@ export type ResolvedField = Omit<FieldDefinition, "unit" | "type"> & {
 
 export async function getFieldSchema(
   scope: CustomFieldScope,
-  { kindId, locale = currentLocale() }: { kindId?: string | null; locale?: Locale } = {},
+  {
+    kindId,
+    locale = currentLocale(),
+    store = "VALUE",
+  }: {
+    kindId?: string | null;
+    locale?: Locale;
+    store?: "VALUE" | "READING";
+  } = {},
   tx: Tx = db,
 ): Promise<ResolvedField[]> {
   return (await getDefinitions(scope, tx))
     .flatMap((row): ResolvedField[] => {
+      if (row.store !== store) return [];
       const type = fieldType.safeParse(row.type);
       if (!type.success || (kindId !== undefined && !applies(row, kindId))) return [];
       const property = row.systemKey ? libraryProperties.get(row.systemKey) : undefined;

@@ -139,6 +139,12 @@ The authenticated `/home-layout` resource action saves the arrangement. The mobi
 the quick-entry document and loader data, and the shell warms its route modules after worker
 control, so the capture form stays available even when it has not been opened online yet.
 
+`app/domains/readings/` owns append-only device observations and the shared service-limit
+projection used by the device, home and due list. Reading definitions use a separate store
+from ordinary custom values. Installation from stock and its counter-reset observation commit
+with their audit rows in one transaction; ordinary stock withdrawal does not imply installation.
+See [readings and service limits](KIND-LIBRARY.md#readings-and-service-limits) for the rules.
+
 Root server middleware in `app/lib/view.server.ts` selects the surface for page GETs before
 loaders run. A one-year `view` cookie overrides `Sec-CH-UA-Mobile`, then a phone user-agent
 fallback; tablets default to desktop. Supported desktop URLs map to their mobile counterparts,
