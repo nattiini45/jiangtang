@@ -1,4 +1,10 @@
 export const plansEn = {
+  "plans.deviceCount": "{plan} · {count} devices",
+  "plans.previous": "Previous devices",
+  "plans.nextPage": "More devices",
+  "plans.pageRange": "{from}–{to} of {total}",
+  "plans.editSemester": "Edit semester start",
+  "plans.removeSemester": "Remove",
   "plans.fieldManaged": "This reading belongs to a work plan. Edit the plan under Recurring work.",
   "plans.title": "Recurring work",
   "plans.intro":

@@ -2,6 +2,8 @@ import type { historyDe } from "../de/history";
 
 export const historyEn = {
   "history.entity.workPlan": "Work plan",
+  "history.entity.semesterStart": "Semester start",
+  "history.action.SemesterStartRemoved": "Semester start removed",
   "history.action.WorkPlanCreated": "Work plan created",
   "history.action.WorkPlanUpdated": "Work plan updated",
   "history.action.WorkPlanEnabled": "Work plan enabled or disabled",

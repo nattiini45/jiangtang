@@ -50,10 +50,11 @@ room/device scope. `SemesterStart` supplies explicit anchors; month intervals ad
 actual inspection or round completion date, clamping month ends in Europe/Berlin. Occurrences
 are derived, not background-generated tasks. A planned round links its plan and scheduled date;
 the unique pair makes starting it idempotent. Inspection results are append-only boolean
-`EquipmentReading` rows with a plan link and report reference. Their managed reading definition
+`EquipmentReading` rows with a plan link, scheduled occurrence date and report reference. Their managed reading definition
 cannot be edited through ordinary custom-field controls. A failed result opens a device fault,
 linked to its room function where available; a later pass never silently resolves that fault.
 Calendar and home read the same occurrence query. Templates stay off until an admin enables them.
+Calendar entries and home summaries group devices by plan and day after resource filtering.
 
 Room types and expectations are data: `RoomTypeFunction` lists a type's expected functions;
 `RoomFunctionExpectation` adds or drops one for a room. `getFunctionStates` combines those with

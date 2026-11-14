@@ -1,5 +1,7 @@
 export const historyDe = {
   "history.entity.workPlan": "Arbeitsplan",
+  "history.entity.semesterStart": "Semesterstart",
+  "history.action.SemesterStartRemoved": "Semesterstart entfernt",
   "history.action.WorkPlanCreated": "Arbeitsplan angelegt",
   "history.action.WorkPlanUpdated": "Arbeitsplan geändert",
   "history.action.WorkPlanEnabled": "Arbeitsplan umgeschaltet",

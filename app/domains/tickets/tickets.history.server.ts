@@ -36,6 +36,7 @@ export const ENTITY_TYPE = {
   roomFunction: "roomFunction",
   roomType: "roomType",
   workPlan: "workPlan",
+  semesterStart: "semesterStart",
   customField: "customField",
   listColumns: "listColumns",
   equipment: "equipment",

@@ -250,6 +250,7 @@ enum FieldLevel {
 }
 
 model EquipmentReading {
+  plannedFor DateTime? @db.Timestamptz(3)
   planId String?
   plan WorkPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
   id String @id @default(cuid())

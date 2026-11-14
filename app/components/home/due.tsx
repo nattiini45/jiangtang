@@ -4,6 +4,7 @@ import { formatDate, formatDateTime } from "~/i18n/format";
 import type { getHomeDue } from "~/domains/dashboard/home.queries.server";
 import { ReadingDueRows } from "~/components/inventory/readings";
 import { PlanDueRows } from "~/components/plans/plans";
+import { groupPlanOccurrences } from "~/domains/plans/plans.groups";
 const LINK =
   "min-w-0 truncate underline-offset-4 decoration-(--input) hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 function Rows({ children }: { children: React.ReactNode }) {
@@ -23,6 +24,7 @@ export function DueItems({
   const t = useT();
   const locale = useLocale();
   const Heading = headingLevel === 2 ? "h2" : "h3";
+  const plans = groupPlanOccurrences(due.plans);
   const path = (href: string) => (mobile ? `/m${href}` : href);
   const roomPath = (slug: string) => `${path(`/rooms/${slug}`)}#functions`;
   const more = (total: number, shown: number) =>
@@ -47,8 +49,8 @@ export function DueItems({
           {due.plans.length ? (
             <div className="mb-3">
               <Heading className="text-sm font-semibold">{t("plans.title")}</Heading>
-              <PlanDueRows rows={due.plans.slice(0, limit)} mobile={mobile} />
-              {more(due.plans.length, Math.min(limit, due.plans.length))}
+              <PlanDueRows rows={plans.slice(0, limit)} mobile={mobile} />
+              {more(plans.length, Math.min(limit, plans.length))}
             </div>
           ) : null}
           {due.readings.length ? (

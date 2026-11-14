@@ -12,11 +12,14 @@ import { updateCustomField } from "~/lib/custom-fields/definitions.server";
 import { planOccurrences } from "../plans.queries.server";
 import { nextPlanDate } from "../plans.policy";
 import { planDate } from "../plans.schema";
+import { plansPageData } from "../plans.routes.server";
+import { groupPlanOccurrences } from "../plans.groups";
 import {
   beginPlannedRound,
   recordInspection,
   savePlan,
   saveSemester,
+  removeSemester,
   setPlanEnabled,
 } from "../plans.mutations.server";
 
@@ -293,6 +296,7 @@ describe("recurring work", () => {
     plans.push(plan);
     await setPlanEnabled(actor, plan.id, true);
     const round = await beginPlannedRound(actor, plan.id, first);
+    expect((await plansPageData({ role: "ADMIN" }, plan.id)).deviceId).toBeNull();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2025-04-15T10:00:00Z"));
     try {
@@ -314,5 +318,84 @@ describe("recurring work", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("records which semester inspection was completed early, independently for each device", async () => {
+    const plan = await savePlan(actor, { ...input(), semester: true, intervalMonths: null });
+    plans.push(plan);
+    await setPlanEnabled(actor, plan.id, true);
+    const occurrence = (await planOccurrences(now, plan.id)).find(
+      (row) => row.device?.id === deviceId,
+    )!;
+    await recordInspection(member, {
+      planId: plan.id,
+      equipmentId: deviceId,
+      passed: true,
+      observedAt: new Date("2025-03-15T10:00:00Z"),
+      plannedFor: occurrence.date,
+      source: "Synthetic early semester report",
+    });
+    let rows = await planOccurrences(now, plan.id);
+    expect(rows.filter((row) => row.device?.id === deviceId).map((row) => row.date)).toEqual([
+      new Date("2025-09-29T22:00:00Z"),
+    ]);
+    expect(rows.filter((row) => row.device?.id === secondId)).toHaveLength(2);
+    await recordInspection(member, {
+      planId: plan.id,
+      equipmentId: secondId,
+      passed: true,
+      observedAt: new Date("2025-04-15T10:00:00Z"),
+      plannedFor: occurrence.date,
+      source: "Synthetic late semester report",
+    });
+    rows = await planOccurrences(now, plan.id);
+    expect(rows.filter((row) => row.device?.id === secondId).map((row) => row.date)).toEqual([
+      new Date("2025-09-29T22:00:00Z"),
+    ]);
+  });
+
+  it("groups a large fleet without losing devices or resource-filter accuracy", async () => {
+    const plan = await savePlan(actor, input());
+    plans.push(plan);
+    await setPlanEnabled(actor, plan.id, true);
+    const rows = await planOccurrences(now, plan.id);
+    const grouped = groupPlanOccurrences(
+      Array.from({ length: 2000 }, (_, index) => ({
+        ...rows[0],
+        id: `synthetic-${index}`,
+        device: { id: `synthetic-${index}`, name: `Synthetic device ${index}` },
+      })),
+    );
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0].count).toBe(2000);
+    expect(grouped[0].equipment).toHaveLength(2000);
+    expect(grouped[0].rooms).toHaveLength(1);
+    const range = { from: first, to: new Date("2025-02-01T23:00:00Z"), kinds: ["plans"] };
+    const all = await getWorkspaceCalendar({ ...range, roomId });
+    expect(
+      all.entries.find((entry) => entry.id.startsWith(`plan:${plan.id}`))?.equipment,
+    ).toHaveLength(2);
+    const single = await getWorkspaceCalendar({ ...range, equipmentId: deviceId });
+    expect(
+      single.entries.find((entry) => entry.id.startsWith(`plan:${plan.id}`))?.equipment,
+    ).toEqual([{ id: deviceId, name: "Synthetic inspected projector" }]);
+    expect((await plansPageData({ role: "MEMBER" }, plan.id)).choices.users).toEqual([]);
+  });
+
+  it("lets an admin correct and remove a mistaken semester without direct database access", async () => {
+    await saveSemester(actor, "Synthetic editable semester", "2060-04-01");
+    const row = await db.semesterStart.findUniqueOrThrow({
+      where: { startsAt: planDate.parse("2060-04-01") },
+    });
+    await expect(removeSemester(member, row.id)).rejects.toMatchObject({ status: 403 });
+    await saveSemester(actor, "Synthetic corrected semester", "2060-04-02", row.id);
+    expect((await db.semesterStart.findUniqueOrThrow({ where: { id: row.id } })).startsAt).toEqual(
+      planDate.parse("2060-04-02"),
+    );
+    await removeSemester(actor, row.id);
+    expect(await db.semesterStart.findUnique({ where: { id: row.id } })).toBeNull();
+    expect(
+      await db.activityLog.count({ where: { entityType: "semesterStart", entityId: row.id } }),
+    ).toBe(3);
   });
 });

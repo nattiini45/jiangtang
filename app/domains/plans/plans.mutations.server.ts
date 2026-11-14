@@ -31,6 +31,7 @@ export async function savePlan(
     await requirePermission(actor, "user.manage", tx);
     await lockDefinitions(tx, true);
     if (id) await tx.$queryRaw`SELECT id FROM "WorkPlan" WHERE id = ${id} FOR UPDATE`;
+    const old = id ? await tx.workPlan.findUniqueOrThrow({ where: { id } }) : null;
     if (
       data.assigneeId &&
       !(await tx.user.findFirst({ where: { id: data.assigneeId, isActive: true } }))
@@ -38,6 +39,7 @@ export async function savePlan(
       throw invalidPlan();
     if (
       data.kindId &&
+      data.kindId !== old?.kindId &&
       !(await tx.equipmentKind.findFirst({ where: { id: data.kindId, archivedAt: null } }))
     )
       throw invalidPlan();
@@ -48,7 +50,6 @@ export async function savePlan(
       })) !== new Set(equipmentIds).size
     )
       throw invalidPlan();
-    const old = id ? await tx.workPlan.findUniqueOrThrow({ where: { id } }) : null;
     if (old && old.workType !== data.workType) throw invalidPlan();
     const relations = {
       rooms: { set: roomIds.map((id) => ({ id })) },
@@ -124,30 +125,52 @@ export async function setPlanEnabled(actor: AuditActor, id: string, enabled: boo
   await emitChange({ entityType: "workPlan", id, op: "updated" });
 }
 
-export async function saveSemester(actor: AuditActor, name: string, rawDate: string) {
+export async function saveSemester(actor: AuditActor, name: string, rawDate: string, id?: string) {
   const date = planDate.safeParse(rawDate);
   if (!date.success || !name.trim() || name.length > 200) throw invalidPlan();
   const row = await txWithAudit(actor, async (tx, audit) => {
     await requirePermission(actor, "user.manage", tx);
-    const row = await tx.semesterStart.upsert({
-      where: { startsAt: date.data },
-      create: { name: name.trim(), startsAt: date.data },
-      update: { name: name.trim() },
-    });
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('work-plan-calendar'))::text`;
+    const row = id
+      ? await tx.semesterStart.update({
+          where: { id },
+          data: { name: name.trim(), startsAt: date.data },
+        })
+      : await tx.semesterStart.upsert({
+          where: { startsAt: date.data },
+          create: { name: name.trim(), startsAt: date.data },
+          update: { name: name.trim() },
+        });
     await audit({
       action: "SemesterStartSet",
-      entityType: "workPlan",
+      entityType: "semesterStart",
       entityId: row.id,
       data: { name: row.name, startsAt: row.startsAt.toISOString() },
     });
     return row;
   });
-  await emitChange({ entityType: "workPlan", id: row.id, op: "updated" });
+  await emitChange({ entityType: "semesterStart", id: row.id, op: "updated" });
+}
+
+export async function removeSemester(actor: AuditActor, id: string) {
+  await txWithAudit(actor, async (tx, audit) => {
+    await requirePermission(actor, "user.manage", tx);
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('work-plan-calendar'))::text`;
+    const row = await tx.semesterStart.delete({ where: { id } });
+    await audit({
+      action: "SemesterStartRemoved",
+      entityType: "semesterStart",
+      entityId: id,
+      data: { name: row.name, startsAt: row.startsAt.toISOString() },
+    });
+  });
+  await emitChange({ entityType: "semesterStart", id, op: "deleted" });
 }
 
 export async function beginPlannedRound(actor: AuditActor, planId: string, date: Date) {
   const round = await txWithAudit(actor, async (tx, audit) => {
     await requirePermission(actor, "room.edit", tx);
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('work-plan-calendar'))::text`;
     await tx.$queryRaw`SELECT id FROM "WorkPlan" WHERE id = ${planId} FOR UPDATE`;
     const plan = await tx.workPlan.findUniqueOrThrow({
       where: { id: planId },
@@ -168,7 +191,6 @@ export async function beginPlannedRound(actor: AuditActor, planId: string, date:
     });
   });
   await emitChange({ entityType: "workPlan", id: planId, op: "updated" });
-  await emitChange({ entityType: "room", id: round.id, op: "updated" });
   return round;
 }
 
@@ -180,6 +202,7 @@ export async function recordInspection(
     passed: boolean;
     observedAt: Date;
     source: string;
+    plannedFor?: Date;
     functionId?: string;
   },
 ) {
@@ -190,6 +213,7 @@ export async function recordInspection(
       passed: z.boolean(),
       observedAt: z.date().refine((date) => +date <= Date.now()),
       source: z.string().trim().min(1).max(2000),
+      plannedFor: z.date().optional(),
       functionId: z.string().optional(),
     })
     .safeParse(raw);
@@ -197,6 +221,7 @@ export async function recordInspection(
   const input = parsed.data;
   const result = await txWithAudit(actor, async (tx, audit) => {
     await requirePermission(actor, "equipment.edit", tx);
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('work-plan-calendar'))::text`;
     await lockDefinitions(tx);
     await tx.$queryRaw`SELECT id FROM "WorkPlan" WHERE id = ${input.planId} FOR UPDATE`;
     const plan = await tx.workPlan.findUniqueOrThrow({
@@ -220,10 +245,19 @@ export async function recordInspection(
           : !plan.equipment.some((row) => row.id === device.id))
     )
       throw invalidPlan();
+    if (
+      plan.semester &&
+      (!input.plannedFor ||
+        !(await planOccurrences(new Date(), plan.id, tx)).some(
+          (row) => row.device?.id === device.id && +row.date === +input.plannedFor!,
+        ))
+    )
+      throw invalidPlan();
     const reading = await appendReadingInTx(tx, audit, actor, {
       equipmentId: device.id,
       fieldId: plan.fieldId,
       planId: plan.id,
+      plannedFor: plan.semester ? input.plannedFor : undefined,
       value: input.passed,
       observedAt: input.observedAt,
       source: "typed",

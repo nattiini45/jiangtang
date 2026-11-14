@@ -58,13 +58,26 @@ export async function planOccurrences(now = new Date(), planId?: string, tx: Tx 
           planId: string;
           equipmentId: string;
           observedAt: Date;
+          plannedFor: Date | null;
+          createdAt: Date;
+          id: string;
           value: Prisma.JsonValue;
         }[]
-      >(Prisma.sql`SELECT DISTINCT ON ("planId", "equipmentId")
-      "planId", "equipmentId", "observedAt", value FROM "EquipmentReading"
+      >(Prisma.sql`SELECT DISTINCT ON ("planId", "equipmentId", "plannedFor")
+      "planId", "equipmentId", "observedAt", "plannedFor", "createdAt", id, value FROM "EquipmentReading"
     WHERE "planId" IN (${Prisma.join(plans.map((plan) => plan.id))})
-    ORDER BY "planId", "equipmentId", "observedAt" DESC, "createdAt" DESC, id DESC`)
+    ORDER BY "planId", "equipmentId", "plannedFor", "observedAt" DESC, "createdAt" DESC, id DESC`)
     : [];
+  const byDevice = new Map<string, typeof readings>();
+  for (const reading of readings.sort(
+    (a, b) =>
+      +b.observedAt - +a.observedAt || +b.createdAt - +a.createdAt || b.id.localeCompare(a.id),
+  )) {
+    const key = `${reading.planId}:${reading.equipmentId}`;
+    const entries = byDevice.get(key) ?? [];
+    entries.push(reading);
+    byDevice.set(key, entries);
+  }
   return plans
     .flatMap((plan) => {
       const title = planTitle(plan);
@@ -79,9 +92,8 @@ export async function planOccurrences(now = new Date(), planId?: string, tx: Tx 
                   : plan.equipment.some((item) => item.id === device.id),
             );
       return targets.flatMap((device) => {
-        const latest = device
-          ? readings.find((row) => row.planId === plan.id && row.equipmentId === device.id)
-          : null;
+        const evidence = device ? (byDevice.get(`${plan.id}:${device.id}`) ?? []) : [];
+        const latest = evidence[0];
         const completed = plan.rounds
           .filter((round) => round.closedAt)
           .sort((a, b) => +b.closedAt! - +a.closedAt!)[0];
@@ -109,7 +121,9 @@ export async function planOccurrences(now = new Date(), planId?: string, tx: Tx 
           if (
             plan.semester &&
             (device
-              ? latest && latest.observedAt >= date
+              ? evidence.some(
+                  (reading) => +reading.plannedFor! === +date || reading.observedAt >= date,
+                )
               : plan.rounds.some(
                   (round) =>
                     round.closedAt && (+round.plannedFor! === +date || round.closedAt >= date),
@@ -152,7 +166,8 @@ export async function planOccurrences(now = new Date(), planId?: string, tx: Tx 
     .sort((a, b) => +a.date - +b.date || a.id.localeCompare(b.id));
 }
 
-export async function planChoices() {
+export async function planChoices(admin = true) {
+  if (!admin) return { rooms: [], equipment: [], kinds: [], users: [], semesters: [] };
   const [rooms, equipment, kinds, users, semesters] = await Promise.all([
     roundTargets(),
     db.equipment.findMany({

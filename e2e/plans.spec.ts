@@ -51,6 +51,17 @@ test.beforeAll(async () => {
       devices.push(device.id);
     }
   }
+  for (let index = 0; index < 120; index++) {
+    const device = await db.equipment.create({
+      data: {
+        name: `Synthetisches Poolgerät ${String(index + 1).padStart(3, "0")}`,
+        kindId: kind.id,
+        category: "PROJECTOR",
+        mobility: "POOLED",
+      },
+    });
+    devices.push(device.id);
+  }
   mkdirSync(renders, { recursive: true });
 });
 
@@ -77,6 +88,7 @@ test("enabling sourced defaults schedules calendar and home work, then a passed 
 }) => {
   await page.context().addCookies([{ name: "locale", value: "de", url: baseURL! }]);
   await page.goto("/plans");
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
   await expect(
     page.getByRole("form", { name: "Rundgang vor Semesterbeginn", exact: true }),
   ).toBeVisible();
@@ -102,6 +114,7 @@ test("enabling sourced defaults schedules calendar and home work, then a passed 
   await expect(page.getByText(semesterName, { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: /Rundgang starten/ })).toBeVisible();
   await page.goto("/plans");
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
   await page
     .getByRole("form", { name: "Elektroprüfung ortsveränderlicher Geräte", exact: true })
     .getByRole("button", { name: "Einschalten", exact: true })
@@ -109,6 +122,9 @@ test("enabling sourced defaults schedules calendar and home work, then a passed 
   await expect(page).toHaveURL(/\/plans\/[^/]+$/);
   electricalPlan = page.url().split("/").at(-1)!;
   planIds.push(electricalPlan);
+  await page.getByRole("button", { name: "Weitere Geräte", exact: true }).click();
+  await expect(page.getByText("51–100 von 136", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Vorherige Geräte", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Aktuelle Prüfnorm bei der DKE", exact: true }),
   ).toHaveAttribute("href", /dke\.de/);
@@ -125,7 +141,11 @@ test("enabling sourced defaults schedules calendar and home work, then a passed 
   await expect(
     page.getByRole("link", { name: /Rundgang vor Semesterbeginn/ }).first(),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: new RegExp(deviceName) }).first()).toBeVisible();
+  await expect(
+    page
+      .getByRole("link", { name: /Elektroprüfung ortsveränderlicher Geräte · 16 Geräte/ })
+      .first(),
+  ).toBeVisible();
   await page.screenshot({ path: `${renders}/calendar-de.png` });
   await page.goto("/");
   await expect(
@@ -216,7 +236,8 @@ test("the phone keeps the inspection source, keyboard focus and dated result", a
     page.getByRole("textbox", { name: "Prüfbericht / Quelle", exact: true }),
   ).toBeFocused();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.screenshot({ path: `${renders}/phone-inspection.png`, fullPage: true });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path: `${renders}/phone-inspection.png` });
   await page.getByRole("link", { name: t("de", "readings.history"), exact: true }).click();
   await expect(page.getByText("Synthetischer Prüfbericht 101", { exact: false })).toBeVisible();
 });

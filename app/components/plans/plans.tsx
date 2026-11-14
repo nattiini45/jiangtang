@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Form, Link, useNavigation } from "react-router";
 import { Button } from "@ui-sdk/react/button";
 import { Field, FieldLabel } from "@ui-sdk/react/field";
@@ -274,34 +274,109 @@ function PlanForm({ plan, page, action }: { plan?: Plan; page: PageData; action:
 export function PlanDueRows({
   rows,
   mobile = false,
+  paginate = false,
 }: {
-  rows: PageData["occurrences"];
+  rows: (PageData["occurrences"][number] & { count?: number })[];
   mobile?: boolean;
+  paginate?: boolean;
 }) {
   const t = useT();
   const locale = useLocale();
+  const [page, setPage] = useState(0);
+  const current = Math.min(page, Math.max(0, Math.ceil(rows.length / 50) - 1));
+  const shown = paginate ? rows.slice(current * 50, (current + 1) * 50) : rows;
   return (
-    <ul className="divide-y">
-      {rows.map((row) => (
-        <li
-          key={row.id}
-          className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3"
-        >
-          <div className="min-w-0 flex-1">
-            <Link className={`${LINK} block`} to={`${mobile ? "/m" : ""}${row.href}`}>
-              {row.device ? `${row.title} · ${row.device.name}` : row.title}
-            </Link>
-            <p className="text-xs text-muted-foreground">
-              {[row.anchor, row.assignee ?? t("plans.team")].filter(Boolean).join(" · ")}
-            </p>
-          </div>
-          <span className="nums text-sm">
-            {row.due ? `${t("plans.due")} · ` : ""}
-            {formatDate(locale, row.date)}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <ul className="divide-y">
+        {shown.map((row) => (
+          <li
+            key={row.id}
+            className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-1 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <Link className={`${LINK} block`} to={`${mobile ? "/m" : ""}${row.href}`}>
+                {(row.count ?? 0) > 1
+                  ? t("plans.deviceCount", { plan: row.title, count: row.count! })
+                  : row.device
+                    ? `${row.title} · ${row.device.name}`
+                    : row.title}
+              </Link>
+              <p className="text-xs text-muted-foreground">
+                {[row.anchor, row.assignee ?? t("plans.team")].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+            <span className="nums text-sm">
+              {row.due ? `${t("plans.due")} · ` : ""}
+              {formatDate(locale, row.date)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {paginate && rows.length > 50 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button
+            type="button"
+            className={SECONDARY}
+            disabled={current === 0}
+            onClick={() => setPage(current - 1)}
+          >
+            {t("plans.previous")}
+          </Button>
+          <p className="nums text-xs text-muted-foreground">
+            {t("plans.pageRange", {
+              from: current * 50 + 1,
+              to: Math.min((current + 1) * 50, rows.length),
+              total: rows.length,
+            })}
+          </p>
+          <Button
+            type="button"
+            className={SECONDARY}
+            disabled={(current + 1) * 50 >= rows.length}
+            onClick={() => setPage(current + 1)}
+          >
+            {t("plans.nextPage")}
+          </Button>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function SemesterForm({
+  action,
+  row,
+}: {
+  action: string;
+  row?: PageData["choices"]["semesters"][number];
+}) {
+  const t = useT();
+  const pending = useNavigation().state !== "idle";
+  return (
+    <Form
+      method="post"
+      action={action}
+      aria-label={row ? `${t("plans.editSemester")} · ${row.name}` : t("plans.addSemester")}
+      className="mt-3 grid gap-4 sm:grid-cols-2"
+    >
+      <input type="hidden" name="intent" value="semester" />
+      {row ? <input type="hidden" name="semesterId" value={row.id} /> : null}
+      <TextField name="name" label={t("plans.semesterName")} value={row?.name} />
+      <DayField
+        name="startsAt"
+        label={t("plans.semesterDate")}
+        value={
+          row
+            ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(row.startsAt)
+            : undefined
+        }
+      />
+      <div>
+        <Button type="submit" disabled={pending} className={SECONDARY}>
+          {t("plans.addSemester")}
+        </Button>
+      </div>
+    </Form>
   );
 }
 
@@ -323,6 +398,10 @@ export function PlansPage({
   const action = plan ? `${path}/${plan.id}` : path;
   const selected = page.occurrences.find((row) => row.device?.id === page.deviceId);
   const pending = useNavigation().state !== "idle";
+  const errorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
   return (
     <div className={`min-w-0 space-y-5 ${mobile ? "p-4" : ""}`}>
       {plan ? (
@@ -332,12 +411,7 @@ export function PlansPage({
       ) : null}
       <h1 className="break-words text-xl font-bold">{plan?.name ?? t("plans.title")}</h1>
       {error ? (
-        <p
-          role="alert"
-          tabIndex={-1}
-          ref={(node) => node?.focus()}
-          className="text-sm text-destructive"
-        >
+        <p role="alert" tabIndex={-1} ref={errorRef} className="text-sm text-destructive">
           {error}
         </p>
       ) : null}
@@ -420,6 +494,15 @@ export function PlansPage({
               >
                 <input type="hidden" name="intent" value="inspect" />
                 <input type="hidden" name="equipmentId" value={selected.device.id} />
+                {plan.semester ? (
+                  <input
+                    type="hidden"
+                    name="plannedFor"
+                    value={new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(
+                      selected.date,
+                    )}
+                  />
+                ) : null}
                 <Pick
                   name="passed"
                   label={t("plans.result")}
@@ -462,7 +545,7 @@ export function PlansPage({
               {!page.occurrences.length ? (
                 <p className="mt-2 text-sm text-muted-foreground">{t("plans.noOccurrences")}</p>
               ) : null}
-              <PlanDueRows rows={page.occurrences} mobile={mobile} />
+              <PlanDueRows rows={page.occurrences} mobile={mobile} paginate />
               {plan.workType === "round"
                 ? page.occurrences.map((row) =>
                     row.roundId ? (
@@ -591,27 +674,39 @@ export function PlansPage({
           <p className="max-w-prose text-sm text-muted-foreground">{t("plans.semestersHelp")}</p>
           <ul className="divide-y">
             {page.choices.semesters.map((row) => (
-              <li key={row.id} className="flex justify-between gap-4 py-2 text-sm">
-                <span className="min-w-0 break-words">{row.name}</span>
-                <span className="nums shrink-0">{formatDate(locale, row.startsAt)}</span>
+              <li key={row.id} className="py-2 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="min-w-0 flex-1 break-words">{row.name}</span>
+                  <span className="nums shrink-0">{formatDate(locale, row.startsAt)}</span>
+                  <Form method="post" action={action}>
+                    <input type="hidden" name="intent" value="removeSemester" />
+                    <input type="hidden" name="semesterId" value={row.id} />
+                    <Button
+                      type="submit"
+                      aria-label={`${t("plans.removeSemester")} · ${row.name}`}
+                      disabled={pending}
+                      className={SECONDARY}
+                    >
+                      {t("plans.removeSemester")}
+                    </Button>
+                  </Form>
+                </div>
+                <Collapsible>
+                  <CollapsibleTrigger
+                    type="button"
+                    className={`${LINK} inline-flex min-h-12 items-center sm:min-h-control`}
+                    aria-label={`${t("plans.editSemester")} · ${row.name}`}
+                  >
+                    {t("plans.editSemester")}
+                  </CollapsibleTrigger>
+                  <CollapsiblePanel>
+                    <SemesterForm action={action} row={row} />
+                  </CollapsiblePanel>
+                </Collapsible>
               </li>
             ))}
           </ul>
-          <Form
-            method="post"
-            action={action}
-            aria-label={t("plans.addSemester")}
-            className="grid gap-4 sm:grid-cols-2"
-          >
-            <input type="hidden" name="intent" value="semester" />
-            <TextField name="name" label={t("plans.semesterName")} />
-            <DayField name="startsAt" label={t("plans.semesterDate")} />
-            <div>
-              <Button type="submit" disabled={pending} className={SECONDARY}>
-                {t("plans.addSemester")}
-              </Button>
-            </div>
-          </Form>
+          <SemesterForm action={action} />
         </section>
       ) : null}
     </div>

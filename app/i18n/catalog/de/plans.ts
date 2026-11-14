@@ -1,4 +1,10 @@
 export const plansDe = {
+  "plans.deviceCount": "{plan} · {count} Geräte",
+  "plans.previous": "Vorherige Geräte",
+  "plans.nextPage": "Weitere Geräte",
+  "plans.pageRange": "{from}–{to} von {total}",
+  "plans.editSemester": "Semesterstart bearbeiten",
+  "plans.removeSemester": "Entfernen",
   "plans.fieldManaged":
     "Diese Messgröße gehört zu einem Arbeitsplan. Den Plan unter Wiederkehrende Arbeit bearbeiten.",
   "plans.title": "Wiederkehrende Arbeit",

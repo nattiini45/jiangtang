@@ -9,11 +9,16 @@ Month-based inspections advance independently for each device from its actual in
 A round advances only after every selected room is complete. Month ends are clamped, so a
 January 31 inspection followed by a one-month interval becomes February 28 or 29.
 The calendar shows each next occurrence, and the home shows it on or after its due date.
+Inspections due on the same day are grouped by plan, with their device count; opening the plan
+shows the per-device work in pages of 50. Resource filters are applied before grouping.
 
 Enter semester starts once a year. The pre-semester round is due the day before each start;
 completing it clears the covered occurrence and exposes the next entered start. No future
 semester is guessed. With no room selection, the plan includes every room with check functions;
 another team can choose its own room set rather than adopting a lecture-hall classification.
+Mistyped semester starts can be edited or removed by an administrator. Existing rounds and
+inspection facts remain in history. A semester inspection also records the occurrence it
+completes, so doing it early does not leave that same occurrence due.
 
 An inspection records passed/failed, the inspection date, the actor and a test report reference
 as an append-only reading. Failure opens a fault on the device and its room function. If several

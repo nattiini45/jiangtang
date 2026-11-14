@@ -28,6 +28,7 @@ export async function appendReadingInTx(
     sourceRef?: string;
     partModelId?: string | null;
     planId?: string;
+    plannedFor?: Date;
   },
 ) {
   const row = await tx.equipmentReading.create({ data: { ...input, recordedById: actor.id } });
@@ -44,6 +45,7 @@ export async function appendReadingInTx(
       sourceRef: input.sourceRef,
       partModelId: input.partModelId,
       planId: input.planId,
+      plannedFor: input.plannedFor?.toISOString(),
     },
   });
   return row;

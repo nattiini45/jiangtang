@@ -20,16 +20,23 @@ import {
   recordInspection,
   savePlan,
   saveSemester,
+  removeSemester,
   setPlanEnabled,
 } from "./plans.mutations.server";
 
-export async function plansPageData(actor: AuthUser, id?: string, deviceId?: string) {
+export async function plansPageData(actor: Pick<AuthUser, "role">, id?: string, deviceId?: string) {
   const [plans, choices, occurrences] = await Promise.all([
     db.workPlan.findMany({ where: { id }, include: planInclude, orderBy: { name: "asc" } }),
-    planChoices(),
+    planChoices(actor.role === "ADMIN"),
     planOccurrences(new Date(), id),
   ]);
   if (id && !plans.length) throw new NotFoundError();
+  if (
+    actor.role === "ADMIN" &&
+    plans[0]?.kind &&
+    !choices.kinds.some((kind) => kind.id === plans[0].kindId)
+  )
+    choices.kinds.push(plans[0].kind);
   const device = deviceId
     ? await db.equipment.findUnique({
         where: { id: deviceId },
@@ -54,7 +61,7 @@ export async function plansPageData(actor: AuthUser, id?: string, deviceId?: str
     defaults: planDefaults,
     admin: actor.role === "ADMIN",
     detail: !!id,
-    deviceId: occurrences.some((row) => row.device?.id === deviceId) ? deviceId : null,
+    deviceId: deviceId && occurrences.some((row) => row.device?.id === deviceId) ? deviceId : null,
     functions,
     today: utcToBerlinLocal(new Date()).slice(0, 10),
   };
@@ -71,7 +78,15 @@ export async function plansAction(request: Request, actor: AuthUser, id?: string
         return redirect(`${path}/${plan.id}`);
       }
       case "semester":
-        await saveSemester(actor, value("name"), value("startsAt"));
+        await saveSemester(
+          actor,
+          value("name"),
+          value("startsAt"),
+          value("semesterId") || undefined,
+        );
+        return { saved: true };
+      case "removeSemester":
+        await removeSemester(actor, value("semesterId"));
         return { saved: true };
       case "toggle":
         if (!id) throw invalidPlan();
@@ -110,12 +125,15 @@ export async function plansAction(request: Request, actor: AuthUser, id?: string
         if (!id || !["true", "false"].includes(value("passed"))) throw invalidPlan();
         const date = planDate.safeParse(value("observedAt"));
         if (!date.success) throw invalidPlan();
+        const plannedFor = value("plannedFor") ? planDate.safeParse(value("plannedFor")) : null;
+        if (plannedFor && !plannedFor.success) throw invalidPlan();
         await recordInspection(actor, {
           planId: id,
           equipmentId: value("equipmentId"),
           observedAt: date.data,
           passed: value("passed") === "true",
           source: value("source"),
+          plannedFor: plannedFor?.success ? plannedFor.data : undefined,
           functionId: value("functionId") || undefined,
         });
         return { saved: true };
