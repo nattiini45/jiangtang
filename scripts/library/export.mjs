@@ -159,6 +159,7 @@ for (const property of [...propertiesByKind.values()].flat()) {
   });
 }
 const properties = [...unique.values()];
+properties.find((property) => property.key === "battery_stock.quantity").unit = "pcs";
 const allSources = [...new Set(properties.flatMap((property) => property.sources))].sort();
 const output = {
   version: Math.max(6, research.version),

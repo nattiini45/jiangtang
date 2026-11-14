@@ -14,6 +14,9 @@ import {
 import { startRound } from "~/domains/functions/rounds.mutations.server";
 import type { AuditActor } from "~/lib/audit.server";
 import { readConfig } from "~/lib/config.server";
+import { readingFromForm } from "../readings.routes.server";
+import { utcToBerlinLocal } from "~/lib/time.server";
+import { tr } from "~/i18n/request-locale.server";
 import { txWithAudit } from "~/lib/audit.server";
 
 let actor: AuditActor,
@@ -26,6 +29,7 @@ let actor: AuditActor,
   stockId: string,
   roundId: string;
 let hostModelId: string, addedKindId: string | undefined;
+let precisionId: string | undefined;
 let baselineFields: string[] = [];
 const observedAt = new Date("2025-01-03T10:00:00Z");
 beforeAll(async () => {
@@ -105,7 +109,11 @@ afterAll(async () => {
     await db.round.delete({ where: { id: roundId } });
   }
   if (stockId) await db.inventoryItem.delete({ where: { id: stockId } });
-  await db.equipment.deleteMany({ where: { id: { in: [equipmentId, secondId].filter(Boolean) } } });
+  await db.equipment.deleteMany({
+    where: {
+      id: { in: [equipmentId, secondId, ...(precisionId ? [precisionId] : [])].filter(Boolean) },
+    },
+  });
   if (roomId) await db.room.delete({ where: { id: roomId } });
   if (hostModelId) await db.modelPartFit.deleteMany({ where: { modelId: hostModelId } });
   await db.equipmentModel.deleteMany({
@@ -356,5 +364,103 @@ describe("dated, sourced readings", () => {
     await db.equipment.update({ where: { id: secondId }, data: { status: "RETIRED" } });
     expect((await getDeviceReadings(secondId, true)).history).toHaveLength(1);
     expect((await dueReadings()).some((row) => row.deviceId === secondId)).toBe(false);
+  });
+  it("preserves same-minute observations after a precise reset and reports stock errors accurately", async () => {
+    const model = await db.equipmentModel.findUniqueOrThrow({ where: { id: hostModelId } });
+    precisionId = (
+      await db.equipment.create({
+        data: {
+          name: "Synthetic precise readings",
+          category: "PROJECTOR",
+          kindId: model.kindId,
+          modelId: model.id,
+        },
+      })
+    ).id;
+    const resetAt = new Date("2025-01-03T10:00:12.123Z");
+    await txWithAudit(actor, (tx, audit) =>
+      appendReadingInTx(tx, audit, actor, {
+        equipmentId: precisionId!,
+        fieldId: filterFieldId,
+        value: 0,
+        observedAt: resetAt,
+        source: "replacement",
+        partModelId: filterId,
+      }),
+    );
+    const form = new FormData();
+    form.set("intent", "reading");
+    form.set("fieldId", filterFieldId);
+    form.set("value", "5");
+    const observed = new Date("2025-01-03T10:00:12.456Z");
+    form.set("observedAt", utcToBerlinLocal(observed, "millisecond"));
+    expect(await readingFromForm(form, actor, precisionId)).toEqual({ readingSaved: true });
+    expect(
+      (await getDeviceReadings(precisionId)).device.measures.find(
+        (measure) => measure.id === filterFieldId,
+      )?.latest,
+    ).toMatchObject({ value: 5, observedAt: observed });
+    for (const date of ["2025-13-03T11:00:12.123", "2025-03-30T02:30:12.123"]) {
+      form.set("observedAt", date);
+      expect(await readingFromForm(form, actor, precisionId)).toEqual({
+        readingError: tr("readings.invalid"),
+      });
+    }
+    form.set("intent", "replacePart");
+    form.set("stockId", stockId);
+    expect(await readingFromForm(form, actor, equipmentId)).toEqual({
+      readingError: tr("parts.unavailable"),
+    });
+  });
+  it("accepts only non-negative whole quantities for battery stock readings", async () => {
+    const before = (await db.customField.findMany({ select: { id: true } })).map(
+      (field) => field.id,
+    );
+    const existing = await db.equipmentKind.findUnique({ where: { systemKey: "battery_stock" } });
+    const group = await db.equipmentFunctionGroup.findFirstOrThrow();
+    const kind =
+      existing ??
+      (await db.equipmentKind.create({
+        data: {
+          name: "Synthetic battery stock kind",
+          systemKey: "battery_stock",
+          groupId: group.id,
+          position: 100,
+        },
+      }));
+    await reconcileLibrary();
+    const device = await db.equipment.create({
+      data: { name: "Synthetic battery stock", category: "OTHER", kindId: kind.id },
+    });
+    try {
+      const field = (await getFieldSchema("EQUIPMENT", { store: "READING", kindId: kind.id })).find(
+        (field) => field.libraryKey === "battery_stock.quantity",
+      )!;
+      expect(field.unit?.key).toBe("pcs");
+      for (const value of [-1, 1.5])
+        await expect(
+          recordReading(actor, { equipmentId: device.id, fieldId: field.id, observedAt, value }),
+        ).rejects.toThrow();
+      await recordReading(actor, {
+        equipmentId: device.id,
+        fieldId: field.id,
+        observedAt,
+        value: 2,
+      });
+      expect(
+        (await getDeviceReadings(device.id)).device.measures.find(
+          (measure) => measure.id === field.id,
+        )?.latest?.value,
+      ).toBe(2);
+    } finally {
+      await db.$executeRaw`TRUNCATE "EquipmentReading"`;
+      await db.equipment.delete({ where: { id: device.id } });
+      if (!existing) {
+        await db.customFieldKind.deleteMany({ where: { kindId: kind.id } });
+        await db.roomFunctionKind.deleteMany({ where: { kindId: kind.id } });
+        await db.equipmentKind.delete({ where: { id: kind.id } });
+        await db.customField.deleteMany({ where: { id: { notIn: before }, kinds: { none: {} } } });
+      }
+    }
   });
 });

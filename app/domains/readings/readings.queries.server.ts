@@ -34,7 +34,13 @@ export async function readingDevices(
                     kind: true,
                     stock: {
                       where: availablePartStock,
-                      select: { id: true, name: true, quantity: true },
+                      select: {
+                        id: true,
+                        name: true,
+                        quantity: true,
+                        location: { select: { name: true } },
+                      },
+                      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
                     },
                   },
                 },
@@ -74,7 +80,7 @@ export async function readingDevices(
           ? { id: device.room.id, name: device.room.name, slug: device.room.slug }
           : null,
         now,
-        localNow: utcToBerlinLocal(now),
+        localNow: utcToBerlinLocal(now, "millisecond"),
         parts: parts.map(({ values: _values, ...part }) => part),
         measures: measures
           .filter(

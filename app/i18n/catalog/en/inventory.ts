@@ -4,7 +4,8 @@ export const inventoryEn = {
   "readings.title": "Readings",
   "readings.replace": "Replace part",
   "readings.replaceConfirm":
-    "Takes one {part} from stock and records its installation and counter reset.",
+    "Takes one {part} from stock, records its installation and resets only matching counters.",
+  "readings.stockSource": "{part} · {source}",
   "readings.install": "Install from stock",
   "readings.replaceHint":
     "Take one part from stock and record its installation. Only the matching counter is reset to zero with a new reading.",

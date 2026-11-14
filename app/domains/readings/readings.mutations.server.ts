@@ -105,6 +105,7 @@ export async function recordReading(
       (typeof value === "string" && !value.trim()) ||
       (typeof value === "number" &&
         ((["h", "min", "pcs"].includes(field.unit?.key ?? "") && value < 0) ||
+          (field.unit?.key === "pcs" && !Number.isSafeInteger(value)) ||
           (field.unit?.key === "%" && (value < 0 || value > 100))))
     )
       throw invalidReading();

@@ -42,8 +42,8 @@ export const libraryProperties = new Map(
 export function isLibraryProperty(field: { systemKey: string | null }) {
   return !!field.systemKey && libraryProperties.has(field.systemKey);
 }
-export function propertiesForKind(key: string | null) {
-  return (propertyLibrary.kinds.find((kind) => kind.key === key)?.properties ?? []).map((key) =>
-    libraryProperties.get(key)!,
-  );
+export function propertiesForKind(key: string | null, includeReadings = false) {
+  return (propertyLibrary.kinds.find((kind) => kind.key === key)?.properties ?? [])
+    .map((key) => libraryProperties.get(key)!)
+    .filter((property) => includeReadings || property.store !== "READING");
 }

@@ -12,6 +12,8 @@ test.describe.configure({ mode: "serial" });
 const renders = "test-results/readings";
 const deviceIds: string[] = [];
 let roomId: string, slug: string, stockId: string, roundId: string;
+let secondStockId: string | undefined;
+const locationIds: string[] = [];
 const deviceName = "Synthetischer Projektor 33 · EB-L1750U";
 test.beforeAll(async () => {
   const actor = await db.user.findFirstOrThrow({ where: { role: "ADMIN", isActive: true } });
@@ -20,6 +22,9 @@ test.beforeAll(async () => {
     where: { catalogKey: "epson-elpaf51" },
   });
   stockId = (await addPartStock(actor, filter.id, 2)).id;
+  for (const name of ["Synthetisches Lager A", "Synthetisches Lager B"])
+    locationIds.push((await db.location.create({ data: { name, kind: "STORAGE" } })).id);
+  await db.inventoryItem.update({ where: { id: stockId }, data: { locationId: locationIds[0] } });
   slug = `${runPrefix()}readings-room-33`;
   roomId = (await db.room.create({ data: { name: "Synthetischer Raum 33", slug } })).id;
   for (let index = 0; index < 16; index++) {
@@ -47,7 +52,10 @@ test.afterAll(async () => {
   await db.roundRoom.deleteMany({ where: { roundId } });
   await db.round.delete({ where: { id: roundId } });
   await db.equipment.deleteMany({ where: { id: { in: deviceIds } } });
-  await db.inventoryItem.delete({ where: { id: stockId } });
+  await db.inventoryItem.deleteMany({
+    where: { id: { in: [stockId, ...(secondStockId ? [secondStockId] : [])] } },
+  });
+  await db.location.deleteMany({ where: { id: { in: locationIds } } });
   await db.room.delete({ where: { id: roomId } });
   await db.$disconnect();
 });
@@ -178,11 +186,29 @@ test("a reading stays inside its round and replacing the filter preserves light-
   await device.scrollIntoViewIfNeeded();
   await page.evaluate(() => window.scrollBy(0, -72));
   await page.screenshot({ path: `${renders}/phone-round.png` });
+  const actor = await db.user.findFirstOrThrow({ where: { role: "ADMIN", isActive: true } });
+  const original = await db.inventoryItem.findUniqueOrThrow({ where: { id: stockId } });
+  secondStockId = (await addPartStock(actor, original.modelId!, 1)).id;
+  await db.inventoryItem.update({
+    where: { id: secondStockId },
+    data: { locationId: locationIds[1] },
+  });
   await page.goto(`/m/inventory/${deviceIds[0]}/readings`);
   const replacement = page
-    .getByRole("form", { name: "Epson ELPAF51", exact: true })
+    .getByRole("form", { name: "Epson ELPAF51 · Synthetisches Lager A", exact: true })
     .filter({ has: page.locator(`input[value="${stockId}"]`) });
-  await replacement.getByRole("button", { name: "Einbauen und entnehmen", exact: true }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "Einbauen und entnehmen · Epson ELPAF51 · Synthetisches Lager B",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await replacement
+    .getByRole("button", {
+      name: "Einbauen und entnehmen · Epson ELPAF51 · Synthetisches Lager A",
+      exact: true,
+    })
+    .click();
   await expect(
     page.getByText("Einbau dokumentiert und Lagerbestand aktualisiert.", { exact: true }),
   ).toBeVisible();
@@ -193,6 +219,9 @@ test("a reading stays inside its round and replacing the filter preserves light-
     "18.500",
   );
   expect((await db.inventoryItem.findUniqueOrThrow({ where: { id: stockId } })).quantity).toBe(1);
+  expect(
+    (await db.inventoryItem.findUniqueOrThrow({ where: { id: secondStockId } })).quantity,
+  ).toBe(1);
 });
 
 test("an old reading visibly lowers trust instead of being extrapolated", async ({ page }) => {

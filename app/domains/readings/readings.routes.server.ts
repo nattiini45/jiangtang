@@ -33,13 +33,27 @@ export async function readingFromForm(
               : null
           : raw;
     const date = String(form.get("observedAt") ?? "");
-    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(date)) throw invalidReading();
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?$/.test(date))
+      throw invalidReading();
+    const normalized =
+      date.length === 16
+        ? `${date}:00.000`
+        : date.length === 19
+          ? `${date}.000`
+          : date.padEnd(23, "0");
+    if (Number.isNaN(new Date(`${normalized}Z`).getTime())) throw invalidReading();
     const observedAt = berlinLocalToUtc(date);
-    if (utcToBerlinLocal(observedAt) !== date) throw invalidReading();
+    if (utcToBerlinLocal(observedAt, "millisecond") !== normalized) throw invalidReading();
     await recordReading(actor, { equipmentId, fieldId, value, observedAt, roundId });
     return { readingSaved: true };
   } catch (error) {
-    if (error instanceof ValidationError) return { readingError: tr("readings.invalid") };
+    if (error instanceof ValidationError)
+      return {
+        readingError:
+          form.get("intent") === "replacePart"
+            ? (error.formErrors[0] ?? tr("readings.invalid"))
+            : tr("readings.invalid"),
+      };
     throw toErrorResponse(error);
   }
 }

@@ -134,7 +134,7 @@ async function checkFieldName(
     });
     if (
       kinds.some((kind) =>
-        propertiesForKind(kind.systemKey).some(
+        propertiesForKind(kind.systemKey, true).some(
           (property) =>
             property.key !== libraryKey &&
             [property.de, property.en].some((label) => label.toLowerCase() === name.toLowerCase()),

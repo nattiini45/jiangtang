@@ -83,6 +83,7 @@ function ReadingForm({
 }) {
   const t = useT();
   const fetcher = useFetcher<{ readingSaved?: boolean; readingError?: string }>();
+  const Heading = roundId ? "h4" : "h3";
   const items =
     measure.type === "BOOLEAN"
       ? [
@@ -93,7 +94,9 @@ function ReadingForm({
   return (
     <Collapsible className="py-3" data-reading-measure={measure.key}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="min-w-0 flex-1 break-words text-sm font-semibold">{measure.name}</h3>
+        <Heading className="min-w-0 flex-1 break-words text-sm font-semibold">
+          {measure.name}
+        </Heading>
         <CollapsibleTrigger
           type="button"
           aria-label={`${t("readings.enter")} · ${measure.name}`}
@@ -157,6 +160,7 @@ function ReadingForm({
             <FieldLabel className="text-sm">{t("readings.when")}</FieldLabel>
             <Input
               type="datetime-local"
+              step="0.001"
               name="observedAt"
               required
               defaultValue={device.localNow}
@@ -199,14 +203,15 @@ export function DeviceReadings({
   summary?: boolean;
 }) {
   const t = useT();
+  const Heading = roundId ? "h3" : "h2";
   return (
     <section
       aria-label={t("readings.title")}
       className="min-w-0 rounded-lg bg-card p-4 shadow-surface-2"
     >
-      <h2 className="break-words text-base font-semibold">
+      <Heading className="break-words text-base font-semibold">
         {roundId ? device.name : t("readings.title")}
-      </h2>
+      </Heading>
       <div className="divide-y">
         {device.measures
           .filter((measure) => !summary || measure.latest)
@@ -229,7 +234,7 @@ export function DeviceReadings({
       </div>
       <Link
         className={`${LINK} inline-flex min-h-12 items-center`}
-        to={`${roundId ? `/m/inventory/${device.id}/readings` : action}${summary ? "" : "?history=1"}`}
+        to={`${roundId ? `/m/inventory/${device.id}/readings` : action}?history=1`}
       >
         {t(summary ? "readings.enterAndHistory" : "readings.history")}
       </Link>
@@ -317,31 +322,36 @@ function Replacement({ device, action }: { device: ReadingDevice; action: string
       <h2 className="text-base font-semibold">{t("readings.replace")}</h2>
       <p className="my-2 text-sm text-muted-foreground">{t("readings.replaceHint")}</p>
       {device.parts.flatMap((part) =>
-        part.stock.map((stock) => (
-          <fetcher.Form
-            key={stock.id}
-            action={action}
-            method="post"
-            className="flex flex-wrap items-center justify-between gap-3 py-2"
-            aria-label={part.name}
-          >
-            <input type="hidden" name="intent" value="replacePart" />
-            <input type="hidden" name="stockId" value={stock.id} />
-            <p className="min-w-0 flex-1 break-words text-sm">
-              {part.name}
-              {" · "}
-              {t("parts.count", { count: stock.quantity })}
-            </p>
-            <Button
-              type="submit"
-              data-agent-confirm={t("readings.replaceConfirm", { part: part.name })}
-              disabled={fetcher.state !== "idle"}
-              className={`${buttonVariants({ variant: "secondary" })} min-h-12`}
+        part.stock.map((stock) => {
+          const source = stock.location?.name ?? stock.name;
+          const name = t("readings.stockSource", { part: part.name, source });
+          return (
+            <fetcher.Form
+              key={stock.id}
+              action={action}
+              method="post"
+              className="flex flex-wrap items-center justify-between gap-3 py-2"
+              aria-label={name}
             >
-              {t("readings.install")}
-            </Button>
-          </fetcher.Form>
-        )),
+              <input type="hidden" name="intent" value="replacePart" />
+              <input type="hidden" name="stockId" value={stock.id} />
+              <p className="min-w-0 flex-1 break-words text-sm">
+                {name}
+                {" · "}
+                {t("parts.count", { count: stock.quantity })}
+              </p>
+              <Button
+                type="submit"
+                aria-label={`${t("readings.install")} · ${name}`}
+                data-agent-confirm={t("readings.replaceConfirm", { part: name })}
+                disabled={fetcher.state !== "idle"}
+                className={`${buttonVariants({ variant: "secondary" })} min-h-12`}
+              >
+                {t("readings.install")}
+              </Button>
+            </fetcher.Form>
+          );
+        }),
       )}
       {fetcher.data?.readingError ? (
         <p role="alert" className="text-sm text-destructive">
@@ -369,7 +379,7 @@ export function ReadingsPage({
   return (
     <div className={`mx-auto flex max-w-3xl flex-col gap-5 ${mobile ? "p-4" : ""}`}>
       <Link
-        className={LINK}
+        className={`${LINK} ${mobile ? "inline-flex min-h-12 items-center" : ""}`}
         to={
           mobile
             ? device.room

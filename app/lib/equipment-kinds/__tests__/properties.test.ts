@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { db } from "~/lib/db.server";
 import { initializeEquipmentKinds } from "../kinds.server";
-import { propertyLibrary, libraryProperties } from "../properties";
+import { propertyLibrary, libraryProperties, propertiesForKind } from "../properties";
 import { reconcileLibrary } from "~/lib/custom-fields/library.server";
 import { register } from "../properties.boot.server";
 import { installLibraryKinds } from "../library.server";
@@ -73,6 +73,12 @@ async function installedPropertyCount() {
 }
 
 it("materializes every shipped kind while keeping readings out of ordinary values", async () => {
+  expect(propertiesForKind("projector").every((property) => property.store !== "READING")).toBe(
+    true,
+  );
+  expect(
+    propertiesForKind("projector", true).some((property) => property.store === "READING"),
+  ).toBe(true);
   const existing = await db.equipmentKind.findMany();
   const existingFunctions = (await db.roomFunction.findMany()).map((row) => row.id);
   const group = await db.equipmentFunctionGroup.findFirstOrThrow();

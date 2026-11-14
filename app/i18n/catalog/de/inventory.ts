@@ -2,7 +2,8 @@ export const inventoryDe = {
   "readings.title": "Messwerte",
   "readings.replace": "Teil ersetzen",
   "readings.replaceConfirm":
-    "Entnimmt ein {part} aus dem Lager und dokumentiert den Einbau samt Zählerrücksetzung.",
+    "Entnimmt ein {part} aus dem Lager, dokumentiert den Einbau und setzt nur zugehörige Zähler zurück.",
+  "readings.stockSource": "{part} · {source}",
   "readings.install": "Einbauen und entnehmen",
   "readings.replaceHint":
     "Ein Teil aus dem Lager entnehmen und den Einbau dokumentieren. Nur der zugehörige Zähler wird mit einem neuen Messwert auf null gesetzt.",

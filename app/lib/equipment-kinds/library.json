@@ -12097,7 +12097,7 @@
       "de": "Bestand",
       "en": "Stock quantity",
       "type": "NUMBER",
-      "unit": null,
+      "unit": "pcs",
       "options": [],
       "level": "DEVICE",
       "nature": "reading",
