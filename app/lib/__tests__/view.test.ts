@@ -175,6 +175,10 @@ describe("route equivalents", () => {
   it.each([
     ["/events?date=2026-11-09&view=rooms&room=a", "/m/calendar?date=2026-11-09&room=a&view=rooms"],
     [
+      "/plans/plan-1?device=device-1&plannedFor=2025-09-30",
+      "/m/plans/plan-1?device=device-1&plannedFor=2025-09-30",
+    ],
+    [
       "/calendar?date=2026-11-09&kinds=tasks,projects&room=a&equipment=b",
       "/m/calendar?date=2026-11-09&kinds=tasks%2Cprojects&room=a&equipment=b",
     ],

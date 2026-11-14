@@ -83,7 +83,7 @@ export const DESKTOP_PAGES = [
 const EQUIVALENTS: Record<string, { mobile: string; query?: string[] }> = {
   "/due": { mobile: "/m/due" },
   "/plans": { mobile: "/m/plans" },
-  "/plans/:id": { mobile: "/m/plans/:id", query: ["device"] },
+  "/plans/:id": { mobile: "/m/plans/:id", query: ["device", "plannedFor"] },
   "/changes": { mobile: "/m/changes", query: ["cursor"] },
   "/rounds": { mobile: "/m/rounds" },
   "/rounds/:id": { mobile: "/m/rounds/:id" },

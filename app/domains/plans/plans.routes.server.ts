@@ -24,7 +24,14 @@ import {
   setPlanEnabled,
 } from "./plans.mutations.server";
 
-export async function plansPageData(actor: Pick<AuthUser, "role">, id?: string, deviceId?: string) {
+export async function plansPageData(
+  actor: Pick<AuthUser, "role">,
+  id?: string,
+  deviceId?: string,
+  plannedFor?: string,
+) {
+  const date = plannedFor === undefined ? null : planDate.safeParse(plannedFor);
+  if (date && !date.success) throw invalidPlan();
   const [plans, choices, occurrences] = await Promise.all([
     db.workPlan.findMany({ where: { id }, include: planInclude, orderBy: { name: "asc" } }),
     planChoices(actor.role === "ADMIN"),
@@ -62,6 +69,7 @@ export async function plansPageData(actor: Pick<AuthUser, "role">, id?: string, 
     admin: actor.role === "ADMIN",
     detail: !!id,
     deviceId: deviceId && occurrences.some((row) => row.device?.id === deviceId) ? deviceId : null,
+    plannedFor: date?.success ? date.data : null,
     functions,
     today: utcToBerlinLocal(new Date()).slice(0, 10),
   };

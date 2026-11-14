@@ -5,6 +5,7 @@ import { t } from "~/i18n";
 import { planDefaults } from "./plans.defaults";
 import { nextPlanDate, planDay } from "./plans.policy";
 import { berlinDayIndex, berlinDayStartMs } from "~/lib/berlin-days";
+import { utcToBerlinLocal } from "~/lib/time.server";
 import { roundTargets } from "~/domains/functions/rounds.queries.server";
 
 export const planInclude = {
@@ -121,16 +122,15 @@ export async function planOccurrences(now = new Date(), planId?: string, tx: Tx 
           if (
             plan.semester &&
             (device
-              ? evidence.some(
-                  (reading) => +reading.plannedFor! === +date || reading.observedAt >= date,
-                )
+              ? evidence.some((reading) => reading.plannedFor?.getTime() === date.getTime())
               : plan.rounds.some(
-                  (round) =>
-                    round.closedAt && (+round.plannedFor! === +date || round.closedAt >= date),
+                  (round) => round.closedAt && round.plannedFor?.getTime() === date.getTime(),
                 ))
           )
             return [];
           const round = plan.rounds.find((row) => +row.plannedFor! === +date);
+          const query = device ? new URLSearchParams({ device: device.id }) : null;
+          if (query && plan.semester) query.set("plannedFor", utcToBerlinLocal(date).slice(0, 10));
           return [
             {
               id: `${plan.id}:${device?.id ?? "round"}:${+date}`,
@@ -157,7 +157,7 @@ export async function planOccurrences(now = new Date(), planId?: string, tx: Tx 
                 ? { observedAt: latest.observedAt, passed: latest.value === true }
                 : null,
               roundId: round?.id ?? null,
-              href: `/plans/${plan.id}${device ? `?device=${device.id}` : ""}`,
+              href: `/plans/${plan.id}${query ? `?${query}` : ""}`,
             },
           ];
         });

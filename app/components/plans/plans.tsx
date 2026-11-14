@@ -396,7 +396,11 @@ export function PlansPage({
   const path = `${mobile ? "/m" : ""}/plans`;
   const plan = page.detail ? page.plans[0] : undefined;
   const action = plan ? `${path}/${plan.id}` : path;
-  const selected = page.occurrences.find((row) => row.device?.id === page.deviceId);
+  const selected = page.occurrences.find(
+    (row) =>
+      row.device?.id === page.deviceId &&
+      (!page.plannedFor || new Date(row.date).getTime() === new Date(page.plannedFor).getTime()),
+  );
   const pending = useNavigation().state !== "idle";
   const errorRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
@@ -488,7 +492,7 @@ export function PlansPage({
               </p>
               <Form
                 method="post"
-                action={`${action}?device=${selected.device.id}`}
+                action={`${mobile ? "/m" : ""}${selected.href}`}
                 aria-label={t("plans.record")}
                 className="grid gap-4 sm:grid-cols-2"
               >

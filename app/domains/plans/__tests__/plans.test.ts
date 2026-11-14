@@ -354,6 +354,83 @@ describe("recurring work", () => {
     ]);
   });
 
+  it.each(["inspection", "round"] as const)(
+    "keeps a later semester due when an older %s is completed late",
+    async (workType) => {
+      const plan = await savePlan(actor, {
+        ...input(),
+        workType,
+        target: workType === "round" ? "rooms" : "devices",
+        roomIds: workType === "round" ? [roomId] : [],
+        equipmentIds: workType === "round" ? [] : [deviceId],
+        semester: true,
+        intervalMonths: null,
+      });
+      plans.push(plan);
+      await setPlanEnabled(actor, plan.id, true);
+      const before = await planOccurrences(now, plan.id);
+      expect(before.map((row) => row.date)).toEqual([
+        new Date("2025-03-30T22:00:00Z"),
+        new Date("2025-09-29T22:00:00Z"),
+      ]);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2025-11-15T10:00:00Z"));
+      try {
+        if (workType === "inspection") {
+          await recordInspection(member, {
+            planId: plan.id,
+            equipmentId: deviceId,
+            passed: true,
+            observedAt: new Date(),
+            plannedFor: before[0].date,
+            source: "Synthetic overdue semester report",
+          });
+        } else {
+          const round = await beginPlannedRound(actor, plan.id, before[0].date);
+          const functions = await db.roomFunction.findMany({
+            where: { archivedAt: null, kinds: { some: { kindId } } },
+          });
+          for (const fn of functions)
+            await recordCheck(member, {
+              roomId,
+              roundId: round.id,
+              functionId: fn.id,
+              result: "WORKS",
+              resolveFaults: [],
+              restoreDevices: [],
+            });
+          expect((await db.round.findUniqueOrThrow({ where: { id: round.id } })).closedAt).toEqual(
+            new Date(),
+          );
+        }
+        expect((await planOccurrences(new Date(), plan.id)).map((row) => row.date)).toEqual([
+          before[1].date,
+        ]);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
+
+  it("preserves the selected semester date in device links and page data", async () => {
+    const plan = await savePlan(actor, {
+      ...input(),
+      equipmentIds: [deviceId],
+      semester: true,
+      intervalMonths: null,
+    });
+    plans.push(plan);
+    await setPlanEnabled(actor, plan.id, true);
+    const rows = await planOccurrences(now, plan.id);
+    expect(rows[1].href).toBe(`/plans/${plan.id}?device=${deviceId}&plannedFor=2025-09-30`);
+    const page = await plansPageData({ role: "MEMBER" }, plan.id, deviceId, "2025-09-30");
+    expect(page.deviceId).toBe(deviceId);
+    expect(page.plannedFor).toEqual(rows[1].date);
+    await expect(
+      plansPageData({ role: "MEMBER" }, plan.id, deviceId, "2025-02-30"),
+    ).rejects.toMatchObject({ name: "ValidationError" });
+  });
+
   it("groups a large fleet without losing devices or resource-filter accuracy", async () => {
     const plan = await savePlan(actor, input());
     plans.push(plan);

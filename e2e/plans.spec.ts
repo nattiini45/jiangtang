@@ -2,6 +2,8 @@ import { mkdirSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { db } from "~/lib/db.server";
 import { t } from "~/i18n";
+import { savePlan, saveSemester, setPlanEnabled } from "~/domains/plans/plans.mutations.server";
+import { planDate } from "~/domains/plans/plans.schema";
 import { runPrefix } from "./run";
 
 test.describe.configure({ mode: "serial" });
@@ -9,6 +11,7 @@ const renders = "test-results/plans";
 const rooms: string[] = [],
   devices: string[] = [],
   planIds: string[] = [];
+const semesterIds: string[] = [];
 let semesterPlan: string, electricalPlan: string;
 const deviceName = "Synthetischer mobiler Projektor 33 · Sicherheitsprüfung";
 const semesterName = "Synthetischer Semesterstart";
@@ -77,6 +80,7 @@ test.afterAll(async () => {
     where: { id: { in: fields.flatMap((row) => (row.fieldId ? [row.fieldId] : [])) } },
   });
   await db.semesterStart.deleteMany({ where: { name: semesterName } });
+  await db.semesterStart.deleteMany({ where: { id: { in: semesterIds } } });
   await db.equipment.deleteMany({ where: { id: { in: devices } } });
   await db.room.deleteMany({ where: { id: { in: rooms } } });
   await db.$disconnect();
@@ -240,4 +244,62 @@ test("the phone keeps the inspection source, keyboard focus and dated result", a
   await page.screenshot({ path: `${renders}/phone-inspection.png` });
   await page.getByRole("link", { name: t("de", "readings.history"), exact: true }).click();
   await expect(page.getByText("Synthetischer Prüfbericht 101", { exact: false })).toBeVisible();
+});
+
+test("a later outstanding semester inspection keeps its exact date through the phone handoff and save", async ({
+  page,
+  baseURL,
+}) => {
+  const actor = await db.user.findFirstOrThrow({ where: { role: "ADMIN", isActive: true } });
+  for (const date of ["2025-04-01", "2025-10-01"]) {
+    const startsAt = planDate.parse(date);
+    if (!(await db.semesterStart.findUnique({ where: { startsAt } }))) {
+      await saveSemester(actor, `Synthetic browser semester ${date}`, date);
+      const semester = await db.semesterStart.findUniqueOrThrow({ where: { startsAt } });
+      semesterIds.push(semester.id);
+    }
+  }
+  const plan = await savePlan(actor, {
+    name: "Synthetic anchored inspection",
+    workType: "inspection",
+    target: "devices",
+    semester: true,
+    intervalMonths: null,
+    startsAt: new Date("2025-01-01T00:00:00Z"),
+    basis: "Synthetic semester inspection policy",
+    sourceUrl: "https://example.test/policy",
+    assigneeId: null,
+    kindId: null,
+    roomIds: [],
+    equipmentIds: [devices[0]],
+  });
+  planIds.push(plan.id);
+  await setPlanEnabled(actor, plan.id, true);
+  await page.context().addCookies([
+    { name: "locale", value: "de", url: baseURL! },
+    { name: "view", value: "desktop", url: baseURL! },
+  ]);
+  await page.goto(`/plans/${plan.id}`);
+  await page.locator('a[href*="plannedFor=2025-09-30"]').click();
+  await expect(page.locator('[name="plannedFor"]')).toHaveValue("2025-09-30");
+  await expect(page.locator("[data-next-due]")).toContainText("30.09.2025");
+  await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
+  await page.getByRole("button", { name: "Zur Mobilansicht wechseln", exact: true }).click();
+  await expect(page).toHaveURL(/\/m\/plans\/.*plannedFor=2025-09-30/);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator('[name="plannedFor"]')).toHaveValue("2025-09-30");
+  await expect(page.locator("[data-next-due]")).toContainText("30.09.2025");
+  await setDate(page, "Prüfdatum", "2025-09-15");
+  await page
+    .getByRole("textbox", { name: "Prüfbericht / Quelle", exact: true })
+    .fill("Synthetischer Bericht für den späteren Semestertermin");
+  await page.screenshot({ path: `${renders}/semester-selected-phone-de.png` });
+  await page.getByRole("button", { name: "Prüfung speichern", exact: true }).click();
+  await expect(page.getByRole("main").getByRole("status")).toHaveText("Gespeichert.");
+  expect(await db.equipmentReading.findFirstOrThrow({ where: { planId: plan.id } })).toMatchObject({
+    plannedFor: new Date("2025-09-29T22:00:00Z"),
+    observedAt: new Date("2025-09-14T22:00:00Z"),
+  });
+  await expect(page.locator('a[href*="plannedFor=2025-03-31"]')).toHaveCount(1);
+  await expect(page.locator('a[href*="plannedFor=2025-09-30"]')).toHaveCount(0);
 });

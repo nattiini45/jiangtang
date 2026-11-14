@@ -11,11 +11,13 @@ export function meta({ matches }: Route.MetaArgs) {
 }
 export async function loader({ request, params }: Route.LoaderArgs) {
   const actor = await requireUser(request);
+  const query = new URL(request.url).searchParams;
   try {
     return await plansPageData(
       actor,
       params.id,
-      new URL(request.url).searchParams.get("device") ?? undefined,
+      query.get("device") ?? undefined,
+      query.get("plannedFor") ?? undefined,
     );
   } catch (error) {
     throw toErrorResponse(error);
