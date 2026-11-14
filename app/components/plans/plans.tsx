@@ -144,7 +144,7 @@ function DayField({ name, label, value }: { name: string; label: string; value?:
         locale={locale === "de" ? "de-DE" : "en-GB"}
         required
         defaultValue={value}
-        className={`${CONTROL} flex items-center gap-1 [&_input]:w-8 [&_input]:bg-transparent [&_input]:text-center [&_input]:outline-offset-2 [&_input:last-child]:w-14`}
+        className={`${CONTROL} flex items-center gap-1 [&_input]:w-12 [&_input]:bg-transparent [&_input]:text-center [&_input]:outline-offset-2`}
       />
     </Field>
   );
