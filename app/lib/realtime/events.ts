@@ -44,6 +44,8 @@ export const ENTITY_TYPES = [
   "equipmentFunctionGroup",
   "roomFunction",
   "roomType",
+  "workPlan",
+  "semesterStart",
   "customField",
   "listColumns",
   "equipment",

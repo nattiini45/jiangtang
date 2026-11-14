@@ -5,6 +5,15 @@ device is, which model it is, what that model can do, and what this unit says ab
 
 ## Things
 
+**Work plan** (Arbeitsplan):
+A recurring round or device inspection with its target set, sourced basis, responsible person
+and month interval or explicit semester anchors. It produces the next dates from recorded work,
+not from a separately maintained task list.
+
+**Semester start** (Semesterbeginn):
+An administrator-entered date that anchors a pre-semester plan. Its round is due the day before.
+The semester cadence is a team policy, not a regulatory inspection period.
+
 **Device kind** (Geräteart):
 A named class of device a team looks after, such as projector, wireless receiver or hearing loop.
 _Avoid_: device type, Gerätetyp, category

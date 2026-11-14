@@ -1,4 +1,6 @@
 import { accountDe } from "./catalog/de/account";
+import { plansDe } from "./catalog/de/plans";
+import { plansEn } from "./catalog/en/plans";
 import { functionsDe } from "./catalog/de/functions";
 import { functionsEn } from "./catalog/en/functions";
 import { fieldsDe } from "./catalog/de/fields";
@@ -76,6 +78,7 @@ import { FALLBACK_LOCALE, type Locale } from "./locales";
  * fails `tsc`; the merged objects below keep that guarantee per area.
  */
 const de = {
+  ...plansDe,
   ...functionsDe,
   ...fieldsDe,
   ...accountDe,
@@ -113,6 +116,7 @@ const de = {
   ...uploadDe,
 };
 const en = {
+  ...plansEn,
   ...functionsEn,
   ...fieldsEn,
   ...accountEn,

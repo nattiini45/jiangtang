@@ -9,6 +9,8 @@ import { currentLocale } from "~/i18n/request-locale.server";
 import { utcToBerlinLocal } from "~/lib/time.server";
 import { Prisma, type EquipmentReading } from "~/generated/prisma/client";
 import { readConfig } from "~/lib/config.server";
+import { planTitle } from "~/domains/plans/plans.queries.server";
+import { tr } from "~/i18n/request-locale.server";
 
 export function dueMargin() {
   return readConfig("READING_DUE_MARGIN_PERCENT");
@@ -160,6 +162,7 @@ export async function getDeviceReadings(id: string, history = false) {
         include: {
           recordedBy: { select: { name: true } },
           field: { select: { name: true, systemKey: true } },
+          plan: { select: { name: true, systemKey: true } },
         },
       })
     : [];
@@ -167,12 +170,15 @@ export async function getDeviceReadings(id: string, history = false) {
     device,
     history: entries.map((entry) => ({
       ...entry,
-      name:
-        libraryProperties.get(entry.field.systemKey ?? "")?.[currentLocale()] ?? entry.field.name,
-      display:
-        device.measures
-          .find((measure) => measure.id === entry.fieldId)
-          ?.options.find((option) => option.value === entry.value)?.label ?? String(entry.value),
+      name: entry.plan
+        ? planTitle(entry.plan)
+        : (libraryProperties.get(entry.field.systemKey ?? "")?.[currentLocale()] ??
+          entry.field.name),
+      display: entry.plan
+        ? tr(entry.value === true ? "plans.passed" : "plans.failed")
+        : (device.measures
+            .find((measure) => measure.id === entry.fieldId)
+            ?.options.find((option) => option.value === entry.value)?.label ?? String(entry.value)),
     })),
   };
 }

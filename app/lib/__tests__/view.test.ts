@@ -89,6 +89,8 @@ describe("phone and explicit view selection", () => {
 const equivalents = [
   ["/", "/m"],
   ["/changes", "/m/changes"],
+  ["/plans", "/m/plans"],
+  ["/plans/plan-1", "/m/plans/plan-1"],
   ["/due", "/m/due"],
   ["/quick-entry", "/m/quick-entry"],
   ["/tickets/new", "/m/quick-entry"],
@@ -172,6 +174,10 @@ describe("route equivalents", () => {
 
   it.each([
     ["/events?date=2026-11-09&view=rooms&room=a", "/m/calendar?date=2026-11-09&room=a&view=rooms"],
+    [
+      "/plans/plan-1?device=device-1&plannedFor=2025-09-30",
+      "/m/plans/plan-1?device=device-1&plannedFor=2025-09-30",
+    ],
     [
       "/calendar?date=2026-11-09&kinds=tasks,projects&room=a&equipment=b",
       "/m/calendar?date=2026-11-09&kinds=tasks%2Cprojects&room=a&equipment=b",

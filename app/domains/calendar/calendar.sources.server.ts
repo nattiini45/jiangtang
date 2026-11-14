@@ -5,6 +5,9 @@ import { parseCalendarDate } from "~/lib/event-calendar";
 import type { CalendarChoice, CalendarEntry } from "~/lib/calendar-entries";
 import { SETTLED_TASK_STATUSES } from "~/domains/tasks/tasks.lanes";
 import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { planOccurrences } from "~/domains/plans/plans.queries.server";
+import { groupPlanOccurrences } from "~/domains/plans/plans.groups";
+import { tr } from "~/i18n/request-locale.server";
 
 export interface CalendarRange {
   from: Date;
@@ -14,7 +17,9 @@ export interface CalendarRange {
 interface CalendarSource {
   id: string;
   choice: CalendarChoice;
-  read: (range: CalendarRange) => Promise<CalendarEntry[]>;
+  read: (
+    range: CalendarRange & { roomId?: string; equipmentId?: string },
+  ) => Promise<CalendarEntry[]>;
 }
 
 const emptyResources = { rooms: [], equipment: [] };
@@ -392,6 +397,35 @@ export const calendarSources: CalendarSource[] = [
   warranties,
   fieldDates("ROOM"),
   fieldDates("EQUIPMENT"),
+  {
+    id: "plans",
+    choice: choice("plans", "plans.title"),
+    async read({ from, to, roomId, equipmentId }) {
+      const range = wholeDayRange({ from, to });
+      return groupPlanOccurrences(
+        (await planOccurrences()).filter(
+          (row) =>
+            row.date >= range.from &&
+            row.date < range.to &&
+            (!roomId || row.rooms.some((room) => room.id === roomId)) &&
+            (!equipmentId || row.device?.id === equipmentId),
+        ),
+      ).map((row) => ({
+        id: `plan:${row.id}`,
+        kind: "plans.title" as const,
+        title:
+          row.count > 1
+            ? tr("plans.deviceCount", { plan: row.title, count: row.count })
+            : row.device
+              ? `${row.title} · ${row.device.name}`
+              : row.title,
+        ...wholeDays(row.date),
+        href: row.href,
+        rooms: row.rooms,
+        equipment: row.equipment,
+      }));
+    },
+  },
   faults,
 ];
 export const calendarChoices = [

@@ -27,6 +27,8 @@ export async function appendReadingInTx(
     source: "typed" | "round" | "replacement";
     sourceRef?: string;
     partModelId?: string | null;
+    planId?: string;
+    plannedFor?: Date;
   },
 ) {
   const row = await tx.equipmentReading.create({ data: { ...input, recordedById: actor.id } });
@@ -42,6 +44,8 @@ export async function appendReadingInTx(
       source: input.source,
       sourceRef: input.sourceRef,
       partModelId: input.partModelId,
+      planId: input.planId,
+      plannedFor: input.plannedFor?.toISOString(),
     },
   });
   return row;
@@ -78,6 +82,7 @@ export async function recordReading(
     });
     if (!device) throw new NotFoundError();
     if (device.status === "RETIRED") throw invalidReading();
+    if (await tx.workPlan.findUnique({ where: { fieldId: raw.fieldId } })) throw invalidReading();
     if (raw.roundId) {
       const round = await tx.round.findFirst({
         where: {

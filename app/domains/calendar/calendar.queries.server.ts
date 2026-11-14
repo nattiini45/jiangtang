@@ -26,7 +26,7 @@ export async function getWorkspaceCalendar(
     Promise.all(
       calendarSources
         .filter((source) => opts.kinds.includes(source.choice.id))
-        .map((source) => source.read({ from, to })),
+        .map((source) => source.read({ from, to, roomId, equipmentId })),
     ),
     db.eventRoomBooking.findMany({
       where: { cancelled: false, startsAt: { lt: to }, endsAt: { gt: from }, roomId },

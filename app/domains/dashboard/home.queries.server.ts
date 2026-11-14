@@ -9,6 +9,7 @@ import { readHomeLayout } from "./home-layout";
 import { listHomeChanges } from "./home-activity.queries.server";
 import { myOpenTicketWorkWhere } from "~/domains/tickets/tickets.queries.server";
 import { dueReadings } from "~/domains/readings/readings.queries.server";
+import { planOccurrences } from "~/domains/plans/plans.queries.server";
 
 export async function getHome(userId: string, now = new Date()) {
   const day = berlinDayIndex(now);
@@ -196,5 +197,6 @@ export async function getHomeDue(functions: RoomFunctionState[], now = new Date(
     confirmations,
     confirmationCount: confirmations.length,
     readings: await dueReadings(now),
+    plans: (await planOccurrences(now)).filter((row) => row.due && !row.roundId),
   };
 }
