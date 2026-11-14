@@ -45,6 +45,16 @@ The schema lives in `prisma/schema.prisma`. The main families:
 Library properties use ordinary `CustomField` rows with stable keys and MODEL/DEVICE levels;
 model values live in `EquipmentModel.customValues`, and `getFieldSchema` resolves labels for all readers.
 
+`WorkPlan` holds a sourced recurring round or device inspection, its responsible person and
+room/device scope. `SemesterStart` supplies explicit anchors; month intervals advance from the
+actual inspection or round completion date, clamping month ends in Europe/Berlin. Occurrences
+are derived, not background-generated tasks. A planned round links its plan and scheduled date;
+the unique pair makes starting it idempotent. Inspection results are append-only boolean
+`EquipmentReading` rows with a plan link and report reference. Their managed reading definition
+cannot be edited through ordinary custom-field controls. A failed result opens a device fault,
+linked to its room function where available; a later pass never silently resolves that fault.
+Calendar and home read the same occurrence query. Templates stay off until an admin enables them.
+
 Room types and expectations are data: `RoomTypeFunction` lists a type's expected functions;
 `RoomFunctionExpectation` adds or drops one for a room. `getFunctionStates` combines those with
 carrier/path-device evidence. Missing carriers are gaps, never automatic faults. Startup adds

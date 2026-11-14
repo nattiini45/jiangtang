@@ -35,6 +35,7 @@ export const ENTITY_TYPE = {
   equipmentFunctionGroup: "equipmentFunctionGroup",
   roomFunction: "roomFunction",
   roomType: "roomType",
+  workPlan: "workPlan",
   customField: "customField",
   listColumns: "listColumns",
   equipment: "equipment",

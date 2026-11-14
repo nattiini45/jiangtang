@@ -89,6 +89,8 @@ describe("phone and explicit view selection", () => {
 const equivalents = [
   ["/", "/m"],
   ["/changes", "/m/changes"],
+  ["/plans", "/m/plans"],
+  ["/plans/plan-1", "/m/plans/plan-1"],
   ["/due", "/m/due"],
   ["/quick-entry", "/m/quick-entry"],
   ["/tickets/new", "/m/quick-entry"],

@@ -49,7 +49,9 @@ calendars. This is a product goal, not a claim of feature parity or completed mi
   Mutations and their append-only audit rows commit together.
 - Accounts are invitation-only. Optional search AI, CalDAV and error reporting stay optional;
   basic application startup and lexical search do not require an external service.
-- Taskmeister-specific import, task/ticket conversations, recurrence and email-based ticket
+- Recurring work plans cover rounds and device inspections, with month intervals or entered
+  semester starts, sourced opt-in templates and dates in the calendar and home.
+- Taskmeister-specific import, task/ticket conversations, general task recurrence and email-based ticket
   workflows are not established replacement capabilities. Do not promise them from the presence
   of task, ticket or calendar screens.
 

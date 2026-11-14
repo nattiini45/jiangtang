@@ -3,6 +3,7 @@ import { useLocale, useT } from "~/i18n/use-t";
 import { formatDate, formatDateTime } from "~/i18n/format";
 import type { getHomeDue } from "~/domains/dashboard/home.queries.server";
 import { ReadingDueRows } from "~/components/inventory/readings";
+import { PlanDueRows } from "~/components/plans/plans";
 const LINK =
   "min-w-0 truncate underline-offset-4 decoration-(--input) hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 function Rows({ children }: { children: React.ReactNode }) {
@@ -35,10 +36,21 @@ export function DueItems({
   );
   return (
     <>
-      {!due.roundCount && !due.overrideCount && !due.confirmationCount && !due.readings.length ? (
+      {!due.roundCount &&
+      !due.overrideCount &&
+      !due.confirmationCount &&
+      !due.readings.length &&
+      !due.plans.length ? (
         empty()
       ) : (
         <>
+          {due.plans.length ? (
+            <div className="mb-3">
+              <Heading className="text-sm font-semibold">{t("plans.title")}</Heading>
+              <PlanDueRows rows={due.plans.slice(0, limit)} mobile={mobile} />
+              {more(due.plans.length, Math.min(limit, due.plans.length))}
+            </div>
+          ) : null}
           {due.readings.length ? (
             <div className="mb-3">
               <Heading className="text-sm font-semibold">{t("readings.dueHeading")}</Heading>
@@ -127,6 +139,9 @@ export function DueItems({
         className={`${LINK} mt-3 inline-block text-sm`}
       >
         {t(Number.isFinite(limit) ? "dashboard.home.due.link" : "functions.rounds.title")}
+      </Link>
+      <Link to={path("/plans")} className={`${LINK} ms-4 mt-3 inline-block text-sm`}>
+        {t("plans.title")}
       </Link>
     </>
   );

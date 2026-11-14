@@ -136,6 +136,7 @@ model Building {
 }
 
 model Room {
+  workPlans WorkPlan[]
   roomTypeId String?
   roomType RoomType? @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
   functionExpectations RoomFunctionExpectation[]
@@ -207,6 +208,7 @@ model EquipmentFunctionGroup {
 }
 
 model EquipmentKind {
+  workPlans WorkPlan[]
   id String @id @default(cuid())
   systemKey String? @unique
   name String
@@ -248,6 +250,8 @@ enum FieldLevel {
 }
 
 model EquipmentReading {
+  planId String?
+  plan WorkPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
   id String @id @default(cuid())
   equipmentId String
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
@@ -264,9 +268,11 @@ model EquipmentReading {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([equipmentId, fieldId, observedAt(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+  @@index([planId, equipmentId, observedAt(sort: Desc)])
 }
 
 model CustomField {
+  workPlan WorkPlan?
   store String @default("VALUE")
   readings EquipmentReading[]
   id String @id @default(cuid())
@@ -354,6 +360,7 @@ model EquipmentModel {
 }
 
 model Equipment {
+  workPlans WorkPlan[]
   readings EquipmentReading[]
   customValues Json @default("{}") @db.JsonB
   kindId String?
@@ -493,6 +500,7 @@ model UserPermission {
 }
 
 model User {
+  workPlans WorkPlan[]
   readings EquipmentReading[]
   homeLayout Json?
   rounds Round[]
@@ -811,6 +819,9 @@ enum CheckResult {
 }
 
 model Round {
+  planId String?
+  plan WorkPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+  plannedFor DateTime? @db.Timestamptz(3)
   id String @id @default(cuid())
   name String
   startedById String?
@@ -819,6 +830,39 @@ model Round {
   closedAt DateTime? @db.Timestamptz(3)
   rooms RoundRoom[]
   checks RoomCheck[]
+  @@unique([planId, plannedFor])
+}
+
+model WorkPlan {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  workType String
+  target String
+  enabled Boolean @default(false)
+  intervalMonths Int?
+  semester Boolean @default(false)
+  startsAt DateTime @db.Timestamptz(3)
+  basis String
+  sourceUrl String
+  assigneeId String?
+  assignee User? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  kindId String?
+  kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
+  fieldId String? @unique
+  field CustomField? @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  rooms Room[]
+  equipment Equipment[]
+  rounds Round[]
+  readings EquipmentReading[]
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model SemesterStart {
+  id String @id @default(cuid())
+  name String
+  startsAt DateTime @unique @db.Timestamptz(3)
 }
 
 model RoundRoom {

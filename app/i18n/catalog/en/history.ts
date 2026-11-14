@@ -1,6 +1,11 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.entity.workPlan": "Work plan",
+  "history.action.WorkPlanCreated": "Work plan created",
+  "history.action.WorkPlanUpdated": "Work plan updated",
+  "history.action.WorkPlanEnabled": "Work plan enabled or disabled",
+  "history.action.SemesterStartSet": "Semester start recorded",
   "history.action.EquipmentReadingRecorded": "Reading recorded",
   "history.action.StockModelLinked": "Stock part model changed",
   "history.action.ModelPartFitAdded": "Compatible part linked",

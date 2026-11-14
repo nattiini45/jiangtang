@@ -5,6 +5,7 @@ import { parseCalendarDate } from "~/lib/event-calendar";
 import type { CalendarChoice, CalendarEntry } from "~/lib/calendar-entries";
 import { SETTLED_TASK_STATUSES } from "~/domains/tasks/tasks.lanes";
 import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { planOccurrences } from "~/domains/plans/plans.queries.server";
 
 export interface CalendarRange {
   from: Date;
@@ -392,6 +393,24 @@ export const calendarSources: CalendarSource[] = [
   warranties,
   fieldDates("ROOM"),
   fieldDates("EQUIPMENT"),
+  {
+    id: "plans",
+    choice: choice("plans", "plans.title"),
+    async read({ from, to }) {
+      const range = wholeDayRange({ from, to });
+      return (await planOccurrences())
+        .filter((row) => row.date >= range.from && row.date < range.to)
+        .map((row) => ({
+          id: `plan:${row.id}`,
+          kind: "plans.title" as const,
+          title: row.device ? `${row.title} · ${row.device.name}` : row.title,
+          ...wholeDays(row.date),
+          href: row.href,
+          rooms: row.rooms,
+          equipment: row.device ? [row.device] : [],
+        }));
+    },
+  },
   faults,
 ];
 export const calendarChoices = [
