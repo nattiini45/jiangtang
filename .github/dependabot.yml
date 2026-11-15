@@ -24,6 +24,9 @@ updates:
       - dependency-name: "@tanstack/react-table"
         update-types:
           - version-update:semver-major
+      # The UI SDK betas are pinned on purpose for new interactive components
+      # and move only in a deliberate change, never an automatic update.
+      - dependency-name: "@ui-sdk/*"
     groups:
       npm-minor-patch:
         update-types:
