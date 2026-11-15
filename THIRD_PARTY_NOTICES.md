@@ -60,7 +60,7 @@ registry under its own license.
 
 | License | Packages (resolved version) |
 | --- | --- |
-| Apache-2.0 | `@modelcontextprotocol/node` 2.1.2, `@modelcontextprotocol/server` 2.4.0, `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
+| Apache-2.0 | `@modelcontextprotocol/node` 2.1.2, `@modelcontextprotocol/server` 2.4.0, `@prisma/adapter-pg` 7.10.1, `@prisma/client` 7.10.1, `@ui-sdk/core` 0.1.0-beta.1, `@ui-sdk/react` 0.1.0-beta.1, `class-variance-authority` 0.7.1, `sharp` 0.35.5 |
 | ISC | `lucide-react` 1.66.0, `yaml` 2.9.1 |
 | OFL-1.1 | `@fontsource-variable/inter` 5.3.0 (the Inter typeface by Rasmus Andersson, self-hosted and bundled into the client build; the package ships the license text) |
 | MIT | `@date-fns/tz` 1.5.0, `@dnd-kit/core` 6.3.1, `@dnd-kit/sortable` 10.0.0, `@dnd-kit/utilities` 3.2.2, `@radix-ui/react-slot` 1.5.0, `@react-router/express` 7.18.2, `@react-router/fs-routes` 7.18.2, `@react-router/node` 7.18.2, `@sentry/node` 11.10.0, `@tanstack/react-table` 8.21.3, `@tanstack/react-virtual` 3.14.24, `better-auth` 1.7.14, `clsx` 2.1.1, `cross-env` 10.1.0, `express` 5.3.0, `ical-generator` 11.1.3, `motion` 14.10.1, `pg` 8.23.1, `pino` 9.14.0, `qrcode` 1.5.4, `react` 19.3.1, `react-dom` 19.3.1, `react-markdown` 10.1.0, `react-router` 7.18.2, `recharts` 3.10.1, `remark-gfm` 4.0.1, `tailwind-merge` 3.7.0, `tailwindcss` 4.3.3, `tsx` 4.23.15, `zod` 4.6.7 |

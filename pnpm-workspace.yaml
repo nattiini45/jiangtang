@@ -1,0 +1,6 @@
+# Dependabot regenerates the lockfile behind a release-age gate
+# (pnpm --config.minimum-release-age). The pinned UI SDK betas are chosen by
+# hand and must resolve however recently they were published, or every npm
+# update fails with ERR_PNPM_NO_MATURE_MATCHING_VERSION.
+minimumReleaseAgeExclude:
+  - "@ui-sdk/*"
