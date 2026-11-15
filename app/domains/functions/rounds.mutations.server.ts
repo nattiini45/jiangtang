@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { txWithAudit, type AuditActor } from "~/lib/audit.server";
+import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr, currentLocale } from "~/i18n/request-locale.server";
@@ -52,27 +52,40 @@ function invalid() {
 export async function startRound(actor: AuditActor, raw: z.input<typeof startRoundSchema>) {
   const input = startRoundSchema.parse(raw);
   const roomIds = [...new Set(input.roomIds)];
-  const round = await txWithAudit(actor, async (tx, audit) => {
-    for (const roomId of roomIds) {
-      if (!(await checklist(tx, roomId)).length) throw invalid();
-    }
-    const row = await tx.round.create({
-      data: {
-        name: input.name,
-        startedById: actor.id,
-        rooms: { create: roomIds.map((roomId) => ({ roomId })) },
-      },
-    });
-    await audit({
-      action: "RoundStarted",
-      entityType: "room",
-      entityId: roomIds[0],
-      data: { roundId: row.id, roomIds },
-    });
-    return row;
-  });
+  const round = await txWithAudit(actor, (tx, audit) =>
+    createRoundInTx(tx, audit, actor, { ...input, roomIds }),
+  );
   await emitChange({ entityType: "room", id: roomIds[0], op: "updated" });
   return round;
+}
+
+export async function createRoundInTx(
+  tx: Tx,
+  audit: AuditFn,
+  actor: AuditActor,
+  input: { name: string; roomIds: string[]; planId?: string; plannedFor?: Date },
+) {
+  const roomIds = [...new Set(input.roomIds)];
+  if (!roomIds.length) throw invalid();
+  for (const roomId of roomIds) {
+    if (!(await checklist(tx, roomId)).length) throw invalid();
+  }
+  const row = await tx.round.create({
+    data: {
+      name: input.name,
+      startedById: actor.id,
+      planId: input.planId,
+      plannedFor: input.plannedFor,
+      rooms: { create: roomIds.map((roomId) => ({ roomId })) },
+    },
+  });
+  await audit({
+    action: "RoundStarted",
+    entityType: "room",
+    entityId: roomIds[0],
+    data: { roundId: row.id, roomIds },
+  });
+  return row;
 }
 
 export async function recordCheck(actor: AuditActor, raw: z.input<typeof recordCheckSchema>) {

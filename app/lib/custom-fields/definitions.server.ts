@@ -26,6 +26,26 @@ export const definitionInclude = {
 } satisfies Prisma.CustomFieldInclude;
 export type FieldDefinition = Awaited<ReturnType<typeof getDefinitions>>[number];
 
+export async function createInspectionFieldInTx(
+  tx: Tx,
+  audit: AuditFn,
+  planId: string,
+  name: string,
+) {
+  const field = await tx.customField.create({
+    data: {
+      key: `inspection_${planId}`,
+      name,
+      scope: "EQUIPMENT",
+      type: "BOOLEAN",
+      store: "READING",
+      searchable: false,
+    },
+  });
+  await audit({ action: "CustomFieldCreated", entityType: "customField", entityId: field.id });
+  return field;
+}
+
 export function getDefinitions(scope: CustomFieldScope, tx: Tx = db) {
   return tx.customField.findMany({
     where: { scope },
@@ -303,6 +323,8 @@ export async function updateCustomField(
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUnique({ where: { id }, include: definitionInclude });
     if (!before) throw new NotFoundError();
+    if (await tx.workPlan.findUnique({ where: { fieldId: id } }))
+      fieldError("id", tr("plans.fieldManaged"));
     if (
       isLibraryProperty(before) &&
       (kindIds !== undefined ||
@@ -485,6 +507,8 @@ export async function deleteCustomField(actor: AuditActor, id: string, archivedO
   const result = await txWithAudit(actor, async (tx, audit) => {
     await lockDefinitions(tx, true);
     const before = await tx.customField.findUniqueOrThrow({ where: { id } });
+    if (await tx.workPlan.findUnique({ where: { fieldId: id } }))
+      fieldError("id", tr("plans.fieldManaged"));
     if (isLibraryProperty(before)) fieldError("id", tr("fields.library.protected"));
     if (archivedOnly && !before.archivedAt) fieldError("id", tr("fields.admin.archiveFirst"));
     const counts = await tx.$queryRaw<Array<{ count: bigint }>>`

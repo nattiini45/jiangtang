@@ -322,6 +322,8 @@ export function deleteStructureEntry(actor: AuditActor, entity: "kind" | "group"
             models: kind._count.models,
           }),
         ]);
+      if (await tx.workPlan.count({ where: { kindId: id } }))
+        structureError("admin.structure.referenced");
       await tx.equipmentKind.delete({ where: { id } });
       await audit({
         action: "EquipmentKindDeleted",

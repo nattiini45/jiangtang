@@ -191,7 +191,7 @@ test("one calendar contains work, projects and events, and a full day opens from
       .getByRole("link", { name: /Demo: Technik für das Sommerfest/ })
       .filter({ hasText: "Veranstaltungen" }),
   ).toBeVisible();
-  await page.getByText("Anzeigen (5)", { exact: true }).click();
+  await page.getByText("Anzeigen (6)", { exact: true }).click();
   await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
   await expect(band).not.toContainText("Demo: Funkstrecken prüfen");
   await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).check();
@@ -220,11 +220,11 @@ test("mobile agenda shows work and projects beside events and keeps choices", as
   await expect(page.getByRole("link", { name: /Demo: Funkstrecken prüfen/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Demo: Sommerfest vorbereiten/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Veranstaltungen.*Demo: Technik/ })).toBeVisible();
-  await page.getByText("Anzeigen (5)", { exact: true }).click();
+  await page.getByText("Anzeigen (6)", { exact: true }).click();
   await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
   await expect(page.getByRole("link", { name: /Demo: Funkstrecken prüfen/ })).toHaveCount(0);
   await page.getByRole("link", { name: "Nächster Zeitraum" }).click();
-  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates/);
+  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates%2Cplans/);
   await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 390);
 });
 
@@ -244,7 +244,7 @@ test("multi-day entries use the band, faults are opt-in, and mobile cancellation
   await expect(cancelled.locator(".line-through")).toHaveText("Demo: Abgesagte Probe");
   await page.goto("/m/calendar?date=2045-06-19");
   await expect(page.getByRole("link", { name: /Demo: Bild fällt aus/ })).toHaveCount(0);
-  await page.getByText("Anzeigen (5)", { exact: true }).click();
+  await page.getByText("Anzeigen (6)", { exact: true }).click();
   await page.getByRole("checkbox", { name: "Störungen", exact: true }).check();
   await expect(page.getByRole("link", { name: /Demo: Bild fällt aus/ })).toBeVisible();
 });

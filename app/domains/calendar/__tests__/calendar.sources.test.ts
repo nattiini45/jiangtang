@@ -15,6 +15,19 @@ const after = new Date("2045-06-12T10:00Z");
 const ids = (name: string) => `${prefix}-${name}`;
 
 beforeAll(async () => {
+  await db.workPlan.create({
+    data: {
+      id: ids("plan"),
+      name: "Synthetic calendar inspection",
+      workType: "inspection",
+      target: "portable",
+      enabled: true,
+      startsAt: range.from,
+      intervalMonths: 6,
+      basis: "Synthetic test rule",
+      sourceUrl: "https://example.test/manual",
+    },
+  });
   await db.room.create({
     data: {
       id: ids("room"),
@@ -38,6 +51,7 @@ beforeAll(async () => {
       category: "OTHER",
       kindId: ids("kind"),
       roomId: ids("room"),
+      mobility: "POOLED",
     },
   });
   await db.equipment.create({
@@ -153,6 +167,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  await db.workPlan.deleteMany({ where: { id: { startsWith: prefix } } });
   const where = { id: { startsWith: prefix } };
   await db.eventRoomBooking.deleteMany({ where: { eventId: { startsWith: prefix } } });
   await db.equipmentAllocation.deleteMany({ where: { eventId: { startsWith: prefix } } });
@@ -178,7 +193,7 @@ describe("workspace calendar sources", () => {
       expect(entries.length).toBeGreaterThan(0);
       for (const entry of entries) {
         expect(entry.startsAt < range.to && entry.endsAt > range.from).toBe(true);
-        expect(entry.href).toMatch(/^\/(events|tasks|projects|rooms|inventory|tickets)\//);
+        expect(entry.href).toMatch(/^\/(events|tasks|projects|rooms|inventory|tickets|plans)\//);
         expect(entry.id).not.toContain("outside");
         expect(entry.kind).toBeTruthy();
       }
@@ -356,6 +371,7 @@ describe("calendar address choices", () => {
       "tasks",
       "projects",
       "dates",
+      "plans",
     ]);
     expect(calendarKinds(new URLSearchParams("kinds="), calendarChoices)).toEqual([]);
     expect(

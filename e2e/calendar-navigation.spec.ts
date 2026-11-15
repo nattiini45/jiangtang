@@ -40,7 +40,7 @@ for (const [view, label, nextDate] of [
         .getByRole("link", { name: label, exact: true })
         .click();
       await expect(page.locator('main input[name="view"]')).toHaveValue(view);
-      await page.getByText("Anzeigen (5)", { exact: true }).click();
+      await page.getByText("Anzeigen (6)", { exact: true }).click();
       await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
       await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).check();
       const nextRequest = page.waitForRequest((request) => {
@@ -51,7 +51,7 @@ for (const [view, label, nextDate] of [
       const request = await nextRequest;
       const params = new URL(request.url()).searchParams;
       expect(params.get("view")).toBe(view);
-      expect(params.get("kinds")).toBe("events,service,tasks,projects,dates");
+      expect(params.get("kinds")).toBe("events,service,tasks,projects,dates,plans");
       expect(params.get("status")).toBe("CONFIRMED");
       expect(params.get("room")).toBe("seed_room_a01");
       expect(params.get("equipment")).toBe(equipmentId);

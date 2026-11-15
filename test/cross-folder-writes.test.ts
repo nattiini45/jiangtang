@@ -154,6 +154,7 @@ function walkProd(absDir: string): string[] {
  */
 const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/readings": ["EquipmentReading"],
+  "app/domains/plans": ["WorkPlan", "SemesterStart"],
   "app/domains/activity": [],
   "app/domains/analytics": [],
   "app/domains/api-tokens": ["PersonalAccessToken"],

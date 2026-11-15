@@ -17,12 +17,12 @@ test("calendar views persist their date and filters in the URL", async ({ page }
   await page.getByRole("link", { name: "Monat", exact: true }).click();
   await expect(page).toHaveURL(/view=month/);
   await expect(page).toHaveURL(/date=2026-11-08/);
-  await page.getByText("Anzeigen (5)", { exact: true }).click();
+  await page.getByText("Anzeigen (6)", { exact: true }).click();
   await page.getByRole("checkbox", { name: "Aufgaben", exact: true }).uncheck();
-  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates/);
+  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates%2Cplans/);
   await page.getByRole("link", { name: "Nächster Zeitraum" }).click();
   await expect(page).toHaveURL(/date=2026-12-01/);
-  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates/);
+  await expect(page).toHaveURL(/kinds=events%2Cservice%2Cprojects%2Cdates%2Cplans/);
   await page
     .getByRole("complementary")
     .getByRole("link", { name: "Veranstaltungen", exact: true })

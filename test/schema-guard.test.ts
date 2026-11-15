@@ -30,6 +30,9 @@ const SCHEMA_PATH = resolve(process.cwd(), "prisma/schema.prisma");
 /** The seven new models plus the explicit assignee join. */
 const NEW_BLOCKS = [
   "EquipmentReading",
+  "WorkPlan",
+  "SemesterStart",
+  "Round",
   "Location",
   "Project",
   "TaskAssignees",
@@ -355,8 +358,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(93);
-    expect(withAction).toBe(81);
+    expect(owning).toBe(98);
+    expect(withAction).toBe(86);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

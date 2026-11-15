@@ -420,6 +420,11 @@ export function ReadingsPage({
                   {" · "}
                   {entry.recordedBy?.name ?? t("readings.unknownActor")}
                 </p>
+                {entry.planId && entry.sourceRef ? (
+                  <p className="break-words text-xs text-muted-foreground">
+                    {t("plans.evidence")} · {entry.sourceRef}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>
