@@ -6,12 +6,14 @@ interface is available in English and German. Read [docs/ARCHITECTURE.md](docs/A
 before changing the data model, the migrations or a server seam, and
 [docs/conventions.md](docs/conventions.md) for the code rules in detail.
 
-## Stack (do not drift onto betas)
+## Stack (avoid betas except the pinned @ui-sdk/* packages)
 
 TypeScript on Node 22.12+ or 24+ (ESM), React Router v7 (Vite, framework mode) behind a small Express server,
 React 19, Tailwind v4, shadcn/ui, PostgreSQL 18 with `btree_gist`, `pgvector` and `pg_trgm`, Prisma 7
 (Rust-free, `@prisma/adapter-pg`), Better Auth, `sharp`. One application, two route trees: the
 desktop surface (pathless `_desktop` layout, renders at `/`) and the mobile PWA (`/m`).
+The `@ui-sdk/*` packages are pinned betas used for new interactive components; they are bumped
+deliberately, never by automatic updates.
 
 ## Commands
 
