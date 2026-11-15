@@ -29,6 +29,7 @@ import type { StockListOptions } from "./inventory.stock.schema";
 
 /** The relation set a stock row is read with, so no caller N+1s a vendor/location. */
 export const STOCK_INCLUDE = {
+  model: { select: { id: true, name: true, manufacturer: true } },
   location: { select: { id: true, name: true, kind: true } },
   vendor: { select: { id: true, name: true } },
   equipment: { select: { id: true, name: true, assetTag: true } },

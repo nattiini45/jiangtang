@@ -153,6 +153,8 @@ function walkProd(absDir: string): string[] {
  * judged against `app/domains/rooms` and reported rather than skipped.
  */
 const FOLDERS: Record<string, readonly string[]> = {
+  "app/domains/readings": ["EquipmentReading"],
+  "app/domains/plans": ["WorkPlan", "SemesterStart"],
   "app/domains/activity": [],
   "app/domains/analytics": [],
   "app/domains/api-tokens": ["PersonalAccessToken"],
@@ -171,15 +173,36 @@ const FOLDERS: Record<string, readonly string[]> = {
     "TwoFactor",
   ],
   "app/domains/board": [],
-  "app/domains/catalog": ["EquipmentModel"],
+  "app/domains/catalog": ["EquipmentModel", "EquipmentModelPort", "ModelPartFit"],
   "app/domains/dashboard": [],
   "app/domains/events": ["Event", "EventRoomBooking", "EquipmentAllocation", "ServiceWindow"],
-  "app/domains/inventory": ["Equipment", "InventoryItem"],
+  "app/domains/inventory": [
+    "Equipment",
+    "InventoryItem",
+    "EquipmentPort",
+    "EquipmentConnection",
+    "EquipmentConnectionEnd",
+  ],
   "app/domains/locations": ["Location"],
   "app/domains/notes": ["Note"],
   "app/domains/notifications": ["Notification"],
   "app/domains/projects": ["Project"],
-  "app/domains/rooms": ["Campus", "Building", "Room"],
+  "app/domains/rooms": [
+    "Campus",
+    "Building",
+    "Room",
+    "RoomType",
+    "RoomTypeFunction",
+    "RoomFunctionExpectation",
+  ],
+  "app/domains/functions": [
+    "RoomFunction",
+    "RoomFunctionKind",
+    "Round",
+    "RoundRoom",
+    "RoomCheck",
+    "FunctionOverride",
+  ],
   "app/domains/search": [],
   "app/domains/tasks": ["Task", "TaskAssignees", "TaskDependency"],
   "app/domains/tickets": ["Ticket"],
@@ -194,6 +217,13 @@ const FOLDERS: Record<string, readonly string[]> = {
   // entry no scan ever consulted.
   "app/lib": ["ActivityLog"],
   "app/lib/calendar": ["CalendarOutbox", "CalendarPublicationInitialization"],
+  "app/lib/custom-fields": ["CustomField", "CustomFieldKind", "CustomFieldOption", "LibraryState"],
+  "app/lib/list-columns": ["ListColumns"],
+  "app/lib/equipment-kinds": [
+    "EquipmentKind",
+    "EquipmentFunctionGroup",
+    "EquipmentKindsInitialization",
+  ],
   // the indexer owns the derived-data tables — Chunk/SearchIndexJob are
   // rebuilt from audited rows and carry no audit of their own.
   "app/lib/search": ["Chunk", "SearchIndexJob"],

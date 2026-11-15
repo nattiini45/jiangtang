@@ -117,7 +117,7 @@ test.describe("English browser, no cookie", () => {
     await switcher(page).getByRole("button", { name: "English" }).click();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
     await expect(page.getByRole("button", { name: "More" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Capture" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Overview", exact: true })).toBeVisible();
     expect((await context.cookies()).find((c) => c.name === "locale")?.value).toBe("en");
   });
 });

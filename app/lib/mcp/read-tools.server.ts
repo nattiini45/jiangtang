@@ -2,6 +2,8 @@ import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { tr } from "~/i18n/request-locale.server";
+import { withMcpEquipmentKind } from "./tools.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import {
   EquipmentCategory,
   EquipmentMobility,
@@ -80,6 +82,12 @@ import { isoWeekRange, dayIndexToIsoWeek } from "~/lib/berlin-days";
 import { NotFoundError } from "~/lib/errors.server";
 import { registerTool } from "~/lib/mcp/tools.server";
 import type { McpContext } from "~/lib/mcp/types.server";
+import { withCustomValues } from "~/lib/custom-fields/values.server";
+import {
+  listRoomFunctions,
+  getFunctionStates,
+  listNotWorking,
+} from "~/domains/functions/functions.queries.server";
 
 const id = z.string().trim().min(1).max(200);
 const byId = z.object({ id });
@@ -107,6 +115,7 @@ const isoWeek = z
   });
 const timeOwner = z.object({ userId: id.optional() });
 const activityTypes = [
+  "customField",
   "timeEntry",
   "user",
   "campus",
@@ -150,6 +159,49 @@ function timeUser(userId: string | undefined, context: McpContext) {
 }
 
 export function registerReadTools(server: McpServer, context: McpContext): void {
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_not_working",
+      description:
+        "List limited and non-working room functions with evidence, oldest first. No known fault is not confirmation. Null starts sort before known dates.",
+      schema: z.object({
+        functionId: id.optional(),
+        functionKey: id.optional(),
+        campusId: id.optional(),
+        buildingId: id.optional(),
+        state: z.enum(["DOWN", "LIMITED"]).optional(),
+        unassigned: z.boolean().optional(),
+      }),
+    },
+    async (input) => listNotWorking(input),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_room_functions",
+      description:
+        "List installed room functions and the device kinds that carry them or lie on their signal path.",
+      schema: z.object({}),
+    },
+    async () => listRoomFunctions(),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "get_room_functions",
+      description:
+        "Read a room's derived function states, evidence, devices and known fixes (title, resolution and resolvedAt). No known fault is unconfirmed, never works.",
+      schema: z.object({ roomId: id }),
+    },
+    async ({ roomId }) => {
+      if (!(await getRoom(roomId))) throw new NotFoundError(tr("err.room.notFound"));
+      return getFunctionStates({ roomIds: [roomId] });
+    },
+  );
   registerTool(
     server,
     context,
@@ -270,7 +322,7 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_rooms",
       description:
-        "List bookable rooms with campus/building labels, status and capacity. Rooms are separate from storage locations. Follow nextOffset.",
+        "List bookable rooms with campus/building labels, status, capacity, knownIssues and lastCheckedAt. Rooms are separate from storage locations. Follow nextOffset.",
       schema: pagination.extend({
         campusId: id.optional(),
         status: z.enum(RoomStatus).optional(),
@@ -278,7 +330,12 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       }),
     },
     async (input) =>
-      page((await listRooms(input, queryPage(input))).map(withRoomBookingAction), input),
+      page(
+        (await withCustomValues("ROOM", await listRooms(input, queryPage(input)))).map(
+          withRoomBookingAction,
+        ),
+        input,
+      ),
   );
   registerTool(
     server,
@@ -288,7 +345,8 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       description: "Get a bookable room by ID, including its capabilities, campus and building.",
       schema: byId,
     },
-    async ({ id }) => withRoomBookingAction(await found(getRoom(id))),
+    async ({ id }) =>
+      withRoomBookingAction((await withCustomValues("ROOM", [await found(getRoom(id))], true))[0]),
   );
   registerTool(
     server,
@@ -322,9 +380,14 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
       name: "list_equipment_models",
       description:
         "List equipment catalog models and instance/fault counts. Follow nextOffset; use list_equipment with modelId for instances.",
-      schema: pagination.extend({ category: z.enum(EquipmentCategory).optional(), q }),
+      schema: pagination.extend({
+        kindId: id.optional(),
+        category: z.enum(EquipmentCategory).optional(),
+        q,
+      }),
     },
-    async (input) => page(await listModels(input, queryPage(input)), input),
+    async (input) =>
+      page((await listModels(input, queryPage(input))).map(withMcpEquipmentKind), input),
   );
   registerTool(
     server,
@@ -335,7 +398,28 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
         "Get an equipment catalog model by ID. Use list_equipment with modelId for its instances.",
       schema: byId,
     },
-    ({ id }) => found(getModel(id)),
+    async ({ id }) => withMcpEquipmentKind(await found(getModel(id))),
+  );
+  registerTool(
+    server,
+    context,
+    {
+      name: "list_device_kinds",
+      description:
+        "List function groups in display order with their device kinds. Names are installation data. Use a kind ID in device/model writes and filters. Active groups and kinds only by default.",
+      schema: z.object({ includeArchived: z.boolean().default(false) }),
+    },
+    async ({ includeArchived }) =>
+      (await listDeviceKinds(includeArchived)).map((group) => ({
+        ...group,
+        kinds: group.kinds.map(({ systemKey, _count, ...kind }) => ({
+          ...kind,
+          key: systemKey,
+          groupId: group.id,
+          deviceCount: _count?.equipment ?? 0,
+          modelCount: _count?.models ?? 0,
+        })),
+      })),
   );
   registerTool(
     server,
@@ -343,10 +427,11 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "list_equipment",
       description:
-        "List equipment instances with room/model names, asset tags, category, mobility and status. Follow nextOffset.",
+        "List equipment instances with room/model names, kind and function group, asset tags, mobility and status. Filter by kindId; category is a deprecated compatibility alias, ignored when kindId is given. Follow nextOffset.",
       schema: pagination.extend({
         roomId: id.optional(),
         modelId: id.optional(),
+        kindId: id.optional(),
         category: z.enum(EquipmentCategory).optional(),
         status: z.enum(EquipmentStatus).optional(),
         mobility: z.enum(EquipmentMobility).optional(),
@@ -355,7 +440,9 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     },
     async (input) =>
       page(
-        (await listEquipment(input, queryPage(input))).map(withEquipmentAllocationAction),
+        (await withCustomValues("EQUIPMENT", await listEquipment(input, queryPage(input))))
+          .map(withMcpEquipmentKind)
+          .map(withEquipmentAllocationAction),
         input,
       ),
   );
@@ -365,10 +452,15 @@ export function registerReadTools(server: McpServer, context: McpContext): void 
     {
       name: "get_equipment",
       description:
-        "Get an equipment instance, its catalog model, room and spare/substitute links by ID.",
+        "Get an equipment instance, model, room, ordered ports, both-ended connections and port action legality, plus spare/substitute links by ID. Write permission still requires a write token.",
       schema: byId,
     },
-    async ({ id }) => withEquipmentAllocationAction(await found(getEquipment(id))),
+    async ({ id }) =>
+      withEquipmentAllocationAction(
+        withMcpEquipmentKind(
+          (await withCustomValues("EQUIPMENT", [await found(getEquipment(id))], true))[0],
+        ),
+      ),
   );
   registerTool(
     server,

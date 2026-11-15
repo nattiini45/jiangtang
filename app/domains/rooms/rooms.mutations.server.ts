@@ -1,10 +1,15 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
+import { applyRoomCustomValuesInTx } from "./rooms.custom-values.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
+import { emitChange } from "~/lib/realtime/emit.server";
+import { applyRoomExpectationsInTx } from "./room-types.mutations.server";
+import { legacyFunctionFlags } from "~/domains/functions/functions.expectations";
 import type { Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { ensureUniqueSlug } from "~/lib/slug.server";
 import { createEquipmentInTx } from "~/domains/inventory/inventory.mutations.server";
-import type { Building, Campus, Room } from "~/generated/prisma/client";
+import type { Building, Campus, Room, Prisma } from "~/generated/prisma/client";
 import { buildingNameExists, campusNameExists } from "./rooms.queries.server";
 import type {
   BuildingCreateInput,
@@ -235,6 +240,8 @@ function roomFields(
     manualUrl: input.manualUrl ?? null,
     virtualTourUrl: input.virtualTourUrl ?? null,
     tipsNotes: input.tipsNotes ?? null,
+    knownIssues: input.knownIssues ?? null,
+    lastCheckedAt: input.lastCheckedAt ?? null,
     renewalStatus: input.renewalStatus ?? null,
     renewalFrom: input.renewalFrom ?? null,
     renewalTo: input.renewalTo ?? null,
@@ -243,6 +250,7 @@ function roomFields(
 
 export async function createRoom(actor: AuditActor, input: RoomCreateInput): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    if (input.customValues !== undefined) await lockDefinitions(tx);
     const location = await resolveLocation(tx, audit, input);
     const slug = await ensureUniqueSlug(input.name, (s) => roomSlugTaken(tx, s));
     let room;
@@ -258,11 +266,19 @@ export async function createRoom(actor: AuditActor, input: RoomCreateInput): Pro
       }
       throw e;
     }
+    await writeRoomExpectations(tx, audit, room.id, input);
+    room = await tx.room.findUniqueOrThrow({ where: { id: room.id } });
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyRoomCustomValuesInTx(tx, room.id, input.customValues);
+    if (input.customValues !== undefined)
+      room = await tx.room.findUniqueOrThrow({ where: { id: room.id } });
     await audit({
       action: "RoomCreated",
       entityType: "room",
       entityId: room.id,
-      data: { name: room.name, slug: room.slug },
+      data: { name: room.name, slug: room.slug, ...custom },
     });
     return room;
   });
@@ -274,11 +290,45 @@ export async function updateRoom(
   input: RoomEditInput,
 ): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    const previous = await tx.room.findUniqueOrThrow({ where: { id } });
+    const data =
+      input.customValues === undefined
+        ? undefined
+        : await applyRoomCustomValuesInTx(tx, id, input.customValues);
     const location = await resolveLocation(tx, audit, input);
-    const room = await tx.room.update({ where: { id }, data: roomFields(input, location) });
-    await audit({ action: "RoomUpdated", entityType: "room", entityId: room.id });
+    await tx.room.update({ where: { id }, data: roomFields(input, location) });
+    await writeRoomExpectations(tx, audit, id, input, previous);
+    const room = await tx.room.findUniqueOrThrow({ where: { id } });
+    await audit({ action: "RoomUpdated", entityType: "room", entityId: room.id, data });
     return room;
   });
+}
+
+async function writeRoomExpectations(
+  tx: Tx,
+  audit: AuditFn,
+  roomId: string,
+  input: Pick<
+    RoomCreateInput,
+    "roomTypeId" | "expectations" | (typeof legacyFunctionFlags)[keyof typeof legacyFunctionFlags]
+  >,
+  previous?: Room,
+) {
+  let expectations = input.expectations;
+  if (expectations === undefined) {
+    const functions = await tx.roomFunction.findMany({ where: { archivedAt: null } });
+    expectations = Object.entries(legacyFunctionFlags).flatMap(([key, flag]) => {
+      const fn = functions.find((fn) => fn.systemKey === key);
+      return fn && (input[flag] || previous?.[flag])
+        ? [{ functionId: fn.id, expected: input[flag] }]
+        : [];
+    });
+  }
+  if (input.roomTypeId !== undefined || input.expectations !== undefined || expectations.length)
+    await applyRoomExpectationsInTx(tx, audit, roomId, {
+      roomTypeId: input.roomTypeId,
+      expectations,
+    });
 }
 
 /** Retire (never delete — FK RESTRICT from bookings): status → OUT_OF_SERVICE. */
@@ -288,6 +338,23 @@ export async function retireRoom(actor: AuditActor, id: string): Promise<Room> {
     await audit({ action: "RoomRetired", entityType: "room", entityId: room.id });
     return room;
   });
+}
+
+export async function markRoomChecked(actor: AuditActor, id: string): Promise<Room> {
+  const room = await txWithAudit(actor, (tx, audit) => markRoomCheckedInTx(tx, audit, id));
+  await emitChange({ entityType: "room", id, op: "updated" });
+  return room;
+}
+
+export async function markRoomCheckedInTx(tx: Tx, audit: AuditFn, id: string, now = new Date()) {
+  const checked = await tx.room.update({ where: { id }, data: { lastCheckedAt: now } });
+  await audit({
+    action: "RoomChecked",
+    entityType: "room",
+    entityId: id,
+    data: { lastCheckedAt: now.toISOString() },
+  });
+  return checked;
 }
 
 /**
@@ -302,9 +369,10 @@ export async function cloneRoom(
   input: RoomCloneInput,
 ): Promise<Room> {
   return txWithAudit(actor, async (tx, audit) => {
+    await lockDefinitions(tx);
     const source = await tx.room.findUnique({
       where: { slug: sourceSlug },
-      include: { equipment: true },
+      include: { equipment: true, functionExpectations: true },
     });
     if (!source) throw new NotFoundError(tr("places.err.room.sourceNotFound"));
 
@@ -328,6 +396,7 @@ export async function cloneRoom(
         videoInputs: input.copyCapabilities ? source.videoInputs : [],
         audioOutputs: input.copyCapabilities ? source.audioOutputs : [],
         tipsNotes: input.copyTips ? source.tipsNotes : null,
+        customValues: source.customValues as Prisma.InputJsonObject,
       },
     });
 
@@ -350,6 +419,7 @@ export async function cloneRoom(
           // writer set is identical before and after a clone.
           modelId: u.modelId ?? undefined,
           category: u.category,
+          kindId: u.kindId ?? undefined,
           mobility: "FIXED",
           // Preserve the source unit's status (e.g. FAULTY/MAINTENANCE) — cloning
           // must not silently "fix" a broken unit by upgrading it to OPERATIONAL.
@@ -361,18 +431,28 @@ export async function cloneRoom(
           band: u.band ?? undefined,
           lampType: u.lampType ?? undefined,
           color: u.color ?? undefined,
+          copiedValues: u.customValues as Prisma.InputJsonObject,
         });
         copiedEquipment++;
       }
     }
 
+    if (input.copyFeatures)
+      await applyRoomExpectationsInTx(tx, audit, room.id, {
+        roomTypeId: source.roomTypeId,
+        expectations: source.functionExpectations.map((row) => ({
+          functionId: row.functionId,
+          expected: row.expected,
+          note: row.note ?? undefined,
+        })),
+      });
     await audit({
       action: "RoomCloned",
       entityType: "room",
       entityId: room.id,
       data: { fromId: source.id, fromSlug: source.slug, copiedEquipment },
     });
-    return room;
+    return tx.room.findUniqueOrThrow({ where: { id: room.id } });
   });
 }
 
@@ -388,6 +468,7 @@ export async function bulkCreateRooms(
   return txWithAudit(
     actor,
     async (tx, audit) => {
+      if (rows.some((row) => row.customValues !== undefined)) await lockDefinitions(tx);
       const items: Pick<Room, "id" | "name" | "slug">[] = [];
       for (const row of rows) {
         let campusId: string | null = null;
@@ -415,13 +496,20 @@ export async function bulkCreateRooms(
             mediaKeyRequired: row.mediaKeyRequired,
             videoInputs: row.videoInputs,
             audioOutputs: row.audioOutputs,
+            knownIssues: row.knownIssues ?? null,
+            lastCheckedAt: row.lastCheckedAt ?? null,
           },
         });
+        await writeRoomExpectations(tx, audit, room.id, row);
+        const custom =
+          row.customValues === undefined
+            ? {}
+            : await applyRoomCustomValuesInTx(tx, room.id, row.customValues);
         await audit({
           action: "RoomCreated",
           entityType: "room",
           entityId: room.id,
-          data: { name: room.name, slug: room.slug, viaImport: true },
+          data: { name: room.name, slug: room.slug, viaImport: true, ...custom },
         });
         items.push({ id: room.id, name: room.name, slug: room.slug });
       }

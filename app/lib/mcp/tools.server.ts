@@ -5,7 +5,9 @@ import { NotFoundError, toErrorResponse, ValidationError } from "~/lib/errors.se
 import { formatDateTime } from "~/i18n/format";
 import { currentLocale, tr } from "~/i18n/request-locale.server";
 import { Prisma } from "~/generated/prisma/client";
+import type { EquipmentKindSummary } from "~/lib/equipment-kinds/kinds.server";
 import type { McpContext } from "./types.server";
+import { CustomValuesError } from "~/lib/custom-fields/values.server";
 
 const inputSchemas = new Map<string, ReturnType<typeof fromJsonSchema>>();
 
@@ -24,7 +26,26 @@ export function serializeMcp(value: unknown): unknown {
   return value;
 }
 
+export function withMcpEquipmentKind<T extends { kind: EquipmentKindSummary }>(value: T) {
+  const { kind, kindId: _kindId, ...rest } = value as T & { kindId?: string | null };
+  return {
+    ...rest,
+    kind: { id: kind.id, key: kind.systemKey, name: kind.name, group: kind.group },
+  };
+}
+
 export async function mcpError(error: unknown): Promise<CallToolResult> {
+  if (error instanceof CustomValuesError) {
+    error = new Response(
+      JSON.stringify({
+        error: "ValidationError",
+        fieldErrors: error.fieldErrors,
+        formErrors: [],
+        errors: error.errors,
+      }),
+      { status: 422, headers: { "Content-Type": "application/json" } },
+    );
+  }
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2025") error = new NotFoundError();
     else if (error.code === "P2003") {

@@ -280,7 +280,7 @@ describe("event creation actions", () => {
     };
     const created = await post("mobile", { title: `${RUN} mobile`, ...values });
     expect(created).toBeInstanceOf(Response);
-    expect((created as Response).headers.get("Location")).toBe(`/m/events?date=${values.date}`);
+    expect((created as Response).headers.get("Location")).toBe(`/m/calendar?date=${values.date}`);
     expect(await post("mobile", { title: `${RUN} mobile precheck`, ...values })).toMatchObject({
       conflict: true,
     });

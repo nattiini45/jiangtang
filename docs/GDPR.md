@@ -9,6 +9,13 @@ Upgrades between releases keep the data. There is no upgrade path from a databas
 directory from before the first release. The generic CSV, Markdown and workspace-JSON importers are data-entry tools,
 not an upgrade path.
 
+## Custom-field history
+
+Custom-field changes on rooms and devices copy up to 20 changed values into the append-only
+audit log, with each text value limited to 200 characters. Clearing, archiving or deleting a
+custom field does not erase those historical snapshots; avoid putting sensitive personal data
+in custom fields unless the installation's retention and access policies cover that history.
+
 ## Personal time visibility
 
 Time entries are private by default, including from administrators. On a user's admin page,
@@ -18,8 +25,9 @@ Each person's desktop and mobile timesheet names the active people who can see t
 Opening someone else's timesheet is recorded at most once per viewer, person and Europe/Berlin day.
 
 The workspace activity page and its MCP tool require `audit.view` (admins by default). Members
-retain per-record history and the dashboard's recent-activity card; that card omits time-entry
-activity and time-access metadata. Time-entry audit rows are visible only to the entry's owner
+retain per-record history and the home's curated operational changes; that view includes only
+faults opened/resolved/cancelled/reopened, manual function states and completed rounds, not time-entry
+activity, account changes or time-access metadata. Time-entry audit rows are visible only to the entry's owner
 or holders of `time.viewOthers`, including after deletion; `audit.view` alone grants no access
 to other people's time-entry activity. Grant, revoke and view-accountability rows remain visible
 to everyone with `audit.view`. The same ownership rule guards time-entry record history.

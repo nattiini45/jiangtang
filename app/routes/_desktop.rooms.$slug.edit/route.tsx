@@ -1,6 +1,7 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { t } from "~/i18n";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -15,6 +16,7 @@ import { Button } from "~/components/ui/button";
 import { berlinDateInput } from "~/lib/format-date";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
+import { roomExpectationFields } from "~/domains/rooms/room-types.queries.server";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -32,7 +34,12 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const locale = resolveLocale(request);
   const [room, campuses] = await Promise.all([getRoomBySlug(params.slug), listCampuses()]);
   if (!room) throw toErrorResponse(new NotFoundError(t(locale, "err.room.notFound")));
-  return { room, campuses };
+  return {
+    room,
+    campuses,
+    fields: await getFormFields("ROOM"),
+    expectations: await roomExpectationFields(room.id),
+  };
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -52,11 +59,16 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
     const result = safeParse(roomEditSchema, formDataToObject(form), locale);
     if (!result.success) return { fieldErrors: result.fieldErrors };
-    const updated = await updateRoom(actor, room.id, result.data);
+    if (form.get("lastCheckedAt") === form.get("_lastCheckedOriginal")) {
+      result.data.lastCheckedAt = room.lastCheckedAt ?? undefined;
+    }
+    const customValues = await parseFieldForm("ROOM", form, room.customValues);
+    const updated = await updateRoom(actor, room.id, { ...result.data, customValues });
     await emitChange({ entityType: "room", id: updated.id, op: "updated" });
     return redirect(`/rooms/${updated.slug}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("ROOM", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -69,6 +81,7 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
 
   const defaults: RoomDefaults = {
     name: room.name,
+    roomTypeId: room.roomTypeId,
     roomNumber: room.roomNumber,
     campusId: room.campusId,
     buildingId: room.buildingId,
@@ -87,6 +100,8 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
     manualUrl: room.manualUrl,
     virtualTourUrl: room.virtualTourUrl,
     tipsNotes: room.tipsNotes,
+    knownIssues: room.knownIssues,
+    lastCheckedAt: berlinDateInput(room.lastCheckedAt),
     renewalStatus: room.renewalStatus,
     renewalFrom: berlinDateInput(room.renewalFrom),
     renewalTo: berlinDateInput(room.renewalTo),
@@ -102,7 +117,19 @@ export default function EditRoom({ loaderData, actionData }: Route.ComponentProp
       </div>
 
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors} className="mt-4">
-        <RoomFormFields campuses={campuses} defaults={defaults} />
+        <input
+          type="hidden"
+          name="_lastCheckedOriginal"
+          value={berlinDateInput(room.lastCheckedAt)}
+        />
+        <RoomFormFields
+          key={room.id}
+          campuses={campuses}
+          defaults={defaults}
+          fields={loaderData.fields}
+          stored={room.customValues}
+          expectations={loaderData.expectations}
+        />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.saving") : t("rooms.edit.submit")}

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { customValuesInput } from "~/lib/custom-fields/values.schema";
 import { msgKey } from "~/i18n";
 import {
   EquipmentCategory,
@@ -46,7 +47,9 @@ const optionalJson = z.preprocess(emptyToUndefined, z.string().optional()).super
 
 export const equipmentCreateSchema = z
   .object({
-    category: z.enum(EquipmentCategory),
+    customValues: customValuesInput,
+    category: z.enum(EquipmentCategory).optional(),
+    kindId: optionalId,
     modelId: optionalId,
     roomId: optionalId,
     mobility: z.enum(EquipmentMobility).default(EquipmentMobility.FIXED),
@@ -73,6 +76,13 @@ export const equipmentCreateSchema = z
     attributes: optionalJson,
   })
   .superRefine((v, ctx) => {
+    if (!v.kindId && !v.category) {
+      ctx.addIssue({
+        path: ["kindId"],
+        code: "custom",
+        message: msgKey("inventory.form.kindRequired"),
+      });
+    }
     if (v.mobility === "FIXED" && !v.roomId) {
       ctx.addIssue({
         path: ["roomId"],
@@ -92,7 +102,7 @@ export const equipmentCreateSchema = z
 export const equipmentEditSchema = equipmentCreateSchema;
 
 export type EquipmentCreateInput = z.infer<typeof equipmentCreateSchema>;
-export type EquipmentEditInput = z.infer<typeof equipmentEditSchema>;
+export type EquipmentEditInput = EquipmentCreateInput;
 
 // ── Equipment CSV bulk import ────────────────────────────────────────────────
 // `modell` is matched/auto-created by name; `raum` is matched by slug, room
@@ -152,24 +162,25 @@ const csvEqStatus = z.preprocess((v) => {
   return EQ_STATUS_MAP[s] ?? s.toUpperCase();
 }, z.enum(EquipmentStatus));
 
-export const equipmentCsvRowSchema = z
-  .object({
-    kategorie: csvCategory,
-    modell: optionalText,
-    raum: optionalText,
-    mobilitaet: csvMobility,
-    status: csvEqStatus,
-    name: optionalText,
-    inventarnr: optionalText,
-    seriennummer: optionalText,
-    hostname: optionalText,
-    ip: optionalIp,
-    mac: optionalMac,
-    frequenz: optionalFloat,
-    band: optionalText,
-    kanal: optionalText,
-  })
-  .transform((r) => ({
+const equipmentCsvFieldsSchema = z.object({
+  kategorie: csvCategory,
+  modell: optionalText,
+  raum: optionalText,
+  mobilitaet: csvMobility,
+  status: csvEqStatus,
+  name: optionalText,
+  inventarnr: optionalText,
+  seriennummer: optionalText,
+  hostname: optionalText,
+  ip: optionalIp,
+  mac: optionalMac,
+  frequenz: optionalFloat,
+  band: optionalText,
+  kanal: optionalText,
+});
+
+function equipmentCsvFields(r: z.infer<typeof equipmentCsvFieldsSchema>) {
+  return {
     category: r.kategorie,
     modelText: r.modell,
     roomText: r.raum,
@@ -184,6 +195,27 @@ export const equipmentCsvRowSchema = z
     frequencyMhz: r.frequenz,
     band: r.band,
     channelLabel: r.kanal,
+  };
+}
+
+export const equipmentCsvRowSchema = equipmentCsvFieldsSchema.transform(equipmentCsvFields);
+
+export const equipmentBulkRowSchema = equipmentCsvFieldsSchema
+  .extend({
+    customValues: customValuesInput,
+    kategorie: csvCategory.optional(),
+    kindId: optionalId,
+  })
+  .refine((row) => row.kindId || row.kategorie, {
+    path: ["kindId"],
+    message: msgKey("inventory.form.kindRequired"),
+  })
+  .transform((row) => ({
+    ...(row.customValues === undefined ? {} : { customValues: row.customValues }),
+    ...equipmentCsvFields({ ...row, kategorie: row.kategorie ?? "OTHER" }),
+    kindId: row.kindId,
   }));
 
-export type EquipmentCsvRow = z.infer<typeof equipmentCsvRowSchema>;
+export type EquipmentCsvRow = z.infer<typeof equipmentCsvRowSchema> & {
+  customValues?: Record<string, unknown>;
+};

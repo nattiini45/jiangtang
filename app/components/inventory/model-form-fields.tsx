@@ -2,22 +2,40 @@ import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
-import { EquipmentCategory } from "~/generated/prisma/enums";
-import { useLocale, useT } from "~/i18n/use-t";
-import { categoryLabel } from "./labels";
+import { useT } from "~/i18n/use-t";
+import { KindOptions, type KindGroups } from "./kind-options";
+import { useState } from "react";
+import { FieldInputs } from "~/components/fields/field-inputs";
+import type { Field } from "~/lib/custom-fields/fields";
 
 export interface ModelDefaults {
   manufacturer?: string | null;
   name?: string;
   category?: string;
+  kindId?: string;
   specNotes?: string | null;
   manualUrl?: string | null;
 }
 
 /** Shared field block for the create + edit model forms (bound to ZodForm). */
-export function ModelFormFields({ defaults }: { defaults?: ModelDefaults }) {
+export function ModelFormFields({
+  defaults,
+  kinds,
+  fields = [],
+  stored,
+}: {
+  defaults?: ModelDefaults;
+  kinds: KindGroups;
+  fields?: Field[];
+  stored?: unknown;
+}) {
   const t = useT();
-  const locale = useLocale();
+  const options = kinds.flatMap((group) => group.kinds);
+  const [kindId, setKindId] = useState(
+    defaults?.kindId ??
+      options.find((kind) => kind.systemKey === "projector")?.id ??
+      options[0]?.id,
+  );
   return (
     <>
       <FormField
@@ -39,13 +57,14 @@ export function ModelFormFields({ defaults }: { defaults?: ModelDefaults }) {
           placeholder={t("inventory.models.namePlaceholder")}
         />
       </FormField>
-      <FormField name="category" label={t("inventory.models.category")}>
-        <Select name="category" defaultValue={defaults?.category ?? "PROJECTOR"}>
-          {Object.values(EquipmentCategory).map((c) => (
-            <option key={c} value={c}>
-              {categoryLabel(locale, c)}
-            </option>
-          ))}
+      <FormField name="kindId" label={t("inventory.kind")}>
+        <Select
+          name="kindId"
+          required
+          value={kindId}
+          onChange={(event) => setKindId(event.currentTarget.value)}
+        >
+          <KindOptions groups={kinds} />
         </Select>
       </FormField>
       <FormField name="specNotes" label={t("inventory.models.specNotes")}>
@@ -63,6 +82,20 @@ export function ModelFormFields({ defaults }: { defaults?: ModelDefaults }) {
           placeholder="https://…"
         />
       </FormField>
+      {fields.some(
+        (field) =>
+          field.level === "MODEL" &&
+          (!field.kinds.length || field.kinds.some((link) => link.kindId === kindId)),
+      ) ? (
+        <section className="flex min-w-0 flex-col gap-3">
+          <h2 className="text-base font-semibold">{t("fields.model.sheet")}</h2>
+          <FieldInputs
+            fields={fields.filter((field) => field.level === "MODEL")}
+            kindId={kindId}
+            stored={stored}
+          />
+        </section>
+      ) : null}
     </>
   );
 }

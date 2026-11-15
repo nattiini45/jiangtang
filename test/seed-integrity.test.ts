@@ -265,7 +265,7 @@ describe("demo seed integrity", () => {
         await tx.event.deleteMany({ where: { id: "seed_event_hybrid" } });
         await tx.equipment.deleteMany({ where: { id: "seed_equipment_projector_a01" } });
         await tx.equipmentModel.deleteMany({ where: { id: "seed_model_projector" } });
-        await tx.room.deleteMany({ where: { id: "seed_room_a01" } });
+        await tx.room.deleteMany({ where: { id: { in: ["seed_room_a01", "seed_room_a02"] } } });
 
         const audit = auditOn(tx);
         const beforeAudit = await countSeedAuditRows(tx);
@@ -277,7 +277,7 @@ describe("demo seed integrity", () => {
           "event",
           "eventRoomBooking",
         ] as const) {
-          expect(first.created[key], key).toBe(1);
+          expect(first.created[key], key).toBe(key === "room" ? 2 : 1);
           expect(first.skipped[key], key).toBe(0);
         }
         expect((await countSeedAuditRows(tx)) - beforeAudit).toBe(first.auditRows);
@@ -359,7 +359,7 @@ describe("demo seed integrity", () => {
     // arrays and the published numbers from drifting apart behind a green suite.
     expect(() => assertCountsMatchSpec()).not.toThrow();
     expect(EXPECTED_COUNTS).toEqual({
-      room: 1,
+      room: 2,
       equipmentModel: 1,
       equipment: 1,
       event: 1,
@@ -845,7 +845,7 @@ describe("demo seed integrity", () => {
     // `Note.authorId` (NOT NULL) makes mandatory. If the seed ever starts
     // writing something the counts do not mention, this stops matching.
     const published = Object.values(EXPECTED_COUNTS).reduce((a, b) => a + b, 0);
-    expect(published).toBe(148);
+    expect(published).toBe(149);
     expect(EXPECTED_SEEDED_ROW_COUNT).toBe(published + EXPECTED_DEMO_USER_COUNT);
 
     // Every id unique and prefixed, so demo rows are identifiable at a glance

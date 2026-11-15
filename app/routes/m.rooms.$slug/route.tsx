@@ -1,8 +1,11 @@
 import { Form, Link, redirect } from "react-router";
+import { useState } from "react";
+import { RoomFunctions } from "~/components/rooms/room-functions";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { ViewSwitch } from "~/components/layout/view-switch";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { FieldValues } from "~/components/fields/field-values";
 import { NotFoundError, toErrorResponse } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { getRoomDashboard } from "~/domains/rooms/rooms.dashboard.server";
@@ -20,6 +23,7 @@ import { categoryLabel } from "~/components/inventory/labels";
 import { t as translate } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { readingDevices } from "~/domains/readings/readings.queries.server";
 
 /**
  * Mobile room detail. A condensed view of the desktop dashboard —
@@ -55,6 +59,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     const qr = await qrSvg(qrHref);
     return {
       data,
+      readingDeviceIds: (await readingDevices({ roomId: data.room.id })).map((device) => device.id),
       attachments,
       qr,
       qrHref,
@@ -68,6 +73,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
+  const [opened, setOpened] = useState<string[]>([]);
   const locale = useLocale();
   const t = useT();
   const { room, equipment, openTickets } = loaderData.data;
@@ -85,6 +91,11 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-lg font-bold">{room.name}</h1>
         </div>
+        {room.roomTypeName ? (
+          <p className="text-sm text-muted-foreground">
+            {t("functions.types.label")}: {room.roomTypeName}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted-foreground">{t("mobileDetails.roomStatus")}</span>
           <StatusBadge kind="room" value={room.status} />
@@ -97,8 +108,18 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
       </div>
 
       <Button asChild className="min-h-11 w-full">
-        <Link to={`/m?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
+        <Link to={`/m/quick-entry?roomId=${room.id}`}>{t("mobile.rooms.newEntry")}</Link>
       </Button>
+      <FieldValues fields={room.fields} foldAfter={8} />
+      <RoomFunctions
+        functions={loaderData.data.functions}
+        roomId={room.id}
+        roomStatus={room.status}
+        roomSlug={room.slug}
+        knownIssues={room.knownIssues}
+        fixFunctions={loaderData.data.fixFunctions}
+        mobile
+      />
 
       <section className="flex min-w-0 flex-col gap-3">
         <h2 className="text-base font-semibold">{t("mobileDetails.schedule")}</h2>
@@ -191,7 +212,7 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
             {equipment.map((e) => (
               <li key={e.id}>
                 <Link
-                  to={`/m?roomId=${room.id}&equipmentId=${e.id}`}
+                  to={`/m/quick-entry?roomId=${room.id}&equipmentId=${e.id}`}
                   className="hover:bg-hover active:bg-selected flex min-h-12 flex-wrap items-center gap-2 px-3 py-3 text-sm"
                 >
                   <span className="min-w-0 flex-1">{e.name ?? e.modelName ?? "—"}</span>
@@ -205,6 +226,41 @@ export default function MobileRoomDetail({ loaderData }: Route.ComponentProps) {
                     })}
                   </span>
                 </Link>
+                {loaderData.readingDeviceIds.includes(e.id) ? (
+                  <Link
+                    to={`/m/inventory/${e.id}/readings`}
+                    className="inline-flex min-h-12 items-center px-3 text-sm underline underline-offset-4"
+                  >
+                    {t("readings.enterAndHistory")}
+                  </Link>
+                ) : null}
+                {e.fields.length ? (
+                  <div className="px-3 pb-3">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="compact"
+                      aria-expanded={opened.includes(e.id)}
+                      aria-label={`${t(opened.includes(e.id) ? "fields.values.hide" : "fields.values.show")}: ${t(
+                        "fields.values.forDevice",
+                        {
+                          name: e.name ?? e.modelName ?? e.kind.name,
+                        },
+                      )}`}
+                      aria-controls={`values-${e.id}`}
+                      onClick={() =>
+                        setOpened((ids) =>
+                          ids.includes(e.id) ? ids.filter((id) => id !== e.id) : [...ids, e.id],
+                        )
+                      }
+                    >
+                      {t(opened.includes(e.id) ? "fields.values.hide" : "fields.values.show")}
+                    </Button>
+                    <div id={`values-${e.id}`} hidden={!opened.includes(e.id)} className="py-3">
+                      {opened.includes(e.id) ? <FieldValues fields={e.fields} /> : null}
+                    </div>
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>

@@ -8,7 +8,8 @@ export const locationsEn = {
   "locations.meta.new": "New location · Jiangtang",
 
   "locations.list.title": "Locations",
-  "locations.list.subtitle": "The tree structure: campuses, buildings, rooms, storage, racks.",
+  "locations.list.subtitle":
+    "Non-bookable places such as storage rooms, cabinets, racks and vehicles that stock, tasks and notes can refer to.",
   "locations.list.new": "New location",
   "locations.list.emptyFiltered": "No locations of this kind. Reset the filter?",
   "locations.list.empty": "No locations yet. Create the first one.",

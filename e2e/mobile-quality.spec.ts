@@ -52,7 +52,14 @@ for (const viewport of [
     expect(accessibility.violations).toEqual([]);
 
     const links = dialog.getByRole("navigation").getByRole("link");
-    await expect(links).toHaveCount(11);
+    await expect(links).toHaveCount(15);
+    await expect(links.filter({ hasText: "Rundgänge" })).toHaveAttribute("href", "/m/rounds");
+    await expect(links.filter({ hasText: "Was geht nicht?" })).toHaveAttribute(
+      "href",
+      "/m/functions",
+    );
+    await expect(links.filter({ hasText: "Kalender" })).toHaveAttribute("href", "/m/calendar");
+    await expect(links.filter({ hasText: "Veranstaltungen" })).toHaveAttribute("href", "/m/events");
     for (const link of await links.all()) {
       await link.scrollIntoViewIfNeeded();
       await expect(link).toBeInViewport({ ratio: 1 });
@@ -162,7 +169,7 @@ test("ticket capture confirms the saved ticket and cancellation requires a delib
   page,
 }) => {
   const title = `${RUN}Mikrofonempfänger im Hörsaal überprüfen`;
-  await page.goto("/m");
+  await page.goto("/m/quick-entry");
   await page.waitForSelector("html[data-hydrated]");
   await expectTarget(page.getByRole("link", { name: "Benachrichtigungen", exact: true }));
   await page.getByLabel("Was ist los?").fill(title);
@@ -188,9 +195,7 @@ test("ticket capture confirms the saved ticket and cancellation requires a delib
   await expect(reopen).toBeVisible();
   expect((await db.ticket.findUniqueOrThrow({ where: { id } })).status).toBe("CANCELLED");
   await reopen.click();
-  await page
-    .getByLabel("Als gelöst markieren")
-    .fill("Empfänger neu verbunden und Funktion geprüft.");
+  await page.getByLabel("Was hat geholfen?").fill("Empfänger neu verbunden und Funktion geprüft.");
   const resolve = page.getByRole("button", { name: "Lösen", exact: true });
   await expectTarget(resolve, 48);
   await resolve.click();
@@ -285,11 +290,11 @@ test("a missing mobile task keeps its 404 status and offers capture recovery", a
   const recovery = page.getByRole("link", { name: "Zur Erfassung", exact: true });
   await expectTarget(recovery);
   await recovery.click();
-  await expect(page).toHaveURL(/\/m$/);
+  await expect(page).toHaveURL(/\/m\/quick-entry$/);
 });
 
 test("the photo picker allows an existing photo without forcing the camera", async ({ page }) => {
-  await page.goto("/m");
+  await page.goto("/m/quick-entry");
   await page.waitForSelector("html[data-hydrated]");
   const chooser = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: "Foto auswählen", exact: true }).click();

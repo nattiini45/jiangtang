@@ -1,10 +1,71 @@
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
+import { applyEquipmentPropertiesInTx } from "./inventory.custom-values.server";
+import { retainLegacyColumns } from "~/lib/custom-fields/legacy.server";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
 import type { Tx } from "~/lib/db.server";
+import {
+  lockKindStructure,
+  resolveEquipmentKind,
+  type EquipmentKindInput,
+} from "~/lib/equipment-kinds/kinds.server";
+import { copyModelPortsInTx } from "./inventory.ports.mutations.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { findOrCreateModel } from "~/domains/catalog/catalog.mutations.server";
+import { applyCatalogModelInTx } from "~/domains/catalog/catalog.library.server";
+import { loadModelCatalog } from "~/lib/catalog/catalog.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 import type { Equipment, Prisma } from "~/generated/prisma/client";
-import type { EquipmentCreateInput, EquipmentCsvRow, EquipmentEditInput } from "./inventory.schema";
+import type { EquipmentCreateInput, EquipmentCsvRow } from "./inventory.schema";
+
+type EquipmentWriteInput = Omit<EquipmentCreateInput, "category"> & EquipmentKindInput;
+type CatalogChanges = { modelId?: string; devices: string[] };
+
+async function resolveCatalogSelection(
+  tx: Tx,
+  audit: AuditFn,
+  input: EquipmentWriteInput & { category: Equipment["category"]; kindId: string },
+  changes: CatalogChanges,
+) {
+  if (!input.modelId?.startsWith("catalog:")) return input;
+  const catalog = await loadModelCatalog();
+  const record = catalog.records.find((record) => record.key === input.modelId?.slice(8));
+  const kind = await resolveEquipmentKind(tx, input);
+  const selected = await tx.equipmentKind.findUniqueOrThrow({ where: { id: kind.kindId } });
+  if (!record || record.kind !== selected.systemKey)
+    throw new ValidationError({ modelId: [tr("inventory.catalog.kindMismatch")] });
+  const result = await applyCatalogModelInTx(tx, audit, record, catalog.version);
+  if (result.changed) Object.assign(changes, { modelId: result.model.id, devices: result.devices });
+  return { ...input, modelId: result.model.id };
+}
+
+async function emitCatalogChanges(changes: CatalogChanges) {
+  if (changes.modelId)
+    await emitChange({ entityType: "equipmentModel", id: changes.modelId, op: "updated" });
+  for (const id of changes.devices)
+    await emitChange({ entityType: "equipment", id, op: "updated" });
+}
+
+export async function moveEquipmentKindInTx(
+  tx: Tx,
+  audit: AuditFn,
+  from: { id: string; name: string },
+  to: { id: string; name: string; category: Equipment["category"] },
+) {
+  const devices = await tx.equipment.findMany({ where: { kindId: from.id }, select: { id: true } });
+  await tx.equipment.updateMany({
+    where: { kindId: from.id },
+    data: { kindId: to.id, category: to.category },
+  });
+  for (const device of devices)
+    await audit({
+      action: "EquipmentUpdated",
+      entityType: "equipment",
+      entityId: device.id,
+      data: { kind: { from: { id: from.id, name: from.name }, to: { id: to.id, name: to.name } } },
+    });
+}
 
 /**
  * Equipment mutations. FIXED units live in a room; POOLED units float (roomId
@@ -12,13 +73,20 @@ import type { EquipmentCreateInput, EquipmentCsvRow, EquipmentEditInput } from "
  * (spare → faulty) is 1:1, enforced by substitutingForId @unique.
  */
 
-function equipmentFields(input: EquipmentCreateInput): Prisma.EquipmentUncheckedCreateInput {
+function equipmentFields(
+  input: EquipmentCreateInput & {
+    category: Equipment["category"];
+    copiedValues?: Prisma.InputJsonObject;
+  },
+): Prisma.EquipmentUncheckedCreateInput {
   return {
     category: input.category,
+    kindId: input.kindId,
     modelId: input.modelId ?? null,
     roomId: input.mobility === "POOLED" ? null : (input.roomId ?? null),
     mobility: input.mobility,
     status: input.status,
+    statusSince: new Date(),
     name: input.name ?? null,
     assetTag: input.assetTag ?? null,
     serial: input.serial ?? null,
@@ -34,6 +102,7 @@ function equipmentFields(input: EquipmentCreateInput): Prisma.EquipmentUnchecked
     lampType: input.lampType ?? null,
     lastLampChangeAt: input.lastLampChangeAt ?? null,
     color: input.color ?? null,
+    customValues: input.copiedValues,
     attributes: input.attributes
       ? (JSON.parse(input.attributes) as Prisma.InputJsonValue)
       : undefined,
@@ -42,18 +111,52 @@ function equipmentFields(input: EquipmentCreateInput): Prisma.EquipmentUnchecked
 
 export async function createEquipment(
   actor: AuditActor,
-  input: EquipmentCreateInput,
+  source: EquipmentWriteInput,
 ): Promise<Equipment> {
-  return txWithAudit(actor, async (tx, audit) => {
-    const eq = await tx.equipment.create({ data: equipmentFields(input) });
+  const changes: CatalogChanges = { devices: [] };
+  const result = await txWithAudit(actor, async (tx, audit) => {
+    await lockDefinitions(tx, source.modelId?.startsWith("catalog:") ?? false);
+    const input = await resolveCatalogSelection(
+      tx,
+      audit,
+      {
+        ...source,
+        ...(await resolveEquipmentKind(tx, source)),
+      },
+      changes,
+    );
+    let eq = await tx.equipment.create({ data: equipmentFields(input) });
+    const custom = await applyEquipmentPropertiesInTx(tx, eq.id, input, eq.kindId);
+    eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
+    await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
       action: "EquipmentCreated",
       entityType: "equipment",
       entityId: eq.id,
-      data: { name: eq.name, category: eq.category, mobility: eq.mobility },
+      data: { name: eq.name, category: eq.category, mobility: eq.mobility, ...custom },
     });
     return eq;
   });
+  await emitCatalogChanges(changes);
+  return result;
+}
+
+export async function restoreEquipmentInTx(tx: Tx, audit: AuditFn, id: string) {
+  await tx.$queryRaw`SELECT id FROM "Equipment" WHERE id = ${id} FOR UPDATE`;
+  const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
+  if (current.status !== "FAULTY" && current.status !== "MAINTENANCE")
+    throw new ValidationError({}, [tr("functions.rounds.invalid")]);
+  const device = await tx.equipment.update({
+    where: { id },
+    data: { status: "OPERATIONAL", statusSince: new Date() },
+  });
+  await audit({
+    action: "EquipmentUpdated",
+    entityType: "equipment",
+    entityId: id,
+    data: { status: "OPERATIONAL", viaCheck: true },
+  });
+  return device;
 }
 
 /**
@@ -94,14 +197,31 @@ export async function createEquipment(
 export async function createEquipmentInTx(
   tx: Tx,
   audit: AuditFn,
-  input: EquipmentCreateInput,
+  source: EquipmentWriteInput & { copiedValues?: Prisma.InputJsonObject },
 ): Promise<Equipment> {
-  const eq = await tx.equipment.create({ data: equipmentFields(input) });
+  await lockDefinitions(tx);
+  const input = { ...source, ...(await resolveEquipmentKind(tx, source)) };
+  if (input.copiedValues) {
+    const cleared = (await getFieldSchema("EQUIPMENT", {}, tx))
+      .filter((field) =>
+        ["frequency", "channel_name", "service_code", "projector.lamp_change"].includes(
+          field.libraryKey ?? "",
+        ),
+      )
+      .map((field) => field.id);
+    input.copiedValues = Object.fromEntries(
+      Object.entries(input.copiedValues).filter(([id]) => !cleared.includes(id)),
+    );
+  }
+  let eq = await tx.equipment.create({ data: equipmentFields(input) });
+  const custom = await applyEquipmentPropertiesInTx(tx, eq.id, input, eq.kindId);
+  eq = await tx.equipment.findUniqueOrThrow({ where: { id: eq.id } });
+  await copyModelPortsInTx(tx, eq.id, eq.modelId);
   await audit({
     action: "EquipmentCreated",
     entityType: "equipment",
     entityId: eq.id,
-    data: { name: eq.name, category: eq.category, mobility: eq.mobility },
+    data: { name: eq.name, category: eq.category, mobility: eq.mobility, ...custom },
   });
   return eq;
 }
@@ -109,25 +229,58 @@ export async function createEquipmentInTx(
 export async function updateEquipment(
   actor: AuditActor,
   id: string,
-  input: EquipmentEditInput,
+  source: EquipmentWriteInput,
 ): Promise<Equipment> {
-  return txWithAudit(actor, async (tx, audit) => {
-    const fields = equipmentFields(input);
-    const { eq, auditData } =
+  const changes: CatalogChanges = { devices: [] };
+  const result = await txWithAudit(actor, async (tx, audit) => {
+    await lockDefinitions(tx, source.modelId?.startsWith("catalog:") ?? false);
+    await lockKindStructure(tx);
+    const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
+    const input = await resolveCatalogSelection(
+      tx,
+      audit,
+      {
+        ...source,
+        ...(await resolveEquipmentKind(tx, source, current.kindId)),
+      },
+      changes,
+    );
+    const fields = {
+      ...equipmentFields(input),
+      statusSince: input.status !== current.status ? new Date() : current.statusSince,
+      ...retainLegacyColumns(await getFieldSchema("EQUIPMENT", {}, tx), input.kindId, input),
+    };
+    const auditData =
       input.status === "RETIRED"
-        ? await retireEquipmentInTx(tx, id, fields)
-        : {
-            eq: await tx.equipment.update({ where: { id }, data: fields }),
-            auditData: undefined,
-          };
+        ? (await retireEquipmentInTx(tx, id, fields)).auditData
+        : undefined;
+    if (input.status !== "RETIRED") await tx.equipment.update({ where: { id }, data: fields });
+    const custom = await applyEquipmentPropertiesInTx(
+      tx,
+      id,
+      input,
+      input.kindId,
+      input.modelId ?? null,
+    );
+    const eq = await tx.equipment.findUniqueOrThrow({ where: { id } });
+    if (
+      input.modelId !== current.modelId &&
+      !(await tx.equipmentPort.count({ where: { equipmentId: eq.id } }))
+    )
+      await copyModelPortsInTx(tx, eq.id, eq.modelId);
     await audit({
       action: "EquipmentUpdated",
       entityType: "equipment",
       entityId: eq.id,
-      data: auditData,
+      data:
+        custom === undefined
+          ? auditData
+          : { ...(auditData as Prisma.InputJsonObject | undefined), ...custom },
     });
     return eq;
   });
+  await emitCatalogChanges(changes);
+  return result;
 }
 
 async function retireEquipmentInTx(
@@ -135,9 +288,15 @@ async function retireEquipmentInTx(
   id: string,
   data: Prisma.EquipmentUncheckedUpdateInput = {},
 ) {
+  const current = await tx.equipment.findUniqueOrThrow({ where: { id } });
   const eq = await tx.equipment.update({
     where: { id },
-    data: { ...data, status: "RETIRED", substitutingForId: null },
+    data: {
+      ...data,
+      status: "RETIRED",
+      statusSince: current.status === "RETIRED" ? current.statusSince : new Date(),
+      substitutingForId: null,
+    },
   });
   const clearedSpare = await tx.equipment.updateMany({
     where: { substitutingForId: id },
@@ -251,11 +410,12 @@ export async function setSubstitution(
  */
 export async function bulkCreateEquipment(
   actor: AuditActor,
-  rows: EquipmentCsvRow[],
+  rows: (EquipmentCsvRow & { kindId?: string })[],
 ): Promise<{ created: number; items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] }> {
   return txWithAudit(
     actor,
     async (tx, audit) => {
+      await lockDefinitions(tx);
       const items: Pick<Equipment, "id" | "name" | "category" | "assetTag">[] = [];
       for (const row of rows) {
         // `EquipmentModel` belongs to `catalog/`, so `catalog/` writes it — and it
@@ -263,7 +423,11 @@ export async function bulkCreateEquipment(
         // outside this batch's rollback. The old inline create at
         // this spot was the cross-folder write the domain-ownership rule forbids.
         const modelId = row.modelText
-          ? await findOrCreateModel(tx, audit, { name: row.modelText, category: row.category })
+          ? await findOrCreateModel(tx, audit, {
+              name: row.modelText,
+              category: row.category,
+              kindId: row.kindId,
+            })
           : null;
 
         let roomId: string | null = null;
@@ -292,11 +456,12 @@ export async function bulkCreateEquipment(
 
         const eq = await tx.equipment.create({
           data: {
-            category: row.category,
+            ...(await resolveEquipmentKind(tx, row)),
             modelId,
             roomId,
             mobility: row.mobility,
             status: row.status,
+            statusSince: new Date(),
             name: row.name ?? null,
             assetTag: row.assetTag ?? null,
             serial: row.serial ?? null,
@@ -308,11 +473,13 @@ export async function bulkCreateEquipment(
             channelLabel: row.channelLabel ?? null,
           },
         });
+        const custom = await applyEquipmentPropertiesInTx(tx, eq.id, row, eq.kindId);
+        await copyModelPortsInTx(tx, eq.id, eq.modelId);
         await audit({
           action: "EquipmentCreated",
           entityType: "equipment",
           entityId: eq.id,
-          data: { name: eq.name, viaImport: true },
+          data: { name: eq.name, viaImport: true, ...custom },
         });
         items.push({ id: eq.id, name: eq.name, category: eq.category, assetTag: eq.assetTag });
       }

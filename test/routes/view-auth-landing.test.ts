@@ -7,7 +7,7 @@ import * as twoFactor from "~/routes/login_.two-factor/route";
 import * as invite from "~/routes/accept-invite.$token/route";
 import * as preference from "~/routes/prefs.view/route";
 import { listTicketTargets } from "~/domains/tickets/tickets.queries.server";
-import * as capture from "~/routes/m._index/route";
+import * as capture from "~/routes/m.quick-entry/route";
 
 vi.mock("~/lib/auth.server", async (original) => ({
   ...(await original<typeof import("~/lib/auth.server")>()),

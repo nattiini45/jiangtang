@@ -127,7 +127,9 @@ describe("page titles", () => {
     expect(pick("de", "/m.tasks.new/")).toBe("Aufgabe anlegen · Jiangtang");
     expect(pick("en", "/m.rooms._index/")).toBe("Rooms · Jiangtang");
     expect(pick("de", "/m.rooms._index/")).toBe("Räume · Jiangtang");
-    expect(pick("en", "/m._index/")).toBe("Capture · Jiangtang");
-    expect(pick("de", "/m._index/")).toBe("Eintrag · Jiangtang");
+    expect(pick("en", "/m._index/")).toBe("Overview · Jiangtang");
+    expect(pick("de", "/m._index/")).toBe("Übersicht · Jiangtang");
+    expect(pick("en", "/m.quick-entry/")).toBe("Capture · Jiangtang");
+    expect(pick("de", "/m.quick-entry/")).toBe("Eintrag · Jiangtang");
   });
 });

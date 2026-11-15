@@ -46,7 +46,7 @@ describe("mobile recovery", () => {
       });
       expect(result.status).toBe(404);
       expect(result.html).toContain(locale === "de" ? "Eintrag nicht gefunden" : "Entry not found");
-      expect(result.html).toContain('href="/m"');
+      expect(result.html).toContain('href="/m/quick-entry"');
       expect(result.html).not.toContain("unexpected");
       expect(result.html).not.toContain("Structured missing entry");
     });
@@ -63,7 +63,7 @@ describe("mobile recovery", () => {
         locale === "de" ? "Seite konnte nicht angezeigt werden" : "The page could not be shown",
       );
       expect(result.html).toContain('href="/m/test?filter=1"');
-      expect(result.html).toContain('href="/m"');
+      expect(result.html).toContain('href="/m/quick-entry"');
       expect(result.html).not.toContain("Internal diagnostic detail");
     });
   }

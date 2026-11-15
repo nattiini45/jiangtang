@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
@@ -9,6 +10,8 @@ import { useLocale, useT } from "~/i18n/use-t";
 import type { Locale } from "~/i18n/locales";
 import type { Translate } from "~/i18n";
 import { priorityOptions, ticketStatusLabel, ticketTypeLabel } from "./labels";
+import { KnownFixes } from "~/components/rooms/room-functions";
+import type { RoomFunctionState } from "~/domains/functions/functions.queries.server";
 
 export interface TicketRoomOption {
   id: string;
@@ -50,15 +53,22 @@ export function TicketFormFields({
   equipment,
   users,
   defaults = {},
+  functions,
 }: {
   mode: "create" | "edit";
   rooms: TicketRoomOption[];
   equipment: TicketEquipmentOption[];
   users: AssignableUser[];
   defaults?: TicketDefaults;
+  functions?: Pick<RoomFunctionState, "roomId" | "functionId" | "name" | "knownFixes">[];
 }) {
   const t = useT();
   const locale = useLocale();
+  const [roomId, setRoomId] = useState(defaults.roomId ?? "");
+  const [type, setType] = useState(defaults.type ?? TicketType.INCIDENT);
+  const [functionId, setFunctionId] = useState("");
+  const [status, setStatus] = useState(defaults.status ?? "OPEN");
+  const selected = functions?.find((row) => row.roomId === roomId && row.functionId === functionId);
   const assigned = new Set(defaults.assigneeIds ?? []);
 
   return (
@@ -69,7 +79,11 @@ export function TicketFormFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField name="type" label={t("tickets.form.type")}>
-          <Select name="type" defaultValue={defaults.type ?? TicketType.INCIDENT}>
+          <Select
+            name="type"
+            value={type}
+            onChange={(event) => setType(event.target.value as TicketType)}
+          >
             {Object.values(TicketType).map((type) => (
               <option key={type} value={type}>
                 {ticketTypeLabel(locale, type)}
@@ -112,7 +126,7 @@ export function TicketFormFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField name="roomId" label={t("tickets.form.room")} hint={t("common.optional")}>
-          <Select name="roomId" defaultValue={defaults.roomId ?? ""}>
+          <Select name="roomId" value={roomId} onChange={(event) => setRoomId(event.target.value)}>
             <option value="">{t("tickets.form.noRoom")}</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
@@ -139,6 +153,39 @@ export function TicketFormFields({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {functions && roomId && type !== "REQUEST" ? (
+          <>
+            <FormField
+              name="functionId"
+              label={t("functions.list.function")}
+              hint={t("common.optional")}
+            >
+              <Select
+                key={roomId}
+                name="functionId"
+                value={selected?.functionId ?? ""}
+                onChange={(event) => setFunctionId(event.target.value)}
+              >
+                <option value="">{t("functions.choose")}</option>
+                {functions
+                  .filter((entry) => entry.roomId === roomId)
+                  .map((entry) => (
+                    <option key={entry.functionId} value={entry.functionId}>
+                      {entry.name}
+                    </option>
+                  ))}
+              </Select>
+            </FormField>
+            {type === "INCIDENT" ? (
+              <FormField name="impact" label={t("functions.impact")}>
+                <Select name="impact" defaultValue="LIMITED">
+                  <option value="LIMITED">{t("functions.state.LIMITED")}</option>
+                  <option value="DOWN">{t("functions.state.DOWN")}</option>
+                </Select>
+              </FormField>
+            ) : null}
+          </>
+        ) : null}
         <FormField name="reporterId" label={t("tickets.form.reporter")} hint={t("common.optional")}>
           <Select name="reporterId" defaultValue={defaults.reporterId ?? ""}>
             <option value="">{t("tickets.form.noOne")}</option>
@@ -178,6 +225,7 @@ export function TicketFormFields({
         </FormField>
       ) : null}
 
+      {type === "INCIDENT" && selected ? <KnownFixes fixes={selected.knownFixes} expanded /> : null}
       {mode === "create" ? (
         <fieldset className="bg-card shadow-surface-2 flex flex-col gap-4 rounded-lg p-4">
           <legend className="text-base font-semibold">
@@ -188,7 +236,11 @@ export function TicketFormFields({
             label={t("tickets.form.status")}
             hint={t("tickets.form.createStatusHint")}
           >
-            <Select name="status" defaultValue={defaults.status ?? "OPEN"}>
+            <Select
+              name="status"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
               {CREATE_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {createStatusLabel(t, locale, s)}
@@ -203,6 +255,12 @@ export function TicketFormFields({
           >
             <Textarea name="resolution" defaultValue={defaults.resolution ?? ""} rows={3} />
           </FormField>
+          {selected && type !== "REQUEST" && status === "RESOLVED" ? (
+            <label className="flex min-h-11 items-center gap-2 text-sm">
+              <Checkbox name="keepAsFix" defaultChecked />
+              {t("functions.fixes.keep")}
+            </label>
+          ) : null}
           <FormField
             name="resolvedAt"
             label={t("tickets.form.resolvedAt")}

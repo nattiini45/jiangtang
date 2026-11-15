@@ -1,7 +1,9 @@
 import { z } from "zod";
+import { customValuesInput } from "~/lib/custom-fields/values.schema";
 import { msgKey } from "~/i18n";
 import { RoomStatus } from "~/generated/prisma/enums";
 import { optionalHttpUrl } from "~/lib/validation.server";
+import { roomExpectationsInput } from "./room-types.schema";
 
 /**
  * Zod schemas for the rooms domain. Form values arrive as strings / string[].
@@ -53,6 +55,13 @@ const stringArray = z.preprocess((v) => {
 
 export const roomCreateSchema = z
   .object({
+    customValues: customValuesInput,
+    roomTypeId: z
+      .string()
+      .transform((value) => (value && value !== "none" ? value : null))
+      .nullable()
+      .optional(),
+    expectations: roomExpectationsInput,
     name: z.string().trim().min(1, msgKey("places.err.room.nameRequired")),
     roomNumber: optionalText,
     campusId: optionalId,
@@ -74,6 +83,8 @@ export const roomCreateSchema = z
     manualUrl: optionalUrl,
     virtualTourUrl: optionalUrl,
     tipsNotes: optionalText,
+    knownIssues: optionalText,
+    lastCheckedAt: optionalDate,
     renewalStatus: optionalText,
     renewalFrom: optionalDate,
     renewalTo: optionalDate,
@@ -169,6 +180,14 @@ export const roomCsvRowSchema = z
     medienschluessel: csvBool,
     videoeingaenge: csvList,
     tonausgaenge: csvList,
+    knownIssues: optionalText,
+    lastCheckedAt: z.preprocess(
+      emptyToUndefined,
+      z.iso
+        .datetime({ offset: true })
+        .transform((value) => new Date(value))
+        .optional(),
+    ),
   })
   .transform((r) => ({
     name: r.name,
@@ -186,6 +205,17 @@ export const roomCsvRowSchema = z
     mediaKeyRequired: r.medienschluessel,
     videoInputs: r.videoeingaenge,
     audioOutputs: r.tonausgaenge,
+    knownIssues: r.knownIssues,
+    lastCheckedAt: r.lastCheckedAt,
   }));
 
-export type RoomCsvRow = z.infer<typeof roomCsvRowSchema>;
+export const roomBulkRowSchema = z.intersection(
+  roomCsvRowSchema,
+  z.object({ customValues: customValuesInput }),
+);
+
+export type RoomCsvRow = Omit<z.infer<typeof roomCsvRowSchema>, "knownIssues" | "lastCheckedAt"> & {
+  customValues?: Record<string, unknown>;
+  knownIssues?: string;
+  lastCheckedAt?: Date;
+};

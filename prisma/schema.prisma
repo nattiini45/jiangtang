@@ -8,6 +8,12 @@
 // test asserts they exist and reject overlaps — never let `prisma db push`
 // reconcile them away.
 
+model ListColumns {
+  scope     CustomFieldScope @id
+  columns   String[]
+  updatedAt DateTime         @updatedAt @db.Timestamptz(3)
+}
+
 generator client {
   provider = "prisma-client"
   output   = "../app/generated/prisma"
@@ -130,6 +136,14 @@ model Building {
 }
 
 model Room {
+  workPlans WorkPlan[]
+  roomTypeId String?
+  roomType RoomType? @relation(fields: [roomTypeId], references: [id], onDelete: SetNull)
+  functionExpectations RoomFunctionExpectation[]
+  roundRooms RoundRoom[]
+  checks RoomCheck[]
+  functionOverrides FunctionOverride[]
+  customValues Json @default("{}") @db.JsonB
   id         String  @id @default(cuid())
   slug       String  @unique
   name       String
@@ -158,6 +172,7 @@ model Room {
   manualUrl      String?
   virtualTourUrl String?
   tipsNotes      String?
+  knownIssues    String?
 
   renewalStatus String?
   renewalFrom   DateTime? @db.Timestamptz(3)
@@ -175,12 +190,162 @@ model Room {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([campusId])
+  @@index([roomTypeId])
   @@index([status])
 }
 
 // ── Equipment ────────────────────────────────────────────────────────────────
 
+model EquipmentFunctionGroup {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  position Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  kinds EquipmentKind[]
+}
+
+model EquipmentKind {
+  workPlans WorkPlan[]
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  groupId String
+  group EquipmentFunctionGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  position Int
+  tracksFrequency Boolean @default(false)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  equipment Equipment[]
+  models EquipmentModel[]
+  customFields CustomFieldKind[]
+  roomFunctions RoomFunctionKind[]
+
+  @@index([groupId])
+}
+
+enum CustomFieldScope {
+  ROOM
+  EQUIPMENT
+}
+
+enum CustomFieldType {
+  TEXT
+  LONG_TEXT
+  NUMBER
+  BOOLEAN
+  CHOICE
+  MULTI_CHOICE
+  DATE
+  LINK
+  RANGE
+}
+
+enum FieldLevel {
+  MODEL
+  DEVICE
+}
+
+model EquipmentReading {
+  plannedFor DateTime? @db.Timestamptz(3)
+  planId String?
+  plan WorkPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+  id String @id @default(cuid())
+  equipmentId String
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  fieldId String
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  value Json @db.JsonB
+  observedAt DateTime @db.Timestamptz(3)
+  source String
+  sourceRef String?
+  partModelId String?
+  partModel EquipmentModel? @relation(fields: [partModelId], references: [id], onDelete: Restrict)
+  recordedById String?
+  recordedBy User? @relation(fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([equipmentId, fieldId, observedAt(sort: Desc), createdAt(sort: Desc), id(sort: Desc)])
+  @@index([planId, equipmentId, observedAt(sort: Desc)])
+}
+
+model CustomField {
+  workPlan WorkPlan?
+  store String @default("VALUE")
+  readings EquipmentReading[]
+  id String @id @default(cuid())
+  scope CustomFieldScope
+  key String
+  name String
+  helpText String?
+  section String?
+  type CustomFieldType
+  level FieldLevel @default(DEVICE)
+  renamed Boolean @default(false)
+  unit String?
+  position Int @default(0)
+  showInList Boolean @default(false)
+  listPosition Int?
+  searchable Boolean @default(true)
+  systemKey String? @unique
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  kinds CustomFieldKind[]
+  options CustomFieldOption[]
+
+  @@unique([scope, key])
+}
+
+model CustomFieldKind {
+  fieldId String
+  kindId String
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  kind EquipmentKind @relation(fields: [kindId], references: [id], onDelete: Restrict)
+
+  @@id([fieldId, kindId])
+  @@index([kindId])
+}
+
+model CustomFieldOption {
+  id String @id @default(cuid())
+  systemKey String?
+  fieldId String
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  label String
+  position Int @default(0)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([fieldId, systemKey])
+}
+
+model LibraryState {
+  key String @id
+  version Int
+  appliedAt DateTime @default(now()) @db.Timestamptz(3)
+}
+
+model EquipmentKindsInitialization {
+  id String @id
+  locale String
+}
+
 model EquipmentModel {
+  readings EquipmentReading[]
+  partFits ModelPartFit[] @relation("HostModel")
+  fitsModels ModelPartFit[] @relation("PartModel")
+  stock InventoryItem[]
+  catalogKey String? @unique
+  catalogSnapshot Json? @db.JsonB
+  catalogVersion Int?
+  customValues Json @default("{}") @db.JsonB
+  kindId String?
+  kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
+  ports        EquipmentModelPort[]
   id           String            @id @default(cuid())
   manufacturer String?
   name         String
@@ -192,9 +357,16 @@ model EquipmentModel {
   updatedAt    DateTime          @updatedAt @db.Timestamptz(3)
 
   @@unique([manufacturer, name])
+  @@index([kindId])
 }
 
 model Equipment {
+  workPlans WorkPlan[]
+  readings EquipmentReading[]
+  customValues Json @default("{}") @db.JsonB
+  kindId String?
+  kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
+  ports    EquipmentPort[]
   id       String            @id @default(cuid())
   roomId   String? // null => part of the movable pool
   room     Room?             @relation(fields: [roomId], references: [id])
@@ -202,6 +374,7 @@ model Equipment {
   model    EquipmentModel?   @relation(fields: [modelId], references: [id])
   category EquipmentCategory
   status   EquipmentStatus   @default(OPERATIONAL)
+  statusSince DateTime? @db.Timestamptz(3)
   mobility EquipmentMobility @default(FIXED)
 
   name          String?
@@ -245,6 +418,74 @@ model Equipment {
   @@index([modelId])
   @@index([category])
   @@index([status])
+  @@index([kindId])
+}
+
+enum PortDirection {
+  INPUT
+  OUTPUT
+  BIDIRECTIONAL
+}
+
+enum PortSignal {
+  VIDEO
+  AUDIO
+  AUDIO_VIDEO
+  CONTROL
+  NETWORK
+  USB
+  POWER
+  OTHER
+}
+
+model EquipmentModelPort {
+  id        String          @id @default(cuid())
+  modelId   String
+  model     EquipmentModel  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  label     String
+  connector String
+  direction PortDirection
+  signal    PortSignal
+  position  Int
+  copies    EquipmentPort[]
+
+  @@unique([modelId, label])
+}
+
+model EquipmentPort {
+  id            String                  @id @default(cuid())
+  equipmentId   String
+  equipment     Equipment               @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  label         String
+  connector     String
+  direction     PortDirection
+  signal        PortSignal
+  position      Int
+  note          String?
+  modelPortId   String?
+  modelPort     EquipmentModelPort?     @relation(fields: [modelPortId], references: [id], onDelete: SetNull)
+  connectionEnd EquipmentConnectionEnd?
+
+  @@unique([equipmentId, label])
+  @@unique([id, equipmentId])
+  @@index([modelPortId])
+}
+
+model EquipmentConnection {
+  id   String                   @id @default(cuid())
+  note String?
+  ends EquipmentConnectionEnd[]
+}
+
+model EquipmentConnectionEnd {
+  portId       String              @id
+  equipmentId  String
+  port         EquipmentPort       @relation(fields: [portId, equipmentId], references: [id, equipmentId], onDelete: Restrict, onUpdate: Restrict)
+  connectionId String
+  connection   EquipmentConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, equipmentId])
+  @@unique([portId, equipmentId])
 }
 
 // ── People ───────────────────────────────────────────────────────────────────
@@ -260,6 +501,12 @@ model UserPermission {
 }
 
 model User {
+  workPlans WorkPlan[]
+  readings EquipmentReading[]
+  homeLayout Json?
+  rounds Round[]
+  checks RoomCheck[]
+  functionOverrides FunctionOverride[]
   permissions UserPermission[]
   id       String   @id @default(cuid())
   email    String   @unique
@@ -432,6 +679,7 @@ model Invitation {
 // ── Tickets / work items ─────────────────────────────────────────────────────
 
 model Ticket {
+  checks RoomCheck[]
   id          String       @id @default(cuid())
   type        TicketType
   status      TicketStatus @default(OPEN)
@@ -439,6 +687,11 @@ model Ticket {
   description String? // "why" / details
   resolution  String? // "how" (set when resolved; present at creation for born-resolved)
   priority    Int?
+  functionId String?
+  function RoomFunction? @relation(fields: [functionId], references: [id], onDelete: SetNull)
+  impact FaultImpact?
+  channel TicketChannel?
+  keepAsFix Boolean @default(false)
 
   roomId      String?
   room        Room?      @relation(fields: [roomId], references: [id])
@@ -473,6 +726,187 @@ model Ticket {
   @@index([status])
   @@index([type])
   @@index([occurredAt])
+  @@index([functionId])
+  @@index([roomId, status])
+}
+
+enum FunctionRole {
+  CARRIER
+  PATH
+}
+
+enum FaultImpact {
+  DOWN
+  LIMITED
+}
+
+enum TicketChannel {
+  DESKTOP
+  PHONE
+  ROUND
+  EMAIL
+  GLOBALVIEWER
+  MCP
+}
+
+model RoomFunction {
+  roomTypes RoomTypeFunction[]
+  expectations RoomFunctionExpectation[]
+  checks RoomCheck[]
+  overrides FunctionOverride[]
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  renamed Boolean @default(false)
+  position Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  kinds RoomFunctionKind[]
+  tickets Ticket[]
+}
+
+model RoomFunctionKind {
+  functionId String
+  kindId String
+  role FunctionRole
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Cascade)
+  kind EquipmentKind @relation(fields: [kindId], references: [id], onDelete: Restrict)
+
+  @@id([functionId, kindId])
+  @@index([kindId])
+}
+
+model RoomType {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  renamed Boolean @default(false)
+  position Int
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  functions RoomTypeFunction[]
+  rooms Room[]
+}
+
+model RoomTypeFunction {
+  typeId String
+  functionId String
+  type RoomType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+
+  @@id([typeId, functionId])
+  @@index([functionId])
+}
+
+model RoomFunctionExpectation {
+  roomId String
+  functionId String
+  expected Boolean
+  note String?
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+
+  @@id([roomId, functionId])
+  @@index([functionId])
+}
+
+enum CheckResult {
+  WORKS
+  LIMITED
+  DOWN
+  NOT_CHECKED
+}
+
+model Round {
+  planId String?
+  plan WorkPlan? @relation(fields: [planId], references: [id], onDelete: Restrict)
+  plannedFor DateTime? @db.Timestamptz(3)
+  id String @id @default(cuid())
+  name String
+  startedById String?
+  startedBy User? @relation(fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt DateTime @default(now()) @db.Timestamptz(3)
+  closedAt DateTime? @db.Timestamptz(3)
+  rooms RoundRoom[]
+  checks RoomCheck[]
+  @@unique([planId, plannedFor])
+}
+
+model WorkPlan {
+  id String @id @default(cuid())
+  systemKey String? @unique
+  name String
+  workType String
+  target String
+  enabled Boolean @default(false)
+  intervalMonths Int?
+  semester Boolean @default(false)
+  startsAt DateTime @db.Timestamptz(3)
+  basis String
+  sourceUrl String
+  assigneeId String?
+  assignee User? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  kindId String?
+  kind EquipmentKind? @relation(fields: [kindId], references: [id], onDelete: Restrict)
+  fieldId String? @unique
+  field CustomField? @relation(fields: [fieldId], references: [id], onDelete: Restrict)
+  rooms Room[]
+  equipment Equipment[]
+  rounds Round[]
+  readings EquipmentReading[]
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model SemesterStart {
+  id String @id @default(cuid())
+  name String
+  startsAt DateTime @unique @db.Timestamptz(3)
+}
+
+model RoundRoom {
+  roundId String
+  round Round @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  roomId String
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  completedAt DateTime? @db.Timestamptz(3)
+  @@id([roundId, roomId])
+}
+
+model RoomCheck {
+  id String @id @default(cuid())
+  roundId String?
+  round Round? @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  roomId String
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  functionId String
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+  result CheckResult
+  note String?
+  ticketId String?
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  checkedById String?
+  checkedBy User? @relation(fields: [checkedById], references: [id], onDelete: SetNull)
+  checkedAt DateTime @default(now()) @db.Timestamptz(3)
+  @@unique([roundId, roomId, functionId])
+  @@index([roomId, functionId, checkedAt(sort: Desc)])
+}
+
+model FunctionOverride {
+  id String @id @default(cuid())
+  roomId String
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  functionId String
+  function RoomFunction @relation(fields: [functionId], references: [id], onDelete: Restrict)
+  state CheckResult
+  reason String
+  setById String?
+  setBy User? @relation(fields: [setById], references: [id], onDelete: SetNull)
+  setAt DateTime @default(now()) @db.Timestamptz(3)
+  until DateTime? @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
 }
 
 // ── Events (AV-supported specials) ───────────────────────────────────────────
@@ -999,6 +1433,8 @@ enum StockStatus {
 // two families live in harmony: an AV mixer IS an Equipment and also an
 // InventoryItem (stock-keeping view).
 model InventoryItem {
+  modelId String?
+  model EquipmentModel? @relation(fields: [modelId], references: [id], onDelete: Restrict)
   id       String @id @default(cuid())
   name     String
   sku      String?
@@ -1038,6 +1474,7 @@ model InventoryItem {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([vendorId])
+  @@index([modelId])
   @@index([locationId])
   @@index([equipmentId])
 
@@ -1050,6 +1487,21 @@ model InventoryItem {
   // "id"|"sku"|"serial">, so a nullable unique is a legal selector.
   @@unique([sku])
   @@unique([serial])
+}
+
+model ModelPartFit {
+  id String @id @default(cuid())
+  modelId String
+  model EquipmentModel @relation("HostModel", fields: [modelId], references: [id], onDelete: Cascade)
+  partModelId String
+  partModel EquipmentModel @relation("PartModel", fields: [partModelId], references: [id], onDelete: Restrict)
+  quantity Int?
+  sourceUrl String?
+  catalogKey String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@unique([modelId, partModelId])
+  @@index([partModelId])
 }
 
 model Vendor {

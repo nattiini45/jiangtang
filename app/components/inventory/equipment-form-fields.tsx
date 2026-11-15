@@ -3,14 +3,19 @@ import { FormField } from "~/components/forms";
 import { Input } from "~/components/ui/input";
 import { Select } from "~/components/ui/select";
 import { Textarea } from "~/components/ui/textarea";
-import { EquipmentCategory, EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
+import { EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { KindOptions, type KindGroups } from "./kind-options";
 import { statusToken } from "~/lib/status";
-import { categoryLabel, mobilityLabel } from "./labels";
+import { mobilityLabel } from "./labels";
 import { EquipmentCategoryFields } from "./equipment-category-fields";
 import { useLocale, useT } from "~/i18n/use-t";
+import { FieldInputs } from "~/components/fields/field-inputs";
+import { applies, type Field } from "~/lib/custom-fields/fields";
 
 export interface EquipmentDefaults {
   category?: string;
+  kindId?: string;
   modelId?: string | null;
   roomId?: string | null;
   mobility?: string;
@@ -36,32 +41,105 @@ export interface EquipmentDefaults {
 export function EquipmentFormFields({
   models,
   rooms,
+  kinds,
   defaults,
+  fields = [],
+  stored,
 }: {
-  models: { id: string; name: string; manufacturer: string | null }[];
+  models: { id: string; name: string; manufacturer: string | null; customValues?: unknown }[];
   rooms: { id: string; name: string }[];
+  kinds: KindGroups;
   defaults?: EquipmentDefaults;
+  fields?: Field[];
+  stored?: unknown;
 }) {
   const locale = useLocale();
   const t = useT();
-  const [category, setCategory] = React.useState<string>(defaults?.category ?? "PROJECTOR");
+  const [modelId, setModelId] = React.useState(defaults?.modelId ?? "");
+  const [catalog, setCatalog] = React.useState<{
+    kindId: string;
+    query: string;
+    models: { id: string; name: string; manufacturer: string }[];
+  }>();
+  const [catalogFailed, setCatalogFailed] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const [picked, setPicked] = React.useState<{
+    id: string;
+    name: string;
+    manufacturer: string | null;
+  }>();
+  React.useEffect(() => {
+    setModelId(defaults?.modelId ?? "");
+    setPicked(undefined);
+  }, [defaults?.modelId]);
+  const options = kinds.flatMap((group) => group.kinds);
+  const [kindId, setKindId] = React.useState(
+    defaults?.kindId ??
+      options.find((kind) => kind.systemKey === "projector")?.id ??
+      options[0]?.id ??
+      "",
+  );
+  const key = options.find((kind) => kind.id === kindId)?.systemKey;
+  const category =
+    Object.entries(DEFAULT_EQUIPMENT_KINDS).find(([, value]) => value.key === key)?.[0] ?? "OTHER";
   const [mobility, setMobility] = React.useState<string>(defaults?.mobility ?? "FIXED");
+  React.useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setCatalogFailed(false);
+      void (async () => {
+        try {
+          const response = await fetch(
+            `/api/model-catalog?${new URLSearchParams({ kindId, query })}`,
+            { signal: controller.signal },
+          );
+          if (!response.ok) throw new Error(String(response.status));
+          const data = (await response.json()) as NonNullable<typeof catalog>;
+          if (!controller.signal.aborted) setCatalog(data);
+        } catch {
+          if (!controller.signal.aborted) setCatalogFailed(true);
+        }
+      })();
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [kindId, query, defaults?.modelId]);
+  const available = [
+    ...models.filter(
+      (model) =>
+        model.id === modelId ||
+        query
+          .trim()
+          .toLowerCase()
+          .split(/\s+/)
+          .every((word) =>
+            `${model.manufacturer ?? ""} ${model.name}`.toLowerCase().includes(word),
+          ),
+    ),
+    ...(catalog?.kindId === kindId && catalog.query === query ? catalog.models : []),
+  ];
+  if (picked && !available.some((model) => model.id === picked.id)) available.push(picked);
   const pooled = mobility === "POOLED";
 
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField name="category" label={t("inventory.form.category")}>
+        <FormField name="kindId" label={t("inventory.kind")}>
           <Select
-            name="category"
-            value={category}
-            onChange={(e) => setCategory(e.currentTarget.value)}
+            name="kindId"
+            value={kindId}
+            required
+            onChange={(e) => {
+              setKindId(e.currentTarget.value);
+              if (modelId.startsWith("catalog:")) {
+                setModelId("");
+                setPicked(undefined);
+              }
+            }}
           >
-            {Object.values(EquipmentCategory).map((c) => (
-              <option key={c} value={c}>
-                {categoryLabel(locale, c)}
-              </option>
-            ))}
+            <KindOptions groups={kinds} />
           </Select>
         </FormField>
         <FormField name="mobility" label={t("inventory.form.mobility")}>
@@ -95,15 +173,37 @@ export function EquipmentFormFields({
           </Select>
         </FormField>
         <FormField name="modelId" label={t("inventory.form.model")}>
-          <Select name="modelId" defaultValue={defaults?.modelId ?? ""}>
+          <Input
+            type="search"
+            maxLength={200}
+            aria-label={t("inventory.catalog.search")}
+            placeholder={t("inventory.catalog.search")}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            className="mb-2"
+          />
+          <Select
+            id="modelId"
+            name="modelId"
+            value={modelId}
+            onChange={(event) => {
+              setModelId(event.currentTarget.value);
+              setPicked(available.find((model) => model.id === event.currentTarget.value));
+            }}
+          >
             <option value="">{t("inventory.form.noModel")}</option>
-            {models.map((m) => (
+            {available.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.manufacturer ? `${m.manufacturer} ` : ""}
                 {m.name}
               </option>
             ))}
           </Select>
+          {catalogFailed ? (
+            <p role="status" className="text-muted-foreground text-xs">
+              {t("inventory.catalog.unavailable")}
+            </p>
+          ) : null}
         </FormField>
       </div>
 
@@ -133,7 +233,36 @@ export function EquipmentFormFields({
         </Select>
       </FormField>
 
-      <EquipmentCategoryFields category={category} defaults={defaults} />
+      <EquipmentCategoryFields
+        category={category}
+        defaults={defaults}
+        properties={fields
+          .filter((field) => applies(field, kindId))
+          .map((field) => field.libraryKey ?? "")}
+      />
+
+      <fieldset className="grid gap-4 sm:grid-cols-3">
+        <legend className="mb-2 text-base font-semibold">{t("ports.network")}</legend>
+        <FormField name="hostname" label={t("inventory.catFields.hostname")}>
+          <Input name="hostname" defaultValue={defaults?.hostname ?? ""} />
+        </FormField>
+        <FormField name="ipAddress" label={t("inventory.catFields.ip")}>
+          <Input
+            name="ipAddress"
+            defaultValue={defaults?.ipAddress ?? ""}
+            placeholder="192.0.2.1"
+            className="font-mono"
+          />
+        </FormField>
+        <FormField name="macAddress" label={t("inventory.catFields.mac")}>
+          <Input
+            name="macAddress"
+            defaultValue={defaults?.macAddress ?? ""}
+            placeholder="02:00:00:3C:4D:5E"
+            className="font-mono"
+          />
+        </FormField>
+      </fieldset>
 
       <details className="bg-card shadow-surface-2 rounded-lg p-4">
         <summary className="cursor-pointer text-base font-semibold">
@@ -147,6 +276,13 @@ export function EquipmentFormFields({
           />
         </div>
       </details>
+      <FieldInputs
+        fields={fields}
+        stored={stored}
+        kindId={kindId}
+        modelId={modelId}
+        modelValues={models.find((model) => model.id === modelId)?.customValues}
+      />
     </>
   );
 }

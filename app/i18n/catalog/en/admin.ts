@@ -1,6 +1,94 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.structure.library.installOne": "Add 1 device kind",
+  "admin.structure.fieldMoveLimit":
+    "Moving to “{target}” would exceed 40 active properties: {names}. Archive properties or change their device kinds first.",
+  "admin.structure.fieldMoveName":
+    "Properties named “{name}” for “{source}” and “{target}” would overlap. Rename one of the properties or change its device kinds before moving.",
+  "admin.structure.fieldsMove":
+    "These properties will also apply to the target kind. Their links to this kind stay in place:",
+  "admin.structure.library.willInstallAs": "Will be installed as “{name}”",
+  "admin.structure.library.invalidInstitution": "Choose an institution type from the library.",
+  "admin.structure.library.invalidSelection":
+    "Choose 1 to 80 distinct device kinds from the library.",
+  "admin.structure.archiveBeforeDelete": "Archive the device kind before deleting it.",
+  "admin.structure.fieldReferences":
+    "These properties still refer to the kind: {names}. Change the properties’ kind assignments first.",
+  "admin.structure.recordReferences":
+    "This kind is still used by {devices} devices and {models} models. Move them first.",
+  "admin.structure.library.add": "Add from the library",
+  "admin.structure.library.help":
+    "Choose your institution and the device kinds you want. Checked kinds are added with their library properties.",
+  "admin.structure.library.institution": "Institution type",
+  "admin.structure.library.chooseInstitution": "Choose an institution type",
+  "admin.structure.library.remaining": "Room for {count} more device kinds.",
+  "admin.structure.library.language": "New names are installed in {language}.",
+  "admin.structure.library.german": "German",
+  "admin.structure.library.english": "English",
+  "admin.structure.library.core": "Core",
+  "admin.structure.library.common": "Common",
+  "admin.structure.library.special": "Special",
+  "admin.structure.library.present": "Present",
+  "admin.structure.library.taken": "Name taken",
+  "admin.structure.library.groupArchived": "Group archived",
+  "admin.structure.library.installedAs": "Installed as “{name}”",
+  "admin.structure.library.install": "Add {count} device kinds",
+  "admin.structure.library.conflict":
+    "Nothing was added. Unavailable: {names}. Check existing, archived or same-named entries.",
+  "admin.structure.library.groupConflict":
+    "Nothing was added. The group name “{name}” is taken; affected kinds: {kinds}. Rename the existing group.",
+  "admin.structure.title": "Structure",
+  "admin.structure.subtitle":
+    "Manage the device kinds, function groups and properties your team uses.",
+  "admin.structure.fields": "Properties",
+  "admin.structure.tabs": "Structure sections",
+  "admin.structure.kinds": "Device kinds",
+  "admin.structure.groups": "Function groups",
+  "admin.structure.name": "Name",
+  "admin.structure.group": "Function group",
+  "admin.structure.addKind": "Add device kind",
+  "admin.structure.addGroup": "Add function group",
+  "admin.structure.showArchived": "Show archived",
+  "admin.structure.archived": "Archived",
+  "admin.structure.counts": "{devices} · {models}",
+  "admin.structure.deviceOne": "{count} device",
+  "admin.structure.deviceMany": "{count} devices",
+  "admin.structure.modelOne": "{count} model",
+  "admin.structure.modelMany": "{count} models",
+  "admin.structure.up": "Move up",
+  "admin.structure.down": "Move down",
+  "admin.structure.edit": "Rename or move",
+  "admin.structure.restore": "Restore",
+  "admin.structure.archive": "Archive",
+  "admin.structure.archiveTitle": "Archive “{name}”",
+  "admin.structure.archiveAndMove": "Move and archive",
+  "admin.structure.moveHelp":
+    "All devices and models move to the selected kind together. Their existing data and property values are preserved.",
+  "admin.structure.moveTo": "Move devices and models to",
+  "admin.structure.chooseKind": "Choose a device kind",
+  "admin.structure.deleteConfirm": "Permanently delete “{name}”?",
+  "admin.structure.emptyKinds": "No device kinds in this group yet.",
+  "admin.structure.legacy": "Standard kind · cannot archive",
+  "admin.structure.protected":
+    "This is one of the standard kinds. You can rename and move it, but not archive or delete it.",
+  "admin.structure.nameInvalid": "The name must be 1 to 60 characters long.",
+  "admin.structure.nameTaken":
+    "This name is already active. Choose another name or archive the existing entry.",
+  "admin.structure.kindLimit":
+    "There can be at most 80 active device kinds. Archive an unused kind before adding or restoring one.",
+  "admin.structure.groupLimit":
+    "There can be at most 30 active function groups. Archive an empty group before adding or restoring one.",
+  "admin.structure.groupArchived":
+    "This function group is archived. Restore it first or choose an active group.",
+  "admin.structure.kindArchived":
+    "This device kind is archived. Choose an active kind or keep the record’s current kind.",
+  "admin.structure.groupInUse":
+    "This group contains active device kinds. Move or archive them first.",
+  "admin.structure.moveRequired":
+    "This kind is in use. Choose another active kind for its devices and models.",
+  "admin.structure.referenced":
+    "This entry is still referenced. Remove all references first; device kinds must also be archived.",
   "admin.overview.title": "Overview",
   "admin.overview.meta": "Administration · Jiangtang",
   "admin.overview.subtitle": "Installation health and next steps.",

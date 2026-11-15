@@ -227,24 +227,37 @@ BEGIN
     missing := array_append(missing, 'pseudonymize_actor / prune_activity_log are not both SECURITY DEFINER with a search_path pinned to pg_catalog (no writable schema)');
   END IF;
 
+  SELECT count(*) = 2 AND bool_and(t.tgdeferrable AND t.tginitdeferred AND t.tgenabled = 'O')
+    INTO have FROM pg_trigger t
+    JOIN pg_class r ON r.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = r.relnamespace
+    JOIN pg_proc p ON p.oid = t.tgfoid
+    WHERE n.nspname = 'public' AND NOT t.tgisinternal
+      AND p.proname = 'enforce_equipment_connection_pair'
+      AND ((r.relname = 'EquipmentConnection' AND t.tgname = 'equipment_connection_two_ends')
+        OR (r.relname = 'EquipmentConnectionEnd' AND t.tgname = 'equipment_connection_end_two_ends'));
+  IF NOT have THEN
+    missing := array_append(missing, 'equipment connection pair constraint triggers are missing, disabled or not initially deferred');
+  END IF;
+
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
-  -- row: 20 CREATE TYPE = 20 enum types, 58 FOREIGN KEY = 58 contype 'f',
-  -- 2 EXCLUDE USING = 2 contype 'x', and the two named CHECKs.
-  SELECT count(*) = 20 INTO have
+  -- row: 29 CREATE TYPE = 29 enum types, 104 FOREIGN KEY = 104 contype 'f',
+  -- 2 EXCLUDE USING = 2 contype 'x', and the twenty named CHECKs.
+  SELECT count(*) = 29 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 20 enum types the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 29 enum types the migrations create');
   END IF;
 
-  SELECT count(*) = 58 INTO have
+  SELECT count(*) = 104 INTO have
     FROM pg_constraint c
     JOIN pg_class r ON r.oid = c.conrelid
     JOIN pg_namespace n ON n.oid = r.relnamespace
     WHERE n.nspname = 'public' AND c.contype = 'f';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema does not hold exactly the 58 foreign keys the migrations create');
+    missing := array_append(missing, 'public schema does not hold exactly the 104 foreign keys the migrations create');
   END IF;
 
   SELECT count(*) = 2 INTO have
@@ -256,24 +269,135 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 2 EXCLUDE constraints the baseline creates');
   END IF;
 
-  SELECT count(*) = 2 INTO have
+  SELECT count(*) = 20 INTO have
     FROM pg_constraint
-    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive')
+    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape', 'custom_field_library_scope', 'equipment_model_custom_values', 'ticket_impact_values', 'model_part_fit_values', 'equipment_reading_source', 'work_plan_schedule', 'work_plan_target')
       AND contype = 'c';
   IF NOT have THEN
-    missing := array_append(missing, 'CHECK constraints room_renewal_order / time_entry_interval_positive are missing');
+    missing := array_append(missing, 'room, timer, equipment kind/group or custom field CHECK constraints are missing');
   END IF;
 
-  -- Index floor, deliberately a floor: the 84 CREATE INDEX statements are only
+  SELECT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'ticket_impact_values' AND conrelid = '"Ticket"'::regclass
+      AND contype = 'c' AND convalidated AND pg_get_constraintdef(oid) LIKE '%impact%IS NULL%DOWN%LIMITED%'
+  ) INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'ticket impact must be empty, DOWN or LIMITED');
+  END IF;
+
+  -- Index floor, deliberately a floor: the 125 surviving CREATE INDEX statements are only
   -- part of what pg_indexes reports (every primary key and unique constraint
   -- also owns an index, and each EXCLUDE constraint owns one), so an exact
-  -- catalog total is NOT derivable from the migration text. 84 is the number the
+  -- catalog total is NOT derivable from the migration text. 125 is the number the
   -- text itself creates. The database's own constraint indexes also count, so
   -- the check stays a floor rather than an exact total.
-  SELECT count(*) >= 84 INTO have
+  SELECT count(*) >= 125 INTO have
     FROM pg_indexes WHERE schemaname = 'public';
   IF NOT have THEN
-    missing := array_append(missing, 'public schema holds fewer than the 84 explicitly created indexes (pg_indexes count)');
+    missing := array_append(missing, 'public schema holds fewer than the 125 explicitly created indexes (pg_indexes count)');
+  END IF;
+
+  SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE idx.relname = 'EquipmentModel_catalogKey_key' AND i.indisunique AND i.indisvalid
+      AND pg_get_indexdef(i.indexrelid) LIKE '%("catalogKey")') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'model catalog key unique index is missing or invalid');
+  END IF;
+
+  SELECT count(*) = 2 INTO have FROM pg_index i
+    JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE idx.relname IN ('equipment_function_group_active_name', 'equipment_kind_active_name')
+      AND i.indisunique AND i.indisvalid
+      AND pg_get_expr(i.indexprs, i.indrelid) = 'lower(name)'
+      AND pg_get_expr(i.indpred, i.indrelid) = '("archivedAt" IS NULL)';
+  IF NOT have THEN
+    missing := array_append(missing, 'case-insensitive active equipment kind/group name indexes are missing or have the wrong definition');
+  END IF;
+
+  SELECT count(*) = 3 INTO have FROM pg_constraint
+    WHERE conname IN ('EquipmentKind_groupId_fkey', 'Equipment_kindId_fkey', 'EquipmentModel_kindId_fkey')
+      AND contype = 'f' AND confdeltype = 'r';
+  IF NOT have THEN
+    missing := array_append(missing, 'equipment kind/group RESTRICT foreign keys are missing');
+  END IF;
+
+  SELECT count(*) = 3 INTO have FROM pg_constraint
+    WHERE conname IN ('CustomFieldKind_fieldId_fkey', 'CustomFieldKind_kindId_fkey', 'CustomFieldOption_fieldId_fkey')
+      AND contype = 'f' AND ((conname = 'CustomFieldKind_kindId_fkey' AND confdeltype = 'r')
+        OR (conname <> 'CustomFieldKind_kindId_fkey' AND confdeltype = 'c'));
+  IF NOT have THEN
+    missing := array_append(missing, 'custom field option/kind foreign keys are missing or have wrong deletion actions');
+  END IF;
+
+  SELECT count(*) = 2 INTO have FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE i.indisunique AND i.indisvalid AND (
+      (idx.relname = 'CustomField_scope_key_key' AND pg_get_indexdef(i.indexrelid) LIKE '%(scope, key)')
+      OR (idx.relname = 'custom_field_option_active_label' AND pg_get_expr(i.indexprs, i.indrelid) = 'lower(label)'
+        AND pg_get_expr(i.indpred, i.indrelid) = '("archivedAt" IS NULL)'));
+  IF NOT have THEN
+    missing := array_append(missing, 'custom field key and active option label unique indexes are missing or invalid');
+  END IF;
+
+  SELECT count(*) = 3 INTO have FROM pg_attribute a
+    JOIN pg_class r ON r.oid = a.attrelid JOIN pg_namespace n ON n.oid = r.relnamespace
+    JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum
+    WHERE n.nspname = 'public' AND r.relname IN ('Room', 'Equipment', 'EquipmentModel') AND a.attname = 'customValues'
+      AND a.attnotnull AND a.atttypid = 'jsonb'::regtype AND pg_get_expr(d.adbin, d.adrelid) = '''{}''::jsonb';
+  IF NOT have THEN
+    missing := array_append(missing, 'room/device/model custom values JSONB columns require NOT NULL and the empty-object default');
+  END IF;
+  SELECT count(*) = 3 INTO have FROM pg_constraint WHERE conname IN ('room_custom_values', 'equipment_custom_values', 'equipment_model_custom_values')
+    AND convalidated AND pg_get_constraintdef(oid) LIKE '%jsonb_typeof%' AND pg_get_constraintdef(oid) LIKE '%pg_column_size%' AND pg_get_constraintdef(oid) LIKE '%32768%';
+  IF NOT have THEN
+    missing := array_append(missing, 'custom values object/32 KB CHECK definitions are missing');
+  END IF;
+
+  SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'list_columns_shape'
+    AND conrelid = '"ListColumns"'::regclass AND convalidated
+    AND pg_get_constraintdef(oid) LIKE '%cardinality%'
+    AND pg_get_constraintdef(oid) LIKE '%12%'
+    AND pg_get_constraintdef(oid) LIKE '%name%') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'list columns must contain 1 to 12 columns with the name first');
+  END IF;
+
+  SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'custom_field_library_scope'
+    AND conrelid = '"CustomField"'::regclass AND convalidated
+    AND pg_get_constraintdef(oid) LIKE '%systemKey%IS NULL%EQUIPMENT%') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'library properties must have EQUIPMENT scope');
+  END IF;
+  SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE idx.relname = 'CustomFieldOption_fieldId_systemKey_key' AND i.indisunique AND i.indisvalid
+      AND pg_get_indexdef(i.indexrelid) LIKE '%("fieldId", "systemKey")%') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'library option keys must be unique within their property');
+  END IF;
+
+  SELECT EXISTS (SELECT 1 FROM pg_index i JOIN pg_class idx ON idx.oid = i.indexrelid
+    WHERE idx.relname = 'function_override_open' AND i.indisunique AND i.indisvalid
+      AND i.indrelid = '"FunctionOverride"'::regclass
+      AND pg_get_indexdef(i.indexrelid) LIKE '%("roomId", "functionId")%'
+      AND pg_get_expr(i.indpred, i.indrelid) = '("endedAt" IS NULL)') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'one open state set by hand per room and function');
+  END IF;
+
+  SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'model_part_fit_values'
+    AND conrelid = '"ModelPartFit"'::regclass AND convalidated
+    AND pg_get_constraintdef(oid) LIKE '%"modelId" <> "partModelId"%'
+    AND pg_get_constraintdef(oid) LIKE '%quantity%> 0%') INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'part compatibility must have distinct models and a positive known quantity');
+  END IF;
+
+  SELECT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'equipment_reading_immutable'
+      AND tgrelid = '"EquipmentReading"'::regclass AND tgenabled = 'A'
+  ) INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'equipment readings need their ENABLE ALWAYS immutability trigger');
   END IF;
 
   IF array_length(missing, 1) IS NOT NULL THEN
@@ -282,6 +406,6 @@ BEGIN
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 20 enums / 58 foreign keys / 2 CHECKs, >=84 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, one open function state, valid part compatibility, 29 enums / 104 foreign keys / 20 CHECKs, >=125 public indexes';
 END
 $verify$;

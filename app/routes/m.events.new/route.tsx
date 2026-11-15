@@ -90,7 +90,7 @@ export async function action({ request }: Route.ActionArgs) {
       // so a rejected booking never leaves an orphan event behind.
       const event = await createEventWithBooking(actor, eventParsed.data, bookingParsed.data);
       await emitChange({ entityType: "event", id: event.id, op: "created" });
-      return redirect(`/m/events?date=${bookingParsed.data.startsAt.slice(0, 10)}`);
+      return redirect(`/m/calendar?date=${bookingParsed.data.startsAt.slice(0, 10)}`);
     } catch (e) {
       // The pre-check passed but the EXCLUDE constraint still fired (race window):
       // report it as a conflict instead of a 409 error boundary. The transaction

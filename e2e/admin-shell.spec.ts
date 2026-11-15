@@ -65,7 +65,8 @@ for (const locale of ["en", "de"])
             "aria-current",
             "page",
           );
-          await expect(page.locator("nav a")).toHaveCount(6);
+          await expect(page.locator("nav a")).toHaveCount(7);
+          await expect(page.locator('nav a[href="/admin/structure"]')).toBeInViewport();
           if (!slug) {
             await expect(page.locator('main a[href="/admin/about"]')).toBeInViewport();
             await expect(page.locator('main a[href="/admin/invitations"]')).toBeInViewport();

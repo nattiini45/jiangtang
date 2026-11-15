@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 
 const ROUTES = [
-  ["capture", "/m", "Eintrag erfassen"],
+  ["home", "/m", "Übersicht"],
+  ["capture", "/m/quick-entry", "Eintrag erfassen"],
   ["board", "/m/board", "Board"],
   ["events", "/m/events", "Veranstaltungen"],
   ["event-new", "/m/events/new", "Veranstaltung anlegen"],

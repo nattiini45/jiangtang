@@ -29,6 +29,10 @@ const SCHEMA_PATH = resolve(process.cwd(), "prisma/schema.prisma");
 
 /** The seven new models plus the explicit assignee join. */
 const NEW_BLOCKS = [
+  "EquipmentReading",
+  "WorkPlan",
+  "SemesterStart",
+  "Round",
   "Location",
   "Project",
   "TaskAssignees",
@@ -40,6 +44,14 @@ const NEW_BLOCKS = [
   "PersonalAccessToken",
   "UserPermission",
   "Invitation",
+  "EquipmentFunctionGroup",
+  "EquipmentKind",
+  "EquipmentKindsInitialization",
+  "CustomField",
+  "CustomFieldKind",
+  "CustomFieldOption",
+  "RoomFunction",
+  "RoomFunctionKind",
 ] as const;
 
 /**
@@ -50,7 +62,9 @@ const NEW_BLOCKS = [
  */
 const NEW_RELATIONS_IN_EXISTING_BLOCKS: Record<string, string[]> = {
   Event: ["projectId"],
-  Ticket: ["taskId"],
+  Ticket: ["taskId", "functionId"],
+  Equipment: ["kindId"],
+  EquipmentModel: ["kindId"],
 };
 
 type Field = { name: string; attrs: string };
@@ -344,8 +358,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(56);
-    expect(withAction).toBe(44);
+    expect(owning).toBe(98);
+    expect(withAction).toBe(86);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

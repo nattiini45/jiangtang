@@ -14,12 +14,20 @@ const FLAGS = [
 export type RoomFlagName = (typeof FLAGS)[number]["name"];
 export type RoomFlags = Partial<Record<RoomFlagName, boolean>>;
 
-export function RoomFeatureToggles({ defaults }: { defaults?: RoomFlags }) {
+export function RoomFeatureToggles({
+  defaults,
+  expectations = false,
+}: {
+  defaults?: RoomFlags;
+  expectations?: boolean;
+}) {
   const t = useT();
   return (
     <fieldset className="bg-card shadow-surface-2 grid grid-cols-2 gap-2 rounded-lg p-4 sm:grid-cols-3">
       <legend className="text-muted-foreground px-1 text-xs">{t("rooms.features.legend")}</legend>
-      {FLAGS.map((f) => (
+      {FLAGS.filter(
+        (f) => !expectations || f.name === "hasBlackboard" || f.name === "mediaKeyRequired",
+      ).map((f) => (
         <label key={f.name} className="flex items-center gap-2 text-sm">
           <Checkbox name={f.name} defaultChecked={defaults?.[f.name] ?? false} />
           {t(f.labelKey)}

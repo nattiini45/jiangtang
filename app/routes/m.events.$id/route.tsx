@@ -70,10 +70,10 @@ export default function MobileEventDetail({ loaderData, actionData }: Route.Comp
     <div className="flex min-w-0 flex-col gap-6 px-4 py-4 [overflow-wrap:anywhere]">
       <header className="flex min-w-0 flex-col items-start gap-2">
         <Link
-          to={`/m/events?date=${date}`}
+          to={`/m/calendar?date=${date}`}
           className={`${buttonVariants({ variant: "tertiary" })} min-h-11`}
         >
-          {t("mobileDetails.eventBack")}
+          {t("nav.calendar")}
         </Link>
         <h1 className="text-lg font-bold">{event.title}</h1>
         <StatusBadge kind="event" value={event.status} />

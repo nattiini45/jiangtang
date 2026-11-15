@@ -1,5 +1,6 @@
 import {
   ArrowDownUp,
+  CircleAlert,
   ArrowLeft,
   BarChart3,
   Boxes,
@@ -65,6 +66,8 @@ const ADMIN_GROUPS: { id: NavGroup; labelKey?: MessageKey }[] = [
 
 export const NAV: NavEntry[] = [
   { to: "/", labelKey: "nav.overview", icon: LayoutDashboard, end: true, group: "work" },
+  { to: "/calendar", labelKey: "nav.calendar", icon: CalendarDays, end: true, group: "work" },
+  { to: "/plans", labelKey: "plans.title", icon: ListTodo, end: false, group: "work" },
   { to: "/board", labelKey: "nav.board", icon: KanbanSquare, end: false, group: "work" },
   { to: "/tasks", labelKey: "nav.tasks", icon: ListTodo, end: false, group: "work" },
   { to: "/timesheet", labelKey: "nav.timesheet", icon: Timer, end: false, group: "work" },
@@ -88,6 +91,20 @@ export const NAV: NavEntry[] = [
   },
   { to: "/search", labelKey: "nav.search", icon: Search, end: false, group: "work" },
   { to: "/rooms", labelKey: "nav.rooms", icon: Building2, end: false, group: "places" },
+  {
+    to: "/rounds",
+    labelKey: "functions.rounds.title",
+    icon: ListTodo,
+    end: false,
+    group: "places",
+  },
+  {
+    to: "/functions",
+    labelKey: "functions.list.title",
+    icon: CircleAlert,
+    end: false,
+    group: "places",
+  },
   { to: "/locations", labelKey: "nav.locations", icon: MapPin, end: false, group: "places" },
   { to: "/inventory", labelKey: "nav.inventory", icon: Boxes, end: false, group: "places" },
   { to: "/tickets", labelKey: "nav.tickets", icon: Ticket, end: false, group: "service" },
@@ -122,6 +139,15 @@ export const NAV: NavEntry[] = [
     to: "/admin/invitations",
     labelKey: "admin.invitations.title",
     icon: UserPlus,
+    end: false,
+    group: "people",
+    adminOnly: true,
+    adminArea: true,
+  },
+  {
+    to: "/admin/structure",
+    labelKey: "admin.structure.title",
+    icon: Settings,
     end: false,
     group: "people",
     adminOnly: true,

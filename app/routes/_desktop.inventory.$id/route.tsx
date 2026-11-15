@@ -1,6 +1,14 @@
 import { Form, Link, redirect, useNavigation } from "react-router";
+import { z } from "zod";
 import type { Route } from "./+types/route";
-import { requireUser } from "~/lib/auth.server";
+import { requireUser, requireRole } from "~/lib/auth.server";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
+import { unmigratedLegacyValues } from "~/lib/custom-fields/legacy.server";
+import { clearLegacyEquipmentValue } from "~/domains/inventory/inventory.custom-values.server";
+import { getFormFields, parseFieldForm, fieldFormErrors } from "~/lib/custom-fields/form.server";
+import { withFieldValues } from "~/lib/custom-fields/display.server";
+import { FieldValues } from "~/components/fields/field-values";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
 import { formDataToObject, safeParse } from "~/lib/validation.server";
 import { tr } from "~/i18n/request-locale.server";
 import { resolveLocale } from "~/i18n/locale.server";
@@ -27,7 +35,6 @@ import {
   type EquipmentDefaults,
 } from "~/components/inventory/equipment-form-fields";
 import { SubstitutionControl } from "~/components/inventory/substitution-control";
-import { categoryLabel } from "~/components/inventory/labels";
 import { FileUpload } from "~/components/upload/file-upload";
 import { AttachmentGallery } from "~/components/upload/attachment-gallery";
 import { ActivityFeed } from "~/components/history/activity-feed";
@@ -40,7 +47,18 @@ import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { QrCode } from "~/components/qr/qr-code";
 import { qrSvg } from "~/lib/qr.server";
-import { useLocale, useT } from "~/i18n/use-t";
+import { useT } from "~/i18n/use-t";
+import { mutateEquipmentPort } from "~/domains/inventory/inventory.ports.mutations.server";
+import { EquipmentPorts } from "~/components/inventory/ports-editor";
+import { modelParts } from "~/domains/inventory/inventory.parts.queries.server";
+import { takePartForDevice } from "~/domains/inventory/inventory.parts.mutations.server";
+import { ModelParts } from "~/components/inventory/parts";
+import { readingDevices } from "~/domains/readings/readings.queries.server";
+import { DeviceReadings } from "~/components/inventory/readings";
+import {
+  connectEquipmentPorts,
+  disconnectEquipmentPorts,
+} from "~/domains/inventory/inventory.connections.mutations.server";
 
 export function meta({ data, matches }: Route.MetaArgs) {
   const locale = metaLocale(matches);
@@ -54,7 +72,7 @@ export function meta({ data, matches }: Route.MetaArgs) {
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
-  await requireUser(request);
+  const user = await requireUser(request);
   const e = await getEquipment(params.id);
   if (!e) throw toErrorResponse(new NotFoundError(tr("err.equipment.notFound")));
   // For pooled units, fetch availability over the next 30 days (utilization view).
@@ -71,12 +89,13 @@ export async function loader({ request, params }: Route.LoaderArgs) {
           },
         ]
       : [];
-  const [models, rooms, targets, attachments, history] = await Promise.all([
-    listModels(),
+  const [models, rooms, targets, attachments, history, kinds] = await Promise.all([
+    listModels({ includeValues: true }),
     listRooms(),
     listSubstitutionTargets(params.id),
     listAttachments({ equipmentId: params.id }),
     listEntityHistory(ENTITY_TYPE.equipment, params.id, 20),
+    listDeviceKinds(false, e.kind.id),
   ]);
   // Decimal → string so the loader payload is JSON-serializable.
   const equipment = { ...e, frequencyMhz: e.frequencyMhz ? e.frequencyMhz.toString() : null };
@@ -87,6 +106,15 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const qr = await qrSvg(qrHref);
   return {
     equipment,
+    readings: (await readingDevices({ id: e.id }))[0] ?? null,
+    parts: await modelParts(e.modelId),
+    fields: await getFormFields("EQUIPMENT"),
+    filledFields: [
+      ...(await withFieldValues("EQUIPMENT", [e]))[0].fields,
+      ...unmigratedLegacyValues(await getFieldSchema("EQUIPMENT"), e, e.kind.id),
+    ],
+    canClearLegacy: user.role === "ADMIN",
+    kinds,
     models,
     rooms,
     targets,
@@ -106,7 +134,69 @@ export async function action({ request, params }: Route.ActionArgs) {
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "update");
   const id = params.id;
+  if (intent === "takePart") {
+    try {
+      await takePartForDevice(actor, id, String(form.get("stockId") ?? ""));
+      return { partTaken: true };
+    } catch (error) {
+      if (error instanceof ValidationError)
+        return {
+          partError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
+        };
+      if (error instanceof NotFoundError) return { partError: tr("parts.unavailable") };
+      throw toErrorResponse(error);
+    }
+  }
+  const portActions = {
+    portAdd: "add",
+    portUpdate: "update",
+    portRemove: "remove",
+    portInherit: "inherit",
+  } as const;
+  if (
+    Object.hasOwn(portActions, intent) ||
+    intent === "portConnect" ||
+    intent === "portDisconnect"
+  ) {
+    try {
+      if (intent === "portConnect") {
+        await connectEquipmentPorts(actor, {
+          ...JSON.parse(String(form.get("connection"))),
+          equipmentId: id,
+        });
+      } else if (intent === "portDisconnect") {
+        await disconnectEquipmentPorts(actor, id, String(form.get("connectionId") ?? ""));
+      } else
+        await mutateEquipmentPort(
+          actor,
+          id,
+          portActions[intent as keyof typeof portActions],
+          form.has("port") ? JSON.parse(String(form.get("port"))) : undefined,
+          String(form.get("portId") ?? ""),
+        );
+      return { portsSaved: true };
+    } catch (error) {
+      if (error instanceof NotFoundError) return { portError: tr("ports.changed") };
+      if (
+        error instanceof z.ZodError &&
+        error.issues.some((issue) => issue.message === "ports.positionFull")
+      )
+        return { portError: tr("ports.positionFull") };
+      if (error instanceof ValidationError)
+        return {
+          portError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
+        };
+      if (error instanceof SyntaxError || (error instanceof Error && error.name === "ZodError"))
+        return { portError: tr("ports.invalid") };
+      throw toErrorResponse(error);
+    }
+  }
   try {
+    if (intent === "clearLegacy") {
+      await requireRole(request, "ADMIN");
+      await clearLegacyEquipmentValue(actor, id, String(form.get("column") ?? ""));
+      return redirect(`/inventory/${id}`);
+    }
     if (intent === "retire") {
       const eq = await retireEquipment(actor, id);
       await emitChange({ entityType: "equipment", id: eq.id, op: "updated" });
@@ -127,11 +217,20 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
     const result = safeParse(equipmentEditSchema, formDataToObject(form), locale);
     if (!result.success) return { fieldErrors: result.fieldErrors };
-    const eq = await updateEquipment(actor, id, result.data);
+    const current = await getEquipment(id);
+    if (!current) throw new NotFoundError();
+    const customValues = await parseFieldForm(
+      "EQUIPMENT",
+      form,
+      current.customValues,
+      result.data.kindId,
+    );
+    const eq = await updateEquipment(actor, id, { ...result.data, customValues });
     await emitChange({ entityType: "equipment", id: eq.id, op: "updated" });
     return redirect(`/inventory/${id}`);
   } catch (e) {
-    if (e instanceof ValidationError) return { fieldErrors: e.fieldErrors };
+    if (e instanceof ValidationError)
+      return { fieldErrors: await fieldFormErrors("EQUIPMENT", e.fieldErrors) };
     throw toErrorResponse(e);
   }
 }
@@ -151,12 +250,12 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
     qrHref,
   } = loaderData;
   const t = useT();
-  const locale = useLocale();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
-  const title = eq.name ?? categoryLabel(locale, eq.category);
+  const title = eq.name ?? eq.model?.name ?? eq.kind.name;
 
   const defaults: EquipmentDefaults = {
+    kindId: eq.kind.id,
     category: eq.category,
     modelId: eq.modelId,
     roomId: eq.roomId,
@@ -192,6 +291,53 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
         </Link>
       </div>
 
+      {loaderData.parts.length ? (
+        <ModelParts fits={loaderData.parts} deviceId={eq.id} retired={eq.status === "RETIRED"} />
+      ) : null}
+      {(["model", "device"] as const).map((from) => {
+        const fields = loaderData.filledFields.filter((field) => field.from === from);
+        return fields.length || (from === "model" && eq.model?.manualUrl) ? (
+          <section key={from} className="bg-card shadow-surface-2 min-w-0 rounded-lg p-4">
+            <h2 className="mb-3 text-base font-semibold">
+              {t(from === "model" ? "fields.model.from" : "fields.device.own")}
+            </h2>
+            <FieldValues
+              showLegend={false}
+              fields={fields}
+              canClearLegacy={loaderData.canClearLegacy}
+              essentialFirst={fields.some((field) => field.origin === "library")}
+            />
+            {from === "model" && eq.model?.manualUrl ? (
+              <a
+                href={eq.model.manualUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-block text-sm underline underline-offset-4"
+              >
+                {t("inventory.catalog.manual")}
+              </a>
+            ) : null}
+          </section>
+        ) : null;
+      })}
+
+      <EquipmentPorts
+        equipmentId={eq.id}
+        ports={eq.ports}
+        hasModel={
+          !!eq.model?.ports.some(
+            (template) => !eq.ports.some((port) => port.label === template.label),
+          )
+        }
+      />
+      {loaderData.readings ? (
+        <DeviceReadings
+          device={loaderData.readings}
+          action={`/inventory/${eq.id}/readings`}
+          summary
+        />
+      ) : null}
+
       {eq.status !== "RETIRED" ? (
         <SubstitutionControl
           current={eq.substitutingFor}
@@ -201,7 +347,15 @@ export default function EquipmentDetail({ loaderData, actionData }: Route.Compon
       ) : null}
 
       <ZodForm method="post" fieldErrors={actionData?.fieldErrors}>
-        <EquipmentFormFields models={models} rooms={rooms} defaults={defaults} />
+        <EquipmentFormFields
+          key={eq.id}
+          fields={loaderData.fields}
+          stored={eq.customValues}
+          kinds={loaderData.kinds}
+          models={models}
+          rooms={rooms}
+          defaults={defaults}
+        />
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={busy}>
             {busy ? t("common.saving") : t("inventory.detail.submit")}

@@ -5,6 +5,122 @@ Jiangtang exposes workspace tools, read-only resources and planning prompts at
 agent. Your external client/model decides what to request, and may send returned workspace data
 to its provider: connect only clients you trust.
 
+## Property definitions
+
+An admin with a write token can define own properties without a screen. `get_record_schema`
+accepts `{scope: "ROOM" | "EQUIPMENT", kindId?: string, deviceId?: string}` and returns active definitions
+with ordered options, `libraryKey`, `origin` (`library` or `own`), `level` (`MODEL` or
+`DEVICE`), `unit` (`{key,label}` or null), `weight`, `appliesIf` (`{property, values}` or null), and option `key`s.
+With `deviceId` (EQUIPMENT only), the device determines the kind and each property includes
+`conditionHolds`, evaluated against effective values: the model's value, else the device's.
+An empty controlling value makes the condition hold. Retired options
+retain `archivedAt` and cannot be selected. Library names, help, units and labels follow the
+request language; own-property text stays as entered. Unsupported types are omitted.
+
+- `create_custom_field`: `{scope, key, name, type, kindIds?: string[], helpText?, section?, unit?, position?, showInList?, listPosition?, searchable?}`.
+  Types are TEXT, LONG_TEXT, NUMBER, BOOLEAN, CHOICE, MULTI_CHOICE, DATE and LINK.
+  Keys are immutable and unique per scope. Device fields can share a name only when both are
+  restricted to disjoint sets of kinds; room field names remain unique. Archived fields count too.
+  An empty kind list means every device kind; room fields always apply to every room.
+  Name refusals identify the holder by `holderId` and describe its kinds and archive state.
+  A `systemKey` is refused. Own properties and renames cannot take a library property's
+  German or English name on an overlapping kind.
+- `update_custom_field`: `{id, ...changedProperties, archived?: boolean}`. Omitted
+  properties stay unchanged. Archive hides a field and keeps its values; restore reveals them again.
+  Type changes are limited to TEXT → LONG_TEXT, CHOICE → MULTI_CHOICE and the reverse choice
+  conversion when no record has more than one selection. Choice conversions preserve option IDs.
+  A type conversion writes one definition audit entry with its affected-record count, not one
+  update per record. To clear hidden values, restore the field and its applicability first.
+- `update_field_options`: `{fieldId, changes: [...]}`. Changes are
+  `{op: "add", label, position?}`, `{op: "update", id, label?, position?, archived?}`
+  or `{op: "delete", id}`. Retire with `archived: true`, restore with `false`.
+  The batch is atomic; options cannot be merged.
+- `delete_custom_field`: `{id, confirm: true}`. Deletes a definition only when no record holds a value.
+  Likewise, an option cannot be deleted while it is selected, even on a hidden or archived field.
+
+Library properties cannot be deleted or have their type, level, unit, options or kind links changed.
+`update_custom_field` allows `name`, `resetName: true` (mutually exclusive with `name`),
+`position`, `archived` (hide/show, retaining values) and list/search flags on library rows.
+Resetting the name restores the translated library name. Order belongs to the property row;
+a shared property keeps that position wherever it is used.
+The screen groups the order by model/device level and importance so moving within a group
+also changes the order on forms and pages; essential properties stay first.
+
+There can be at most 40 active own properties applying to a record, 120 own properties per scope,
+50 active options and 200 total options per field. Archive fields, narrow their kinds,
+retire options or delete unused definitions to make room. Definition changes append
+one audit entry with the connecting user's token attribution.
+
+### Record values
+
+`set_custom_values({scope: "ROOM" | "EQUIPMENT", id, values: {field_key: value}})`
+requires a write token, but not an admin role. It changes only supplied keys: `null` clears
+one value; omitted keys and built-in fields are untouched. Library keys such as
+`projector.light_source` are accepted alongside installation field keys. Choice values accept option keys, IDs
+or case-insensitive active labels; multiple choices take an array without duplicates.
+Other types accept strings, finite numbers with at most six decimals, booleans, calendar dates
+(`YYYY-MM-DD`) or HTTP(S) links. Short and long text allow 200 and 4,000 characters;
+all values on one record together may use at most 32 KB. No value is written if one fails.
+Forms, imports and MCP refuse a new value for a property whose `appliesIf` fails, naming
+the controlling property. Conditions use the resulting values of the same write, including
+model values where applicable. Changing a controller never deletes stored dependent values;
+they stay hidden on pages and forms until the condition holds again. Null can clear a
+conditional value. Hidden library properties must be shown again before writing them.
+
+`set_model_values({modelId, values})` uses the same validation and merge rules for the model's
+MODEL-level library properties. For example, `{ "projector.light_source": "laser" }`
+sets the light source once for every device of that model. `get_equipment_model` includes
+the model's stored `customValues` (field IDs as keys). Device reads return the effective
+model value, falling back to the device value, with `customValueOrigins` marking `model` or
+`device`. A device linked to a model cannot write a MODEL property, even if that model has
+no value, including attempts to clear a legacy device value; the error points to
+`/inventory/models/<modelId>`. A device without a model may
+write that property itself. `RANGE` accepts `{ min, max }` in the property's unit, with either
+bound null or omitted and at least one bound filled; a filled minimum must not exceed the
+maximum. Null clears the complete value. Legacy device properties are mirrored to their former
+columns for rollback compatibility.
+The legacy `micKind` input is kept for compatibility: it writes the device's own fallback
+property and the old column even when a model is linked. Explicit model-level property writes
+on a linked device are still refused; reading still prefers the model's value.
+
+For example, define `{scope:"EQUIPMENT", key:"lamp_hours", name:"Lamp hours", type:"NUMBER", kindIds:["projector-kind-id"]}`,
+then call `set_custom_values({scope:"EQUIPMENT", id:"device-id", values:{lamp_hours:1234}})`.
+
+`create_room`, `create_equipment` and each row in both bulk-create tools accept `customValues`
+with that same field-key mapping. `update_room` and `update_equipment` replace built-in editable
+fields (omitted optional built-ins are cleared), except legacy device columns backed by a
+property applicable to the resulting kind: omission retains those values. Omitted
+`customValues` is left untouched, and a supplied object merges by key. A kind change keeps
+now-inapplicable property values in storage, hidden until the kind applies again.
+
+`get_room`, `get_equipment`, `list_rooms` and `list_equipment` return `customValues` keyed by
+field key with choices rendered as labels. Retired selections remain readable with a retired
+marker. Detail reads and `set_custom_values` also return applicable `customFields` definitions.
+Unknown stored field IDs and values of archived or non-applicable fields are not returned.
+List tools do not accept custom `fields` or `where` arguments.
+
+Value errors return status 422 with `detail.fieldErrors` plus `detail.errors`, for example
+`[{field:"lamp_hours", code:"not_a_number"}]`. Choice errors include `allowed` active labels;
+unknown, archived and non-applicable fields return `unknown_field`, `archived_field` and
+`not_applicable`. Text/record size failures return `limit`, with a localized message naming
+the limit and how to reduce the data. An invalid row rolls its whole bulk batch back.
+
+## Shipped model catalog
+
+- `list_model_catalog({query?, kind?})` searches shipped facts by manufacturer, model name,
+  alias or part number; `kind` is the library key, such as `projector`. Results include values
+  by library key, ports, product and manual links and dated sources.
+- `link_catalog_model({catalogKey, modelId?})` requires a write token. Without `modelId`, it
+  reuses an exact manufacturer/name/kind match or creates the installation model. With a model,
+  it fills only empty values, manual address and ports. Devices without ports receive its ports.
+- `unlink_catalog_model({modelId})` requires an admin write token. It removes the link and
+  supplied values, manual and model ports still matching the stored snapshot; house changes,
+  the model name and copied device ports stay.
+
+`get_equipment_model` includes `catalogKey`, `catalogVersion` and `catalogSource`
+(`manufacturer`, `productUrl`, `retrievedOn`), or null for an unlinked model. The internal
+snapshot is not returned. Later catalog versions correct only unchanged supplied data.
+
 ## Credentials and connection
 
 In **My account → Personal access tokens**, create a named personal access token (PAT), choosing
@@ -138,7 +254,7 @@ configured public origin; the host must match the installation's configured host
 
 ## What is available
 
-Discovery currently returns **46 read tools and 69 write tools**. Their published schemas are
+Discovery currently returns **53 read tools and 89 write tools**. Their published schemas are
 the source of truth for arguments, required fields and confirmation flags; clients should list
 tools rather than invent tool names. Write tools remain discoverable with read-only tokens but
 calls are denied before executing domain mutations.
@@ -154,12 +270,149 @@ calls are denied before executing domain mutations.
 | Personal work and history    | `list_time_entries`, `get_time_entry`, `get_timesheet`, `get_running_timer`, `list_notifications`, `get_notification`, `list_activity`, `search_workspace`                  | `start_timer`, `stop_timer`, `create_time_entry`, `update_time_entry`, `delete_time_entry`, `mark_notification_read`, `mark_all_notifications_read`                                                                              |
 | Images                       | `list_attachments`, `get_attachment` (metadata only)                                                                                                                        | `upload_attachment`, `delete_attachment`                                                                                                                                                                                         |
 
+`get_equipment_model` and `get_equipment` include ordered `ports`.
+Device and model reads also return `kind: { id, key, name, group: { id, name, position } }`.
+The key is a stable system key, or null for a custom kind; names are installation data.
+`list_device_kinds({ includeArchived?: boolean })` returns function groups in display order,
+each with its kinds (`id`, `key`, `name`, `groupId`, `position`, `archivedAt`, `deviceCount`, `modelCount`). Archived groups and kinds are omitted
+unless requested. Use these IDs with `list_equipment` or `list_equipment_models`' `kindId`
+filter; `category` remains a deprecated alias and is ignored when `kindId` is supplied.
+Device/model create and update tools accept `kindId` or `category`. A kind ID determines
+the category; a category-only update keeps the current kind when it maps to that category.
+`bulk_create_equipment` accepts `kindId` alongside its existing CSV fields; `kategorie`
+may be omitted when a kind ID is given. The CSV file format itself is unchanged.
+Device and model write results include the same kind summary as reads. An archived kind can
+only be kept by a record that already carries it, never newly selected.
+
+Admins can manage structure with `create_function_group({ name })`,
+`update_function_group({ id, name?, position?, archived? })`,
+`create_device_kind({ name, groupId })` and
+`update_device_kind({ id, name?, groupId?, position?, archived?, moveDevicesTo? })`.
+Positions are zero-based within the active group list or the kind's function group.
+Names have 1–60 characters and are unique among active entries without regard to case.
+There can be at most 80 active kinds and 30 active groups. Archive unused entries to make room.
+Archiving a used kind requires another active kind in `moveDevicesTo`: its devices and models
+move in the same audited transaction. Legacy category kinds can be renamed and regrouped, but
+cannot be archived. A group with active kinds cannot be archived. New kinds do not track frequency.
+These definition tools require an admin's read-write token; other roles are refused.
+
+`list_kind_library({ institutionType? })` is admin-only and returns bilingual institution
+types, groups and kinds, their tier, current installed name, availability and remaining
+capacity. Institution keys are `university`, `event_hall`, `council`, `theatre`, `trade_fair`.
+`install_library_kinds({ keys })` requires an admin's read-write token and installs exactly
+those keys in one transaction, including missing function groups. It uses `DEFAULT_LOCALE`
+for new names and the library's order; it never renames existing entries. Present, archived,
+name-taken and unknown entries are refused. Nothing is installed on a conflict. See the
+[device-kind library](KIND-LIBRARY.md); fields and room types are not installed.
+Use `set_equipment_model_ports({ modelId, ports })` to replace and reorder templates;
+each port has `label`, `connector`, `direction` and `signal`. New devices copy templates
+in their creation transaction. Template edits never overwrite existing device ports.
+`inherit_equipment_model_ports({ equipmentId })` adds only labels that are missing.
+Renaming a template counts as removing one label and adding another: existing copies
+keep their label and values, and a later inherit can add the newly named port alongside them.
+Room cloning starts new devices from their model templates, not from customised device ports.
+Use `add_equipment_port` or `update_equipment_port` with `equipmentId` and `input`
+(`label`, `connector`, `direction`, `signal`, zero-based `position`, optional `note`);
+updates also require `portId`. `remove_equipment_port` takes `equipmentId`, `portId`
+and `confirm: true`. All five tools require a write token and permit team members.
+Connectors use the published enum-like list in the tool schema, backed by a text column;
+direction is `INPUT`, `OUTPUT` or `BIDIRECTIONAL`, and signal is `VIDEO`, `AUDIO`,
+`AUDIO_VIDEO`, `CONTROL`, `NETWORK`, `USB`, `POWER` or `OTHER`.
+Hostname, IP address and MAC address are editable on equipment in every category.
+
+`get_equipment` includes each port's `connection` (or null) with the other device,
+port, device status and optional cable/route note. Its port `allowedActions` report
+state legality for connecting, disconnecting and removal; a write token is still required.
+`connect_equipment_ports` takes the source `equipmentId` and `portId`, a
+`targetEquipmentId`, exactly one of `targetPortId` or `newPort` (the device port input
+above), and an optional `note`. Creating the other port and connecting it is atomic.
+`disconnect_equipment_ports({ equipmentId, connectionId, confirm: true })` removes
+only the connection, keeping both ports. Both devices' audit histories record the change.
+The database permits one connection per port, exactly two ends and two distinct devices.
+Direction and signal do not restrict a connection. Disconnect a connected port before
+removing it; retirement keeps connections and their visible retired-device marker.
+
 Most lists return `items` and `nextOffset`; repeat with that offset until it is null. Lists
 default to 50, accept up to 100 per page, and expose domain filters. `list_activity` uses
 `nextCursor` instead of an offset. Search uses its own ranked
 limit. Rooms are bookable spaces; locations are separate storage/work places, not room IDs.
 
 Resource support varies by client; use the equivalent read tools when resources are not exposed.
+
+### Room functions and faults
+
+`list_room_functions({})` returns available function definitions with carrier and path-device
+kind mappings. `get_room_functions({ roomId })` returns the room's derived state per function,
+its devices, open faults, causes and the oldest evidence at the current level. A null evidence
+start means the status predates the function-state migration; no known fault is neutral and
+does not confirm that the function works.
+
+`list_room_types({})` reads the room types and their expected function IDs. Read-only tokens
+can use it. `set_room_type({ roomId, type })` accepts a library key or type ID; null removes
+the type. `set_function_expected({ roomId, functionKey, expected, note? })` adds or drops an
+expectation for one room; null restores inheritance. Both setters need a write token and
+preserve the other per-room adjustments. They update the four previous feature flags too.
+The effective expectations are the type's functions plus additions minus removals. Untyped
+rooms start from their carrier devices, not path devices. An expected function without a carrier returns `MISSING`, never
+an automatic fault or a row in `list_not_working`. An explicit open fault or a current manual
+state is still evidence, even after the last carrier retires. A passing check alone cannot
+make a missing carrier green. Gaps are not offered as new fault choices, and new function faults
+need a carrier. Existing explicit faults remain readable and resolvable after retirement.
+
+`update_room` retains its previous replace semantics for the legacy fields, including false
+for omitted feature flags. `roomTypeId`, `expectations` and `customValues` are preserved when
+omitted. Explicit expectation rows merge per function; expected null restores inheritance.
+When expectations are omitted, the four legacy flags update their corresponding expectations.
+
+`start_round({ name, roomIds })` starts a round for an explicit room selection with expected functions.
+`get_round({ id })` returns its rooms, done/open progress, checks and faults.
+`record_check({ roomId, functionKey, result, note?, roundId?, resolveFaults?, resolution?, restoreDevices? })`
+records `WORKS`, `LIMITED`, `DOWN` or `NOT_CHECKED`. `functionKey` also accepts the ID of a
+team-defined function. Limited and failed checks open a fault
+in the same audited transaction. Repeating a completed result in the same round returns that
+check rather than opening another fault. A skipped result can be completed later.
+Expected gaps remain visible in a round but have no result buttons and do not require a check.
+Functions with a carrier or an existing open function fault remain checkable even when the
+type does not expect them. A room with no checkable functions can be finished on the phone
+without recording a passing check or changing its last-check date.
+Passing never silently closes faults or restores devices: supply the selected fault IDs with
+a nonblank resolution, or device IDs to restore, explicitly. A complete room updates its last
+check date; all completed rooms close the round. These writes require a write-scoped token.
+
+`WORKS` is green only when a recent passing check is at least as new as the evidence and no
+fault remains. `FUNCTION_CONFIRMATION_DAYS` sets the confirmation window (default 200 days).
+After the window it returns to `NO_KNOWN_FAULT`; read tools also return `lastCheckedAt`.
+`set_function_state({ roomId, functionKey, state, reason, until? })` lets an admin set `WORKS`,
+`LIMITED` or `DOWN`, with an optional ISO end instant. `clear_function_state({ roomId, functionKey })`
+returns to the computed state. Both require an admin and a write-scoped token. Newer evidence
+or a newer check ends the manual state's effect; its reason is returned as `manualReason` while active.
+Skipped checks leave the previous confirmation or manual state intact. A repeated failed check
+adds its note to the open function fault and can increase its impact, rather than duplicating it.
+Invalidation is conservative: later edits to linked faults or mapped devices, including metadata
+edits, also invalidate an earlier confirmation or state set by hand.
+
+`list_not_working({ functionId?, functionKey?, campusId?, buildingId?, state?, unassigned? })`
+returns limited and non-working room functions across rooms, oldest evidence first. `state` is
+`DOWN` or `LIMITED`; unknown starts sort first. Each row includes room identity, open faults,
+device evidence and assignees. It uses the same computation as the room page.
+
+`create_ticket` accepts `functionId` (or a library `functionKey`) and `impact` (`DOWN` or
+`LIMITED`). An impact is only valid for an `INCIDENT`; a missing impact counts as limited.
+The function must be served in the selected room, and an optional device must belong to that
+function in that room. Tickets created by this tool record channel `MCP`.
+
+`create_ticket` and `transition_ticket` accept `keepAsFix: true` with a resolved incident or
+repair, a room, a function and nonblank `resolution` (what helped). A retained born-resolved
+repair without a device can record an earlier note even when the room no longer serves that
+function. `get_room_functions` includes `knownFixes`, newest resolution first, with each
+ticket's ID, title, resolution and resolvedAt. These remain readable after devices are retired.
+`list_not_working` includes the same fixes on affected functions.
+
+`update_ticket` can change `keepAsFix` and edit `resolution` on a resolved entry. Setting the
+flag false hides the fix without deleting its ticket or resolution; setting it true restores
+it. Reopening clears the resolution and flag. The room page can edit or drop a fix and
+explicitly move its earlier note into a repair, choosing a function; that move clears the old
+text in the same audited transaction, and its displayed date is the move date.
 
 ### Workflow discovery
 
@@ -282,6 +535,12 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
   reporting stay off unless configured; MCP itself requires none of those integrations.
 
 ### Asset-health booking overrides
+
+`create_room`, `update_room` and `bulk_create_rooms` accept `knownIssues` (optional plain text)
+and `lastCheckedAt` (optional ISO timestamp with an offset). `get_room`, `list_rooms` and room
+resources return both fields, using null for unset values. Room search matches known problems.
+`update_room` replaces editable fields, so omitted optional values are cleared. Cloning a room
+never copies known problems or the last-check date.
 
 `get_room`, `list_rooms` and their resources expose `bookingAction`; equipment reads expose
 `allocationAction`. These shared descriptors separate action legality from required inputs and

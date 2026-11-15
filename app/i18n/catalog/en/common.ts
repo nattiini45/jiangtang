@@ -12,6 +12,10 @@ export const commonEn = {
   "common.error.notFound.detail": "The page you are looking for does not exist or has moved.",
 
   "common.dataGrid.empty": "No entries.",
+  "common.dataGrid.resetWidths": "Reset column widths",
+  "common.dataGrid.resizeColumn": "Resize column: {name}",
+  "common.dataGrid.resizeHelp":
+    "Drag or use arrow keys to resize. Double-click or press Enter to fit content.",
   "common.dataGrid.filterPlaceholder": "Filter…",
   "common.dataGrid.filterLabel": "Search table",
 

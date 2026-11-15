@@ -9,7 +9,7 @@ import {
   isoWeekStart,
 } from "~/lib/berlin-days";
 
-export const CALENDAR_VIEWS = ["month", "week", "day", "rooms", "list"] as const;
+export const CALENDAR_VIEWS = ["month", "week", "day", "rooms"] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 
 export function parseCalendarDate(input: string | null, now = new Date()): number {

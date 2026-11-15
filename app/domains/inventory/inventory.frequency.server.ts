@@ -1,6 +1,11 @@
 import { db } from "~/lib/db.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { EquipmentStatus, MicKind } from "~/generated/prisma/client";
+import { Prisma } from "~/generated/prisma/client";
+import { getFieldSchema } from "~/lib/custom-fields/schema.server";
+import { legacyColumnValues } from "~/lib/custom-fields/legacy.server";
+import { applies, valueObject } from "~/lib/custom-fields/fields";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
 
 /** Read-only microphone frequency coordination board (read-only).
  *
@@ -62,8 +67,16 @@ function displayName(name: string | null, id: string): string {
 }
 
 export async function listFrequencyBoard(): Promise<FrequencyGroup[]> {
+  const fields = await getFieldSchema("EQUIPMENT");
+  const frequency = fields.find((field) => field.libraryKey === "frequency");
+  const kinds = await db.equipmentKind.findMany({ select: { id: true, systemKey: true } });
   const items = await db.equipment.findMany({
-    where: { frequencyMhz: { not: null } },
+    where: {
+      OR: [
+        { frequencyMhz: { not: null } },
+        ...(frequency ? [{ customValues: { path: [frequency.id], not: Prisma.AnyNull } }] : []),
+      ],
+    },
     select: {
       id: true,
       name: true,
@@ -71,6 +84,9 @@ export async function listFrequencyBoard(): Promise<FrequencyGroup[]> {
       band: true,
       channelLabel: true,
       micKind: true,
+      customValues: true,
+      kindId: true,
+      category: true,
       status: true,
       room: {
         select: {
@@ -95,7 +111,17 @@ export async function listFrequencyBoard(): Promise<FrequencyGroup[]> {
   const buckets = new Map<string, Bucket>();
 
   for (const e of items) {
-    const freq = formatMhz(e.frequencyMhz!);
+    const kindId =
+      e.kindId ??
+      kinds.find((kind) => kind.systemKey === DEFAULT_EQUIPMENT_KINDS[e.category].key)?.id;
+    const properties = legacyColumnValues(
+      fields.filter((field) => applies(field, kindId)),
+      valueObject(e.customValues),
+    );
+    const value =
+      typeof properties.frequencyMhz === "number" ? properties.frequencyMhz : e.frequencyMhz;
+    if (value == null) continue;
+    const freq = formatMhz(value);
     const building = e.room?.building ?? null;
     const isPool = building === null;
     const key = isPool ? POOL_KEY : building.id;
@@ -116,9 +142,10 @@ export async function listFrequencyBoard(): Promise<FrequencyGroup[]> {
       id: e.id,
       name: e.name,
       frequencyMhz: freq,
-      band: e.band,
-      channelLabel: e.channelLabel,
-      micKind: e.micKind,
+      band: typeof properties.band === "string" ? properties.band : e.band,
+      channelLabel:
+        typeof properties.channelLabel === "string" ? properties.channelLabel : e.channelLabel,
+      micKind: typeof properties.micKind === "string" ? properties.micKind : e.micKind,
       status: e.status,
       roomName: e.room?.name ?? null,
       clash: false,

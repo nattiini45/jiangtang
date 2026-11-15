@@ -88,14 +88,23 @@ describe("phone and explicit view selection", () => {
 
 const equivalents = [
   ["/", "/m"],
-  ["/quick-entry", "/m"],
-  ["/tickets/new", "/m"],
+  ["/changes", "/m/changes"],
+  ["/plans", "/m/plans"],
+  ["/plans/plan-1", "/m/plans/plan-1"],
+  ["/due", "/m/due"],
+  ["/quick-entry", "/m/quick-entry"],
+  ["/tickets/new", "/m/quick-entry"],
   ["/board", "/m/board"],
   ["/events", "/m/events"],
+  ["/calendar", "/m/calendar"],
+  ["/functions", "/m/functions"],
+  ["/rounds", "/m/rounds"],
+  ["/rounds/round-1", "/m/rounds/round-1"],
   ["/events/new", "/m/events/new"],
   ["/events/event-1", "/m/events/event-1"],
   ["/inventory/stock", "/m/inventory/stock"],
-  ["/inventory/equipment-1", "/m?equipmentId=equipment-1"],
+  ["/inventory/equipment-1", "/m/quick-entry?equipmentId=equipment-1"],
+  ["/inventory/equipment-1/readings", "/m/inventory/equipment-1/readings"],
   ["/inventory/stock/item-1", "/m/inventory/stock/item-1"],
   ["/locations", "/m/locations"],
   ["/notes", "/m/notes"],
@@ -164,13 +173,26 @@ describe("route equivalents", () => {
   });
 
   it.each([
-    ["/events?date=2026-11-09&view=rooms&room=a", "/m/events?date=2026-11-09"],
+    ["/events?date=2026-11-09&view=rooms&room=a", "/m/calendar?date=2026-11-09&room=a&view=rooms"],
+    [
+      "/plans/plan-1?device=device-1&plannedFor=2025-09-30",
+      "/m/plans/plan-1?device=device-1&plannedFor=2025-09-30",
+    ],
+    [
+      "/calendar?date=2026-11-09&kinds=tasks,projects&room=a&equipment=b",
+      "/m/calendar?date=2026-11-09&kinds=tasks%2Cprojects&room=a&equipment=b",
+    ],
+    ["/events?status=CONFIRMED", "/m/events?status=CONFIRMED"],
+    [
+      "/functions?functionId=a&campusId=b&buildingId=c&state=DOWN&unassigned=true&sort=newest",
+      "/m/functions?functionId=a&campusId=b&buildingId=c&state=DOWN&unassigned=true&sort=newest",
+    ],
     [
       "/events/new?date=2026-11-09&startsAt=2026-11-09T08%3A00Z&endsAt=2026-11-09T09%3A00Z&roomId=a",
       "/m/events/new?date=2026-11-09&startsAt=2026-11-09T08%3A00Z&endsAt=2026-11-09T09%3A00Z&roomId=a",
     ],
     ["/search?q=room+one&limit=10", "/m/search?q=room+one"],
-    ["/tickets?status=OPEN&q=screen&assignee=me", "/m/tickets?q=screen&status=OPEN"],
+    ["/tickets?status=OPEN&q=screen&assignee=me", "/m/tickets?q=screen&status=OPEN&assignee=me"],
     [
       "/inventory/stock?q=lamp&hideUnassigned=1&sort=sku",
       "/m/inventory/stock?q=lamp&hideUnassigned=1",
@@ -179,11 +201,12 @@ describe("route equivalents", () => {
     ["/tasks?assignee=me&project=hall", "/m/tasks"],
     [
       "/quick-entry?roomId=a&equipmentId=b&type=INCIDENT",
-      "/m?roomId=a&equipmentId=b&type=INCIDENT",
+      "/m/quick-entry?roomId=a&equipmentId=b&type=INCIDENT",
     ],
-    ["/tickets/new?roomId=a&equipmentId=b", "/m?roomId=a&equipmentId=b"],
-    ["/inventory/projector-1?equipmentId=forged", "/m?equipmentId=projector-1"],
-    ["/inventory/a%20b", "/m?equipmentId=a+b"],
+    ["/tickets/new?roomId=a&equipmentId=b", "/m/quick-entry?roomId=a&equipmentId=b"],
+    ["/inventory/projector-1?equipmentId=forged", "/m/quick-entry?equipmentId=projector-1"],
+    ["/inventory/projector-1/readings?history=1", "/m/inventory/projector-1/readings?history=1"],
+    ["/inventory/a%20b", "/m/quick-entry?equipmentId=a+b"],
     ["/rooms/a%20b#bookings", "/m/rooms/a%20b#bookings"],
     ["/rooms/hall?date=2026-10-25", "/m/rooms/hall?date=2026-10-25"],
     ["/events/e-1?date=2026-10-25&edit=1", "/m/events/e-1?date=2026-10-25"],

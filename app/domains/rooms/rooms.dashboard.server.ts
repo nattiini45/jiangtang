@@ -1,4 +1,17 @@
 import { db } from "~/lib/db.server";
+import { listRoomTypes } from "./room-types.queries.server";
+import {
+  getFunctionStates,
+  listRoomFunctions,
+  type RoomFunctionState,
+} from "~/domains/functions/functions.queries.server";
+import { withFieldValues } from "~/lib/custom-fields/display.server";
+import type { FilledField } from "~/lib/custom-fields/fields";
+import {
+  kindSelect,
+  withEquipmentKinds,
+  type EquipmentKindSummary,
+} from "~/lib/equipment-kinds/kinds.server";
 import {
   listAttachments,
   type AttachmentRow,
@@ -10,6 +23,7 @@ import {
 } from "~/domains/tickets/tickets.history.server";
 import type {
   EquipmentCategory,
+  Equipment,
   EquipmentStatus,
   RoomStatus,
   TicketStatus,
@@ -36,16 +50,35 @@ export interface TicketSummary {
   resolvedAt: Date | null;
 }
 
-export interface DashboardEquipment {
+export interface DashboardEquipment extends Pick<
+  Equipment,
+  | "serial"
+  | "hostname"
+  | "ipAddress"
+  | "macAddress"
+  | "dellServiceTag"
+  | "dellExpressTag"
+  | "micKind"
+  | "band"
+  | "channelLabel"
+  | "lampType"
+  | "lastLampChangeAt"
+  | "color"
+> {
   id: string;
   name: string | null;
   category: EquipmentCategory;
+  kind: EquipmentKindSummary;
   status: EquipmentStatus;
   assetTag: string | null;
   modelName: string | null;
+  frequencyMhz: number | null;
+  fields: FilledField[];
 }
 
 export interface DashboardRoom {
+  roomTypeName?: string | null;
+  fields: FilledField[];
   id: string;
   slug: string;
   name: string;
@@ -67,11 +100,14 @@ export interface DashboardRoom {
   manualUrl: string | null;
   virtualTourUrl: string | null;
   tipsNotes: string | null;
+  knownIssues: string | null;
   renewalStatus: string | null;
   lastCheckedAt: Date | null;
 }
 
 export interface RoomDashboardData {
+  fixFunctions: { id: string; name: string }[];
+  functions: RoomFunctionState[];
   room: DashboardRoom;
   equipment: DashboardEquipment[];
   openTickets: TicketSummary[];
@@ -88,7 +124,7 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
       building: { select: { name: true } },
       equipment: {
         orderBy: [{ category: "asc" }, { name: "asc" }],
-        include: { model: { select: { name: true } } },
+        include: { kind: { select: kindSelect }, model: { select: { name: true } } },
       },
     },
   });
@@ -104,16 +140,35 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
   const attachments = await listAttachments({ roomId: room.id });
   const history = await listEntityHistory(ENTITY_TYPE.room, room.id, 20);
 
-  const equipment: DashboardEquipment[] = room.equipment.map((e) => ({
+  const equipment: DashboardEquipment[] = (
+    await withFieldValues("EQUIPMENT", await withEquipmentKinds(room.equipment))
+  ).map((e) => ({
+    fields: e.fields,
     id: e.id,
     name: e.name,
     category: e.category,
+    kind: e.kind,
     status: e.status,
     assetTag: e.assetTag,
     modelName: e.model?.name ?? null,
+    serial: e.serial,
+    hostname: e.hostname,
+    ipAddress: e.ipAddress,
+    macAddress: e.macAddress,
+    dellServiceTag: e.dellServiceTag,
+    dellExpressTag: e.dellExpressTag,
+    micKind: e.micKind,
+    frequencyMhz: e.frequencyMhz?.toNumber() ?? null,
+    band: e.band,
+    channelLabel: e.channelLabel,
+    lampType: e.lampType,
+    lastLampChangeAt: e.lastLampChangeAt,
+    color: e.color,
   }));
 
   const dashboardRoom: DashboardRoom = {
+    roomTypeName: (await listRoomTypes()).find((type) => type.id === room.roomTypeId)?.name ?? null,
+    fields: (await withFieldValues("ROOM", [room]))[0].fields,
     id: room.id,
     slug: room.slug,
     name: room.name,
@@ -135,11 +190,14 @@ export async function getRoomDashboard(slug: string): Promise<RoomDashboardData 
     manualUrl: room.manualUrl,
     virtualTourUrl: room.virtualTourUrl,
     tipsNotes: room.tipsNotes,
+    knownIssues: room.knownIssues,
     renewalStatus: room.renewalStatus,
     lastCheckedAt: room.lastCheckedAt,
   };
 
   return {
+    fixFunctions: (await listRoomFunctions()).map(({ id, name }) => ({ id, name })),
+    functions: await getFunctionStates({ roomIds: [room.id] }),
     room: dashboardRoom,
     equipment,
     openTickets: tickets.filter((t) => t.status === "OPEN" || t.status === "IN_PROGRESS"),

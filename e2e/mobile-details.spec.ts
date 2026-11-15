@@ -93,7 +93,7 @@ for (const theme of ["light", "dark"] as const) {
     }
     await expect(
       page.getByRole("link", { name: `Eintrag zu ${runPrefix()}Projektor erfassen` }),
-    ).toHaveAttribute("href", `/m?roomId=${room.id}&equipmentId=${equipmentId}`);
+    ).toHaveAttribute("href", `/m/quick-entry?roomId=${room.id}&equipmentId=${equipmentId}`);
     const booking = page.getByRole("link").filter({ hasText: event.title });
     await expect(booking).toContainText("09:00");
     await expect(booking).toContainText("12:00");
@@ -106,8 +106,8 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.getByText("contact@example.test", { exact: true })).toBeVisible();
     await expect(page.locator("input:not([type=hidden]), textarea, select")).toHaveCount(0);
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 390);
-    await page.getByRole("link", { name: "Zurück zu den Veranstaltungen", exact: true }).click();
-    await expect(page).toHaveURL("/m/events?date=2026-10-25");
+    await page.getByRole("link", { name: "Kalender", exact: true }).click();
+    await expect(page).toHaveURL("/m/calendar?date=2026-10-25");
     await page.getByRole("link").filter({ hasText: event.title }).click();
     await expect(page).toHaveURL(`/m/events/${event.id}?date=2026-10-25`);
     await page.goto(`/m/rooms/${room.slug}?date=2026-10-26`);

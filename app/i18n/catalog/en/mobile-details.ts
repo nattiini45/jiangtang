@@ -4,7 +4,6 @@ export const mobileDetailsEn = {
   "mobileDetails.desktop": "Open desktop view",
   "mobileDetails.eventTime": "Event time",
   "mobileDetails.roomBack": "Back to rooms",
-  "mobileDetails.eventBack": "Back to events",
   "mobileDetails.noteBack": "Back to notes",
   "mobileDetails.schedule": "Bookings on the selected day",
   "mobileDetails.scheduleHint":

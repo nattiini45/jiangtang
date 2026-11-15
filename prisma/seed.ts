@@ -54,7 +54,9 @@ async function main(): Promise<void> {
 
   const { db } = await import("~/lib/db.server");
   const { txWithAudit } = await import("~/lib/audit.server");
+  const { initializeEquipmentKinds } = await import("~/lib/equipment-kinds/kinds.server");
   try {
+    await initializeEquipmentKinds();
     // One transaction for the whole seed: the data and its audit rows commit
     // together or not at all. Generous timeouts because this is a bulk writer
     // doing hundreds of sequential round-trips (same reason as run.ts).

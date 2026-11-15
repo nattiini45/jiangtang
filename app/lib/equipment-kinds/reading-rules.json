@@ -1,0 +1,18 @@
+{
+  "projector.light_source_hours": {
+    "limits": [
+      "projector.light_source_life",
+      "projector.lamp_life_normal",
+      "projector_lamp.rated_life",
+      "lamp_stock.rated_life"
+    ],
+    "partKinds": ["projector_lamp", "lamp_stock"]
+  },
+  "projector.filter_hours": {
+    "limits": ["projector_filter.service_interval", "filter_stock.service_interval"],
+    "partKinds": ["projector_filter", "filter_stock"]
+  },
+  "projector_lamp.lamp_hours": {
+    "limits": ["projector_lamp.rated_life"]
+  }
+}

@@ -10,6 +10,10 @@ export const commonDe = {
   "common.error.notFound.detail": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
 
   "common.dataGrid.empty": "Keine Einträge.",
+  "common.dataGrid.resetWidths": "Spaltenbreiten zurücksetzen",
+  "common.dataGrid.resizeColumn": "Spaltenbreite ändern: {name}",
+  "common.dataGrid.resizeHelp":
+    "Ziehen oder Pfeiltasten: Breite ändern. Doppelklick oder Eingabetaste: an Inhalt anpassen.",
   "common.dataGrid.filterPlaceholder": "Filtern…",
   "common.dataGrid.filterLabel": "Tabelle durchsuchen",
 

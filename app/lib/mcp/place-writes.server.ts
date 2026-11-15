@@ -1,6 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
+import { withMcpEquipmentKind } from "./tools.server";
+import { getEquipment } from "~/domains/inventory/inventory.queries.server";
+import { getModel } from "~/domains/catalog/catalog.queries.server";
 import {
   createCampus,
   updateCampus,
@@ -20,7 +23,7 @@ import {
   roomCreateSchema,
   roomEditSchema,
   roomCloneSchema,
-  roomCsvRowSchema,
+  roomBulkRowSchema,
 } from "~/domains/rooms/rooms.schema";
 import {
   createLocation,
@@ -45,7 +48,7 @@ import {
 import {
   equipmentCreateSchema,
   equipmentEditSchema,
-  equipmentCsvRowSchema,
+  equipmentBulkRowSchema,
 } from "~/domains/inventory/inventory.schema";
 import {
   createStockItem,
@@ -65,12 +68,16 @@ import { emitChange } from "~/lib/realtime/emit.server";
 import type { ChangeOp, EntityType } from "~/lib/realtime/events";
 import { registerTool } from "./tools.server";
 import { mcpActor, type McpContext } from "./types.server";
+import { withCustomValues } from "~/lib/custom-fields/values.server";
 
 const id = z.string().trim().min(1);
 const byId = z.object({ id });
 const confirmedId = byId.extend({ confirm: z.literal(true) });
 const instant = z.iso.datetime({ offset: true });
 const roomInstants = {
+  lastCheckedAt: instant
+    .optional()
+    .transform((value) => roomCreateSchema.shape.lastCheckedAt.parse(value)),
   renewalFrom: instant
     .optional()
     .transform((value) => roomCreateSchema.shape.renewalFrom.parse(value)),
@@ -106,12 +113,49 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     handler: (input: z.output<S>, ctx: McpContext) => Promise<{ id: string } | { created: number }>,
   ) {
     registerTool(server, context, { ...definition, write: true }, async (input, ctx) => {
-      const result = await handler(input, ctx);
+      let result = await handler(input, ctx);
+      if (
+        (definition.entityType === "room" || definition.entityType === "equipment") &&
+        "id" in result &&
+        "customValues" in result
+      )
+        result = (
+          await withCustomValues(
+            definition.entityType === "room" ? "ROOM" : "EQUIPMENT",
+            [result],
+            true,
+          )
+        )[0];
       await emitChange({
         entityType: definition.entityType,
         id: "id" in result ? result.id : "bulk",
         op: definition.op,
       });
+      if (
+        "id" in result &&
+        (definition.entityType === "equipment" || definition.entityType === "equipmentModel")
+      ) {
+        const record =
+          definition.entityType === "equipment"
+            ? await getEquipment(result.id)
+            : await getModel(result.id);
+        if (record) return withMcpEquipmentKind({ ...result, kind: record.kind });
+      }
+      if (
+        definition.entityType === "equipment" &&
+        "items" in result &&
+        Array.isArray(result.items)
+      ) {
+        return {
+          ...result,
+          items: await Promise.all(
+            result.items.map(async (item: { id: string }) => {
+              const record = await getEquipment(item.id);
+              return record ? withMcpEquipmentKind({ ...item, kind: record.kind }) : item;
+            }),
+          ),
+        };
+      }
       return result;
     });
   }
@@ -160,7 +204,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "create_room",
       description:
-        "Create a bookable room. Renewal instants require an ISO timestamp with an offset.",
+        "Create a bookable room with optional knownIssues and lastCheckedAt. Check and renewal instants require an ISO timestamp with an offset.",
       schema: roomCreateSchema.safeExtend(roomInstants),
       entityType: "room",
       op: "created",
@@ -171,7 +215,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_room",
       description:
-        "Replace a room's editable fields by ID, not slug. Omitted optional fields are cleared; renewal instants require an ISO timestamp with an offset.",
+        "Replace the previous built-in editable room fields by ID, not slug; omitted optional fields are cleared and omitted feature flags become false. roomTypeId, expectations and customValues are preserved when omitted. Expectations merge per function (expected null restores inheritance); customValues merge per key (null clears a key). When expectations are omitted, legacy feature flags update the corresponding expectations. Check and renewal instants require an ISO timestamp with an offset.",
       schema: z.object({ id, input: roomEditSchema.safeExtend(roomInstants) }),
       entityType: "room",
       op: "updated",
@@ -206,7 +250,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
       name: "bulk_create_rooms",
       description:
         "Atomically import 1–500 rooms using the existing CSV row fields (including German column names). Returns the count and created room IDs, names and slugs. ADMIN only.",
-      schema: z.object({ rows: z.array(roomCsvRowSchema).min(1).max(500) }),
+      schema: z.object({ rows: z.array(roomBulkRowSchema).min(1).max(500) }),
       role: "ADMIN",
       entityType: "room",
       op: "created",
@@ -261,7 +305,8 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
   write(
     {
       name: "create_equipment_model",
-      description: "Create an equipment catalog model.",
+      description:
+        "Create an equipment catalog model with kindId, or the legacy category alias. kindId takes precedence and determines category.",
       schema: modelCreateSchema,
       entityType: "equipmentModel",
       op: "created",
@@ -272,7 +317,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_equipment_model",
       description:
-        "Replace a catalog model's editable fields by ID. Catalog models cannot be deleted.",
+        "Replace a catalog model's editable fields by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Catalog models cannot be deleted.",
       schema: z.object({ id, input: modelEditSchema }),
       entityType: "equipmentModel",
       op: "updated",
@@ -283,7 +328,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "create_equipment",
       description:
-        "Create an equipment instance. FIXED requires roomId; POOLED forbids roomId. Lamp-change instants require an ISO timestamp with an offset.",
+        "Create an equipment instance with kindId, or the legacy category alias. kindId takes precedence and determines category. FIXED requires roomId; POOLED forbids roomId. Lamp-change instants require an ISO timestamp with an offset.",
       schema: equipmentCreateSchema.safeExtend(equipmentInstants),
       entityType: "equipment",
       op: "created",
@@ -294,7 +339,7 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "update_equipment",
       description:
-        "Replace an equipment instance's editable fields by ID. Omitted optional fields are cleared; lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
+        "Replace built-in editable device fields by ID. Use kindId or the legacy category alias; a matching category preserves the current kind. Omitted optional built-in fields are cleared, except legacy columns now backed by library properties, which are retained. customValues merges supplied keys; null clears a key and its legacy column. Ranges use {min, max}, with either bound nullable. Lamp-change instants require an ISO timestamp with an offset. Use retire_equipment with confirm=true to retire a device and clear substitution links.",
       schema: z.object({
         id,
         input: equipmentEditSchema
@@ -337,8 +382,8 @@ export function registerPlaceWrites(server: McpServer, context: McpContext): voi
     {
       name: "bulk_create_equipment",
       description:
-        "Atomically import 1–500 equipment instances using the existing CSV row fields (including German column names). Returns the count and created equipment IDs, names, categories and asset tags. ADMIN only.",
-      schema: z.object({ rows: z.array(equipmentCsvRowSchema).min(1).max(500) }),
+        "Atomically import 1–500 equipment instances using the existing CSV row fields (including German column names), plus kindId. Each row requires kindId or kategorie; kindId takes precedence. Returns the count and created equipment IDs, names, categories and asset tags. ADMIN only.",
+      schema: z.object({ rows: z.array(equipmentBulkRowSchema).min(1).max(500) }),
       role: "ADMIN",
       entityType: "equipment",
       op: "created",

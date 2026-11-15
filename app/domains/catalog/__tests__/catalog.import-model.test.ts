@@ -691,6 +691,24 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261109220000_calendar_publication_initialization",
       "20261110200000_time_permissions",
       "20261110203000_invitations",
+      "20261111163000_room_known_issues",
+      "20261112090000_equipment_ports",
+      "20261112090100_equipment_connections",
+      "20261112120000_equipment_kinds",
+      "20261112130000_custom_field_definitions",
+      "20261112130100_custom_field_values",
+      "20261112140000_disjoint_field_names",
+      "20261112150000_list_columns",
+      "20261112180000_model_properties",
+      "20261112190000_model_catalog",
+      "20261113080000_room_functions",
+      "20261113150000_rounds",
+      "20261113170000_room_types",
+      "20261113190000_home_layout",
+      "20261113210000_parts",
+      "20261113230000_readings",
+      "20261114020000_work_plans",
+      "20261114020100_inspection_occurrences",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only
     // new symbol is a function.
@@ -700,7 +718,7 @@ describe("no migration, no fragment directory, no schema change", () => {
     );
     expect(schema).toMatch(/model EquipmentModel \{/);
     expect(findOrCreateBody).toMatch(
-      /tx\.equipmentModel\.create\(\{\s*data: \{ name: input\.name, category: input\.category \},?\s*\}\)/,
+      /tx\.equipmentModel\.create\(\{\s*data: \{ name: input\.name, \.\.\.\(?await resolveEquipmentKind\(tx, input\)\)? \},?\s*\}\)/,
     );
   });
 });

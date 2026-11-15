@@ -14,9 +14,10 @@ import { getProjectBySlug, listProjects } from "~/domains/projects/projects.quer
 import { getTask, listTasks } from "~/domains/tasks/tasks.queries.server";
 import { getNote, listNotes } from "~/domains/notes/notes.queries.server";
 import { getTimeEntry } from "~/domains/time/time.queries.server";
-import { serializeMcp } from "~/lib/mcp/tools.server";
+import { serializeMcp, withMcpEquipmentKind } from "~/lib/mcp/tools.server";
 import { logger } from "~/lib/observability/logger.server";
 import type { McpContext } from "~/lib/mcp/types.server";
+import { withCustomValues } from "~/lib/custom-fields/values.server";
 
 async function readResource(uri: URL, query: () => Promise<unknown>) {
   try {
@@ -65,13 +66,18 @@ export function registerResources(server: McpServer, context: McpContext): void 
   }> = [
     {
       name: "rooms",
-      query: async () => (await listRooms({}, { limit: 51 })).map(withRoomBookingAction),
+      query: async () =>
+        (await withCustomValues("ROOM", await listRooms({}, { limit: 51 }))).map(
+          withRoomBookingAction,
+        ),
       tool: "list_rooms",
     },
     {
       name: "equipment",
       query: async () =>
-        (await listEquipment({}, { limit: 51 })).map(withEquipmentAllocationAction),
+        (await withCustomValues("EQUIPMENT", await listEquipment({}, { limit: 51 })))
+          .map(withMcpEquipmentKind)
+          .map(withEquipmentAllocationAction),
       tool: "list_equipment",
     },
     { name: "events", query: () => listEvents({}, { limit: 51 }), tool: "list_events" },
@@ -112,7 +118,9 @@ export function registerResources(server: McpServer, context: McpContext): void 
       description: "Room capabilities, status and building",
       query: async (id) => {
         const room = await getRoom(id);
-        return room ? withRoomBookingAction(room) : null;
+        return room
+          ? withRoomBookingAction((await withCustomValues("ROOM", [room], true))[0])
+          : null;
       },
     },
     {
@@ -121,7 +129,11 @@ export function registerResources(server: McpServer, context: McpContext): void 
       description: "Equipment model, room and substitution links",
       query: async (id) => {
         const equipment = await getEquipment(id);
-        return equipment ? withEquipmentAllocationAction(equipment) : null;
+        return equipment
+          ? withEquipmentAllocationAction(
+              withMcpEquipmentKind((await withCustomValues("EQUIPMENT", [equipment], true))[0]),
+            )
+          : null;
       },
     },
     {

@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/server";
+import { listRoomFunctions } from "~/domains/functions/functions.queries.server";
 import { z } from "zod";
 import { msgKey } from "~/i18n";
 import { tr } from "~/i18n/request-locale.server";
@@ -325,10 +326,10 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "create_ticket",
       description:
-        "Create a ticket, including a born-resolved repair with a resolution. Dates must be ISO instants. Result includes legal next actions; inspect get_allowed_actions before later transitions.",
+        "Create a ticket, including a born-resolved repair with a resolution. keepAsFix retains a resolved fault or repair with a room and function as a known fix. Dates must be ISO instants. Result includes legal next actions; inspect get_allowed_actions before later transitions.",
       schema: z.object({
         input: z
-          .object({ ...ticketCreateSchema.shape, ...ticketDates })
+          .object({ ...ticketCreateSchema.shape, ...ticketDates, functionKey: id.optional() })
           .refine((input) => input.status !== "CANCELLED", {
             path: ["status"],
             message: msgKey("err.mcp.useTransitionTicket"),
@@ -337,7 +338,18 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
       write: true,
     },
     async ({ input }, context) => {
-      const ticket = await createTicket(mcpActor(context), ticketCreateSchema.parse(input));
+      const definition = input.functionKey
+        ? (await listRoomFunctions()).find((row) => row.systemKey === input.functionKey)
+        : undefined;
+      if (input.functionKey && !definition) throw new NotFoundError(tr("functions.error.function"));
+      const ticket = await createTicket(
+        mcpActor(context),
+        ticketCreateSchema.parse({
+          ...input,
+          functionId: definition?.id ?? input.functionId,
+          channel: "MCP",
+        }),
+      );
       await emitChange({ entityType: "ticket", id: ticket.id, op: "created" });
       return { ...ticket, label: ticket.title, ...ticketActionMetadata(ticket.status) };
     },
@@ -348,7 +360,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "update_ticket",
       description:
-        "Replace ticket content and assignees without changing its status. Dates must be ISO instants. Result includes legal next actions; see get_allowed_actions.",
+        "Replace ticket content and assignees without changing its status. keepAsFix retains or drops a resolved room/function fault or repair; resolution edits what helped. Dates must be ISO instants. Result includes legal next actions; see get_allowed_actions.",
       schema: z.object({
         id,
         input: ticketEditSchema
@@ -369,7 +381,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "transition_ticket",
       description:
-        "Change ticket status: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS. No self transitions. RESOLVED requires nonblank resolution. Refresh get_allowed_actions first; confirm:true is required.",
+        "Change ticket status: OPEN → IN_PROGRESS/RESOLVED/CANCELLED; IN_PROGRESS → OPEN/RESOLVED/CANCELLED; RESOLVED or CANCELLED → OPEN/IN_PROGRESS. No self transitions. RESOLVED requires nonblank resolution; keepAsFix optionally retains it for the linked room/function. Reopening clears both. Refresh get_allowed_actions first; confirm:true is required.",
       schema: z.object({ id, input: ticketTransitionSchema, confirm }),
       write: true,
       destructive: true,

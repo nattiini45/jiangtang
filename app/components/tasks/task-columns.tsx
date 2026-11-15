@@ -38,7 +38,6 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     {
       accessorKey: "title",
       header: t("tasks.col.title"),
-      size: 300,
       cell: ({ row }) => (
         <span className="flex items-center gap-1.5">
           {row.original.isBlocked ? (
@@ -56,14 +55,17 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "status",
+      meta: { sizing: "short", searchText: (row) => t(`status.task.${row.status}`) },
       header: t("tasks.col.status"),
-      size: 120,
       cell: ({ row }) => <StatusCell kind="task" value={row.original.status} />,
     },
     {
       accessorKey: "priority",
+      meta: {
+        sizing: "short",
+        searchText: (row) => (row.priority ? t(`status.taskPriority.${row.priority}`) : null),
+      },
       header: t("tasks.col.priority"),
-      size: 100,
       cell: ({ row }) =>
         row.original.priority ? (
           <span>
@@ -75,8 +77,10 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "assignees",
+      meta: {
+        searchText: (row) => row.assignees.map((a) => a.user.initials ?? a.user.name).join(" "),
+      },
       header: t("tasks.col.assignees"),
-      size: 120,
       cell: ({ row }) =>
         row.original.assignees.length > 0 ? (
           <span className="flex gap-1">
@@ -96,8 +100,8 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "project",
+      meta: { searchText: (row) => row.project?.name },
       header: t("tasks.col.project"),
-      size: 180,
       cell: ({ row }) =>
         row.original.project ? (
           <Link to={`/projects/${row.original.project.slug}`} className="hover:underline">
@@ -116,8 +120,8 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "dueAt",
+      meta: { sizing: "short" },
       header: t("tasks.col.due"),
-      size: 110,
       cell: ({ row }) =>
         row.original.dueAt ? (
           <span
@@ -135,8 +139,8 @@ export function taskColumns(t: Translate): ColumnDef<TaskListRow>[] {
     },
     {
       accessorKey: "labels",
+      meta: { searchText: (row) => row.labels.join(", ") },
       header: t("tasks.col.labels"),
-      size: 160,
       cell: ({ row }) =>
         row.original.labels.length > 0 ? (
           <span className="text-muted-foreground">{row.original.labels.join(", ")}</span>

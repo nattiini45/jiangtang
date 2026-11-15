@@ -20,7 +20,9 @@ const { db } = vi.hoisted(() => {
       room: model(),
       location: model(),
       equipmentModel: model(),
+      equipmentFunctionGroup: model(),
       equipment: model(),
+      customField: model(),
       inventoryItem: model(),
       event: model(),
       calendarOutbox: model(),
@@ -37,6 +39,8 @@ const { db } = vi.hoisted(() => {
       notification: model(),
       user: model(),
       $queryRaw: vi.fn(),
+      $executeRaw: vi.fn(),
+      $transaction: vi.fn(),
     },
   };
 });
@@ -98,6 +102,8 @@ async function status(name: string, input: unknown) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  db.$transaction.mockImplementation(async (callback) => callback(db));
+  db.$executeRaw.mockResolvedValue(1);
   for (const model of Object.values(db)) {
     if (typeof model === "function") continue;
     model.findMany.mockResolvedValue([]);
@@ -176,6 +182,8 @@ describe("read-only MCP coverage", () => {
         const response = await client.callTool({ name, arguments: {} });
         expect(response.isError, JSON.stringify(response.content)).not.toBe(true);
       }
+      const kinds = await client.callTool({ name: "list_device_kinds", arguments: {} });
+      expect(kinds.isError, JSON.stringify(kinds.content)).not.toBe(true);
     } finally {
       await client.close();
       await server.close();
@@ -187,6 +195,10 @@ describe("read-only MCP coverage", () => {
       ...listInputs.map(([name]) => name),
       ...entityReads.map((name) => `get_${name}`),
       "get_project",
+      "list_device_kinds",
+      "list_room_functions",
+      "get_room_functions",
+      "list_not_working",
       "get_allowed_actions",
       "check_booking_conflicts",
       "find_free_slot",
@@ -522,6 +534,14 @@ describe("booking reads", () => {
       assetTag: "MIC-1",
       status: "OPERATIONAL",
       mobility: "POOLED",
+      ports: [],
+      category: "MICROPHONE",
+      kind: {
+        id: "microphone-kind",
+        name: "Microphone",
+        systemKey: "microphone",
+        group: { id: "audio-group", name: "Audio", position: 5 },
+      },
     });
   });
 

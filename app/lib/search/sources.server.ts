@@ -11,6 +11,7 @@
  * components layer; the status enums reuse `~/lib/status`.
  */
 import { db } from "~/lib/db.server";
+import { kindSelect, withEquipmentKinds } from "~/lib/equipment-kinds/kinds.server";
 import {
   projectStatusLabel,
   stockStatusLabel,
@@ -224,12 +225,16 @@ export async function loadSource(type: SourceType, id: string): Promise<SourceDo
       const eq = await db.equipment.findUnique({
         where: { id },
         include: {
+          kind: { select: kindSelect },
           model: { select: { name: true, manufacturer: true } },
           room: { select: { name: true, roomNumber: true } },
         },
       });
       if (!eq) return null;
+      const { kind } = (await withEquipmentKinds([eq]))[0];
       const meta = compact([
+        f("inventory.kind", kind.name),
+        f("inventory.functionGroup", kind.group.name),
         f("search.meta.category", translate(locale, `search.equipmentCategory.${eq.category}`)),
         f("search.meta.status", statusLabel(locale, "equipment", eq.status)),
         f("search.meta.serial", eq.serial),
@@ -286,7 +291,7 @@ export async function loadSource(type: SourceType, id: string): Promise<SourceDo
         f("search.meta.building", room.building?.name),
         f("search.meta.status", statusLabel(locale, "room", room.status)),
       ]);
-      return doc(roomText(room) || room.name, meta, null, room.updatedAt);
+      return doc(roomText(room) || room.name, meta, room.knownIssues, room.updatedAt);
     }
     case "VENDOR": {
       const v = await db.vendor.findUnique({ where: { id } });

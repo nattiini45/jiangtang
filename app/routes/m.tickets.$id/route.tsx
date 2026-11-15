@@ -24,6 +24,7 @@ import { StatusBadge } from "~/components/ui/status-badge";
 import { Button } from "~/components/ui/button";
 import { Label } from "~/components/ui/label";
 import { Textarea } from "~/components/ui/textarea";
+import { Checkbox } from "~/components/ui/checkbox";
 
 /**
  * Mobile ticket detail + close. Read-only projection of the
@@ -186,7 +187,7 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
         {allowedActions.some((action) => action.requiredFields.includes("resolution")) ? (
           <Form method="post" className="flex flex-col gap-2 border-t pt-3">
             <input type="hidden" name="status" value="RESOLVED" />
-            <Label htmlFor="resolution">{t("tickets.detail.markResolved")}</Label>
+            <Label htmlFor="resolution">{t("functions.fixes.helped")}</Label>
             <Textarea
               id="resolution"
               name="resolution"
@@ -208,6 +209,12 @@ export default function MobileTicketDetail({ loaderData, actionData }: Route.Com
               <p id="resolution-error" className="text-destructive text-xs" role="alert">
                 {actionData.fieldErrors.resolution[0]}
               </p>
+            ) : null}
+            {ticket.roomId && ticket.functionId && ticket.type !== "REQUEST" ? (
+              <Label className="flex min-h-11 items-center gap-2">
+                <Checkbox name="keepAsFix" defaultChecked />
+                {t("functions.fixes.keep")}
+              </Label>
             ) : null}
             <Button type="submit" disabled={busy} className="min-h-12 w-full">
               {t("tickets.detail.resolve")}

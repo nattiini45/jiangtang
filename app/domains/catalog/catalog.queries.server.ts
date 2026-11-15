@@ -1,21 +1,81 @@
-import { db } from "~/lib/db.server";
+import { db, type Tx } from "~/lib/db.server";
+import { NotFoundError, ValidationError } from "~/lib/errors.server";
+import { tr } from "~/i18n/request-locale.server";
+import { propertyLibrary } from "~/lib/equipment-kinds/properties";
+import { catalogSource } from "./catalog.library.server";
+import { listModelCatalog } from "~/lib/catalog/catalog.server";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import {
+  kindSelect,
+  equipmentKindFilter,
+  withEquipmentKinds,
+  type EquipmentKindSummary,
+} from "~/lib/equipment-kinds/kinds.server";
 import type { EquipmentCategory, EquipmentStatus } from "~/generated/prisma/client";
 
 /** Read-only queries for the EquipmentModel catalog. */
+
+export async function requirePartModel(modelId: string, tx: Tx = db) {
+  const model = await tx.equipmentModel.findUnique({
+    where: { id: modelId },
+    include: { kind: { include: { group: true } } },
+  });
+  if (!model) throw new NotFoundError();
+  if (
+    !model.kind ||
+    model.kind.archivedAt ||
+    model.kind.group.archivedAt ||
+    (model.kind.systemKey && !propertyLibrary.partKinds?.includes(model.kind.systemKey))
+  )
+    throw new ValidationError({}, [tr("parts.invalidFit")]);
+  return model;
+}
+
+export async function catalogModelOptions(kindId: string | null, query: string) {
+  const kind = kindId
+    ? await db.equipmentKind.findUnique({ where: { id: kindId }, include: { group: true } })
+    : null;
+  if (!kind?.systemKey || kind.archivedAt || kind.group.archivedAt) return [];
+  const installed = await db.equipmentModel.findMany({ include: { kind: true } });
+  const normalize = (value: string | null) => value?.trim().toLowerCase();
+  const records = await listModelCatalog({ query, kind: kind.systemKey });
+  return records
+    .filter(
+      (record) =>
+        !installed.some(
+          (model) =>
+            model.catalogKey === record.key ||
+            ((model.kind ? model.kind.systemKey : DEFAULT_EQUIPMENT_KINDS[model.category].key) ===
+              record.kind &&
+              normalize(model.name) === normalize(record.name) &&
+              normalize(model.manufacturer) === normalize(record.manufacturer)),
+        ),
+    )
+    .slice(0, 30)
+    .map((record) => ({
+      id: `catalog:${record.key}`,
+      name: record.name,
+      manufacturer: record.manufacturer,
+    }));
+}
 
 export interface ModelListRow {
   id: string;
   manufacturer: string | null;
   name: string;
   category: EquipmentCategory;
+  kind: EquipmentKindSummary;
   instanceCount: number;
   faultyCount: number;
+  customValues?: unknown;
 }
 
 export async function listModels(
   opts?: {
     category?: EquipmentCategory;
+    kindId?: string;
     q?: string;
+    includeValues?: boolean;
   },
   page: { offset?: number; limit?: number } = {},
 ): Promise<ModelListRow[]> {
@@ -23,7 +83,8 @@ export async function listModels(
     skip: page.offset,
     take: page.limit,
     where: {
-      category: opts?.category,
+      category: opts?.kindId ? undefined : opts?.category,
+      AND: await equipmentKindFilter(opts?.kindId),
       ...(opts?.q
         ? {
             OR: [
@@ -34,7 +95,7 @@ export async function listModels(
         : {}),
     },
     orderBy: [{ manufacturer: "asc" }, { name: "asc" }, { id: "asc" }],
-    include: { _count: { select: { instances: true } } },
+    include: { kind: { select: kindSelect }, _count: { select: { instances: true } } },
   });
 
   // Faulty-instance counts per model ("which model fails most"), one grouped query.
@@ -45,18 +106,29 @@ export async function listModels(
   });
   const faultyByModel = new Map(faulty.map((f) => [f.modelId, f._count]));
 
-  return models.map((m) => ({
+  return (await withEquipmentKinds(models)).map((m) => ({
     id: m.id,
     manufacturer: m.manufacturer,
     name: m.name,
     category: m.category,
+    kind: m.kind,
     instanceCount: m._count.instances,
     faultyCount: faultyByModel.get(m.id) ?? 0,
+    ...(opts?.includeValues ? { customValues: m.customValues } : {}),
   }));
 }
 
-export function getModel(id: string) {
-  return db.equipmentModel.findUnique({ where: { id } });
+export async function getModel(id: string) {
+  const model = await db.equipmentModel.findUnique({
+    where: { id },
+    include: {
+      kind: { select: kindSelect },
+      ports: { orderBy: [{ position: "asc" }, { id: "asc" }] },
+    },
+  });
+  if (!model) return null;
+  const { catalogSnapshot: _snapshot, ...resolved } = (await withEquipmentKinds([model]))[0];
+  return { ...resolved, catalogSource: await catalogSource(model.catalogKey) };
 }
 
 export interface ModelStats {
@@ -79,7 +151,7 @@ export interface ModelInstanceRow {
 
 /** Model + its failure stats + instance list (the by-model asset view). */
 export async function getModelDetail(id: string) {
-  const model = await db.equipmentModel.findUnique({ where: { id } });
+  const model = await getModel(id);
   if (!model) return null;
 
   const instances = await db.equipment.findMany({

@@ -2,9 +2,62 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { Tx } from "~/lib/db.server";
-import type { EquipmentCategory, EquipmentModel } from "~/generated/prisma/client";
+import {
+  lockKindStructure,
+  resolveEquipmentKind,
+  type EquipmentKindInput,
+} from "~/lib/equipment-kinds/kinds.server";
+import type { EquipmentModel } from "~/generated/prisma/client";
 import { modelExists } from "./catalog.queries.server";
-import type { ModelCreateInput, ModelEditInput } from "./catalog.schema";
+import type { ModelCreateInput } from "./catalog.schema";
+import { applyModelValuesInTx } from "./catalog.values.server";
+import { lockDefinitions } from "~/lib/custom-fields/definitions.server";
+import { propertyLibrary } from "~/lib/equipment-kinds/properties";
+
+type ModelWriteInput = Omit<ModelCreateInput, "category"> & EquipmentKindInput;
+
+async function guardPartKindChange(tx: Tx, modelIds: string[], kindId: string) {
+  const kind = await tx.equipmentKind.findUniqueOrThrow({
+    where: { id: kindId },
+    select: { systemKey: true },
+  });
+  if (!kind.systemKey || propertyLibrary.partKinds?.includes(kind.systemKey)) return;
+  const referenced = await tx.equipmentModel.count({
+    where: {
+      id: { in: modelIds },
+      OR: [{ fitsModels: { some: {} } }, { stock: { some: {} } }],
+    },
+  });
+  if (referenced) throw new ValidationError({ kindId: [tr("parts.kindHasReferences")] });
+}
+
+export async function moveModelKindInTx(
+  tx: Tx,
+  audit: AuditFn,
+  from: { id: string; name: string },
+  to: { id: string; name: string; category: EquipmentModel["category"] },
+) {
+  const models = await tx.equipmentModel.findMany({
+    where: { kindId: from.id },
+    select: { id: true },
+  });
+  await guardPartKindChange(
+    tx,
+    models.map((model) => model.id),
+    to.id,
+  );
+  await tx.equipmentModel.updateMany({
+    where: { kindId: from.id },
+    data: { kindId: to.id, category: to.category },
+  });
+  for (const model of models)
+    await audit({
+      action: "EquipmentModelUpdated",
+      entityType: "equipmentModel",
+      entityId: model.id,
+      data: { kind: { from: { id: from.id, name: from.name }, to: { id: to.id, name: to.name } } },
+    });
+}
 
 /**
  * EquipmentModel mutations. Models have no status and an FK from Equipment blocks
@@ -13,56 +66,72 @@ import type { ModelCreateInput, ModelEditInput } from "./catalog.schema";
 
 export async function createModel(
   actor: AuditActor,
-  input: ModelCreateInput,
+  input: ModelWriteInput,
 ): Promise<EquipmentModel> {
   if (await modelExists(input.manufacturer ?? null, input.name)) {
     throw new ValidationError({ name: [tr("places.err.model.exists")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
+    if (input.customValues !== undefined) await lockDefinitions(tx);
     const model = await tx.equipmentModel.create({
       data: {
         manufacturer: input.manufacturer ?? null,
         name: input.name,
-        category: input.category,
+        ...(await resolveEquipmentKind(tx, input)),
         specNotes: input.specNotes ?? null,
         manualUrl: input.manualUrl ?? null,
       },
     });
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyModelValuesInTx(tx, model.id, input.customValues);
     await audit({
       action: "EquipmentModelCreated",
       entityType: "equipmentModel",
       entityId: model.id,
-      data: { name: model.name, category: model.category },
+      data: { name: model.name, category: model.category, ...custom },
     });
-    return model;
+    return tx.equipmentModel.findUniqueOrThrow({ where: { id: model.id } });
   });
 }
 
 export async function updateModel(
   actor: AuditActor,
   id: string,
-  input: ModelEditInput,
+  input: ModelWriteInput,
 ): Promise<EquipmentModel> {
   if (await modelExists(input.manufacturer ?? null, input.name, id)) {
     throw new ValidationError({ name: [tr("places.err.model.nameTaken")] });
   }
   return txWithAudit(actor, async (tx, audit) => {
+    await lockDefinitions(tx, true);
+    await lockKindStructure(tx);
+    const current = await tx.equipmentModel.findUniqueOrThrow({ where: { id } });
+    const kind = await resolveEquipmentKind(tx, input, current.kindId);
+    if (kind.kindId && kind.kindId !== current.kindId)
+      await guardPartKindChange(tx, [id], kind.kindId);
     const model = await tx.equipmentModel.update({
       where: { id },
       data: {
         manufacturer: input.manufacturer ?? null,
         name: input.name,
-        category: input.category,
+        ...kind,
         specNotes: input.specNotes ?? null,
         manualUrl: input.manualUrl ?? null,
       },
     });
+    const custom =
+      input.customValues === undefined
+        ? {}
+        : await applyModelValuesInTx(tx, model.id, input.customValues);
     await audit({
       action: "EquipmentModelUpdated",
       entityType: "equipmentModel",
       entityId: model.id,
+      data: custom,
     });
-    return model;
+    return tx.equipmentModel.findUniqueOrThrow({ where: { id: model.id } });
   });
 }
 
@@ -113,7 +182,7 @@ export async function updateModel(
 export async function findOrCreateModel(
   tx: Tx,
   audit: AuditFn,
-  input: { name: string; category: EquipmentCategory },
+  input: { name: string } & EquipmentKindInput,
 ): Promise<string> {
   const existing = await tx.equipmentModel.findFirst({
     where: { name: { equals: input.name, mode: "insensitive" } },
@@ -121,7 +190,7 @@ export async function findOrCreateModel(
   });
   if (existing) return existing.id;
   const model = await tx.equipmentModel.create({
-    data: { name: input.name, category: input.category },
+    data: { name: input.name, ...(await resolveEquipmentKind(tx, input)) },
   });
   await audit({
     action: "EquipmentModelCreated",

@@ -8,8 +8,18 @@
 
 export type Text<T> = Record<string, T>;
 
-export const EN_ROOMS: Text<{ name: string }> = {
-  seed_room_a01: { name: "Demo Room A.01" },
+export const EN_ROOMS: Text<{ name: string; knownIssues: string; tipsNotes: string }> = {
+  seed_room_a01: {
+    name: "Demo Room A.01",
+    knownIssues: "The lectern HDMI connection is loose. Use the second input until it is replaced.",
+    tipsNotes: "The remote is in the lectern drawer.",
+  },
+  seed_room_a02: {
+    name: "Demo Room A.02",
+    knownIssues:
+      "The wireless microphone occasionally crackles. Spare batteries are in the lectern.",
+    tipsNotes: "Unmute the lectern audio after switching on.",
+  },
 };
 
 export const EN_EQUIPMENT_MODELS: Text<{ name: string }> = {

@@ -1,3 +1,5 @@
+import { CalendarDays } from "lucide-react";
+import { berlinDateKey } from "~/lib/berlin-days";
 import { Link } from "react-router";
 import { DateCell, StatusCell, type ColumnDef } from "~/components/data-grid";
 import type { EventListRow } from "~/domains/events/events.queries.server";
@@ -10,7 +12,6 @@ export function eventColumns(t: Translate): ColumnDef<EventListRow>[] {
     {
       accessorKey: "title",
       header: t("events.col.title"),
-      size: 300,
       cell: ({ row }) => (
         <Link to={`/events/${row.original.id}`} className="truncate hover:underline">
           {row.original.title}
@@ -19,34 +20,45 @@ export function eventColumns(t: Translate): ColumnDef<EventListRow>[] {
     },
     {
       accessorKey: "startsAt",
+      meta: { sizing: "short" },
       header: t("events.col.startsAt"),
-      size: 170,
       cell: ({ row }) => <DateCell value={row.original.startsAt} />,
     },
     {
       accessorKey: "endsAt",
+      meta: { sizing: "short" },
       header: t("events.col.endsAt"),
-      size: 170,
       cell: ({ row }) => <DateCell value={row.original.endsAt} />,
     },
     {
       accessorKey: "status",
+      meta: { sizing: "short", searchText: (row) => t(`status.event.${row.status}`) },
       header: t("events.col.status"),
-      size: 140,
       cell: ({ row }) => <StatusCell kind="event" value={row.original.status} />,
     },
     {
-      accessorKey: "roomCount",
+      accessorKey: "roomNames",
       header: t("events.col.rooms"),
-      size: 90,
-      cell: ({ row }) => <span className="nums text-sm">{row.original.roomCount}</span>,
+      cell: ({ row }) => (
+        <span className="truncate text-sm" title={row.original.roomNames.join(" · ")}>
+          {row.original.roomNames.join(" · ") || dash}
+        </span>
+      ),
     },
     {
-      accessorKey: "organizer",
-      header: t("events.col.organizer"),
-      size: 180,
-      cell: ({ row }) =>
-        row.original.organizer ? <span className="text-sm">{row.original.organizer}</span> : dash,
+      id: "calendar",
+      meta: { sizing: "short" },
+      header: t("nav.calendar"),
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Link
+          to={`/calendar?view=day&date=${berlinDateKey(row.original.startsAt)}`}
+          aria-label={t("calendar.openDay")}
+          className="hover:bg-hover inline-flex h-control w-8 items-center justify-center rounded-md"
+        >
+          <CalendarDays className="size-icon" aria-hidden />
+        </Link>
+      ),
     },
   ];
 }

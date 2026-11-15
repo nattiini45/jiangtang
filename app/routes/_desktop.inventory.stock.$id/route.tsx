@@ -26,6 +26,9 @@ import { stockStatusLabel } from "~/components/inventory/labels";
 import { Button } from "~/components/ui/button";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { StockModelLink } from "~/components/inventory/parts";
+import { partModelOptions } from "~/domains/inventory/inventory.parts.queries.server";
+import { linkStockModel } from "~/domains/inventory/inventory.parts.mutations.server";
 
 /**
  * `/inventory/stock/:id` — one stock item, and the **full editor** for it.
@@ -84,6 +87,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     item: { ...item, purchasePrice: item.purchasePrice ? item.purchasePrice.toString() : null },
     locations,
     vendors,
+    partOptions: await partModelOptions("", item.modelId),
   };
 }
 
@@ -160,6 +164,19 @@ export async function action({ request, params }: Route.ActionArgs) {
   const locale = resolveLocale(request);
   const form = await request.formData();
   const intent = String(form.get("_action") ?? "save");
+  if (intent === "linkStockModel") {
+    try {
+      const modelId = String(form.get("modelId") ?? "");
+      await linkStockModel(actor, params.id, modelId === "none" ? null : modelId);
+      return { partsSaved: true };
+    } catch (error) {
+      if (error instanceof ValidationError)
+        return {
+          partsError: [...Object.values(error.fieldErrors).flat(), ...error.formErrors].join(" "),
+        };
+      throw toErrorResponse(error);
+    }
+  }
   try {
     if (intent === STOCK_ITEM_INTENTS.delete) {
       // Refused inline while the item is linked to an Equipment, mirroring the `Restrict`
@@ -233,6 +250,16 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
       </div>
 
       <section className="bg-card shadow-surface-2 grid grid-cols-2 gap-4 rounded-lg p-4 sm:grid-cols-3">
+        {item.model ? (
+          <Field label={t("parts.partModel")}>
+            <Link
+              className="break-words underline underline-offset-4"
+              to={`/inventory/models/${item.model.id}`}
+            >
+              {item.model.manufacturer} {item.model.name}
+            </Link>
+          </Field>
+        ) : null}
         <Field label={t("inventory.stock.form.quantity")}>
           <span className="nums">{`${item.quantity}${item.unit ? ` ${item.unit}` : ""}`}</span>
         </Field>
@@ -262,6 +289,7 @@ export default function StockItemDetail({ loaderData, actionData }: Route.Compon
           <DateCell value={item.warrantyExpiresAt} withTime={false} />
         </Field>
       </section>
+      <StockModelLink stockId={item.id} modelId={item.modelId} options={loaderData.partOptions} />
 
       <section className="bg-card shadow-surface-2 flex flex-col gap-3 rounded-lg p-4">
         <div className="flex flex-col gap-1">

@@ -1,5 +1,21 @@
 /** Events: list, calendar, detail (rooms, allocations, service windows), subscribe, sync. */
 export const eventsDe = {
+  "nav.calendar": "Kalender",
+  "calendar.meta": "Kalender · Jiangtang",
+  "calendar.subtitle": "Veranstaltungen, Arbeit und die Termine von Räumen und Geräten.",
+  "calendar.kinds": "Anzeigen",
+  "calendar.show": "Anzeigen ({count})",
+  "calendar.kinds.service": "Aufbau und Rückbau",
+  "calendar.kinds.dates": "Raum- und Gerätetermine",
+  "calendar.kinds.faults": "Störungen",
+  "calendar.renewal": "Erneuerung",
+  "calendar.warranty": "Garantieende",
+  "calendar.wholeDay": "Ganztägig",
+  "calendar.openDay": "Tag im Kalender öffnen",
+  "calendar.resourceHint":
+    "Mit Raum- oder Gerätefilter erscheinen nur zugehörige Einträge. Raumbelegungen bleiben zur Buchungsplanung sichtbar.",
+  "calendar.empty":
+    "Keine Einträge in diesem Zeitraum. Wähle andere Termine oder lege eine Veranstaltung an.",
   "events.health.title": "Gesundheitsstatus übergehen",
   "events.health.roomWarning":
     "Dieser Raum ist außer Betrieb. Buche ihn nur, wenn die Nutzung bewusst geprüft wurde. Bestehende Buchungen bleiben unverändert.",
@@ -22,8 +38,6 @@ export const eventsDe = {
   "events.list.filterStatus": "Nach Status filtern",
   "events.list.allStatuses": "Alle Status",
   "events.list.filterSubmit": "Filtern",
-  "events.list.viewList": "Liste",
-  "events.list.viewCalendar": "Kalender",
   "events.list.empty": "Keine Veranstaltungen gefunden.",
 
   "events.col.title": "Titel",
@@ -31,7 +45,6 @@ export const eventsDe = {
   "events.col.endsAt": "Ende",
   "events.col.status": "Status",
   "events.col.rooms": "Räume",
-  "events.col.organizer": "Organisation",
 
   "events.calendar.weekday.0": "Mo",
   "events.calendar.weekday.1": "Di",
@@ -45,21 +58,16 @@ export const eventsDe = {
   "events.calendar.view.week": "Woche",
   "events.calendar.view.day": "Tag",
   "events.calendar.view.rooms": "Räume",
-  "events.calendar.view.list": "Liste",
   "events.calendar.previous": "Vorheriger Zeitraum",
   "events.calendar.next": "Nächster Zeitraum",
   "events.calendar.today": "Heute",
   "events.calendar.date": "Datum auswählen",
-  "events.calendar.allEvents": "Alle Veranstaltungen",
   "events.calendar.filterRoom": "Nach Raum filtern",
   "events.calendar.allRooms": "Alle Räume",
   "events.calendar.filterEquipment": "Nach Gerät filtern",
   "events.calendar.allEquipment": "Alle Geräte",
-  "events.calendar.showTasks": "Aufgabenfälligkeiten anzeigen",
-  "events.calendar.tasks": "Aufgabenfälligkeiten",
   "events.calendar.more": "+{count} weitere",
   "events.calendar.scrollHours": "Horizontal scrollen, um alle {count} Stunden zu sehen.",
-  "events.calendar.taskDue": "Fällig: {title}",
   "events.calendar.createOn": "Veranstaltung am {date} anlegen",
   "events.calendar.createAt": "Veranstaltung am {date} um {time} anlegen",
   "events.calendar.bookRoomAt": "{room} um {time} buchen",
@@ -69,8 +77,6 @@ export const eventsDe = {
     "Freie Stunde wählen, um eine Veranstaltung anzulegen. Pfeiltasten wechseln die Stunde oder den Tag; Pos1 und Ende springen zur ersten oder letzten Stunde.",
   "events.calendar.noRooms":
     "Keine Räume gefunden. Zuerst einen Raum anlegen oder den Filter ändern.",
-  "events.calendar.empty":
-    "Keine Veranstaltungen in diesem Zeitraum. Eine freie Stunde wählen oder eine neue Veranstaltung anlegen.",
 
   "events.subscribe.button": "Kalender abonnieren",
   "events.subscribe.copied": "Kopiert!",
@@ -81,7 +87,7 @@ export const eventsDe = {
 
   "events.serviceWindowKind.SETUP": "Aufbau",
   "events.serviceWindowKind.STANDBY": "Bereitschaft",
-  "events.serviceWindowKind.TEARDOWN": "Abbau",
+  "events.serviceWindowKind.TEARDOWN": "Rückbau",
 
   "events.sync.title": "Kalender-Sync",
   "events.sync.SENT": "Synchronisiert",

@@ -4,6 +4,7 @@ import { type Tx } from "~/lib/db.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { InventoryItem } from "~/generated/prisma/client";
 import type { StockCreateInput, StockEditInput } from "./inventory.stock.schema";
+import { requirePartModel } from "~/domains/catalog/catalog.queries.server";
 
 /**
  * Stock mutations. Every one runs through `txWithAudit`, so the
@@ -200,8 +201,9 @@ function rethrowAsFieldError(error: unknown, input: { sku?: string; serial?: str
 /** 1 — a foreign key that is not a real row. Checked before anything is written. */
 async function requireRefs(
   tx: Tx,
-  input: { vendorId?: string; locationId?: string; equipmentId?: string },
+  input: { modelId?: string; vendorId?: string; locationId?: string; equipmentId?: string },
 ): Promise<void> {
+  if (input.modelId) await requirePartModel(input.modelId, tx);
   if (input.vendorId) {
     const vendor = await tx.vendor.findUnique({
       where: { id: input.vendorId },
@@ -271,11 +273,12 @@ export async function createStockInTx(
   tx: Tx,
   input: StockCreateInput,
   createdById?: string | null,
+  modelId?: string,
 ): Promise<InventoryItem> {
-  await requireRefs(tx, input);
+  await requireRefs(tx, { ...input, modelId });
   try {
     return await tx.inventoryItem.create({
-      data: { ...stockData(input), createdById: createdById ?? null },
+      data: { ...stockData(input), modelId: modelId ?? null, createdById: createdById ?? null },
     });
   } catch (error) {
     // The unique index is the arbiter — a pre-flight "does this sku already exist?"
@@ -302,6 +305,7 @@ export async function createStockItem(
         serial: item.serial,
         quantity: item.quantity,
         unit: item.unit,
+        modelId: item.modelId,
       },
     });
     return item;

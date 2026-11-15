@@ -35,7 +35,7 @@ import type { Prisma } from "~/generated/prisma/client";
 // ── Expected row counts for the seeded corpus ───────────────
 
 export const EXPECTED_COUNTS = {
-  room: 1,
+  room: 2,
   equipmentModel: 1,
   equipment: 1,
   event: 1,
@@ -74,6 +74,24 @@ export const ROOMS = [
     capacity: 40,
     hasProjector: true,
     videoInputs: ["HDMI"],
+    audioOutputs: [],
+    status: "MAINTENANCE_NEEDED",
+    knownIssues:
+      "HDMI am Pult hat einen Wackelkontakt. Bis zum Tausch den zweiten Eingang verwenden.",
+    tipsNotes: "Die Fernbedienung liegt in der Schublade am Pult.",
+    lastCheckedAt: new Date("2026-10-20T10:00:00Z"),
+  },
+  {
+    id: "seed_room_a02",
+    slug: "demo-a02",
+    name: "Demo-Raum A.02",
+    roomNumber: "A.02",
+    capacity: 60,
+    status: "PROVISIONAL",
+    knownIssues: "Funkmikrofon rauscht gelegentlich. Ersatzbatterien liegen im Pult.",
+    tipsNotes: "Nach dem Einschalten den Ton am Pult freigeben.",
+    lastCheckedAt: new Date("2026-10-22T08:30:00Z"),
+    videoInputs: [],
     audioOutputs: [],
   },
 ] satisfies Prisma.RoomCreateManyInput[];

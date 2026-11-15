@@ -2,6 +2,9 @@ import * as React from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
+import { listDeviceKinds } from "~/lib/equipment-kinds/kinds.server";
+import { DEFAULT_EQUIPMENT_KINDS } from "~/lib/equipment-kinds/defaults";
+import { KindOptions, type KindGroups } from "~/components/inventory/kind-options";
 import { listEquipment } from "~/domains/inventory/inventory.queries.server";
 import { listModels } from "~/domains/catalog/catalog.queries.server";
 import { listStock } from "~/domains/inventory/inventory.stock.queries.server";
@@ -12,7 +15,7 @@ import { listFrequencyBoard } from "~/domains/inventory/inventory.frequency.serv
 import { parseInput } from "~/lib/validation.server";
 import { EquipmentCategory, EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
 import { statusToken } from "~/lib/status";
-import { categoryLabel, mobilityLabel } from "~/components/inventory/labels";
+import { mobilityLabel } from "~/components/inventory/labels";
 import { DataGrid } from "~/components/data-grid";
 import { equipmentColumns } from "~/components/inventory/equipment-columns";
 import { ModelsPanel } from "~/components/inventory/models-panel";
@@ -23,6 +26,10 @@ import { Select } from "~/components/ui/select";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
 import { useLocale, useT } from "~/i18n/use-t";
+import { getListColumns, withListValues } from "~/lib/list-columns/columns.server";
+import type { ListColumns, ListValues } from "~/lib/list-columns/columns";
+import { withFieldColumns } from "~/components/data-grid/field-columns";
+import { ColumnPicker } from "~/components/data-grid/column-picker";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "inventory.meta.list") }];
@@ -45,7 +52,7 @@ const TABS: {
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  await requireUser(request);
+  const user = await requireUser(request);
   const url = new URL(request.url);
   const tabParam = url.searchParams.get("tab") || "";
   const tab: InventoryTab = (
@@ -104,26 +111,45 @@ export async function loader({ request }: Route.LoaderArgs) {
   const mobility =
     mobilityParam in EquipmentMobility ? (mobilityParam as EquipmentMobility) : undefined;
 
-  const equipment = await listEquipment({ category, status, mobility });
+  const kinds = await listDeviceKinds();
+  const kindId = url.searchParams.get("kindId") || undefined;
+  const columnConfig = await getListColumns("EQUIPMENT", user.role === "ADMIN");
+  const equipment = await withListValues(
+    "EQUIPMENT",
+    await listEquipment({ kindId, category, status, mobility }),
+    columnConfig.columns,
+  );
   return {
     tab,
     equipment: {
       equipment,
-      filters: { category: category ?? "", status: status ?? "", mobility: mobility ?? "" },
+      kinds,
+      columnConfig,
+      canConfigure: user.role === "ADMIN",
+      filters: {
+        kindId:
+          kindId ??
+          (category
+            ? kinds
+                .flatMap((group) => group.kinds)
+                .find((kind) => kind.systemKey === DEFAULT_EQUIPMENT_KINDS[category].key)?.id
+            : undefined) ??
+          "",
+        status: status ?? "",
+        mobility: mobility ?? "",
+      },
     },
   };
 }
 
 export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
-  const locale = useLocale();
   const t = useT();
   const { tab } = loaderData;
-  const columns = React.useMemo(() => equipmentColumns(t, locale), [t, locale]);
   const autoSubmit = (e: React.ChangeEvent<HTMLSelectElement>) =>
     e.currentTarget.form?.requestSubmit();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       {/* Section tabs — plain links so they are keyboard-reachable and the section
           lives in the URL (`?tab=`), shareable like every other filter. */}
       <nav aria-label={t("inventory.tabs.aria")} className="flex border-b">
@@ -154,8 +180,10 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
       {tab === "equipment" && "equipment" in loaderData ? (
         <EquipmentPanel
           equipment={loaderData.equipment.equipment}
+          kinds={loaderData.equipment.kinds}
           filters={loaderData.equipment.filters}
-          columns={columns}
+          columnConfig={loaderData.equipment.columnConfig}
+          canConfigure={loaderData.equipment.canConfigure}
           autoSubmit={autoSubmit}
         />
       ) : null}
@@ -165,43 +193,61 @@ export default function InventoryIndex({ loaderData }: Route.ComponentProps) {
 
 function EquipmentPanel({
   equipment,
+  kinds,
   filters,
-  columns,
+  columnConfig,
+  canConfigure,
   autoSubmit,
 }: {
-  equipment: Awaited<ReturnType<typeof listEquipment>>;
-  filters: { category: string; status: string; mobility: string };
-  columns: ReturnType<typeof equipmentColumns>;
+  equipment: (Awaited<ReturnType<typeof listEquipment>>[number] & ListValues)[];
+  kinds: KindGroups;
+  filters: { kindId: string; status: string; mobility: string };
+  columnConfig: ListColumns;
+  canConfigure: boolean;
   autoSubmit: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }) {
   const locale = useLocale();
   const t = useT();
+  const columns = React.useMemo(
+    () =>
+      withFieldColumns(
+        equipmentColumns<(typeof equipment)[number]>(t, locale),
+        columnConfig,
+        locale,
+      ),
+    [t, locale, columnConfig],
+  );
+  const builtins = equipmentColumns(t, locale).map((column) => ({
+    id: String(column.id ?? ("accessorKey" in column ? column.accessorKey : "")),
+    label: String(column.header),
+  }));
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold">{t("inventory.list.title")}</h1>
           <p className="text-muted-foreground mt-1">{t("inventory.list.subtitle")}</p>
         </div>
-        <Button asChild>
-          <Link to="/inventory/new">{t("inventory.list.new")}</Link>
-        </Button>
+        <div className="flex gap-2">
+          {canConfigure ? (
+            <ColumnPicker scope="EQUIPMENT" config={columnConfig} builtins={builtins} />
+          ) : null}
+          <Button asChild>
+            <Link to="/inventory/new">{t("inventory.list.new")}</Link>
+          </Button>
+        </div>
       </div>
 
       <Form method="get" className="flex flex-wrap items-center gap-2">
         <Select
-          name="category"
-          aria-label={t("inventory.list.filterCategory")}
-          defaultValue={filters.category}
+          name="kindId"
+          aria-label={t("inventory.list.filterKind")}
+          defaultValue={filters.kindId}
           className="max-w-[14rem]"
           onChange={autoSubmit}
         >
-          <option value="">{t("inventory.list.allCategories")}</option>
-          {Object.values(EquipmentCategory).map((c) => (
-            <option key={c} value={c}>
-              {categoryLabel(locale, c)}
-            </option>
-          ))}
+          <option value="">{t("inventory.list.allKinds")}</option>
+          <KindOptions groups={kinds} />
         </Select>
         <Select
           name="status"
@@ -239,6 +285,9 @@ function EquipmentPanel({
       </Form>
 
       <DataGrid
+        widthsMenu={!canConfigure}
+        growColumn="name"
+        stickyColumn="name"
         columns={columns}
         data={equipment}
         getRowId={(e) => e.id}
