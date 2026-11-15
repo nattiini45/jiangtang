@@ -24,6 +24,25 @@ updates:
       - dependency-name: "@tanstack/react-table"
         update-types:
           - version-update:semver-major
+      # The UI SDK betas are pinned on purpose for new interactive components
+      # and move only in a deliberate change, never an automatic update.
+      - dependency-name: "@ui-sdk/*"
+      # These majors are deliberate upgrades, deferred until each is taken on
+      # its own; minor and patch updates keep flowing.
+      - dependency-name: vitest
+        update-types:
+          - version-update:semver-major
+      - dependency-name: pino
+        update-types:
+          - version-update:semver-major
+      - dependency-name: eslint-plugin-react-hooks
+        update-types:
+          - version-update:semver-major
+      # The Node types track the supported Node majors (22 and 24), so they
+      # move with the Node pin, not ahead of it.
+      - dependency-name: "@types/node"
+        update-types:
+          - version-update:semver-major
     groups:
       npm-minor-patch:
         update-types:
