@@ -134,6 +134,9 @@ export interface EventDetail {
     status: EventStatus;
     organizer: string | null;
     contact: string | null;
+    seriesId: string | null;
+    occurrenceKey: string | null;
+    seriesConflictDates: string[];
   };
   rooms: EventRoomRow[];
   allocations: EventAllocationRow[];
@@ -146,6 +149,7 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
   const event = await db.event.findUnique({
     where: { id },
     include: {
+      series: { select: { conflictDates: true } },
       rooms: {
         where: { cancelled: false },
         orderBy: { startsAt: "asc" },
@@ -191,6 +195,9 @@ export async function getEventDetail(id: string): Promise<EventDetail | null> {
       status: event.status,
       organizer: event.organizer,
       contact: event.contact,
+      seriesId: event.seriesId,
+      occurrenceKey: event.occurrenceKey,
+      seriesConflictDates: event.series?.conflictDates ?? [],
     },
     rooms: event.rooms.map((b) => ({
       id: b.id,

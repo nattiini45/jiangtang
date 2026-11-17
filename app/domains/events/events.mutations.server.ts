@@ -1,5 +1,5 @@
 import { tr } from "~/i18n/request-locale.server";
-import { txWithAudit, type AuditActor } from "~/lib/audit.server";
+import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
 import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { insertOrConflict } from "~/lib/booking.server";
@@ -8,15 +8,17 @@ import { notifyBookingConflict } from "~/domains/notifications/notifications.mut
 import { enqueueEventCalendarOp } from "~/lib/calendar/event-publication.server";
 import { resolveEventTime } from "./events.time.server";
 import { EVENT_REOPEN_ACTION } from "./events.actions";
-import { equipmentAllocationAction } from "./events.health-policy";
-import { bookingHealthOverride, roomBookingHealthOverride } from "./events.health-policy.server";
+import {
+  equipmentBookingHealthOverride,
+  roomBookingHealthOverride,
+} from "./events.health-policy.server";
+import { detachOccurrence } from "./event-series.link.server";
 import type {
   EquipmentAllocation,
   Event,
   EventRoomBooking,
   ServiceWindow,
 } from "~/generated/prisma/client";
-import { EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
 import type {
   AllocationInput,
   EventCreateInput,
@@ -49,8 +51,7 @@ async function reenqueueEvent(tx: Tx, eventId: string): Promise<void> {
  *  CANCELLED (terminal) — throws NotFoundError if the event itself doesn't
  *  exist so a stale eventId behaves like the P2025 → 404 path elsewhere. */
 async function assertEventMutable(tx: Tx, eventId: string): Promise<void> {
-  const event = await tx.event.findUnique({ where: { id: eventId }, select: { status: true } });
-  if (!event) throw new NotFoundError(tr("work.err.event.notFound"));
+  const event = await detachOccurrence(tx, eventId);
   if (event.status === "CANCELLED") {
     throw new ValidationError({
       eventId: [tr("work.err.event.cancelled")],
@@ -170,6 +171,7 @@ export async function updateEvent(
   input: EventEditInput,
 ): Promise<Event> {
   return txWithAudit(actor, async (tx, audit) => {
+    const previous = await detachOccurrence(tx, id);
     const event = await tx.event.update({
       where: { id },
       data: {
@@ -195,6 +197,34 @@ export async function updateEvent(
       });
       await enqueueEventCalendarOp(tx, event, "REMOVE");
     } else {
+      if (event.occurrenceKey) {
+        const delta = event.startsAt.getTime() - previous.startsAt.getTime();
+        const endDelta = event.endsAt.getTime() - previous.endsAt.getTime();
+        if (delta || endDelta) {
+          const where = { eventId: id, cancelled: false };
+          const data = (slot: { startsAt: Date; endsAt: Date }) => ({
+            startsAt: new Date(slot.startsAt.getTime() + delta),
+            endsAt: new Date(
+              slot.endsAt.getTime() +
+                (+slot.startsAt === +previous.startsAt && +slot.endsAt === +previous.endsAt
+                  ? endDelta
+                  : delta),
+            ),
+          });
+          for (const slot of await tx.eventRoomBooking.findMany({ where })) {
+            await insertOrConflict(
+              () => tx.eventRoomBooking.update({ where: { id: slot.id }, data: data(slot) }),
+              tr("work.err.event.roomAlreadyBooked"),
+            );
+          }
+          for (const slot of await tx.equipmentAllocation.findMany({ where })) {
+            await insertOrConflict(
+              () => tx.equipmentAllocation.update({ where: { id: slot.id }, data: data(slot) }),
+              tr("work.err.event.equipmentAlreadyAllocated"),
+            );
+          }
+        }
+      }
       await enqueueEventCalendarOp(tx, event, "UPSERT");
     }
     return event;
@@ -209,16 +239,21 @@ export async function updateEvent(
  */
 export async function cancelEvent(actor: AuditActor, id: string): Promise<Event> {
   return txWithAudit(actor, async (tx, audit) => {
-    const existing = await tx.event.findUnique({ where: { id }, select: { status: true } });
-    if (!existing) throw new NotFoundError(tr("work.err.event.notFound"));
-    if (existing.status === "CANCELLED") return tx.event.findUniqueOrThrow({ where: { id } });
-
-    const freed = await freeEventSlots(tx, id);
-    const event = await tx.event.update({ where: { id }, data: { status: "CANCELLED" } });
-    await audit({ action: "EventCancelled", entityType: "event", entityId: event.id, data: freed });
-    await enqueueEventCalendarOp(tx, event, "REMOVE");
-    return event;
+    const existing = await detachOccurrence(tx, id);
+    if (existing.status === "CANCELLED") return existing;
+    return cancelEventInTx(tx, audit, id);
   });
+}
+
+export async function cancelEventInTx(tx: Tx, audit: AuditFn, id: string): Promise<Event> {
+  const freed = await freeEventSlots(tx, id);
+  const event = await tx.event.update({
+    where: { id },
+    data: { status: "CANCELLED", seriesId: null },
+  });
+  await audit({ action: "EventCancelled", entityType: "event", entityId: event.id, data: freed });
+  await enqueueEventCalendarOp(tx, event, "REMOVE");
+  return event;
 }
 
 export async function reopenEvent(actor: AuditActor, id: string): Promise<Event> {
@@ -307,6 +342,7 @@ export async function cancelRoomBooking(
   eventId: string,
 ): Promise<EventRoomBooking> {
   return txWithAudit(actor, async (tx, audit) => {
+    await detachOccurrence(tx, eventId);
     const result = await tx.eventRoomBooking.updateMany({
       where: { id: bookingId, eventId },
       data: { cancelled: true },
@@ -335,33 +371,7 @@ export async function addAllocation(
   try {
     return await txWithAudit(actor, async (tx, audit) => {
       await assertEventMutable(tx, eventId);
-      // Only POOLED equipment is mobile enough to allocate to an event — the UI
-      // picker filters to POOLED (and out RETIRED) already, but that's client-side
-      // only, so a crafted POST could otherwise attach FIXED (room-mounted) or
-      // RETIRED (terminal "do not use") equipment.
-      const [equipment] = await tx.$queryRaw<
-        {
-          mobility: EquipmentMobility;
-          status: EquipmentStatus;
-        }[]
-      >`SELECT "mobility", "status" FROM "Equipment" WHERE "id" = ${input.equipmentId} FOR UPDATE`;
-      if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
-      if (equipment.mobility !== EquipmentMobility.POOLED) {
-        throw new ValidationError({
-          equipmentId: [tr("work.err.event.onlyPooled")],
-        });
-      }
-      if (equipment.status === EquipmentStatus.RETIRED) {
-        throw new ValidationError({
-          equipmentId: [tr("work.err.event.retiredEquipment")],
-        });
-      }
-      const healthAudit = bookingHealthOverride(
-        "equipment",
-        equipment.status,
-        equipmentAllocationAction(equipment.status, equipment.mobility),
-        input,
-      );
+      const healthAudit = await equipmentBookingHealthOverride(tx, input);
       const allocation = await insertOrConflict(
         () =>
           tx.equipmentAllocation.create({
@@ -411,6 +421,7 @@ export async function cancelAllocation(
   eventId: string,
 ): Promise<EquipmentAllocation> {
   return txWithAudit(actor, async (tx, audit) => {
+    await detachOccurrence(tx, eventId);
     const result = await tx.equipmentAllocation.updateMany({
       where: { id: allocationId, eventId },
       data: { cancelled: true },
@@ -476,6 +487,7 @@ export async function removeServiceWindow(
   eventId: string,
 ): Promise<void> {
   await txWithAudit(actor, async (tx, audit) => {
+    await detachOccurrence(tx, eventId);
     const sw = await tx.serviceWindow.findFirst({ where: { id, eventId } });
     if (!sw) throw new NotFoundError(tr("work.err.event.serviceWindowNotFound"));
     await tx.serviceWindow.delete({ where: { id } });

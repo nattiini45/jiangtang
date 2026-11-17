@@ -91,6 +91,8 @@ export const errorsWorkDe = {
 
   // ── Event rules ────────────────────────────────────────────────────────────
   "work.err.event.dateTimeRequired": "Datum und Uhrzeit erforderlich.",
+  "work.err.event.seriesDate":
+    "Wähle einen Termin der Serie. Um das Datum zu ändern, bearbeite nur diesen Termin.",
   "work.err.event.roomRequired": "Raum ist erforderlich.",
   "work.err.event.equipmentRequired": "Gerät ist erforderlich.",
   "work.err.event.cancelled": "Eine stornierte Veranstaltung kann nicht mehr geändert werden.",

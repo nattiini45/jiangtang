@@ -10,6 +10,7 @@ export const labelsDe = {
   "history.entity.equipment": "Gerät",
   "history.entity.ticket": "Ticket",
   "history.entity.event": "Veranstaltung",
+  "history.entity.eventSeries": "Veranstaltungsserie",
   "history.entity.eventRoomBooking": "Raumbuchung",
   "history.entity.equipmentAllocation": "Gerätezuteilung",
   "history.entity.serviceWindow": "Servicefenster",

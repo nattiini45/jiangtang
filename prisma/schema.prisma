@@ -911,6 +911,18 @@ model FunctionOverride {
 
 // ── Events (AV-supported specials) ───────────────────────────────────────────
 
+model EventSeries {
+  id            String   @id @default(cuid())
+  definition    Json
+  nextDate      String?
+  stopsBefore   String?
+  exceptions    String[] @default([])
+  conflictDates String[] @default([])
+  events        Event[]
+
+  @@index([nextDate])
+}
+
 model Event {
   id          String      @id @default(cuid())
   uid         String      @unique @default(cuid()) // stable iCal UID
@@ -926,6 +938,9 @@ model Event {
   allocations    EquipmentAllocation[]
   serviceWindows ServiceWindow[]
   tickets        Ticket[]
+  seriesId       String?
+  occurrenceKey  String?
+  series         EventSeries? @relation(fields: [seriesId], references: [id], onDelete: Restrict)
 
   // An event can belong to a workspace project (Project).
   projectId String?
@@ -938,6 +953,7 @@ model Event {
 
   @@index([startsAt])
   @@index([status])
+  @@unique([seriesId, occurrenceKey])
 }
 
 // Bookable atom for ROOM conflict detection (one row per room-per-event).

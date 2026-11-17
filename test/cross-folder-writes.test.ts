@@ -175,7 +175,13 @@ const FOLDERS: Record<string, readonly string[]> = {
   "app/domains/board": [],
   "app/domains/catalog": ["EquipmentModel", "EquipmentModelPort", "ModelPartFit"],
   "app/domains/dashboard": [],
-  "app/domains/events": ["Event", "EventRoomBooking", "EquipmentAllocation", "ServiceWindow"],
+  "app/domains/events": [
+    "Event",
+    "EventSeries",
+    "EventRoomBooking",
+    "EquipmentAllocation",
+    "ServiceWindow",
+  ],
   "app/domains/inventory": [
     "Equipment",
     "InventoryItem",
