@@ -19,51 +19,46 @@ vi.mock("~/lib/calendar/retention.server", () => ({
   pruneCompletedCalendarOutbox: outbox,
 }));
 
-import { register } from "~/lib/lifecycle-retention.boot.server";
+import { register as registerJobs } from "~/lib/jobs.boot.server";
+import { pruneLifecycleData, register } from "~/lib/lifecycle-retention.boot.server";
 
 const DAY = 86_400_000;
-const app = {} as Express;
-let ctx: BootContext;
-let shutdown: () => Promise<void> | void;
+const NOW = new Date("2026-11-09T12:00:00Z");
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.useFakeTimers();
-  vi.setSystemTime(new Date("2026-11-09T12:00:00Z"));
   sessions.mockResolvedValue(0);
   verifications.mockResolvedValue(0);
   notifications.mockResolvedValue(0);
   outbox.mockResolvedValue(0);
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
-  ctx = {
-    env: "production",
-    server: {} as BootContext["server"],
-    onShutdown: (hook) => {
-      shutdown = hook;
-    },
-  };
 });
 
 afterEach(() => {
-  vi.clearAllTimers();
-  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
-describe("lifecycle retention boot", () => {
-  it("runs immediately and daily with fresh exact cutoffs and independent category deletes", async () => {
-    const boot = Date.now();
-    await register(app, ctx);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(sessions).toHaveBeenCalledExactlyOnceWith(new Date(boot));
-    expect(verifications).toHaveBeenCalledExactlyOnceWith(new Date(boot));
-    expect(notifications).toHaveBeenCalledExactlyOnceWith(new Date(boot - 90 * DAY));
-    expect(outbox).toHaveBeenCalledExactlyOnceWith(new Date(boot - 30 * DAY));
-    await vi.advanceTimersByTimeAsync(DAY);
-    expect(sessions).toHaveBeenLastCalledWith(new Date(boot + DAY));
+describe("lifecycle retention job", () => {
+  it("recomputes exact cutoffs for each run and records the category totals", async () => {
+    expect(await pruneLifecycleData(NOW)).toEqual({
+      sessions: 0,
+      verifications: 0,
+      notifications: 0,
+      outbox: 0,
+    });
+    expect(sessions).toHaveBeenCalledExactlyOnceWith(NOW);
+    expect(verifications).toHaveBeenCalledExactlyOnceWith(NOW);
+    expect(notifications).toHaveBeenCalledExactlyOnceWith(new Date(NOW.getTime() - 90 * DAY));
+    expect(outbox).toHaveBeenCalledExactlyOnceWith(new Date(NOW.getTime() - 30 * DAY));
+    sessions.mockResolvedValueOnce(2);
+    const tomorrow = new Date(NOW.getTime() + DAY);
+    expect(await pruneLifecycleData(tomorrow)).toMatchObject({ sessions: 2 });
+    expect(sessions).toHaveBeenLastCalledWith(tomorrow);
     expect(outbox).toHaveBeenCalledTimes(2);
-    expect(console.log).not.toHaveBeenCalled();
+    expect(console.log).toHaveBeenCalledExactlyOnceWith("[lifecycle-retention] pruned 2 sessions");
   });
 
   it.each(["sessions", "verifications", "outbox", "notifications"] as const)(
@@ -71,65 +66,52 @@ describe("lifecycle retention boot", () => {
     async (category) => {
       const mocks = { sessions, verifications, outbox, notifications };
       mocks[category].mockRejectedValueOnce(new Error("synthetic private details"));
-      await register(app, ctx);
-      await vi.advanceTimersByTimeAsync(0);
+      await expect(pruneLifecycleData(NOW)).rejects.toThrow(
+        `Lifecycle cleanup failed: ${category}`,
+      );
       for (const mock of Object.values(mocks)) expect(mock).toHaveBeenCalledTimes(1);
       expect(console.error).toHaveBeenCalledExactlyOnceWith(
         `[lifecycle-retention] ${category} cleanup failed`,
       );
-      await vi.advanceTimersByTimeAsync(DAY);
+      await expect(pruneLifecycleData(NOW)).resolves.toMatchObject({ [category]: 0 });
       for (const mock of Object.values(mocks)) expect(mock).toHaveBeenCalledTimes(2);
       expect(console.error).toHaveBeenCalledTimes(1);
     },
   );
 
-  it("coalesces overlapping ticks and resumes after the current pass finishes", async () => {
+  it("preserves immediate and daily cleanup when the job queue cannot start", async () => {
+    vi.stubEnv("DATABASE_URL", "");
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
     let finish!: (value: number) => void;
-    sessions.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-    );
+    sessions.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
+    const shutdown = vi.fn<BootContext["onShutdown"]>();
+    const app = {} as Express;
+    const ctx: BootContext = {
+      env: "production",
+      server: {} as BootContext["server"],
+      onShutdown: shutdown,
+    };
+
+    await expect(registerJobs(app, ctx)).resolves.toBeUndefined();
+    expect(shutdown).not.toHaveBeenCalled();
     await register(app, ctx);
-    await vi.advanceTimersByTimeAsync(3 * DAY);
+    expect(sessions).toHaveBeenCalledExactlyOnceWith(NOW);
+    await vi.advanceTimersByTimeAsync(DAY);
     expect(sessions).toHaveBeenCalledTimes(1);
     expect(verifications).not.toHaveBeenCalled();
-    finish(2);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(console.log).toHaveBeenCalledWith("[lifecycle-retention] pruned 2 sessions");
-    await vi.advanceTimersByTimeAsync(DAY);
-    expect(sessions).toHaveBeenCalledTimes(2);
-    expect(verifications).toHaveBeenCalledTimes(2);
-  });
-
-  it("unrefs one interval and clears it idempotently on shutdown while allowing an in-flight pass to finish", async () => {
-    const schedule = globalThis.setInterval;
-    const unref = vi.fn();
-    const interval = vi.spyOn(globalThis, "setInterval").mockImplementation((callback, delay) => {
-      const handle = schedule(callback, delay);
-      vi.spyOn(handle, "unref").mockImplementation(() => {
-        unref();
-        return handle;
-      });
-      return handle;
-    });
-    let finish!: (value: number) => void;
-    sessions.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finish = resolve;
-      }),
-    );
-    await register(app, ctx);
-    expect(interval).toHaveBeenCalledExactlyOnceWith(expect.any(Function), DAY);
-    expect(unref).toHaveBeenCalledTimes(1);
-    await shutdown();
-    await shutdown();
-    expect(vi.getTimerCount()).toBe(0);
     finish(0);
     await vi.advanceTimersByTimeAsync(0);
-    expect(notifications).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(3 * DAY);
-    await (interval.mock.calls[0]![0] as () => Promise<void>)();
-    expect(sessions).toHaveBeenCalledTimes(1);
+    expect(verifications).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(DAY);
+    expect(sessions).toHaveBeenLastCalledWith(new Date(NOW.getTime() + 2 * DAY));
+    expect(sessions).toHaveBeenCalledTimes(2);
+    expect(shutdown).toHaveBeenCalledExactlyOnceWith(expect.any(Function));
+    const [stop] = shutdown.mock.calls[0]!;
+    await stop();
+    await stop();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(DAY);
+    expect(sessions).toHaveBeenCalledTimes(2);
   });
 });

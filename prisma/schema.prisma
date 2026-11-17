@@ -1586,3 +1586,10 @@ model SearchIndexJob {
   @@unique([sourceType, sourceId, op])
   @@index([nextAttemptAt])
 }
+
+model Setting {
+  key        String   @id
+  value      Json?
+  ciphertext Bytes?
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+}

@@ -362,8 +362,17 @@ Custody rules that the template cannot enforce for you:
   or not at all; changing it later makes existing uploads undecryptable.
 - `BETTER_AUTH_SECRET` also encrypts the two-factor secrets and backup codes. Changing it signs
   everyone out and leaves enrolled accounts unable to pass the code step until an admin resets their
-  two-factor authentication on the user page.
+  two-factor authentication on the user page. When no dedicated settings key is set, changing
+  `BETTER_AUTH_SECRET` also makes stored installation credentials unreadable.
+- `SETTINGS_ENCRYPTION_KEY` is an optional dedicated key for encrypted settings. Generate it with
+  `openssl rand -hex 32` and back it up offline before storing credentials. When unset, the app
+  derives the settings key from `BETTER_AUTH_SECRET`. Changing the active key makes existing
+  credentials unreadable; retain the original for restores or re-enter the credentials.
 - Never commit `.env`, and never copy it into a backup archive that you share.
+
+On an externally managed PostgreSQL installation, let the application role create and manage
+its `pgboss` schema to enable the background job queue. The bundled database already grants
+this. If the queue is unavailable, the app still starts and lifecycle cleanup uses its local timer.
 
 Everything else in the template is optional. Blank means off:
 
