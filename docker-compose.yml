@@ -269,6 +269,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-jiangtang}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in the environment}@postgres:5432/${POSTGRES_DB:-jiangtang}?schema=public
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in the environment}
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:-}
       # Public origin (for example https://jiangtang.example.org). It must match APP_DOMAIN.
       # Required: a default would serve login over plain HTTP on localhost.
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?set BETTER_AUTH_URL in the environment}

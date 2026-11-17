@@ -61,6 +61,10 @@ export const CONFIG = {
     secret: true,
     environmentOnly: true,
   }),
+  SETTINGS_ENCRYPTION_KEY: variable("auth", undefined, rawString, {
+    secret: true,
+    environmentOnly: true,
+  }),
   REQUIRE_ADMIN_TWO_FACTOR: variable("auth", false, (raw) => raw === "true"),
   ADMIN_EMAIL: variable("bootstrap", undefined, trimmed, { environmentOnly: true }),
   ADMIN_PASSWORD: variable("bootstrap", undefined, rawString, {

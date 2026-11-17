@@ -35,6 +35,8 @@ export const logger = pino({
       "*.token",
       "BETTER_AUTH_SECRET",
       "*.BETTER_AUTH_SECRET",
+      "SETTINGS_ENCRYPTION_KEY",
+      "*.SETTINGS_ENCRYPTION_KEY",
       "STORAGE_ENCRYPTION_KEY",
       "*.STORAGE_ENCRYPTION_KEY",
       "GLITCHTIP_DSN",
