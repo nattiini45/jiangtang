@@ -60,6 +60,7 @@ export const eventSeriesSchema = z
     ({ rooms, equipment }) =>
       new Set(rooms.map((room) => room.roomId)).size === rooms.length &&
       new Set(equipment.map((item) => item.equipmentId)).size === equipment.length,
+    msgKey("work.err.event.seriesDuplicateResources"),
   );
 
 export type EventSeriesInput = z.output<typeof eventSeriesSchema>;

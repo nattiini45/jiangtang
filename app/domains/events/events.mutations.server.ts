@@ -50,8 +50,8 @@ async function reenqueueEvent(tx: Tx, eventId: string): Promise<void> {
  *  allocations, service windows) can't be attached once the event is
  *  CANCELLED (terminal) — throws NotFoundError if the event itself doesn't
  *  exist so a stale eventId behaves like the P2025 → 404 path elsewhere. */
-async function assertEventMutable(tx: Tx, eventId: string): Promise<void> {
-  const event = await detachOccurrence(tx, eventId);
+async function assertEventMutable(tx: Tx, audit: AuditFn, eventId: string): Promise<void> {
+  const event = await detachOccurrence(tx, audit, eventId);
   if (event.status === "CANCELLED") {
     throw new ValidationError({
       eventId: [tr("work.err.event.cancelled")],
@@ -140,7 +140,7 @@ export async function createEventWithBooking(
       entityId: event.id,
       data: { title: event.title },
     });
-    await assertEventMutable(tx, event.id);
+    await assertEventMutable(tx, audit, event.id);
     const healthAudit = await roomBookingHealthOverride(tx, booking.roomId, booking);
     const bookingRow = await insertOrConflict(
       () =>
@@ -171,7 +171,7 @@ export async function updateEvent(
   input: EventEditInput,
 ): Promise<Event> {
   return txWithAudit(actor, async (tx, audit) => {
-    const previous = await detachOccurrence(tx, id);
+    const previous = await detachOccurrence(tx, audit, id);
     const event = await tx.event.update({
       where: { id },
       data: {
@@ -223,6 +223,9 @@ export async function updateEvent(
               tr("work.err.event.equipmentAlreadyAllocated"),
             );
           }
+          for (const window of await tx.serviceWindow.findMany({ where: { eventId: id } })) {
+            await tx.serviceWindow.update({ where: { id: window.id }, data: data(window) });
+          }
         }
       }
       await enqueueEventCalendarOp(tx, event, "UPSERT");
@@ -239,7 +242,7 @@ export async function updateEvent(
  */
 export async function cancelEvent(actor: AuditActor, id: string): Promise<Event> {
   return txWithAudit(actor, async (tx, audit) => {
-    const existing = await detachOccurrence(tx, id);
+    const existing = await detachOccurrence(tx, audit, id);
     if (existing.status === "CANCELLED") return existing;
     return cancelEventInTx(tx, audit, id);
   });
@@ -284,7 +287,7 @@ export async function addRoomBooking(
   const endsAt = resolveEventTime(input.endsAt, input.endsAtInstant);
   try {
     return await txWithAudit(actor, async (tx, audit) => {
-      await assertEventMutable(tx, eventId);
+      await assertEventMutable(tx, audit, eventId);
       const healthAudit = await roomBookingHealthOverride(tx, input.roomId, input);
       const booking = await insertOrConflict(
         () =>
@@ -342,7 +345,7 @@ export async function cancelRoomBooking(
   eventId: string,
 ): Promise<EventRoomBooking> {
   return txWithAudit(actor, async (tx, audit) => {
-    await detachOccurrence(tx, eventId);
+    await detachOccurrence(tx, audit, eventId);
     const result = await tx.eventRoomBooking.updateMany({
       where: { id: bookingId, eventId },
       data: { cancelled: true },
@@ -370,7 +373,7 @@ export async function addAllocation(
   const endsAt = resolveEventTime(input.endsAt, input.endsAtInstant);
   try {
     return await txWithAudit(actor, async (tx, audit) => {
-      await assertEventMutable(tx, eventId);
+      await assertEventMutable(tx, audit, eventId);
       const healthAudit = await equipmentBookingHealthOverride(tx, input);
       const allocation = await insertOrConflict(
         () =>
@@ -421,7 +424,7 @@ export async function cancelAllocation(
   eventId: string,
 ): Promise<EquipmentAllocation> {
   return txWithAudit(actor, async (tx, audit) => {
-    await detachOccurrence(tx, eventId);
+    await detachOccurrence(tx, audit, eventId);
     const result = await tx.equipmentAllocation.updateMany({
       where: { id: allocationId, eventId },
       data: { cancelled: true },
@@ -447,7 +450,7 @@ export async function addServiceWindow(
   input: ServiceWindowInput,
 ): Promise<ServiceWindow> {
   return txWithAudit(actor, async (tx, audit) => {
-    await assertEventMutable(tx, eventId);
+    await assertEventMutable(tx, audit, eventId);
     if (input.roomId != null) await assertRoomExists(tx, input.roomId);
     if (input.coveringUserId != null) {
       const user = await tx.user.findUnique({
@@ -487,7 +490,7 @@ export async function removeServiceWindow(
   eventId: string,
 ): Promise<void> {
   await txWithAudit(actor, async (tx, audit) => {
-    await detachOccurrence(tx, eventId);
+    await detachOccurrence(tx, audit, eventId);
     const sw = await tx.serviceWindow.findFirst({ where: { id, eventId } });
     if (!sw) throw new NotFoundError(tr("work.err.event.serviceWindowNotFound"));
     await tx.serviceWindow.delete({ where: { id } });

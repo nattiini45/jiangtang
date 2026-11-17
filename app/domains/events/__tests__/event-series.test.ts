@@ -117,6 +117,19 @@ it("rolls back only dates rejected by either EXCLUDE constraint and exports the 
   );
   expect(feed).toContain("BEGIN:VTIMEZONE");
   expect(feed.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+  const changed = await changeEventSeries(
+    actor,
+    created.seriesId,
+    "2026-03-22",
+    eventAt("2026-03-22", "12:00", "13:00"),
+    now,
+  );
+  seriesIds.push(changed.seriesId);
+  expect(changed.eventIds).toEqual(created.eventIds);
+  expect((await getEventDetail(events[0].id))?.event.seriesConflictDates).toEqual([
+    "2026-03-29",
+    "2026-04-05",
+  ]);
 });
 
 it("moves one booking, keeps the detached exception through a split, and stops following dates", async () => {
@@ -196,4 +209,34 @@ it("extends the horizon once under concurrent attempts", async () => {
   ]);
   await extendEventSeries(created.seriesId, new Date("2026-01-05T12:00:00Z"));
   expect(await eventsIn(created.seriesId)).toHaveLength(3);
+});
+
+it("records dates blocked by equipment health and resumes after it recovers", async () => {
+  const created = await createEventSeries(
+    actor,
+    eventSeriesSchema.parse({
+      event: eventAt("2027-01-03"),
+      rule: { frequency: "daily" },
+      end: { kind: "count", count: 3 },
+      equipment: [{ equipmentId }],
+    }),
+    now,
+  );
+  seriesIds.push(created.seriesId);
+  expect(created.eventIds).toHaveLength(1);
+  await db.equipment.update({ where: { id: equipmentId }, data: { status: "RETIRED" } });
+  try {
+    const blocked = await extendEventSeries(created.seriesId, new Date("2026-01-03T12:00:00Z"));
+    expect(blocked?.conflicts.map(({ date }) => date)).toEqual(["2027-01-04"]);
+  } finally {
+    await db.equipment.update({ where: { id: equipmentId }, data: { status: "OPERATIONAL" } });
+  }
+  await extendEventSeries(created.seriesId, new Date("2026-01-04T12:00:00Z"));
+  expect((await eventsIn(created.seriesId)).map(({ occurrenceKey }) => occurrenceKey)).toEqual([
+    "2027-01-03",
+    "2027-01-05",
+  ]);
+  expect((await getEventDetail(created.eventIds[0]))?.event.seriesConflictDates).toEqual([
+    "2027-01-04",
+  ]);
 });

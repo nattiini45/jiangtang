@@ -1,4 +1,5 @@
 import type { Tx } from "~/lib/db.server";
+import type { AuditFn } from "~/lib/audit.server";
 import { NotFoundError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 
@@ -9,7 +10,7 @@ export async function lockEventSeries(tx: Tx, id: string) {
   return series;
 }
 
-export async function detachOccurrence(tx: Tx, id: string) {
+export async function detachOccurrence(tx: Tx, audit: AuditFn, id: string) {
   const where = { id };
   let event = await tx.event.findUnique({ where });
   if (!event) throw new NotFoundError(tr("work.err.event.notFound"));
@@ -21,8 +22,13 @@ export async function detachOccurrence(tx: Tx, id: string) {
       where: { id: series.id },
       data: { exceptions: { push: event.occurrenceKey } },
     });
-    await tx.event.update({ where, data: { seriesId: null } });
-    break;
+    await audit({
+      entityType: "eventSeries",
+      entityId: series.id,
+      action: "EventSeriesOccurrenceDetached",
+      data: { eventId: id, date: event.occurrenceKey },
+    });
+    return tx.event.update({ where, data: { seriesId: null } });
   }
   if (!event.seriesId && event.occurrenceKey) {
     await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${id} FOR UPDATE`;

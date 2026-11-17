@@ -96,6 +96,7 @@ export const historyDe = {
   "history.action.EventSeriesCreated": "Serie erstellt",
   "history.action.EventSeriesExtended": "Serie verlängert",
   "history.action.EventSeriesSplit": "Diesen und folgende Termine bearbeitet",
+  "history.action.EventSeriesOccurrenceDetached": "Termin von der Serie gelöst",
   "history.action.EventSeriesCancelled": "Diesen und folgende Termine abgesagt",
   "history.action.ServiceWindowAdded": "Servicefenster hinzugefügt",
   "history.action.ServiceWindowRemoved": "Servicefenster entfernt",

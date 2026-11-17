@@ -91,6 +91,7 @@ export const errorsWorkEn = {
 
   // ── Event rules ────────────────────────────────────────────────────────────
   "work.err.event.dateTimeRequired": "Date and time are required.",
+  "work.err.event.seriesDuplicateResources": "Choose each room or equipment item only once.",
   "work.err.event.seriesDate":
     "Choose a date in the series. To change its date, edit that event on its own.",
   "work.err.event.roomRequired": "Room is required.",

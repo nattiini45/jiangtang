@@ -11,6 +11,8 @@ import { db } from "~/lib/db.server";
 import { t } from "~/i18n";
 import { runWithLocale } from "~/i18n/request-locale.server";
 import { configuredCalendarFixture } from "../calendar-config";
+import { createEventSeries } from "~/domains/events/event-series.mutations.server";
+import { eventSeriesSchema } from "~/domains/events/event-series.schema";
 
 configuredCalendarFixture();
 
@@ -27,6 +29,7 @@ const RUN = `event_edit_${Date.now()}`;
 const eventIds: string[] = [];
 const eventUids: string[] = [];
 const roomIds: string[] = [];
+const seriesIds: string[] = [];
 let campusId: string;
 
 beforeAll(async () => {
@@ -38,6 +41,7 @@ afterAll(async () => {
   await db.calendarOutbox.deleteMany({ where: { eventUid: { in: eventUids } } });
   await db.eventRoomBooking.deleteMany({ where: { eventId: { in: eventIds } } });
   await db.event.deleteMany({ where: { id: { in: eventIds } } });
+  await db.eventSeries.deleteMany({ where: { id: { in: seriesIds } } });
   await db.room.deleteMany({ where: { id: { in: roomIds } } });
   await db.campus.delete({ where: { id: campusId } });
   await db.$disconnect();
@@ -104,6 +108,38 @@ async function postEdit(id: string, fields: Record<string, string | null>) {
 }
 
 describe("event edit exact instants", () => {
+  it("keeps the edit inline and leaves the occurrence linked when moving it would overlap", async () => {
+    const { booking } = await fixture("2026-07-04T10:00:00Z", "2026-07-04T11:00:00Z");
+    const created = await createEventSeries(
+      { name: RUN },
+      eventSeriesSchema.parse({
+        event: { title: RUN, startsAt: "2026-07-04T10:00", endsAt: "2026-07-04T11:00" },
+        rule: { frequency: "daily" },
+        end: { kind: "count", count: 1 },
+        rooms: [{ roomId: booking.roomId }],
+      }),
+      new Date("2026-07-01T00:00:00Z"),
+    );
+    seriesIds.push(created.seriesId);
+    const [id] = created.eventIds;
+    eventIds.push(id);
+    const event = await db.event.findUniqueOrThrow({ where: { id } });
+    eventUids.push(event.uid);
+    await expect(
+      runWithLocale("en", () =>
+        postEdit(id, {
+          title: RUN,
+          startsAt: "2026-07-04T12:00",
+          endsAt: "2026-07-04T13:00",
+        }),
+      ),
+    ).resolves.toEqual({
+      form: "updateEvent",
+      fieldErrors: { startsAt: [t("en", "work.err.event.roomAlreadyBooked")] },
+    });
+    expect(await db.event.findUniqueOrThrow({ where: { id } })).toEqual(event);
+  });
+
   it.each(["de", "en"] as const)(
     "keeps the existing inline validation presentation for a missing room in %s",
     async (locale) => {

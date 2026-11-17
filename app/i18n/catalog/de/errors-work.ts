@@ -91,6 +91,7 @@ export const errorsWorkDe = {
 
   // ── Event rules ────────────────────────────────────────────────────────────
   "work.err.event.dateTimeRequired": "Datum und Uhrzeit erforderlich.",
+  "work.err.event.seriesDuplicateResources": "Wähle jeden Raum und jedes Gerät nur einmal.",
   "work.err.event.seriesDate":
     "Wähle einen Termin der Serie. Um das Datum zu ändern, bearbeite nur diesen Termin.",
   "work.err.event.roomRequired": "Raum ist erforderlich.",

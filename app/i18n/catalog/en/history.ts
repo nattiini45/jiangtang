@@ -97,6 +97,7 @@ export const historyEn = {
   "history.action.EventSeriesCreated": "Series created",
   "history.action.EventSeriesExtended": "Series extended",
   "history.action.EventSeriesSplit": "This and following events changed",
+  "history.action.EventSeriesOccurrenceDetached": "Event detached from series",
   "history.action.EventSeriesCancelled": "This and following events cancelled",
   "history.action.ServiceWindowAdded": "Service window added",
   "history.action.ServiceWindowRemoved": "Service window removed",

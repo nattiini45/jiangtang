@@ -4,7 +4,7 @@ import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import { insertOrConflict } from "~/lib/booking.server";
 import { enqueueEventCalendarOp } from "~/lib/calendar/event-publication.server";
 import { db, type Tx } from "~/lib/db.server";
-import { BookingConflictError, ValidationError } from "~/lib/errors.server";
+import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { occurrenceTimes, seriesDates, seriesHorizon } from "./event-series.dates.server";
 import { lockEventSeries } from "./event-series.link.server";
@@ -17,15 +17,7 @@ import { cancelEventInTx } from "./events.mutations.server";
 
 const options = { timeout: 60_000 };
 
-async function materialize(
-  tx: Tx,
-  audit: AuditFn,
-  series: EventSeries,
-  definition: EventSeriesInput,
-  from: string,
-  through: string,
-  replacing = new Map<string, string>(),
-) {
+async function checkResources(tx: Tx, definition: EventSeriesInput) {
   const rooms = [];
   const equipment = [];
   for (const input of [...definition.rooms].sort((a, b) => a.roomId.localeCompare(b.roomId))) {
@@ -42,6 +34,27 @@ async function materialize(
       audit: await equipmentBookingHealthOverride(tx, input),
     });
   }
+  return { rooms, equipment };
+}
+
+async function materialize(
+  tx: Tx,
+  audit: AuditFn,
+  series: EventSeries,
+  definition: EventSeriesInput,
+  from: string,
+  through: string,
+  { replacing = new Map<string, string>(), skipUnavailable = false } = {},
+) {
+  const resources = await checkResources(tx, definition).catch((error: unknown) => {
+    if (!skipUnavailable) throw error;
+    if (error instanceof NotFoundError) return { blocked: error.message };
+    if (!(error instanceof ValidationError)) throw error;
+    return {
+      blocked:
+        error.formErrors[0] ?? Object.values(error.fieldErrors).flat()[0] ?? tr("err.invalidInput"),
+    };
+  });
   if (replacing.size) {
     const where = { eventId: { in: [...replacing.values()] }, cancelled: false };
     await tx.eventRoomBooking.updateMany({ where, data: { cancelled: true } });
@@ -50,7 +63,7 @@ async function materialize(
   const eventIds: string[] = [];
   const conflicts: { date: string; message: string }[] = [];
   const cancelledIds: string[] = [];
-  const exceptions = new Set(series.exceptions);
+  const exceptions = new Set([...series.exceptions, ...series.conflictDates]);
   let nextDate: string | null = null;
   for (const date of seriesDates(definition)) {
     if (series.stopsBefore && date >= series.stopsBefore) break;
@@ -58,6 +71,10 @@ async function materialize(
     if (date > through) {
       nextDate = date;
       break;
+    }
+    if ("blocked" in resources) {
+      conflicts.push({ date, message: resources.blocked });
+      continue;
     }
     const previousId = replacing.get(date);
     await tx.$executeRaw`SAVEPOINT series_occurrence`;
@@ -83,7 +100,7 @@ async function materialize(
         action: previousId ? "EventUpdated" : "EventCreated",
         data: { title, seriesId: series.id, date },
       });
-      for (const { roomId, audit: health } of rooms) {
+      for (const { roomId, audit: health } of resources.rooms) {
         const row = await insertOrConflict(
           () => tx.eventRoomBooking.create({ data: { roomId, eventId: event.id, ...times } }),
           tr("work.err.event.roomAlreadyBooked"),
@@ -95,7 +112,7 @@ async function materialize(
           data: { roomId, ...health },
         });
       }
-      for (const { equipmentId, audit: health } of equipment) {
+      for (const { equipmentId, audit: health } of resources.equipment) {
         const row = await insertOrConflict(
           () =>
             tx.equipmentAllocation.create({ data: { equipmentId, eventId: event.id, ...times } }),
@@ -171,6 +188,7 @@ export async function extendEventSeries(id: string, now = new Date()) {
         eventSeriesSchema.parse(series.definition),
         series.nextDate > floor ? series.nextDate : floor,
         horizon,
+        { skipUnavailable: true },
       );
       await audit({
         entityType: "eventSeries",
@@ -255,6 +273,7 @@ export async function changeEventSeries(
           definition: input,
           stopsBefore: series.stopsBefore,
           exceptions: series.exceptions.filter((key) => key >= date),
+          conflictDates: series.conflictDates.filter((key) => key >= date),
         },
       });
       const replacing = new Map(
@@ -272,13 +291,16 @@ export async function changeEventSeries(
         input,
         date > oldest ? date : oldest,
         through > horizon ? through : horizon,
-        replacing,
+        { replacing },
       );
     },
     options,
   );
   await emitEvents([...result.eventIds, ...result.cancelledIds], "updated");
   await emitChange({ entityType: "eventSeries", id, op: "updated" });
+  if (id !== result.seriesId) {
+    await emitChange({ entityType: "eventSeries", id: result.seriesId, op: "created" });
+  }
   return result;
 }
 
