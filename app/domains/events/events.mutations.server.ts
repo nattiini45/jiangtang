@@ -6,7 +6,7 @@ import { insertOrConflict } from "~/lib/booking.server";
 import { findEquipmentConflicts, findRoomConflicts } from "./events.availability.server";
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
 import { enqueueEventCalendarOp } from "~/lib/calendar/event-publication.server";
-import { resolveEventTime } from "./events.time.server";
+import { moveEventInterval, resolveEventTime } from "./events.time.server";
 import { EVENT_REOPEN_ACTION } from "./events.actions";
 import {
   equipmentBookingHealthOverride,
@@ -202,15 +202,8 @@ export async function updateEvent(
         const endDelta = event.endsAt.getTime() - previous.endsAt.getTime();
         if (delta || endDelta) {
           const where = { eventId: id, cancelled: false };
-          const data = (slot: { startsAt: Date; endsAt: Date }) => ({
-            startsAt: new Date(slot.startsAt.getTime() + delta),
-            endsAt: new Date(
-              slot.endsAt.getTime() +
-                (+slot.startsAt === +previous.startsAt && +slot.endsAt === +previous.endsAt
-                  ? endDelta
-                  : delta),
-            ),
-          });
+          const data = (slot: { startsAt: Date; endsAt: Date }) =>
+            moveEventInterval(slot, previous, event);
           for (const slot of await tx.eventRoomBooking.findMany({ where })) {
             await insertOrConflict(
               () => tx.eventRoomBooking.update({ where: { id: slot.id }, data: data(slot) }),
@@ -223,9 +216,7 @@ export async function updateEvent(
               tr("work.err.event.equipmentAlreadyAllocated"),
             );
           }
-          for (const window of await tx.serviceWindow.findMany({ where: { eventId: id } })) {
-            await tx.serviceWindow.update({ where: { id: window.id }, data: data(window) });
-          }
+          await moveEventServiceWindows(tx, previous, event);
         }
       }
       await enqueueEventCalendarOp(tx, event, "UPSERT");
@@ -443,6 +434,16 @@ export async function cancelAllocation(
 }
 
 // ── Service windows (setup / standby / teardown) ──────────────────────────────
+
+export async function moveEventServiceWindows(tx: Tx, previous: Event, next: Event) {
+  if (+previous.startsAt === +next.startsAt && +previous.endsAt === +next.endsAt) return;
+  for (const window of await tx.serviceWindow.findMany({ where: { eventId: next.id } })) {
+    await tx.serviceWindow.update({
+      where: { id: window.id },
+      data: moveEventInterval(window, previous, next),
+    });
+  }
+}
 
 export async function addServiceWindow(
   actor: AuditActor,

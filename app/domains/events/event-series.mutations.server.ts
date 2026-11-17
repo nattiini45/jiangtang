@@ -13,7 +13,7 @@ import {
   equipmentBookingHealthOverride,
   roomBookingHealthOverride,
 } from "./events.health-policy.server";
-import { cancelEventInTx } from "./events.mutations.server";
+import { cancelEventInTx, moveEventServiceWindows } from "./events.mutations.server";
 
 const options = { timeout: 60_000 };
 
@@ -91,9 +91,13 @@ async function materialize(
         seriesId: series.id,
         occurrenceKey: date,
       };
+      const previous = previousId
+        ? await tx.event.findUniqueOrThrow({ where: { id: previousId } })
+        : null;
       const event = previousId
         ? await tx.event.update({ where: { id: previousId }, data })
         : await tx.event.create({ data });
+      if (previous) await moveEventServiceWindows(tx, previous, event);
       await audit({
         entityType: "event",
         entityId: event.id,

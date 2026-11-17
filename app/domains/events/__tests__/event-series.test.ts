@@ -45,6 +45,7 @@ afterAll(async () => {
   await db.calendarOutbox.deleteMany({ where: { eventUid: { in: events.map(({ uid }) => uid) } } });
   await db.eventRoomBooking.deleteMany({ where });
   await db.equipmentAllocation.deleteMany({ where });
+  await db.serviceWindow.deleteMany({ where });
   await db.event.deleteMany({ where: { title } });
   await db.eventSeries.deleteMany({ where: { id: { in: seriesIds } } });
   await db.room.deleteMany({ where: { id: roomId } });
@@ -145,6 +146,27 @@ it("moves one booking, keeps the detached exception through a split, and stops f
   );
   seriesIds.push(created.seriesId);
   const [first, second, third, fourth, fifth] = await eventsIn(created.seriesId);
+  const windows = await Promise.all([
+    db.serviceWindow.create({
+      data: {
+        eventId: second.id,
+        kind: "STANDBY",
+        startsAt: second.startsAt,
+        endsAt: second.endsAt,
+      },
+    }),
+    db.serviceWindow.create({
+      data: {
+        eventId: second.id,
+        kind: "SETUP",
+        startsAt: new Date("2026-09-02T07:30:00Z"),
+        endsAt: second.startsAt,
+      },
+    }),
+    db.serviceWindow.create({
+      data: { eventId: third.id, kind: "STANDBY", startsAt: third.startsAt, endsAt: third.endsAt },
+    }),
+  ]);
   await updateEvent(actor, fourth.id, eventAt("2026-09-04", "11:00", "12:00"));
   const occupied = eventAt("2026-09-03", "12:00", "13:00");
   await createEventWithBooking(actor, occupied, { ...occupied, roomId });
@@ -152,12 +174,24 @@ it("moves one booking, keeps the detached exception through a split, and stops f
     actor,
     created.seriesId,
     second.occurrenceKey!,
-    eventAt("2026-09-02", "12:00", "13:00"),
+    eventAt("2026-09-02", "12:00", "14:00"),
     now,
   );
   seriesIds.push(split.seriesId);
   expect(split.eventIds).toEqual([second.id, fifth.id]);
   expect(split.conflicts.map(({ date }) => date)).toEqual([third.occurrenceKey]);
+  const [standby, setup, blocked] = await Promise.all(
+    windows.map(({ id }) => db.serviceWindow.findUniqueOrThrow({ where: { id } })),
+  );
+  expect([standby.startsAt, standby.endsAt]).toEqual([
+    new Date("2026-09-02T10:00:00Z"),
+    new Date("2026-09-02T12:00:00Z"),
+  ]);
+  expect([setup.startsAt, setup.endsAt]).toEqual([
+    new Date("2026-09-02T09:30:00Z"),
+    new Date("2026-09-02T10:00:00Z"),
+  ]);
+  expect(blocked).toEqual(windows[2]);
   expect(await db.event.findUnique({ where: { id: first.id } })).toEqual(first);
   expect(await db.event.findUnique({ where: { id: fourth.id } })).toMatchObject({ seriesId: null });
   expect(
