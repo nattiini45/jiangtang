@@ -57,6 +57,7 @@ export const ENTITY_TYPE = {
   timeEntry: "timeEntry",
   notification: "notification",
   calendarOutbox: "calendarOutbox",
+  setting: "setting",
 } as const satisfies Record<string, EntityType>;
 
 /** `inventoryItem` → `inventory-item`; every other member keys as itself. */

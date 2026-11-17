@@ -465,6 +465,17 @@ reconnect.
   optional alerting job posts to `ALERT_WEBHOOK`.
 - **Background jobs** run inside the app process: calendar drain, search reconcile, audit
   retention (`ACTIVITY_RETENTION_DAYS`, default 2555 days) and a daily warranty-expiry count.
+  New jobs use pg-boss in the same database. At first startup it creates its own `pgboss` schema
+  (the app role needs permission to create a schema); Prisma only manages the application schema.
+  Register a queue at boot after the queue service starts, then call `enqueueJob` inside the caller's
+  transaction. If an enqueue fails, the transaction rolls back. Payloads should reference
+  application rows rather than contain credentials. Workers can retry a job, so handlers must
+  tolerate repeated delivery. Lifecycle cleanup runs on startup and at 03:00 UTC daily;
+  pg-boss retains the result and retry state for recent runs. If the queue can't start or the
+  cleanup can't register, the app still starts and the cleanup keeps its local timer.
+- **Installation settings** are read on demand. Non-secret values can be pinned by an environment
+  override. Secret values use AES-256-GCM bound to the setting key, are only read by server-side
+  consumers, and are not included in audit entries or change notifications.
 
 ## Testing and guards
 
