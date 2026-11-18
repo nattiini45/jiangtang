@@ -157,6 +157,9 @@ test("starts a selected round, checks the room on a phone within two minutes and
   await page.screenshot({ path: `${evidence}/phone-check.png`, fullPage: true });
   await page.getByRole("link", { name: t("de", "functions.back"), exact: true }).click();
   const functions = page.getByRole("region", { name: t("de", "functions.title"), exact: true });
+  // React Router keeps the round page rendered while the room route loads, and the dev server
+  // compiles a route's modules on its first client import, so wait for that page to be committed.
+  await expect(functions).toBeVisible({ timeout: 20_000 });
   await expect(functions.getByText(t("de", "functions.state.WORKS"), { exact: true })).toHaveCount(
     4,
   );
@@ -198,9 +201,11 @@ test("round lists, progress and green rooms fit both languages and densities wit
         await page.goto(path);
         await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-          true,
-        );
+        // The grid sizes its columns from a ResizeObserver after a load or viewport change, so
+        // wait for the committed widths instead of reading the first frame.
+        await expect
+          .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+          .toBe(true);
         if (path.endsWith(roundId)) {
           await expect(
             page.getByText(t(locale, "functions.rounds.progress", { done: 2, total: 70 }), {
@@ -225,9 +230,11 @@ test("round lists, progress and green rooms fit both languages and densities wit
             await block.screenshot({ path: `${evidence}/confirmed-functions.png` });
         }
         await page.setViewportSize({ width: 1920, height: 1080 });
-        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-          true,
-        );
+        // The grid sizes its columns from a ResizeObserver after a load or viewport change, so
+        // wait for the committed widths instead of reading the first frame.
+        await expect
+          .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+          .toBe(true);
       }
     }
 });
@@ -321,5 +328,7 @@ test("a passing recheck explicitly resolves the fault and restores its device", 
   ).toBe(1);
   await page.getByRole("link", { name: t("de", "functions.back"), exact: true }).click();
   const block = page.getByRole("region", { name: t("de", "functions.title"), exact: true });
+  // Same as the round page above: wait for the room route to be committed before counting.
+  await expect(block).toBeVisible({ timeout: 20_000 });
   await expect(block.getByText(t("de", "functions.state.WORKS"), { exact: true })).toHaveCount(5);
 });

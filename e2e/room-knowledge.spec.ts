@@ -187,6 +187,11 @@ for (const locale of ["de", "en"] as const) {
         await page.screenshot({ path: `${renders}/${locale}-${density}-list-1600.png` });
       }
       await page.setViewportSize({ width: 1280, height: 800 });
+      // The grid re-fits its columns from a ResizeObserver, so the narrower widths are only
+      // in the DOM once the name column is back at its 1280 width.
+      await expect
+        .poll(async () => (await nameHeader.boundingBox())!.width)
+        .toBeCloseTo(narrowNameWidth, 0);
       expect(
         await page
           .locator("main")
