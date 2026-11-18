@@ -201,7 +201,7 @@ export async function deliverMail(
     disableFileAccess: true,
     disableUrlAccess: true,
   });
-  let reply: string | null = null;
+  let reply: string | null;
   let failure: "authentication" | "transport" | null = null;
   let retry = false;
   const timeout = AbortSignal.timeout(45_000);
