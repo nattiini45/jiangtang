@@ -1,6 +1,51 @@
 import type { eventsDe } from "../de/events";
 
 export const eventsEn = {
+  "events.series.schedule": "Repeat schedule",
+  "events.series.frequency": "Repeat",
+  "events.series.once": "Does not repeat",
+  "events.series.daily": "Daily",
+  "events.series.weekly": "Weekly",
+  "events.series.monthly": "Monthly on the same date",
+  "events.series.interval": "Repeat every (weeks)",
+  "events.series.weekdays": "On these days",
+  "events.series.end": "Ends",
+  "events.series.byDate": "On a date",
+  "events.series.byCount": "After a number of dates",
+  "events.series.lastDate": "Last date (inclusive)",
+  "events.series.count": "Number of scheduled dates",
+  "events.series.hint":
+    "Times stay the same in Berlin. Dates more than a year away are booked later.",
+  "events.series.monthlyHint":
+    "Months without this date are skipped. Dates more than a year away are booked later.",
+  "events.series.chooseWeekday": "Include the weekday of the start date.",
+  "events.series.validInterval": "Enter a whole number from 1 to 52.",
+  "events.series.validEndDate": "Choose a valid date on or after the start date.",
+  "events.series.activeStatus": "Choose Planned or Confirmed for a series.",
+  "events.series.editScope": "Apply changes to",
+  "events.series.cancelScope": "Which events to cancel",
+  "events.series.one": "This event",
+  "events.series.following": "This and all following",
+  "events.series.singleHint": "This event will no longer follow the series.",
+  "events.series.editFollowingHint":
+    "Keep the start date and change the time or details. Earlier events and exceptions stay as they are.",
+  "events.series.cancelFollowingHint": "Earlier events and exceptions stay booked.",
+  "events.series.confirmCancelFollowing":
+    "Cancel “{title}” and all following events in this series? Their bookings will be released.",
+  "events.series.member": "Part of a recurring series",
+  "events.series.bookedRooms": "Booked rooms: {rooms}",
+  "events.series.roomHint":
+    "Change rooms for this date in Rooms. It becomes an exception; following dates keep their rooms.",
+  "events.series.manageRooms": "Manage room bookings",
+  "events.series.stale":
+    "This event’s series has changed. Check the event and choose the scope again.",
+  "events.series.result": "Series booking result",
+  "events.series.submit": "Create series",
+  "events.series.saved": "Events saved: {count}",
+  "events.series.skipped": "Dates skipped in this series: {count}",
+  "events.series.skippedHint":
+    "These dates won’t be booked automatically. You can create an individual event if a booking becomes available.",
+  "events.series.openFirst": "Open the first saved event",
   "nav.calendar": "Calendar",
   "calendar.meta": "Calendar · Jiangtang",
   "calendar.subtitle": "Events, work and dates for rooms and equipment.",
