@@ -1,4 +1,5 @@
 import { isAPIError } from "better-auth/api";
+import { sendAdminNotice } from "~/domains/auth/account-mail.server";
 import { auth, MAX_PASSWORD_LENGTH, type AuthUser } from "~/lib/auth.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { db } from "~/lib/db.server";
@@ -211,10 +212,10 @@ export async function completeTwoFactorSignIn(
  * password alone signs in again until they enrol anew.
  */
 export async function resetTwoFactor(userId: string, actor: AuditActor): Promise<void> {
-  await txWithAudit(actor, async (tx, audit) => {
+  const email = await txWithAudit(actor, async (tx, audit) => {
     const user = await tx.user.findUnique({
       where: { id: userId },
-      select: { id: true, twoFactorEnabled: true },
+      select: { id: true, email: true, twoFactorEnabled: true },
     });
     if (!user) throw new NotFoundError(tr("places.err.user.notFound"));
     const removed = await tx.twoFactor.deleteMany({ where: { userId } });
@@ -223,7 +224,9 @@ export async function resetTwoFactor(userId: string, actor: AuditActor): Promise
     }
     await tx.user.update({ where: { id: userId }, data: { twoFactorEnabled: false } });
     await audit({ action: "TwoFactorReset", entityType: "user", entityId: userId });
+    return user.email;
   });
+  await sendAdminNotice("two-factor-reset", email);
 }
 
 /**

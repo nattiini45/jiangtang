@@ -177,6 +177,12 @@ describe("request-log URL redaction", () => {
     expect(redactTokenSegments(`/calendar/${FEED_TOKEN}/ics?x=1`)).toBe("/calendar/:token/ics?x=1");
   });
 
+  it("redacts verification tokens while preserving unrelated query parameters", () => {
+    expect(
+      redactTokenSegments("/api/auth/verify-email?token=synthetic.jwt&callbackURL=%2Faccount"),
+    ).toBe("/api/auth/verify-email?token=:token&callbackURL=%2Faccount");
+  });
+
   it("leaves unrelated paths untouched", () => {
     expect(redactTokenSegments("/healthz")).toBe("/healthz");
     expect(redactTokenSegments("/events/calendar-view?page=2")).toBe(

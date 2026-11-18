@@ -1,10 +1,12 @@
 import * as React from "react";
-import { data } from "react-router";
+import { data, Form } from "react-router";
+import { Button as SdkButton } from "@ui-sdk/react/button";
 import type { Route } from "./+types/route";
 import { adminTwoFactorRequired, requireUser } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm, z } from "~/lib/validation.server";
 import { changeOwnPassword, changePasswordSchema } from "~/domains/auth/account.server";
+import { accountMailReady, requestEmailVerification } from "~/domains/auth/account-mail.server";
 import {
   createPersonalAccessToken,
   listPersonalAccessTokens,
@@ -23,7 +25,7 @@ import {
 } from "~/domains/auth/two-factor.server";
 import { ZodForm, FormField, type FieldErrors } from "~/components/forms";
 import { Input } from "~/components/ui/input";
-import { Button } from "~/components/ui/button";
+import { Button, buttonVariants } from "~/components/ui/button";
 import { RouteErrorBoundary } from "~/components/route-error-boundary";
 import { roleLabel } from "~/components/auth/labels";
 import { t } from "~/i18n";
@@ -37,6 +39,7 @@ type Intent =
   | "twoFactorConfirm"
   | "twoFactorDisable"
   | "twoFactorRegenerate"
+  | "verifyEmail"
   | "tokenCreate"
   | "tokenRevoke";
 
@@ -64,6 +67,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         role: user.role,
       },
       twoFactorEnabled: user.twoFactorEnabled,
+      canVerifyEmail: !user.emailVerified && (await accountMailReady()),
       mcpUrl: `${new URL(request.url).origin}/mcp`,
       twoFactorRequired:
         user.role === "ADMIN" && adminTwoFactorRequired() && !user.twoFactorEnabled,
@@ -92,6 +96,7 @@ export async function action({ request }: Route.ActionArgs) {
     requested === "twoFactorConfirm" ||
     requested === "twoFactorDisable" ||
     requested === "twoFactorRegenerate" ||
+    requested === "verifyEmail" ||
     requested === "tokenCreate" ||
     requested === "tokenRevoke"
       ? requested
@@ -102,10 +107,14 @@ export async function action({ request }: Route.ActionArgs) {
   });
   try {
     if (
-      (intent === "tokenCreate" || intent === "tokenRevoke") &&
+      (intent === "tokenCreate" || intent === "tokenRevoke" || intent === "verifyEmail") &&
       request.headers.get("origin") !== new URL(request.url).origin
     ) {
       throw new Response(null, { status: 403 });
+    }
+    if (intent === "verifyEmail") {
+      const changed = !user.emailVerified && (await requestEmailVerification(user.email, request));
+      return reply({ changed });
     }
     if (intent === "tokenCreate") {
       const result = await safeParseForm(request, tokenCreateSchema);
@@ -190,7 +199,7 @@ function FormErrors({ errors }: { errors?: string[] }) {
 export default function Account({ loaderData, actionData }: Route.ComponentProps) {
   const t = useT();
   const locale = useLocale();
-  const { user, twoFactorEnabled, twoFactorRequired } = loaderData;
+  const { user, twoFactorEnabled, twoFactorRequired, canVerifyEmail } = loaderData;
   const result = actionData as AccountActionData | undefined;
   const of = (intent: Intent) => (result?.intent === intent ? result : undefined);
   const changed = of("password")?.changed === true;
@@ -241,6 +250,28 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
         <dt className="text-muted-foreground">{t("account.role")}</dt>
         <dd>{roleLabel(locale, user.role)}</dd>
       </dl>
+      {canVerifyEmail ? (
+        <Form method="post" className="mt-3 space-y-2">
+          <p className="text-muted-foreground text-sm">{t("auth.mail.accountUnverified")}</p>
+          <SdkButton
+            type="submit"
+            name="intent"
+            value="verifyEmail"
+            className={buttonVariants({ variant: "secondary" })}
+          >
+            {t("auth.mail.verifyAction")}
+          </SdkButton>
+          {of("verifyEmail") ? (
+            <p role="status" className="text-sm">
+              {t(
+                of("verifyEmail")?.changed
+                  ? "auth.mail.verifyQueued"
+                  : "auth.mail.verifyUnavailable",
+              )}
+            </p>
+          ) : null}
+        </Form>
+      ) : null}
 
       <h2 className="mt-8 text-base font-semibold">{t("account.twoFactor.heading")}</h2>
       <p className="text-muted-foreground mt-1 text-sm">{t("account.twoFactor.intro")}</p>

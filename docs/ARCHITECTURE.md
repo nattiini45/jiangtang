@@ -334,6 +334,11 @@ password on `/account` (linked from the user block in the sidebar) through Bette
 `changePassword`, which needs the current password and signs out their other sessions. A forgotten
 password is reset through a one-time link (`app/domains/auth/password-reset.server.ts`) that an
 admin issues from the user's page or the operator prints with `pnpm admin:reset-password <email>`.
+With tested SMTP settings, Better Auth can also issue a hashed reset identifier for an active
+account with a verified address. The same audited transaction consumes the link, changes the
+credential and revokes sessions and personal access tokens. Emailed invitations have a separate
+proof tied to the address and the underlying single-use invitation; copying the manual link does
+not carry that proof. Accounts invited by hand can verify through Better Auth from My account.
 The first admin of a production installation comes from
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` (`app/lib/auth-bootstrap.server.ts`), and the bootstrap acts only
 while no active admin exists, so a fresh installation and a full lockout can both be recovered from

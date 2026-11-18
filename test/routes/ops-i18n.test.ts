@@ -69,16 +69,22 @@ describe("ops pages: meta titles", () => {
 
 describe("ops pages render in the request language", () => {
   it("invite page", async () => {
-    const child = () =>
-      createElement(inviteUser.default as never, { actionData: undefined } as never);
-    const en = await renderAt("en", child);
+    const child = (emailReady: boolean) => () =>
+      createElement(inviteUser.default as never, {
+        actionData: undefined,
+        loaderData: { emailReady },
+      });
+    const en = await renderAt("en", child(true));
     expect(en).toContain("Invite user");
     expect(en).toContain("Create invitation");
     expect(en).toContain("Member");
+    expect(en).toContain("Send invitation by email");
     expect(en).not.toContain("Einladung");
-    const de = await renderAt("de", child);
+    const de = await renderAt("de", child(true));
     expect(de).toContain("Einladung erzeugen");
     expect(de).toContain("Mitglied");
+    expect(de).toContain("Einladung per E-Mail senden");
+    expect(await renderAt("en", child(false))).not.toContain("Send invitation by email");
   });
 
   it("import hub keeps the format name inside the translated sentence", async () => {

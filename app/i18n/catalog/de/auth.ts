@@ -1,5 +1,35 @@
 /** Public pages: sign-in and invite acceptance. */
 export const authDe = {
+  "auth.forgot.link": "Passwort vergessen?",
+  "auth.forgot.title": "Passwort zurücksetzen · Jiangtang",
+  "auth.forgot.heading": "Passwort zurücksetzen",
+  "auth.forgot.intro": "Gib die E-Mail-Adresse ein, mit der du dich anmeldest.",
+  "auth.forgot.submit": "Link zum Zurücksetzen senden",
+  "auth.forgot.sent":
+    "Wenn das Passwort für diese Adresse zurückgesetzt werden kann, erhältst du einen Link per E-Mail.",
+  "auth.forgot.invalid": "Gib eine gültige E-Mail-Adresse ein.",
+  "auth.forgot.back": "Zurück zur Anmeldung",
+  "auth.mail.inviteSubject": "Deine Einladung zu Jiangtang",
+  "auth.mail.inviteText":
+    "Du wurdest zu Jiangtang eingeladen. Öffne diesen Link, um deine E-Mail-Adresse zu bestätigen und dein Passwort festzulegen:\n\n{link}\n\nDer Link ist sieben Tage gültig.",
+  "auth.mail.resetSubject": "Dein Jiangtang-Passwort zurücksetzen",
+  "auth.mail.resetText":
+    "Öffne diesen Link innerhalb einer Stunde, um dein Passwort zurückzusetzen:\n\n{link}\n\nWenn du kein neues Passwort angefordert hast, kannst du diese Nachricht ignorieren.",
+  "auth.mail.verifySubject": "Deine E-Mail-Adresse für Jiangtang bestätigen",
+  "auth.mail.verifyText":
+    "Öffne diesen Link innerhalb einer Stunde, um deine E-Mail-Adresse zu bestätigen:\n\n{link}\n\nWenn du die Bestätigung nicht angefordert hast, kannst du diese Nachricht ignorieren.",
+  "auth.mail.accountUnverified":
+    "Bestätige diese E-Mail-Adresse, damit du dein Passwort darüber zurücksetzen kannst.",
+  "auth.mail.verifyAction": "Bestätigungs-E-Mail senden",
+  "auth.mail.verifyQueued": "Du erhältst einen Bestätigungslink per E-Mail.",
+  "auth.mail.verifyUnavailable":
+    "Die Bestätigungs-E-Mail konnte nicht eingereiht werden. Versuche es später erneut.",
+  "auth.mail.adminSubject": "Neuer Admin in Jiangtang",
+  "auth.mail.adminText":
+    "Das Konto {email} hat jetzt Adminrechte in Jiangtang. Falls das unerwartet ist, prüfe das Konto und das Auditprotokoll.",
+  "auth.mail.twoFactorSubject": "Zwei-Faktor-Authentifizierung in Jiangtang zurückgesetzt",
+  "auth.mail.twoFactorText":
+    "Die Zwei-Faktor-Authentifizierung für {email} wurde zurückgesetzt. Falls das unerwartet ist, prüfe das Konto und das Auditprotokoll.",
   "auth.login.title": "Anmelden · Jiangtang",
   "auth.login.subtitle": "Anmeldung für dein AV-Workspace.",
   "auth.login.tagline":

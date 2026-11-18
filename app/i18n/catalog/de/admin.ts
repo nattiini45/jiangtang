@@ -1,5 +1,10 @@
 /** Admin area: user management (list, invite, edit, erase) and the search-index health page. */
 export const adminDe = {
+  "admin.invite.sendEmail": "Einladung per E-Mail senden",
+  "admin.invite.mailQueued":
+    "Die E-Mail wurde zum Versand vorgemerkt. Sie können auch den separaten Link unten kopieren.",
+  "admin.invite.mailUnavailable":
+    "Die E-Mail konnte nicht zum Versand vorgemerkt werden. Sie können den Einladungslink trotzdem kopieren.",
   "admin.structure.library.installOne": "1 Geräteart hinzufügen",
   "admin.structure.fieldMoveLimit":
     "Beim Verschieben nach „{target}“ würden mehr als 40 aktive Eigenschaften gelten: {names}. Archivieren Sie zuerst Eigenschaften oder ändern Sie deren Gerätearten.",

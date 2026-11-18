@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
 import { auth } from "~/lib/auth.server";
 import { db, type Tx } from "~/lib/db.server";
@@ -11,6 +11,7 @@ import type { InviteInput, EditUserInput } from "~/domains/auth/users.schema";
 import { UserRole } from "~/generated/prisma/enums";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
+import { inviteMailProof, sendAdminNotice } from "~/domains/auth/account-mail.server";
 
 /**
  * User/account management. All mutations go through `txWithAudit`
@@ -174,12 +175,24 @@ export interface InviteRecord {
   name: string;
   initials: string;
   role: UserRole;
+  expiresAt: Date;
+  mailed: boolean;
 }
 
 async function findInvite(tx: Tx, token: string): Promise<InviteRecord> {
-  const row = await tx.invitation.findUnique({ where: { tokenHash: inviteHash(token) } });
+  const [base, proof, extra] = token.split(".");
+  if (!base || extra !== undefined || (proof !== undefined && !/^[0-9a-f]{64}$/.test(proof))) {
+    throw new NotFoundError(tr("places.err.invite.notFound"));
+  }
+  const row = await tx.invitation.findUnique({ where: { tokenHash: inviteHash(base) } });
   if (!row || invitationState(row) !== "pending") {
     throw new NotFoundError(tr("places.err.invite.notFound"));
+  }
+  if (proof) {
+    const expected = inviteMailProof(base, row.email);
+    if (!expected || !timingSafeEqual(Buffer.from(proof, "hex"), expected)) {
+      throw new NotFoundError(tr("places.err.invite.notFound"));
+    }
   }
   return {
     id: row.id,
@@ -188,6 +201,8 @@ async function findInvite(tx: Tx, token: string): Promise<InviteRecord> {
     name: row.name,
     initials: row.initials,
     role: row.role,
+    expiresAt: row.expiresAt,
+    mailed: Boolean(proof),
   };
 }
 
@@ -245,7 +260,7 @@ export async function acceptInvite(
   const selfActor: AuditActor = { name: invite.name, email, initials: invite.initials };
 
   try {
-    return await txWithAudit(selfActor, async (tx, audit) => {
+    const created = await txWithAudit(selfActor, async (tx, audit) => {
       await tx.$queryRaw`SELECT id FROM "Invitation" WHERE id = ${invite.id} FOR UPDATE`;
       invite = await findInvite(tx, invite.token);
       const clash = await findInviteClash(tx, email, invite.initials);
@@ -257,7 +272,7 @@ export async function acceptInvite(
           name: invite.name,
           role: invite.role,
           initials: invite.initials,
-          emailVerified: false,
+          emailVerified: invite.mailed,
         },
       });
       await tx.account.create({
@@ -283,6 +298,8 @@ export async function acceptInvite(
       });
       return { id: user.id, email: user.email };
     });
+    if (invite.role === "ADMIN") await sendAdminNotice("new-admin", created.email);
+    return created;
   } catch (e) {
     // A concurrent invite acceptance or rename can still win between the check
     // and the insert; the unique index then decides, with the same message.
@@ -347,7 +364,7 @@ export async function updateUser(
   input: EditUserInput,
   actor: AuditActor,
 ): Promise<void> {
-  const revokedTokenCount = await txWithAudit(actor, async (tx, audit) => {
+  const { revokedTokenCount, newAdminEmail } = await txWithAudit(actor, async (tx, audit) => {
     await assertCanChangeAdminStatus(tx, id, actor, {
       role: input.role,
       isActive: input.isActive,
@@ -393,8 +410,15 @@ export async function updateUser(
         },
       } as unknown as import("~/generated/prisma/client").Prisma.InputJsonValue,
     });
-    return revokedCount;
+    return {
+      revokedTokenCount: revokedCount,
+      newAdminEmail:
+        input.role === "ADMIN" && input.isActive && (before.role !== "ADMIN" || !before.isActive)
+          ? before.email
+          : null,
+    };
   });
+  if (newAdminEmail) await sendAdminNotice("new-admin", newAdminEmail);
   if (revokedTokenCount > 0) {
     await emitChange({ entityType: ENTITY_TYPE.user, id, op: "updated" });
   }

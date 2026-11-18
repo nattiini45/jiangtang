@@ -56,7 +56,10 @@ export const logger = pino({
 const TOKEN_SEGMENT = /(\/(?:calendar|accept-invite|reset-password)\/)[^/?#]+/gi;
 
 export function redactTokenSegments(url: string): string {
-  return url.replace(TOKEN_SEGMENT, "$1:token").replace(/jtg_[A-Za-z0-9_-]{43}/g, ":token");
+  return url
+    .replace(TOKEN_SEGMENT, "$1:token")
+    .replace(/([?&]token=)[^&#\s]+/gi, "$1:token")
+    .replace(/jtg_[A-Za-z0-9_-]{43}/g, ":token");
 }
 
 /** Create a request-scoped child logger carrying a request id. */

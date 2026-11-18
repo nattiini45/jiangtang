@@ -73,6 +73,8 @@ const ROUTES = flatten((await flatRoutes()) as RouteEntry[]).filter(
  */
 const PUBLIC: Record<string, string> = {
   "routes/login": "the sign-in form and its action",
+  "routes/forgot-password":
+    "rate-limited recovery request with the same response for every account",
   "routes/logout": "ends the session; harmless without one",
   "routes/login_.two-factor":
     "second sign-in step; the signed two-factor challenge cookie from the password step gates it",
