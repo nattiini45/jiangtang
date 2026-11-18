@@ -61,6 +61,19 @@ export const eventsDe = {
     "Mit Raum- oder Gerätefilter erscheinen nur zugehörige Einträge. Raumbelegungen bleiben zur Buchungsplanung sichtbar.",
   "calendar.empty":
     "Keine Einträge in diesem Zeitraum. Wähle andere Termine oder lege eine Veranstaltung an.",
+  "calendar.schedule.hint":
+    "Ziehe eine Veranstaltung zum Verschieben oder ziehe am Ende, um die Dauer zu ändern.",
+  "calendar.schedule.move": "{event} verschieben",
+  "calendar.schedule.resize": "Endzeit für {event} ändern",
+  "calendar.schedule.keys": "Mit Alt + Pfeiltasten anpassen. Eingabe speichert, Esc bricht ab.",
+  "calendar.schedule.saved": "Termin geändert.",
+  "calendar.schedule.stale":
+    "Die Veranstaltung wurde geändert. Lade den Kalender neu und versuche es erneut.",
+  "calendar.schedule.failed": "Der Termin konnte nicht geändert werden. Versuche es erneut.",
+  "calendar.schedule.roomConflict":
+    "Der Raum ist bereits durch eine andere Veranstaltung belegt ({range}).",
+  "calendar.schedule.equipmentConflict":
+    "Das Gerät ist bereits durch eine andere Veranstaltung belegt ({range}).",
   "events.health.title": "Gesundheitsstatus übergehen",
   "events.health.roomWarning":
     "Dieser Raum ist außer Betrieb. Buche ihn nur, wenn die Nutzung bewusst geprüft wurde. Bestehende Buchungen bleiben unverändert.",
