@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
+import { readConfig } from "~/lib/config.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { db, type Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
@@ -21,11 +22,10 @@ import {
  * that sets the Better Auth credential, consumes the link and signs the account
  * out everywhere in one audited transaction.
  *
- * The link lives in `Verification` like an invitation, but only a SHA-256 of the
- * token is stored, so a database copy holds no usable link. The `password-reset:`
- * prefix identifies admin-issued links. The separate `email-password-reset:`
- * namespace stores hashed identifiers for Better Auth's emailed links. Both
- * are consumed here, rather than by Better Auth's reset POST endpoint.
+ * Only token digests live in `Verification`, so a database copy holds no usable
+ * link. Admin-issued links use SHA-256; Better Auth's emailed links use HMAC
+ * and a separate namespace. Both are consumed here, rather than by Better
+ * Auth's reset POST endpoint.
  */
 
 const RESET_TTL_MS = 1000 * 60 * 60 * 24; // 1 day
@@ -100,6 +100,9 @@ export interface PasswordResetRecord {
 }
 
 async function findResetLink(tx: Tx, token: string): Promise<PasswordResetRecord> {
+  if (token.startsWith("email-") && !readConfig("BETTER_AUTH_SECRET")) {
+    throw new NotFoundError(tr("places.err.reset.notFound"));
+  }
   const row = await tx.verification.findFirst({ where: { identifier: identifierFor(token) } });
   if (!row || row.expiresAt <= new Date()) {
     throw new NotFoundError(tr("places.err.reset.notFound"));

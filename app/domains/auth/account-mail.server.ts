@@ -1,4 +1,4 @@
-import { createHash, createHmac } from "node:crypto";
+import { createHmac } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { txWithAudit } from "~/lib/audit.server";
 import { readConfig } from "~/lib/config.server";
@@ -17,7 +17,9 @@ export const VERIFICATION_LIFETIME_SECONDS = 3600;
 const RESET_MAIL_COOLDOWN_MS = 60_000;
 
 export function hashEmailResetIdentifier(identifier: string) {
-  return EMAIL_RESET_PREFIX + createHash("sha256").update(identifier).digest("hex");
+  const key = readConfig("BETTER_AUTH_SECRET");
+  if (!key) throw new Error("BETTER_AUTH_SECRET must be configured for email recovery.");
+  return EMAIL_RESET_PREFIX + createHmac("sha256", key).update(identifier).digest("hex");
 }
 
 function publicUrl(path: string) {
@@ -26,7 +28,7 @@ function publicUrl(path: string) {
 }
 
 export async function accountMailReady() {
-  if (!readConfig("BETTER_AUTH_URL")) return false;
+  if (!readConfig("BETTER_AUTH_URL") || !readConfig("BETTER_AUTH_SECRET")) return false;
   return (await readMailSettings().catch(() => null))?.ready ?? false;
 }
 
