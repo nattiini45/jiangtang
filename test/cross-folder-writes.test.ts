@@ -217,11 +217,11 @@ const FOLDERS: Record<string, readonly string[]> = {
   // owning folders' `importXInTx` functions carry every delegate call.
   "app/domains/transfer": [],
   "app/domains/vendors": ["Vendor"],
-  // `app/lib` is a nested tree, not one folder. Top level owns ActivityLog;
+  // `app/lib` is a nested tree, not one folder. Top level owns ActivityLog and Setting;
   // calendar/ owns CalendarOutbox and MUST be its own key — a non-recursive read
   // of `app/lib` never opens it, and `CalendarOutbox`'s owner would be a map
   // entry no scan ever consulted.
-  "app/lib": ["ActivityLog"],
+  "app/lib": ["ActivityLog", "Setting"],
   "app/lib/calendar": ["CalendarOutbox", "CalendarPublicationInitialization"],
   "app/lib/custom-fields": ["CustomField", "CustomFieldKind", "CustomFieldOption", "LibraryState"],
   "app/lib/list-columns": ["ListColumns"],

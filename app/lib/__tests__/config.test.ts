@@ -40,6 +40,7 @@ const emptyRetained = new Set<ConfigName>([
   "DATABASE_URL",
   "BETTER_AUTH_URL",
   "BETTER_AUTH_SECRET",
+  "SETTINGS_ENCRYPTION_KEY",
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
   "ADMIN_INITIALS",
@@ -70,6 +71,7 @@ describe("configuration registry", () => {
       "PORT",
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
+      "SETTINGS_ENCRYPTION_KEY",
       "BETTER_AUTH_URL",
       "STORAGE_DIR",
       "STORAGE_ENCRYPTION_KEY",
@@ -88,6 +90,7 @@ describe("configuration registry", () => {
     for (const name of [
       "DATABASE_URL",
       "BETTER_AUTH_SECRET",
+      "SETTINGS_ENCRYPTION_KEY",
       "STORAGE_ENCRYPTION_KEY",
       "ADMIN_PASSWORD",
       "DEV_ADMIN_PASSWORD",
@@ -179,7 +182,7 @@ describe("configuration registry", () => {
   it("keeps About metadata value-free and based on raw presence, not parsed defaults", () => {
     vi.stubEnv("REQUIRE_ADMIN_TWO_FACTOR", "false");
     expect(environmentStatus().find((v) => v.name === "REQUIRE_ADMIN_TWO_FACTOR")?.set).toBe(true);
-    expect(ENVIRONMENT_VARIABLES).toHaveLength(44);
+    expect(ENVIRONMENT_VARIABLES).toHaveLength(45);
     expect(
       ENVIRONMENT_VARIABLES.every(
         (v) => Object.keys(v).sort().join() === "expectedUnset,group,name",

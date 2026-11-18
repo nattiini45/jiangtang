@@ -243,7 +243,7 @@ BEGIN
   -- ── 12/13. Statement-kind counts after additive migrations ──
   -- Exact, because each counted statement kind maps one-to-one onto a catalog
   -- row: 29 CREATE TYPE = 29 enum types, 105 FOREIGN KEY = 105 contype 'f',
-  -- 2 EXCLUDE USING = 2 contype 'x', and the twenty-one named CHECKs.
+  -- 2 EXCLUDE USING = 2 contype 'x', and the twenty-two named CHECKs.
   SELECT count(*) = 29 INTO have
     FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace
     WHERE n.nspname = 'public' AND t.typtype = 'e';
@@ -269,9 +269,9 @@ BEGIN
     missing := array_append(missing, 'public schema does not hold exactly the 2 EXCLUDE constraints the baseline creates');
   END IF;
 
-  SELECT count(*) = 21 INTO have
+  SELECT count(*) = 22 INTO have
     FROM pg_constraint
-    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape', 'custom_field_library_scope', 'equipment_model_custom_values', 'ticket_impact_values', 'model_part_fit_values', 'equipment_reading_source', 'work_plan_schedule', 'work_plan_target', 'event_series_occurrence_key')
+    WHERE conname IN ('room_renewal_order', 'time_entry_interval_positive', 'equipment_function_group_name', 'equipment_kind_name', 'custom_field_key', 'custom_field_name', 'custom_field_help', 'custom_field_section', 'custom_field_unit', 'custom_field_option_label', 'room_custom_values', 'equipment_custom_values', 'list_columns_shape', 'custom_field_library_scope', 'equipment_model_custom_values', 'ticket_impact_values', 'model_part_fit_values', 'equipment_reading_source', 'work_plan_schedule', 'work_plan_target', 'event_series_occurrence_key', 'setting_one_value')
       AND contype = 'c';
   IF NOT have THEN
     missing := array_append(missing, 'one or more named CHECK constraints are missing');
@@ -400,12 +400,21 @@ BEGIN
     missing := array_append(missing, 'equipment readings need their ENABLE ALWAYS immutability trigger');
   END IF;
 
+  SELECT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'setting_one_value'
+      AND conrelid = to_regclass('public."Setting"') AND convalidated
+      AND pg_get_constraintdef(oid) LIKE '%num_nonnulls(value, ciphertext) = 1%'
+  ) INTO have;
+  IF NOT have THEN
+    missing := array_append(missing, 'settings must store exactly one of a public value or ciphertext');
+  END IF;
+
   IF array_length(missing, 1) IS NOT NULL THEN
     RAISE EXCEPTION 'Jiangtang invariant check FAILED — % missing invariant(s): %',
       array_length(missing, 1), array_to_string(missing, '; ')
       USING HINT = 'Do not deploy onto this database until `prisma migrate deploy` has applied the seven-file baseline in prisma/migrations/';
   END IF;
 
-  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, one open function state, valid part compatibility, 29 enums / 105 foreign keys / 21 CHECKs, >=127 public indexes';
+  RAISE NOTICE 'Jiangtang invariants OK: 2 EXCLUDE constraints, ENABLE ALWAYS audit trigger, vector + pg_trgm extensions, Chunk HNSW index, one-running-timer index, seven-name ledger prefix, five workitem lanes covering both enums, 2 pinned SECURITY DEFINER functions, 2 connection-pair triggers, equipment kind/group active names and RESTRICT references, library property scope and option keys, unique model catalog keys, one open function state, valid part compatibility, exactly one storage format per setting, 29 enums / 105 foreign keys / 22 CHECKs, >=127 public indexes';
 END
 $verify$;

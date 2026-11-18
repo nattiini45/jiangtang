@@ -67,6 +67,7 @@ export const ENTITY_TYPES = [
   "timeEntry",
   "notification",
   "calendarOutbox",
+  "setting",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];

@@ -1,6 +1,9 @@
 import type { historyDe } from "../de/history";
 
 export const historyEn = {
+  "history.entity.setting": "Setting",
+  "history.action.SettingChanged": "Setting changed",
+  "history.action.SettingRemoved": "Setting removed",
   "history.entity.workPlan": "Work plan",
   "history.entity.semesterStart": "Semester start",
   "history.action.SemesterStartRemoved": "Semester start removed",
