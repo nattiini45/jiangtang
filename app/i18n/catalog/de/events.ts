@@ -32,6 +32,10 @@ export const eventsDe = {
   "events.series.confirmCancelFollowing":
     "„{title}“ und alle folgenden Termine der Serie absagen? Ihre Buchungen werden freigegeben.",
   "events.series.member": "Teil einer Terminserie",
+  "events.series.bookedRooms": "Gebuchte Räume: {rooms}",
+  "events.series.roomHint":
+    "Ändere die Räume für diesen Termin unter Räume. Er wird zur Ausnahme; folgende Termine behalten ihre Räume.",
+  "events.series.manageRooms": "Raumbuchungen verwalten",
   "events.series.stale":
     "Die Serie dieses Termins hat sich geändert. Prüfe den Termin und wähle erneut, welche Termine du bearbeiten möchtest.",
   "events.series.result": "Ergebnis der Serienbuchung",

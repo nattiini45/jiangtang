@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { db } from "~/lib/db.server";
-import { berlinDayIndex, dayIndexToDateKey } from "~/lib/berlin-days";
+import { berlinDayIndex, dayIndexToDateKey, isoWeekday } from "~/lib/berlin-days";
 import { berlinLocalToUtc } from "~/lib/time.server";
 import { formatDate } from "~/i18n/format";
 import { eventStatusLabel } from "~/components/events/labels";
@@ -67,7 +67,8 @@ test("creates a recurring room booking, detaches one date and edits or cancels f
   const room = await db.room.create({
     data: { name: "Studio East", slug: `${runPrefix()}series-room` },
   });
-  const firstDay = berlinDayIndex(new Date()) + 7;
+  const nextWeek = berlinDayIndex(new Date()) + 7;
+  const firstDay = nextWeek + ((3 - isoWeekday(nextWeek) + 7) % 7);
   const dates = Array.from({ length: 6 }, (_, i) => dayIndexToDateKey(firstDay + 7 * i));
   const at = (date: string, time: string) => berlinLocalToUtc(`${date}T${time}`);
   const occupied = await db.event.create({
@@ -91,12 +92,23 @@ test("creates a recurring room booking, detaches one date and edits or cancels f
     const form = page.locator('form:has(input[name="_action"][value="updateEvent"])');
     await form.locator('input[name="startsAt"]').fill(`${date}T${time}`);
     await form.locator('input[name="endsAt"]').fill(`${date}T${end}`);
-    if (following)
+    if (following) {
       await choose(
         page,
         t(locale, "events.series.editScope"),
         t(locale, "events.series.following"),
       );
+      await expect(
+        form.getByText(t(locale, "events.series.bookedRooms", { rooms: room.name })),
+      ).toBeVisible();
+      await expect(
+        form.getByRole("link", { name: t(locale, "events.series.manageRooms") }),
+      ).toHaveAttribute("href", "#event-rooms");
+      await page
+        .getByRole("combobox", { name: t(locale, "events.series.editScope"), exact: true })
+        .evaluate((element) => element.scrollIntoView({ block: "center" }));
+      await page.screenshot({ path: testInfo.outputPath("series-edit-scope.png") });
+    }
     await page.getByRole("button", { name: t(locale, "events.detail.saveChanges") }).click();
     await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     await expect
@@ -139,17 +151,41 @@ test("creates a recurring room booking, detaches one date and edits or cancels f
     await expect(
       page.getByRole("spinbutton", { name: t(locale, "events.series.interval") }),
     ).not.toHaveAttribute("aria-invalid", "true");
-    await page
-      .getByRole("checkbox", {
-        name: new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" }).format(
-          new Date(dates[0]),
-        ),
-        exact: true,
-      })
-      .press("Space");
+    const wednesday = page.getByRole("checkbox", { name: "Wednesday", exact: true });
+    await wednesday.press("Space");
+    await expect(wednesday).toBeChecked();
+    await expect(weekday).toHaveCount(1);
+    await expect(page.getByText(t(locale, "events.series.chooseWeekday"))).toHaveCount(0);
     await expect(page.locator("body")).toHaveJSProperty("scrollWidth", 1280);
+    const submit = page.getByRole("button", { name: t(locale, "events.series.submit") });
+    await submit.scrollIntoViewIfNeeded();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const header = document.querySelector("header")!;
+          const rect = header.getBoundingClientRect();
+          return (
+            scrollY > 0 &&
+            rect.top === 0 &&
+            document
+              .elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+              ?.closest("header") === header
+          );
+        }),
+      )
+      .toBe(true);
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            document.querySelector("h1")!.getBoundingClientRect().top >
+            document.querySelector("header")!.getBoundingClientRect().bottom,
+        ),
+      )
+      .toBe(true);
     await page.screenshot({ path: testInfo.outputPath("series-create.png"), fullPage: true });
-    await page.getByRole("button", { name: t(locale, "events.series.submit") }).click();
+    await submit.click();
     await expect(
       page.getByRole("heading", { name: t(locale, "events.series.result") }),
     ).toBeVisible();

@@ -33,6 +33,10 @@ export const eventsEn = {
   "events.series.confirmCancelFollowing":
     "Cancel “{title}” and all following events in this series? Their bookings will be released.",
   "events.series.member": "Part of a recurring series",
+  "events.series.bookedRooms": "Booked rooms: {rooms}",
+  "events.series.roomHint":
+    "Change rooms for this date in Rooms. It becomes an exception; following dates keep their rooms.",
+  "events.series.manageRooms": "Manage room bookings",
   "events.series.stale":
     "This event’s series has changed. Check the event and choose the scope again.",
   "events.series.result": "Series booking result",

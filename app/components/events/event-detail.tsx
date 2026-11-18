@@ -125,7 +125,7 @@ export function EventDetailView({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Rooms */}
-        <Card>
+        <Card id="event-rooms" className="scroll-mt-16">
           <CardHeader>
             <CardTitle>{t("events.detail.rooms")}</CardTitle>
           </CardHeader>
@@ -450,7 +450,24 @@ export function EventDetailView({
             className="mt-4"
           >
             <input type="hidden" name="_action" value="updateEvent" />
-            {event.seriesId ? <EventSeriesScope seriesId={event.seriesId} /> : null}
+            {event.seriesId ? (
+              <>
+                <EventSeriesScope seriesId={event.seriesId} />
+                <div className="text-muted-foreground text-xs">
+                  <p>
+                    {rooms.length
+                      ? t("events.series.bookedRooms", {
+                          rooms: rooms.map(({ roomName }) => roomName).join(", "),
+                        })
+                      : t("events.detail.noRooms")}
+                  </p>
+                  <p>{t("events.series.roomHint")}</p>
+                  <a href="#event-rooms" className="text-foreground underline underline-offset-4">
+                    {t("events.series.manageRooms")}
+                  </a>
+                </div>
+              </>
+            ) : null}
             <FormError when="updateEvent" actionData={actionData} />
             <input
               type="hidden"

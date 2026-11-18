@@ -108,7 +108,9 @@ export function EventRecurrenceFields({
   const days = Array.from({ length: 7 }, (_, i) => i + 1);
   const weekday = eventStartWeekday(start);
   const weekdayName = new Intl.DateTimeFormat(locale, { timeZone: "UTC", weekday: "long" });
-  const weekdaysError = useFieldError("weekdays");
+  const [uncheckedStartDay, setUncheckedStartDay] = useState<number | null>(null);
+  const submittedWeekdaysError = useFieldError("weekdays");
+  const weekdaysError = uncheckedStartDay === weekday ? submittedWeekdaysError : undefined;
   const weekdaysErrorId = useId();
   return (
     <fieldset className="min-w-0 space-y-3">
@@ -161,6 +163,9 @@ export function EventRecurrenceFields({
                   name="weekdays"
                   value={String(day)}
                   defaultChecked={weekday === day}
+                  onCheckedChange={(checked) => {
+                    if (weekday === day) setUncheckedStartDay(checked === true ? null : day);
+                  }}
                   className="data-checked:bg-selected flex size-5 shrink-0 items-center justify-center rounded-sm shadow-[inset_0_0_0_1px_var(--input)]"
                 >
                   <CheckboxIndicator>
