@@ -29,7 +29,7 @@ function encryptionKey() {
   return Buffer.from(hkdfSync("sha256", authSecret, "", "jiangtang-settings-v1", 32));
 }
 
-function seal(key: string, value: string) {
+export function sealSecret(key: string, value: string) {
   const iv = randomBytes(IV_BYTES);
   const cipher = createCipheriv("aes-256-gcm", encryptionKey(), iv);
   cipher.setAAD(Buffer.from(key));
@@ -50,8 +50,11 @@ export async function hasSecretSetting(key: string) {
 
 export async function getSecretSetting(key: string) {
   const row = await db.setting.findUnique({ where: { key }, select: { ciphertext: true } });
-  if (!row?.ciphertext) return null;
-  const blob = Buffer.from(row.ciphertext);
+  return row?.ciphertext ? openSecret(key, row.ciphertext) : null;
+}
+
+export function openSecret(key: string, ciphertext: Uint8Array) {
+  const blob = Buffer.from(ciphertext);
   const decipher = createDecipheriv("aes-256-gcm", encryptionKey(), blob.subarray(0, IV_BYTES));
   decipher.setAAD(Buffer.from(key));
   decipher.setAuthTag(blob.subarray(IV_BYTES, IV_BYTES + TAG_BYTES));
@@ -103,7 +106,7 @@ export async function updateSettings(
           if (count) await record(key, "deleted", true);
           return;
         }
-        const ciphertext = seal(key, value);
+        const ciphertext = sealSecret(key, value);
         await tx.setting.upsert({
           where: { key },
           create: { key, ciphertext },

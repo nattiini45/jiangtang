@@ -2,6 +2,7 @@ export const historyDe = {
   "history.entity.setting": "Einstellung",
   "history.action.SettingChanged": "Einstellung geändert",
   "history.action.SettingRemoved": "Einstellung entfernt",
+  "history.action.TestEmailRequested": "Testnachricht angefordert",
   "history.entity.workPlan": "Arbeitsplan",
   "history.entity.semesterStart": "Semesterstart",
   "history.action.SemesterStartRemoved": "Semesterstart entfernt",

@@ -54,6 +54,7 @@ it("schedules the lifecycle sweep and persists a boot run and its result", async
             verifications: expect.any(Number),
             outbox: expect.any(Number),
             notifications: expect.any(Number),
+            mail: expect.any(Number),
           },
         }),
       );

@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { pruneMailDeliveries } from "~/domains/mail/mail.server";
 import {
   pruneExpiredSessions,
   pruneExpiredVerifications,
@@ -20,6 +21,7 @@ export async function pruneLifecycleData(now = new Date()) {
     ["verifications", () => pruneExpiredVerifications(now)],
     ["outbox", () => pruneCompletedCalendarOutbox(outboxCutoff)],
     ["notifications", () => pruneReadNotifications(notificationCutoff)],
+    ["mail", () => pruneMailDeliveries(now)],
   ] as const;
 
   const deleted: Record<string, number> = {};

@@ -4,6 +4,7 @@ export const historyEn = {
   "history.entity.setting": "Setting",
   "history.action.SettingChanged": "Setting changed",
   "history.action.SettingRemoved": "Setting removed",
+  "history.action.TestEmailRequested": "Test email requested",
   "history.entity.workPlan": "Work plan",
   "history.entity.semesterStart": "Semester start",
   "history.action.SemesterStartRemoved": "Semester start removed",
