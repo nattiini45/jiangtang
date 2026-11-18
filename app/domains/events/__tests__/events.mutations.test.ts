@@ -44,6 +44,7 @@ const fixtures = {
 };
 const eventIds: string[] = [];
 const eventUids: string[] = [];
+const otherRoomIds: string[] = [];
 
 beforeAll(async () => {
   const campus = await db.campus.create({ data: { name: `${RUN}-Campus`, slug: `${RUN}-campus` } });
@@ -99,6 +100,7 @@ afterAll(async () => {
   });
   await db.equipmentModel.deleteMany({ where: { id: fixtures.modelId } });
   await db.room.deleteMany({ where: { id: fixtures.roomId } });
+  await db.room.deleteMany({ where: { id: { in: otherRoomIds } } });
   await db.campus.deleteMany({ where: { id: fixtures.campusId } });
   await db.$disconnect();
 });
@@ -127,6 +129,59 @@ async function makeEvent(
 }
 
 describe("event mutations", () => {
+  it("checks both schedules before reassigning a partial room booking", async () => {
+    const target = await db.room.create({ data: { slug: `${RUN}-target`, name: "Demo target" } });
+    otherRoomIds.push(target.id);
+    const day = "2043-02-11";
+    const { id } = await makeEvent(`${day}T09:00`, `${day}T12:00`);
+    const slot = await addRoomBooking(actor, id, {
+      roomId: fixtures.roomId,
+      startsAt: `${day}T10:00`,
+      endsAt: `${day}T11:00`,
+    });
+    const original = await db.event.findUniqueOrThrow({ where: { id } });
+    const snapshot = {
+      eventId: id,
+      expectedStartsAt: original.startsAt.toISOString(),
+      expectedEndsAt: original.endsAt.toISOString(),
+    };
+    const booking = {
+      id: slot.id,
+      fromRoomId: slot.roomId,
+      roomId: target.id,
+      expectedStartsAt: slot.startsAt.toISOString(),
+      expectedEndsAt: slot.endsAt.toISOString(),
+    };
+    const resized = await updateEvent(actor, id, { ...snapshot, mode: "resize", minutes: 30 });
+    const reassign = { ...snapshot, mode: "move" as const, minutes: 0, booking };
+    await expect(updateEvent(actor, id, reassign)).rejects.toBeInstanceOf(ValidationError);
+    reassign.expectedEndsAt = resized.endsAt.toISOString();
+    await db.room.update({ where: { id: target.id }, data: { status: "OUT_OF_SERVICE" } });
+    await expect(updateEvent(actor, id, reassign)).rejects.toBeInstanceOf(ValidationError);
+    await db.room.update({ where: { id: target.id }, data: { status: "ALL_GOOD" } });
+    await expect(updateEvent(actor, id, reassign)).resolves.toMatchObject({
+      startsAt: original.startsAt,
+      endsAt: resized.endsAt,
+    });
+    await expect(updateEvent(actor, id, reassign)).rejects.toBeInstanceOf(ValidationError);
+    expect(await db.eventRoomBooking.findUnique({ where: { id: slot.id } })).toEqual({
+      ...slot,
+      roomId: target.id,
+    });
+    expect(
+      await db.activityLog.findMany({
+        where: { entityId: id, action: "EventUpdated" },
+        select: { data: true },
+      }),
+    ).toContainEqual({
+      data: expect.objectContaining({
+        bookingId: slot.id,
+        fromRoomId: slot.roomId,
+        roomId: target.id,
+      }),
+    });
+  });
+
   it("moves across the repeated Berlin hour and rejects stale or conflicting reschedules", async () => {
     const roomId = fixtures.roomId;
     const at = (time: string) => new Date(`2026-10-25T${time}:00Z`);

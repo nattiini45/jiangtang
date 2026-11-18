@@ -79,18 +79,26 @@ export const eventCreateSchema = eventFields
   .refine(endsAfterStarts, endsAfterStartsIssue);
 export const eventEditSchema = eventCreateSchema;
 
-export const eventScheduleSchema = z.object({
-  eventId: z.string().min(1),
-  expectedStartsAt: eventInstantSchema,
-  expectedEndsAt: eventInstantSchema,
-  minutes: z
-    .number()
-    .int()
-    .min(-10_140)
-    .max(10_140)
-    .refine((minutes) => minutes !== 0),
-  mode: z.enum(["move", "resize"]),
-});
+export const eventScheduleSchema = z
+  .object({
+    eventId: z.string().min(1),
+    expectedStartsAt: eventInstantSchema,
+    expectedEndsAt: eventInstantSchema,
+    minutes: z.number().int().min(-10_140).max(10_140),
+    mode: z.enum(["move", "resize"]),
+    booking: z
+      .object({
+        id: z.string().min(1),
+        fromRoomId: z.string().min(1),
+        roomId: z.string().min(1),
+        expectedStartsAt: eventInstantSchema,
+        expectedEndsAt: eventInstantSchema,
+      })
+      .optional(),
+  })
+  .refine(({ minutes, mode, booking }) =>
+    booking && booking.roomId !== booking.fromRoomId ? mode === "move" : minutes !== 0,
+  );
 
 export type EventScheduleInput = z.infer<typeof eventScheduleSchema>;
 

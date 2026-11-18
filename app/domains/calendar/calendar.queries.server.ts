@@ -36,7 +36,7 @@ export async function getWorkspaceCalendar(
         roomId: true,
         startsAt: true,
         endsAt: true,
-        event: { select: { title: true, status: true } },
+        event: { select: { title: true, status: true, startsAt: true, endsAt: true } },
       },
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
     }),
@@ -73,7 +73,13 @@ export async function getWorkspaceCalendar(
     );
   return {
     entries,
-    bookings: bookings.map(({ event, ...booking }) => ({ ...booking, ...event })),
+    bookings: bookings.map(({ event, ...booking }) => ({
+      ...booking,
+      title: event.title,
+      status: event.status,
+      eventStartsAt: event.startsAt,
+      eventEndsAt: event.endsAt,
+    })),
     rooms,
     equipment: equipment.map((e) => ({
       id: e.id,

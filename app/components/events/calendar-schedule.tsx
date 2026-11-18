@@ -1,6 +1,14 @@
-import { useEffect, useId, useRef, useState, type ComponentProps, type PointerEvent } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type PointerEvent,
+} from "react";
 import { Link, useFetcher } from "react-router";
-import { GripHorizontal, Move } from "lucide-react";
+import { GripHorizontal, GripVertical, Move } from "lucide-react";
 import { Button } from "@ui-sdk/react/button";
 import {
   announce,
@@ -26,8 +34,15 @@ type Item = {
   startsAt: Date;
   endsAt: Date;
   track: number;
+  booking?: {
+    eventId: string;
+    roomId: string;
+    roomName: string;
+    eventStartsAt: Date;
+    eventEndsAt: Date;
+  };
 };
-type Track = { instant: number; row: number }[];
+type Track = { slots: { instant: number; row: number }[]; room?: { id: string; name: string } };
 type Target = { track: number; instant: number };
 type Draft = {
   item: Item;
@@ -61,7 +76,7 @@ const keyboardMove = definePrimitive({
   agent: { actions: [] },
 });
 
-export function useCalendarSchedule(tracks: Track[]) {
+export function useCalendarSchedule(tracks: Track[], horizontal = false) {
   const t = useT();
   const locale = useLocale();
   const id = useId();
@@ -73,7 +88,10 @@ export function useCalendarSchedule(tracks: Track[]) {
   const [feedback, setFeedback] = useState<{ key: string; error: string } | null>(null);
   const time = (item: Item, mode: Mode) =>
     +new Date(mode === "resize" ? item.endsAt : item.startsAt);
-  const describe = (value: Target) => formatDateTime(locale, value.instant);
+  const describe = (value: Target) =>
+    [tracks[value.track]?.room?.name, formatDateTime(locale, value.instant)]
+      .filter(Boolean)
+      .join(" · ");
   const clearDraft = () => {
     draft.current?.keyboard.destroy();
     draft.current = null;
@@ -103,7 +121,8 @@ export function useCalendarSchedule(tracks: Track[]) {
 
   function commit(item: Item, mode: Mode, target: Target, keyboard = false) {
     const minutes = Math.round((target.instant - time(item, mode)) / 60_000);
-    if (!minutes) return;
+    const roomId = tracks[target.track]?.room?.id;
+    if (!minutes && roomId === item.booking?.roomId) return;
     if (mode === "resize" && target.instant <= +new Date(item.startsAt)) {
       const error = t("work.err.endsAfterStart");
       setFeedback({ key: item.id, error });
@@ -111,11 +130,21 @@ export function useCalendarSchedule(tracks: Track[]) {
       return;
     }
     const input: EventScheduleInput = {
-      eventId: item.id,
-      expectedStartsAt: new Date(item.startsAt).toISOString(),
-      expectedEndsAt: new Date(item.endsAt).toISOString(),
+      eventId: item.booking?.eventId ?? item.id,
+      expectedStartsAt: new Date(item.booking?.eventStartsAt ?? item.startsAt).toISOString(),
+      expectedEndsAt: new Date(item.booking?.eventEndsAt ?? item.endsAt).toISOString(),
       minutes,
       mode,
+      booking:
+        item.booking && roomId
+          ? {
+              id: item.id,
+              fromRoomId: item.booking.roomId,
+              roomId,
+              expectedStartsAt: new Date(item.startsAt).toISOString(),
+              expectedEndsAt: new Date(item.endsAt).toISOString(),
+            }
+          : undefined,
     };
     pending.current = { item, ...(keyboard && { restore: mode }) };
     setFeedback(null);
@@ -136,14 +165,20 @@ export function useCalendarSchedule(tracks: Track[]) {
       return;
     const element = event.currentTarget;
     const lane = element.closest<HTMLElement>("[data-schedule-track]");
-    if (!lane) return;
-    const read = (track: number, node: HTMLElement, y: number) => {
-      const position = (y - node.getBoundingClientRect().top) / 48;
-      const slot = tracks[track]?.find((candidate) => candidate.row === Math.floor(position));
+    const viewport = lane?.closest<HTMLElement>("[data-slot-orientation]");
+    if (!lane || !viewport) return;
+    const read = (track: number, node: HTMLElement, x: number, y: number) => {
+      const slots = tracks[track]?.slots;
+      if (!slots?.length) return null;
+      const rect = node.getBoundingClientRect();
+      const position = horizontal
+        ? ((x - rect.left) * slots.length) / rect.width
+        : (y - rect.top) / 48;
+      const slot = slots.find((candidate) => candidate.row === Math.floor(position));
       return slot ? slot.instant + (position - slot.row) * hour : null;
     };
     const { clientX, clientY } = event;
-    const origin = read(item.track, lane, clientY);
+    const origin = read(item.track, lane, clientX, clientY);
     if (origin === null) return;
     let preview: ReturnType<typeof bindDragPreview> | undefined;
     let label: HTMLSpanElement | undefined;
@@ -151,9 +186,9 @@ export function useCalendarSchedule(tracks: Track[]) {
     const targetAt = (x: number, y: number) => {
       const node = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-schedule-track]");
       if (!node) return;
-      const track = Number(node.dataset.scheduleTrack);
-      if (mode === "resize" && track !== item.track) return;
-      const instant = read(track, node, y);
+      const resizing = mode === "resize";
+      const track = resizing ? item.track : Number(node.dataset.scheduleTrack);
+      const instant = read(track, resizing ? lane : node, x, y);
       if (instant !== null)
         return {
           track,
@@ -172,14 +207,29 @@ export function useCalendarSchedule(tracks: Track[]) {
         });
         label = document.createElement("span");
         label.className =
-          "bg-card shadow-surface-2 nums absolute top-0 right-0 rounded-md px-1.5 py-0.5 text-xs";
+          "bg-card shadow-surface-2 nums absolute top-0 right-0 max-w-56 truncate rounded-md px-1.5 py-0.5 text-xs";
         preview.el.append(label);
       },
       onMove: ({ x, y }) => {
         const target = targetAt(x, y);
-        if (label) label.textContent = target ? formatTime(locale, target.instant) : "";
+        if (label)
+          label.textContent = target
+            ? [tracks[target.track]?.room?.name, formatTime(locale, target.instant)]
+                .filter(Boolean)
+                .join(" · ")
+            : "";
         preview?.move(x, y);
-        scroll.update(x, y);
+        if (mode === "resize") {
+          const bounds = viewport.getBoundingClientRect();
+          scroll.update(
+            horizontal
+              ? x
+              : (Math.max(0, bounds.left) + Math.min(window.innerWidth, bounds.right)) / 2,
+            horizontal
+              ? (Math.max(0, bounds.top) + Math.min(window.innerHeight, bounds.bottom)) / 2
+              : y,
+          );
+        } else scroll.update(x, y);
       },
       onEnd: ({ clientX: x, clientY: y }, cancelled) => {
         stop.current = null;
@@ -205,17 +255,18 @@ export function useCalendarSchedule(tracks: Track[]) {
       commit(current.item, mode, current.target, true);
       return;
     }
-    const value: Target = { track: item.track, instant: time(item, mode) };
+    const initial = time(item, mode);
+    const value: Target = { track: item.track, instant: initial };
     const keyboard = keyboardMove({
       id,
       describe: () => describe(value),
       nudge: (dx, dy) => {
-        const track = value.track + dx;
-        const slots = tracks[track];
+        const track = value.track + (horizontal ? dy : dx);
+        const slots = tracks[track]?.slots;
         if (!slots || (mode === "resize" && track !== item.track)) return false;
-        let instant = value.instant + dy * quarter;
-        if (track !== value.track) {
-          const origin = tracks[value.track].find(
+        let instant = value.instant + (horizontal ? dx : dy) * quarter;
+        if (!horizontal && track !== value.track) {
+          const origin = tracks[value.track].slots.find(
             (slot) => instant >= slot.instant && instant < slot.instant + hour,
           );
           const next = slots.find((slot) => slot.row === origin?.row);
@@ -223,7 +274,7 @@ export function useCalendarSchedule(tracks: Track[]) {
           instant += next.instant - origin.instant;
         }
         if (
-          instant < slots[0].instant ||
+          instant < (horizontal ? Math.min(initial, slots[0].instant) : slots[0].instant) ||
           instant > slots[slots.length - 1].instant + hour ||
           (mode === "resize" && instant <= +new Date(item.startsAt))
         )
@@ -244,6 +295,7 @@ export function useCalendarSchedule(tracks: Track[]) {
     feedback,
     busy: save.state !== "idle",
     columns: tracks.length,
+    horizontal,
     press,
     activate,
     cancel: clearDraft,
@@ -269,6 +321,20 @@ export function ScheduleCard({
   const active = item && grid.active?.key === item.id ? grid.active : null;
   const error = item && grid.feedback?.key === item.id ? grid.feedback.error : null;
   const hint = useId();
+  const note = useRef<HTMLParagraphElement>(null);
+  const Grip = grid.horizontal ? GripVertical : GripHorizontal;
+  useLayoutEffect(() => {
+    const panel = note.current;
+    const viewport = panel?.closest("[data-slot-orientation]");
+    if (!panel || !viewport || !panel.parentElement) return;
+    const bounds = viewport.getBoundingClientRect();
+    const card = panel.parentElement.getBoundingClientRect();
+    panel.toggleAttribute(
+      "data-above",
+      card.bottom + panel.offsetHeight > Math.min(window.innerHeight, bounds.bottom),
+    );
+    panel.toggleAttribute("data-align-end", card.left + panel.offsetWidth > bounds.right);
+  }, [active, error]);
   return (
     <div
       data-schedule-card
@@ -281,6 +347,7 @@ export function ScheduleCard({
         draggable={item ? false : undefined}
         className={cn(
           "flex size-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-[inherit] px-2 py-1",
+          grid.horizontal && "justify-center gap-1",
           item && "touch-none cursor-grab active:cursor-grabbing",
         )}
         onPointerDown={item ? (event) => grid.press(item, "move", event) : undefined}
@@ -295,24 +362,34 @@ export function ScheduleCard({
       {item &&
         (resize ? (["move", "resize"] as const) : (["move"] as const)).map((mode) => {
           const moving = mode === "move";
-          const Icon = moving ? Move : GripHorizontal;
+          const Icon = moving ? Move : Grip;
+          const label = item.booking
+            ? t(moving ? "calendar.schedule.moveBooking" : "calendar.schedule.resizeBooking", {
+                event: item.title,
+                room: item.booking.roomName,
+              })
+            : t(moving ? "calendar.schedule.move" : "calendar.schedule.resize", {
+                event: item.title,
+              });
           return (
             <Button
               key={mode}
               type="button"
               data-schedule-control={`${item.id}:${mode}`}
-              aria-label={t(moving ? "calendar.schedule.move" : "calendar.schedule.resize", {
-                event: item.title,
-              })}
+              aria-label={label}
               aria-pressed={active?.mode === mode}
               aria-describedby={active || error ? hint : undefined}
               disabled={grid.busy}
               focusableWhenDisabled
               className={cn(
                 "bg-card text-foreground pointer-events-none absolute flex touch-none items-center justify-center rounded opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 pointer-coarse:pointer-events-auto pointer-coarse:opacity-100",
-                moving
-                  ? "top-0 right-0 size-6 cursor-grab"
-                  : "right-0 bottom-0 h-3 w-7 cursor-ns-resize",
+                grid.horizontal
+                  ? moving
+                    ? "top-0 left-0 size-6 cursor-grab"
+                    : "right-0 bottom-0 h-6 w-3 cursor-ew-resize"
+                  : moving
+                    ? "top-0 right-0 size-6 cursor-grab"
+                    : "right-0 bottom-0 h-3 w-7 cursor-ns-resize",
               )}
               onPointerDown={(event) => grid.press(item, mode, event)}
               onClick={() => grid.activate(item, mode)}
@@ -336,10 +413,13 @@ export function ScheduleCard({
         })}
       {active || error ? (
         <p
+          ref={note}
           id={hint}
           className={cn(
-            "bg-card shadow-surface-3 absolute top-full z-40 w-max max-w-56 rounded-md px-2 py-1.5 text-xs",
-            item && grid.columns > 1 && item.track >= grid.columns - 2 ? "right-0" : "left-0",
+            "bg-card shadow-surface-3 absolute top-full z-40 w-max max-w-56 rounded-md px-2 py-1.5 text-xs data-[above]:top-auto data-[above]:bottom-full data-[align-end]:right-0 data-[align-end]:left-auto",
+            !grid.horizontal && item && grid.columns > 1 && item.track >= grid.columns - 2
+              ? "right-0"
+              : "left-0",
             error && "text-destructive",
           )}
         >

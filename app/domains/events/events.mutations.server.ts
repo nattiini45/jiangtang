@@ -1,7 +1,12 @@
 import { tr } from "~/i18n/request-locale.server";
 import { txWithAudit, type AuditActor, type AuditFn } from "~/lib/audit.server";
 import type { Tx } from "~/lib/db.server";
-import { BookingConflictError, NotFoundError, ValidationError } from "~/lib/errors.server";
+import {
+  BookingConflictError,
+  NotFoundError,
+  TransitionError,
+  ValidationError,
+} from "~/lib/errors.server";
 import { insertOrConflict } from "~/lib/booking.server";
 import { findEquipmentConflicts, findRoomConflicts } from "./events.availability.server";
 import { notifyBookingConflict } from "~/domains/notifications/notifications.mutations.server";
@@ -175,16 +180,40 @@ export async function updateEvent(
     const previous = await detachOccurrence(tx, audit, id);
     const schedule = "mode" in input ? input : null;
     const where = { eventId: id, cancelled: false };
+    const booking = schedule?.booking;
+    const selected = booking
+      ? await tx.eventRoomBooking.findFirst({ where: { ...where, id: booking.id } })
+      : null;
+    const roomChanged = booking && booking.roomId !== booking.fromRoomId;
     const shift = (date: Date) => new Date(+date + (schedule?.minutes ?? 0) * 60_000);
     if (schedule) {
+      const displayed = booking ? selected : previous;
       if (
         previous.status === "CANCELLED" ||
         +previous.startsAt !== +new Date(schedule.expectedStartsAt) ||
-        +previous.endsAt !== +new Date(schedule.expectedEndsAt)
+        +previous.endsAt !== +new Date(schedule.expectedEndsAt) ||
+        !displayed ||
+        (booking &&
+          (selected?.roomId !== booking.fromRoomId ||
+            +displayed.startsAt !== +new Date(booking.expectedStartsAt) ||
+            +displayed.endsAt !== +new Date(booking.expectedEndsAt)))
       )
         throw new ValidationError({}, [tr("calendar.schedule.stale")]);
-      if (schedule.mode === "resize" && shift(previous.endsAt) <= previous.startsAt)
+      if (
+        schedule.mode === "resize" &&
+        (shift(previous.endsAt) <= previous.startsAt ||
+          shift(displayed.endsAt) <= displayed.startsAt)
+      )
         throw new ValidationError({}, [tr("work.err.endsAfterStart")]);
+      if (roomChanged) {
+        try {
+          await roomBookingHealthOverride(tx, booking.roomId, {});
+        } catch (error) {
+          if (error instanceof TransitionError)
+            throw new ValidationError({}, [tr("calendar.schedule.roomUnavailable")]);
+          throw error;
+        }
+      }
     }
     const event = await tx.event.update({
       where: { id },
@@ -215,6 +244,11 @@ export async function updateEvent(
             endsAt: previous.endsAt.toISOString(),
           },
           to: { startsAt: event.startsAt.toISOString(), endsAt: event.endsAt.toISOString() },
+          ...(roomChanged && {
+            bookingId: booking.id,
+            fromRoomId: booking.fromRoomId,
+            roomId: booking.roomId,
+          }),
         },
       }),
     });
@@ -233,30 +267,38 @@ export async function updateEvent(
       if (schedule || event.occurrenceKey) {
         const delta = event.startsAt.getTime() - previous.startsAt.getTime();
         const endDelta = event.endsAt.getTime() - previous.endsAt.getTime();
-        if (delta || endDelta) {
+        if (delta || endDelta || roomChanged) {
           const data = (slot: { startsAt: Date; endsAt: Date }) =>
             moveEventInterval(slot, previous, event);
-          const rooms = await tx.eventRoomBooking.findMany({ where, orderBy: { id: "asc" } });
-          const equipment = await tx.equipmentAllocation.findMany({
-            where,
-            orderBy: { id: "asc" },
-          });
+          const timed = delta || endDelta;
+          const rooms = timed
+            ? await tx.eventRoomBooking.findMany({ where, orderBy: { id: "asc" } })
+            : selected
+              ? [selected]
+              : [];
+          const equipment = timed
+            ? await tx.equipmentAllocation.findMany({ where, orderBy: { id: "asc" } })
+            : [];
           // Check the final layout, not intermediate overlaps between this event's own slots.
-          if (rooms.length)
+          if (rooms.length > 1)
             await tx.eventRoomBooking.updateMany({ where, data: { cancelled: true } });
           if (equipment.length) {
             await tx.equipmentAllocation.updateMany({ where, data: { cancelled: true } });
           }
           for (const slot of rooms) {
-            const interval = data(slot);
+            const roomId = booking?.id === slot.id ? booking.roomId : slot.roomId;
+            const interval =
+              selected?.id === slot.id && schedule?.mode === "resize"
+                ? { startsAt: slot.startsAt, endsAt: shift(slot.endsAt) }
+                : data(slot);
             await updateScheduleSlot(
               () =>
                 tx.eventRoomBooking.update({
                   where: { id: slot.id },
-                  data: { ...interval, cancelled: false },
+                  data: { ...interval, roomId, cancelled: false },
                 }),
               tr("work.err.event.roomAlreadyBooked"),
-              { ...interval, id: slot.id, roomId: slot.roomId },
+              { ...interval, id: slot.id, roomId },
             );
           }
           for (const slot of equipment) {

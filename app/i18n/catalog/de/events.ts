@@ -64,11 +64,17 @@ export const eventsDe = {
   "calendar.schedule.hint":
     "Ziehe eine Veranstaltung zum Verschieben oder ziehe am Ende, um die Dauer zu ändern.",
   "calendar.schedule.move": "{event} verschieben",
+  "calendar.schedule.roomsHint":
+    "Ziehe die Veranstaltung auf eine andere Zeit oder die Buchung in einen anderen Raum. Ziehe am Ende, um die Dauer zu ändern.",
+  "calendar.schedule.roomUnavailable":
+    "Dieser Raum ist außer Betrieb. Öffne die Raumbuchungen der Veranstaltung, um die Ausnahme zu bestätigen.",
   "calendar.schedule.resize": "Endzeit für {event} ändern",
+  "calendar.schedule.moveBooking": "{event} in {room} verschieben",
+  "calendar.schedule.resizeBooking": "Endzeit für {event} in {room} ändern",
   "calendar.schedule.keys": "Mit Alt + Pfeiltasten anpassen. Eingabe speichert, Esc bricht ab.",
   "calendar.schedule.saved": "Termin geändert.",
   "calendar.schedule.stale":
-    "Die Veranstaltung wurde geändert. Lade den Kalender neu und versuche es erneut.",
+    "Die Veranstaltung oder Buchung wurde geändert. Lade den Kalender neu und versuche es erneut.",
   "calendar.schedule.failed": "Der Termin konnte nicht geändert werden. Versuche es erneut.",
   "calendar.schedule.roomConflict":
     "Der Raum ist bereits durch eine andere Veranstaltung belegt ({range}).",

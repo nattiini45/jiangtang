@@ -4,14 +4,14 @@ import { eventSeriesSchema } from "~/domains/events/event-series.schema";
 import { db } from "~/lib/db.server";
 import { runPrefix } from "./run";
 
-async function drag(page: Page, source: Locator, dy: number) {
+async function drag(page: Page, source: Locator, dy: number, dx = 0) {
   await source.scrollIntoViewIfNeeded();
   const box = (await source.boundingBox())!;
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
   await page.mouse.move(x, y);
   await page.mouse.down();
-  await page.mouse.move(x, y + dy, { steps: 8 });
+  await page.mouse.move(x + dx, y + dy, { steps: 8 });
   await page.mouse.up();
 }
 
@@ -131,4 +131,92 @@ test("calendar drag saves an occurrence, refetches another session and reports a
     db.activityLog.count({ where: { entityId: eventId, action: "EventUpdated" } }),
   ).resolves.toBe(3);
   await otherContext.close();
+});
+
+test("moves a booking between rooms, preserves it on conflict, and resizes it", async ({
+  page,
+  context,
+  baseURL,
+}, testInfo) => {
+  const day = "2045-06-14";
+  const at = (time: string) => new Date(`${day}T${time}:00+02:00`);
+  const marker = runPrefix().slice(4, -1);
+  const [from, to, adjacent] = await Promise.all(
+    ["A", "B", "C"].map((bay) =>
+      db.room.create({
+        data: {
+          name: `Demo: Bay ${marker} ${bay}`,
+          slug: `${runPrefix()}schedule-${bay.toLowerCase()}`,
+        },
+      }),
+    ),
+  );
+  const title = "Demo: Stage handoff";
+  async function book(title: string, start: string, end: string) {
+    const window = { startsAt: at(start), endsAt: at(end) };
+    return db.event.create({
+      data: { title, ...window, rooms: { create: { roomId: from.id, ...window } } },
+      include: { rooms: true },
+    });
+  }
+  const event = await book(title, "09:00", "10:00");
+  await book("Demo: Audio rehearsal", "10:00", "11:00");
+  await context.addCookies([{ name: "locale", value: "en", url: baseURL! }]);
+  await page.setViewportSize({ width: 1280, height: 960 });
+  await page.goto(`/calendar?view=rooms&date=${day}`);
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
+
+  const row = (name: string) => page.getByRole("region", { name, exact: true });
+  const fromRow = row(from.name);
+  const toRow = row(to.name);
+  const card = (row: Locator) => row.locator(`a[href="/events/${event.id}"]`);
+  await toRow.scrollIntoViewIfNeeded();
+  await card(fromRow).scrollIntoViewIfNeeded();
+  const dy = (await toRow.boundingBox())!.y - (await fromRow.boundingBox())!.y;
+  await drag(page, card(fromRow), dy, 88);
+  await expect(card(toRow)).toContainText("10:00–11:00");
+  await page.reload();
+  await expect(page.locator("html[data-hydrated]")).toBeAttached();
+  await expect(card(toRow)).toContainText("10:00–11:00");
+  await expect(card(fromRow)).toHaveCount(0);
+
+  await drag(page, card(toRow), -dy);
+  await expect(card(toRow)).toHaveAccessibleDescription(
+    "The room is already booked by another event (10:00–11:00).",
+  );
+  await expect(
+    card(toRow)
+      .locator("..")
+      .getByText(/The room is already booked/),
+  ).toBeInViewport({ ratio: 0.9 });
+  await page.screenshot({
+    path: testInfo.outputPath("room-timeline-conflict.png"),
+    animations: "disabled",
+  });
+
+  const resize = toRow.getByRole("button", { name: `Change end time for ${title} in ${to.name}` });
+  await resize.focus();
+  await drag(page, resize, 0, 22);
+  await expect(card(toRow)).toContainText("10:00–11:15");
+  const move = toRow.getByRole("button", { name: `Move ${title} in ${to.name}` });
+  await move.press("Enter");
+  await move.press("Alt+ArrowUp");
+  await move.press("Alt+Shift+ArrowLeft");
+  await move.press("Enter");
+  await expect(card(toRow)).toHaveAccessibleDescription(
+    "The room is already booked by another event (10:00–11:00).",
+  );
+  await move.press("Enter");
+  await move.press("Alt+ArrowDown");
+  await move.press("Enter");
+  await expect(card(row(adjacent.name))).toContainText("10:00–11:15");
+  await expect(card(toRow)).toHaveCount(0);
+  await expect(
+    db.eventRoomBooking.findUnique({ where: { id: event.rooms[0].id } }),
+  ).resolves.toMatchObject({
+    roomId: adjacent.id,
+    startsAt: at("10:00"),
+    endsAt: at("11:15"),
+    cancelled: false,
+  });
 });
