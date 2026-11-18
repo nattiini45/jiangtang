@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/route";
 import { auth, getOptionalUser } from "~/lib/auth.server";
+import { accountMailReady } from "~/domains/auth/account-mail.server";
 import { authLanding } from "~/lib/view.server";
 import { landingPageEnabled } from "~/lib/landing.server";
 import { LanguageSwitcher } from "~/components/i18n/language-switcher";
@@ -29,6 +30,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     twoFactorExpired: url.searchParams.has("twoFactorExpired"),
     next,
     landingPage: landingPageEnabled(),
+    resetAvailable: await accountMailReady(),
   };
 }
 
@@ -149,6 +151,14 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
             {busy ? t("auth.login.submitting") : t("auth.login.submit")}
           </Button>
         </Form>
+        {loaderData.resetAvailable ? (
+          <Link
+            to="/forgot-password"
+            className="mt-4 block text-center text-sm underline underline-offset-4"
+          >
+            {t("auth.forgot.link")}
+          </Link>
+        ) : null}
         {loaderData.landingPage ? (
           <Link
             to="/welcome"

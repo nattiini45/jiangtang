@@ -15,6 +15,8 @@ import { resolveLocale } from "~/i18n/locale.server";
 import { metaLocale } from "~/i18n/meta";
 import { useT } from "~/i18n/use-t";
 
+export const headers = () => ({ "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
+
 /**
  * Public invite-acceptance page. This is the deliberate opt-out of
  * the `_desktop` auth guard: an unsigned invitee follows their magic link here

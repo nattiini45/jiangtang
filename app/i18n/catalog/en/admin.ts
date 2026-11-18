@@ -1,6 +1,10 @@
 import type { adminDe } from "../de/admin";
 
 export const adminEn = {
+  "admin.invite.sendEmail": "Send invitation by email",
+  "admin.invite.mailQueued": "Invitation email queued. You can still copy the separate link below.",
+  "admin.invite.mailUnavailable":
+    "The email couldn’t be queued. You can still copy the invitation link.",
   "admin.structure.library.installOne": "Add 1 device kind",
   "admin.structure.fieldMoveLimit":
     "Moving to “{target}” would exceed 40 active properties: {names}. Archive properties or change their device kinds first.",

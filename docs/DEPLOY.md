@@ -380,6 +380,13 @@ a trusted certificate. Send a test and check the delivery log for the relay's re
 reply confirms that the relay accepted the message, not that it reached the inbox. Completed log
 entries are kept for 30 days, except the latest successful test for the active configuration.
 
+After the test is accepted, administrators can email invitations or copy a manual link.
+Accepting the emailed link verifies the address; a manually invited user can send a verification
+link from **My account**. The sign-in page offers self-service password recovery for active
+accounts with verified addresses. Admin-issued and operator-issued reset links still work
+without SMTP. Active administrators with verified addresses receive new-admin and two-factor
+reset notices.
+
 Everything else in the template is optional. Blank means off:
 
 | Group                                     | Blank behaviour                                                                     |

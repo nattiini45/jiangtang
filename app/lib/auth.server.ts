@@ -6,6 +6,14 @@ import { redirect } from "react-router";
 import { readConfig } from "~/lib/config.server";
 import { db } from "~/lib/db.server";
 import {
+  BETTER_AUTH_RESET_PREFIX,
+  hashEmailResetIdentifier,
+  RESET_LIFETIME_SECONDS,
+  sendPasswordResetMail,
+  sendVerificationMail,
+  VERIFICATION_LIFETIME_SECONDS,
+} from "~/domains/auth/account-mail.server";
+import {
   clientIpFromHeaders,
   loginThrottle,
   normalizeLoginEmail,
@@ -61,7 +69,12 @@ export const auth = betterAuth({
   // Invitation-only access: the HTTP router rejects public email sign-up
   // (disabledPaths is an onRequest hook; programmatic auth.api.signUpEmail used
   // by bootstrap and dev-seed is unaffected).
-  disabledPaths: ["/sign-up/email"],
+  disabledPaths: [
+    "/sign-up/email",
+    "/request-password-reset",
+    "/reset-password",
+    "/send-verification-email",
+  ],
   // Hooks run for the HTTP router and for `auth.api.*` calls alike. Better
   // Auth's own rate limiter lives in the router only, so it never sees the
   // login form, and it would not limit failures per account anyway.
@@ -90,6 +103,21 @@ export const auth = betterAuth({
     autoSignIn: true,
     minPasswordLength: MIN_PASSWORD_LENGTH,
     maxPasswordLength: MAX_PASSWORD_LENGTH,
+    sendResetPassword: sendPasswordResetMail,
+    resetPasswordTokenExpiresIn: RESET_LIFETIME_SECONDS,
+  },
+  verification: {
+    storeIdentifier: {
+      default: "plain",
+      overrides: {
+        [BETTER_AUTH_RESET_PREFIX]: { hash: async (value) => hashEmailResetIdentifier(value) },
+      },
+    },
+  },
+  emailVerification: {
+    sendVerificationEmail: sendVerificationMail,
+    expiresIn: VERIFICATION_LIFETIME_SECONDS,
+    autoSignInAfterVerification: false,
   },
   plugins: [twoFactor()],
   user: {

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { hashPassword } from "better-auth/crypto";
+import { readConfig } from "~/lib/config.server";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { db, type Tx } from "~/lib/db.server";
 import { NotFoundError, ValidationError } from "~/lib/errors.server";
@@ -7,6 +8,11 @@ import { tr } from "~/i18n/request-locale.server";
 import { revokeUserPersonalAccessTokens } from "~/domains/api-tokens/api-tokens.lifecycle.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
+import {
+  BETTER_AUTH_RESET_PREFIX,
+  EMAIL_RESET_PREFIX,
+  hashEmailResetIdentifier,
+} from "~/domains/auth/account-mail.server";
 
 /**
  * One-time password reset links. An admin issues one from the user's page; when
@@ -16,10 +22,10 @@ import { ENTITY_TYPE } from "~/domains/tickets/tickets.history.server";
  * that sets the Better Auth credential, consumes the link and signs the account
  * out everywhere in one audited transaction.
  *
- * The link lives in `Verification` like an invitation, but only a SHA-256 of the
- * token is stored, so a database copy holds no usable link. The `password-reset:`
- * prefix keeps it apart from invitations and from Better Auth's own
- * `reset-password:` rows, which its `/reset-password` endpoint would accept.
+ * Only token digests live in `Verification`, so a database copy holds no usable
+ * link. Admin-issued links use SHA-256; Better Auth's emailed links use HMAC
+ * and a separate namespace. Both are consumed here, rather than by Better
+ * Auth's reset POST endpoint.
  */
 
 const RESET_TTL_MS = 1000 * 60 * 60 * 24; // 1 day
@@ -28,6 +34,9 @@ export const RESET_IDENTIFIER_PREFIX = "password-reset:";
 // The token is 256 random bits, so a fast digest only has to keep a database copy from revealing it.
 // A user's password is never hashed here: completePasswordReset stores it with Better Auth's scrypt hashPassword.
 function identifierFor(token: string): string {
+  if (token.startsWith("email-")) {
+    return hashEmailResetIdentifier(BETTER_AUTH_RESET_PREFIX + token.slice("email-".length));
+  }
   return RESET_IDENTIFIER_PREFIX + createHash("sha256").update(token).digest("hex");
 }
 
@@ -91,12 +100,18 @@ export interface PasswordResetRecord {
 }
 
 async function findResetLink(tx: Tx, token: string): Promise<PasswordResetRecord> {
+  if (token.startsWith("email-") && !readConfig("BETTER_AUTH_SECRET")) {
+    throw new NotFoundError(tr("places.err.reset.notFound"));
+  }
   const row = await tx.verification.findFirst({ where: { identifier: identifierFor(token) } });
   if (!row || row.expiresAt <= new Date()) {
     throw new NotFoundError(tr("places.err.reset.notFound"));
   }
   const user = await tx.user.findUnique({ where: { id: row.value } });
   if (!user || !user.isActive) throw new NotFoundError(tr("places.err.reset.notFound"));
+  if (token.startsWith("email-") && !user.emailVerified) {
+    throw new NotFoundError(tr("places.err.reset.notFound"));
+  }
   return { userId: user.id, email: user.email, name: user.name };
 }
 
@@ -166,6 +181,12 @@ export async function completePasswordReset(token: string, password: string): Pr
 /** Delete every reset link of a user (also used by the erasure). */
 export async function deleteResetLinks(tx: Tx, userId: string): Promise<void> {
   await tx.verification.deleteMany({
-    where: { identifier: { startsWith: RESET_IDENTIFIER_PREFIX }, value: userId },
+    where: {
+      value: userId,
+      OR: [
+        { identifier: { startsWith: RESET_IDENTIFIER_PREFIX } },
+        { identifier: { startsWith: EMAIL_RESET_PREFIX } },
+      ],
+    },
   });
 }
