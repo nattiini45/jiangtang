@@ -268,6 +268,7 @@ export default function Calendar({ loaderData }: Route.ComponentProps) {
             ))}
           </div>
           <RoomsTimeline
+            key={`${day}:${params.get("room") ?? ""}`}
             rooms={calendar.rooms.filter(
               (room) => !params.get("room") || room.id === params.get("room"),
             )}

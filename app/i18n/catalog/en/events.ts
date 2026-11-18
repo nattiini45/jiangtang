@@ -62,11 +62,18 @@ export const eventsEn = {
     "Room and equipment filters show only related entries. Room bookings stay visible for booking planning.",
   "calendar.empty": "No entries in this period. Change what is shown or create an event.",
   "calendar.schedule.hint": "Drag an event to move it, or drag its end to change its length.",
+  "calendar.schedule.roomsHint":
+    "Drag across hours to move the event or across rows to change its room. Drag the end to resize.",
+  "calendar.schedule.roomUnavailable":
+    "This room is out of service. Open the event’s room bookings to confirm an override.",
   "calendar.schedule.move": "Move {event}",
   "calendar.schedule.resize": "Change end time for {event}",
+  "calendar.schedule.moveBooking": "Move {event} in {room}",
+  "calendar.schedule.resizeBooking": "Change end time for {event} in {room}",
   "calendar.schedule.keys": "Alt + arrow keys to adjust. Enter to save, Esc to cancel.",
   "calendar.schedule.saved": "Schedule updated.",
-  "calendar.schedule.stale": "This event has changed. Refresh the calendar and try again.",
+  "calendar.schedule.stale":
+    "This event or booking has changed. Refresh the calendar and try again.",
   "calendar.schedule.failed": "Couldn’t update the schedule. Try again.",
   "calendar.schedule.roomConflict": "The room is already booked by another event ({range}).",
   "calendar.schedule.equipmentConflict":

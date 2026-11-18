@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router";
 import { MoveHorizontal, Plus } from "lucide-react";
-import type { CalendarBooking } from "~/domains/events/events.calendar.queries.server";
+import type { getWorkspaceCalendar } from "~/domains/calendar/calendar.queries.server";
 import { ScheduleCard, useCalendarSchedule } from "~/components/events/calendar-schedule";
 import { calendarBandEntry, type CalendarEntry } from "~/lib/calendar-entries";
 import {
@@ -372,7 +372,7 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
   const days = calendarDays(startDay, endDay);
   const sharedTime = days.length > 1;
   const hourGrid = calendarHourGrid(days);
-  const schedule = useCalendarSchedule(hourGrid.columns);
+  const schedule = useCalendarSchedule(hourGrid.columns.map((slots) => ({ slots })));
   const events = entries.filter((entry) => !calendarBandEntry(entry));
   const hasWholeDays = entries.some(calendarBandEntry);
   React.useLayoutEffect(() => {
@@ -579,13 +579,18 @@ export function RoomsTimeline({
   day,
 }: {
   rooms: { id: string; name: string }[];
-  bookings: CalendarBooking[];
+  bookings: Awaited<ReturnType<typeof getWorkspaceCalendar>>["bookings"];
   day: number;
 }) {
   const locale = useLocale();
   const t = useT();
   const ref = React.useRef<HTMLDivElement>(null);
   const hours = dayHours(day);
+  const slots = hours.map((instant, row) => ({ instant, row }));
+  const schedule = useCalendarSchedule(
+    rooms.map((room) => ({ room, slots })),
+    true,
+  );
   const timeKeys = hours.map((instant) => berlinLocalString(instant).slice(11, 16));
   const start = berlinDayStartMs(day);
   const end = berlinDayStartMs(day + 1);
@@ -596,7 +601,9 @@ export function RoomsTimeline({
     <div className="bg-card shadow-surface-2 overflow-hidden rounded-lg">
       <div className="border-border flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
         <h2 className="text-base font-semibold">{t("events.calendar.roomAvailability")}</h2>
-        <p className="text-muted-foreground text-xs">{t("events.calendar.roomsHint")}</p>
+        <p className="text-muted-foreground text-xs">
+          {t("events.calendar.roomsHint")} {t("calendar.schedule.roomsHint")}
+        </p>
       </div>
       {rooms.length > 0 ? (
         <p className="text-muted-foreground border-border flex items-center gap-2 border-b px-4 py-2 text-xs">
@@ -658,7 +665,7 @@ export function RoomsTimeline({
                       {room.name}
                     </span>
                   </h3>
-                  <div className="relative flex flex-1">
+                  <div data-schedule-track={row} className="relative flex flex-1">
                     {hours.map((instant, column) => {
                       return !freeColumns.includes(column) ? (
                         <div key={instant} className="border-border w-[88px] shrink-0 border-r" />
@@ -697,17 +704,33 @@ export function RoomsTimeline({
                           3_600_000) *
                         88;
                       return (
-                        <Link
+                        <ScheduleCard
                           key={booking.id}
+                          grid={schedule}
+                          item={
+                            booking.status === "CANCELLED"
+                              ? undefined
+                              : {
+                                  id: booking.id,
+                                  title: booking.title,
+                                  track: row,
+                                  startsAt: booking.startsAt,
+                                  endsAt: booking.endsAt,
+                                  booking: {
+                                    eventId: booking.eventId,
+                                    roomId: booking.roomId,
+                                    roomName: room.name,
+                                    eventStartsAt: booking.eventStartsAt,
+                                    eventEndsAt: booking.eventEndsAt,
+                                  },
+                                }
+                          }
+                          resize={+new Date(booking.endsAt) <= end}
                           to={`/events/${booking.eventId}`}
-                          className="group bg-card shadow-surface-1 absolute top-4 bottom-4 z-10 isolate flex min-w-0 flex-col justify-center gap-1 overflow-hidden rounded-md px-2"
+                          className="bg-card shadow-surface-1 absolute top-4 bottom-4 z-10 min-w-0 rounded-md"
                           title={`${booking.title} · ${formatTime(locale, booking.startsAt)}–${formatTime(locale, booking.endsAt)}`}
                           style={{ left: left + 2, width: Math.max(16, width - 4) }}
                         >
-                          <span
-                            aria-hidden
-                            className="bg-tint group-hover:bg-tint-hover pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-                          />
                           <span className="flex min-w-0 items-center gap-1 text-xs font-semibold">
                             <span
                               aria-hidden
@@ -727,7 +750,7 @@ export function RoomsTimeline({
                             {formatTime(locale, booking.startsAt)}–
                             {formatTime(locale, booking.endsAt)}
                           </span>
-                        </Link>
+                        </ScheduleCard>
                       );
                     })}
                   </div>
