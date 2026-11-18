@@ -1,9 +1,17 @@
-import { Link, redirect, useLocation, useNavigation } from "react-router";
+import { data, Link, redirect, useLocation, useNavigation } from "react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Route } from "./+types/route";
 import { requireUser } from "~/lib/auth.server";
 import { readConfig } from "~/lib/config.server";
 import { getWorkspaceCalendar, calendarChoices } from "~/domains/calendar/calendar.queries.server";
+import { EventScheduleConflict, updateEvent } from "~/domains/events/events.mutations.server";
+import {
+  findEquipmentConflicts,
+  findRoomConflicts,
+} from "~/domains/events/events.availability.server";
+import { eventScheduleSchema } from "~/domains/events/events.schema";
+import { emitChange } from "~/lib/realtime/emit.server";
+import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { calendarKinds } from "~/lib/calendar-entries";
 import {
   CALENDAR_VIEWS,
@@ -22,12 +30,13 @@ import {
 import { CalendarFilters } from "~/components/events/calendar-filters";
 import { CalendarSubscribe } from "~/components/events/calendar-subscribe";
 import { EventStatus } from "~/generated/prisma/enums";
-import { parseEnumParam } from "~/lib/validation.server";
+import { parseEnumParam, safeParse } from "~/lib/validation.server";
 import { Button, buttonVariants } from "~/components/ui/button";
 import { t } from "~/i18n";
 import { metaLocale } from "~/i18n/meta";
-import { formatDateWith, formatTime } from "~/i18n/format";
+import { formatDateWith, formatRange, formatTime } from "~/i18n/format";
 import { useLocale, useT } from "~/i18n/use-t";
+import { resolveLocale } from "~/i18n/locale.server";
 
 export function meta({ matches }: Route.MetaArgs) {
   return [{ title: t(metaLocale(matches), "calendar.meta") }];
@@ -74,6 +83,56 @@ export async function loader({ request }: Route.LoaderArgs) {
     feedUrl:
       user.role === "ADMIN" && token ? `${url.protocol}//${url.host}/calendar/${token}/ics` : null,
   };
+}
+
+export async function action({ request }: Route.ActionArgs) {
+  const actor = await requireUser(request);
+  const locale = resolveLocale(request);
+  const parsed = safeParse(eventScheduleSchema, await request.json().catch(() => null), locale);
+  if (!parsed.success) return data({ error: t(locale, "err.validationFailed") }, { status: 422 });
+  const input = parsed.data;
+  try {
+    await updateEvent(actor, input.eventId, input);
+    await emitChange({ entityType: "event", id: input.eventId, op: "updated" });
+    return { error: null };
+  } catch (error) {
+    if (error instanceof EventScheduleConflict) {
+      const slot = error.slot;
+      const room = "roomId" in slot;
+      const conflicts = await (
+        room
+          ? findRoomConflicts(slot.roomId, slot.startsAt, slot.endsAt, slot.id)
+          : findEquipmentConflicts(slot.equipmentId, slot.startsAt, slot.endsAt, slot.id)
+      ).catch(() => []);
+      const conflict = conflicts.find(({ eventId }) => eventId !== input.eventId);
+      const range =
+        conflict &&
+        (berlinDayIndex(conflict.startsAt) === berlinDayIndex(conflict.endsAt)
+          ? `${formatTime(locale, conflict.startsAt)}–${formatTime(locale, conflict.endsAt)}`
+          : formatRange(locale, conflict.startsAt, conflict.endsAt));
+      return data(
+        {
+          error: range
+            ? t(
+                locale,
+                room ? "calendar.schedule.roomConflict" : "calendar.schedule.equipmentConflict",
+                { range },
+              )
+            : error.message,
+        },
+        { status: 409 },
+      );
+    }
+    const response = toErrorResponse(error);
+    const message =
+      error instanceof ValidationError
+        ? (error.formErrors[0] ?? Object.values(error.fieldErrors)[0]?.[0])
+        : undefined;
+    return data(
+      { error: message ?? t(locale, "calendar.schedule.failed") },
+      { status: response.status },
+    );
+  }
 }
 
 export default function Calendar({ loaderData }: Route.ComponentProps) {
@@ -218,6 +277,7 @@ export default function Calendar({ loaderData }: Route.ComponentProps) {
         </>
       ) : (
         <CalendarTimeGrid
+          key={`${startDay}:${endDay}`}
           entries={calendar.entries}
           startDay={startDay}
           endDay={endDay}

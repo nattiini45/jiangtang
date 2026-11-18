@@ -61,6 +61,16 @@ export const eventsEn = {
   "calendar.resourceHint":
     "Room and equipment filters show only related entries. Room bookings stay visible for booking planning.",
   "calendar.empty": "No entries in this period. Change what is shown or create an event.",
+  "calendar.schedule.hint": "Drag an event to move it, or drag its end to change its length.",
+  "calendar.schedule.move": "Move {event}",
+  "calendar.schedule.resize": "Change end time for {event}",
+  "calendar.schedule.keys": "Alt + arrow keys to adjust. Enter to save, Esc to cancel.",
+  "calendar.schedule.saved": "Schedule updated.",
+  "calendar.schedule.stale": "This event has changed. Refresh the calendar and try again.",
+  "calendar.schedule.failed": "Couldn’t update the schedule. Try again.",
+  "calendar.schedule.roomConflict": "The room is already booked by another event ({range}).",
+  "calendar.schedule.equipmentConflict":
+    "The equipment is already booked by another event ({range}).",
   "events.health.title": "Override asset health",
   "events.health.roomWarning":
     "This room is out of service. Book it only after deliberately checking that it can be used. Existing bookings stay unchanged.",

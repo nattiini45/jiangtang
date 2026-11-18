@@ -2,6 +2,7 @@ import * as React from "react";
 import { Link } from "react-router";
 import { MoveHorizontal, Plus } from "lucide-react";
 import type { CalendarBooking } from "~/domains/events/events.calendar.queries.server";
+import { ScheduleCard, useCalendarSchedule } from "~/components/events/calendar-schedule";
 import { calendarBandEntry, type CalendarEntry } from "~/lib/calendar-entries";
 import {
   berlinDayIndex,
@@ -196,7 +197,7 @@ function EventLabel({
           {t(event.kind)} · {time(event.startsAt)} {event.title}
         </span>
         <span className="sr-only">
-          {token.label} {resources}
+          {time(event.startsAt)}–{time(event.endsAt)} {token.label} {resources}
         </span>
       </span>
     );
@@ -371,6 +372,7 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
   const days = calendarDays(startDay, endDay);
   const sharedTime = days.length > 1;
   const hourGrid = calendarHourGrid(days);
+  const schedule = useCalendarSchedule(hourGrid.columns);
   const events = entries.filter((entry) => !calendarBandEntry(entry));
   const hasWholeDays = entries.some(calendarBandEntry);
   React.useLayoutEffect(() => {
@@ -379,7 +381,7 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
   return (
     <div className="bg-card shadow-surface-2 overflow-hidden rounded-lg">
       <p className="text-muted-foreground border-border border-b px-3 py-2 text-xs">
-        {t("events.calendar.slotHint")}
+        {t("events.calendar.slotHint")} {t("calendar.schedule.hint")}
       </p>
       <div
         ref={ref}
@@ -467,7 +469,11 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
                 aria-label={dayIndexToDateKey(day)}
                 className="border-border min-w-0 border-r last:border-r-0"
               >
-                <div className="relative" style={{ height: hourGrid.rows.length * 48 }}>
+                <div
+                  data-schedule-track={column}
+                  className="relative"
+                  style={{ height: hourGrid.rows.length * 48 }}
+                >
                   {hourGrid.rows.map((_, row) =>
                     slots.some((slot) => slot.row === row) ? null : (
                       <div
@@ -515,12 +521,25 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
                   ))}
                   {arrangeEvents(events, day, sharedTime ? 4_500_000 : 2_250_000).flatMap(
                     ({ event, start, end, lane, lanes }) =>
-                      calendarEventSegments(start, end, slots).map((segment) => (
-                        <Link
-                          key={`${event.id}-${segment.startsAt}`}
+                      calendarEventSegments(start, end, slots).map((segment, index) => (
+                        <ScheduleCard
+                          key={`${event.id}-${index}`}
+                          grid={schedule}
+                          item={
+                            event.kind === "nav.events" && event.status !== "CANCELLED"
+                              ? {
+                                  id: event.id.slice("event:".length),
+                                  title: event.title,
+                                  startsAt: event.startsAt,
+                                  endsAt: event.endsAt,
+                                  track: column,
+                                }
+                              : undefined
+                          }
+                          resize={segment.endsAt === end}
                           to={event.href}
                           title={`${event.title} · ${formatDateWith(locale, event.startsAt, { dateStyle: "short", timeStyle: "long" })}–${formatDateWith(locale, event.endsAt, { dateStyle: "short", timeStyle: "long" })}`}
-                          className="group bg-card shadow-surface-1 text-foreground absolute z-10 isolate flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-md px-2 py-1 focus-visible:z-30"
+                          className="bg-card shadow-surface-1 text-foreground absolute z-10 min-w-0 rounded-md"
                           style={{
                             top: segment.top * 48,
                             height: Math.max(
@@ -531,10 +550,6 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
                             width: `calc(${100 / lanes}% - 4px)`,
                           }}
                         >
-                          <span
-                            aria-hidden
-                            className="bg-tint group-hover:bg-tint-hover pointer-events-none absolute inset-0 -z-10 rounded-[inherit]"
-                          />
                           <EventLabel
                             event={event}
                             narrow={days.length > 1}
@@ -545,7 +560,7 @@ export function CalendarTimeGrid({ entries, startDay, endDay, dayHref }: Data) {
                             short={((end - start) / 3_600_000) * 48 - 2 < 76}
                             dense={lanes > 1 || ((end - start) / 3_600_000) * 48 - 2 < 108}
                           />
-                        </Link>
+                        </ScheduleCard>
                       )),
                   )}
                 </div>

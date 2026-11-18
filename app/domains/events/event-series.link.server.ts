@@ -30,9 +30,6 @@ export async function detachOccurrence(tx: Tx, audit: AuditFn, id: string) {
     });
     return tx.event.update({ where, data: { seriesId: null } });
   }
-  if (!event.seriesId && event.occurrenceKey) {
-    await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${id} FOR UPDATE`;
-    event = await tx.event.findUniqueOrThrow({ where });
-  }
-  return event;
+  await tx.$queryRaw`SELECT "id" FROM "Event" WHERE "id" = ${id} FOR UPDATE`;
+  return tx.event.findUniqueOrThrow({ where });
 }

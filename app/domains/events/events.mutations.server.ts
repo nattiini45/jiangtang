@@ -23,6 +23,7 @@ import type {
   AllocationInput,
   EventCreateInput,
   EventEditInput,
+  EventScheduleInput,
   RoomBookingCreateInput,
   ServiceWindowInput,
 } from "./events.schema";
@@ -168,23 +169,55 @@ export async function createEventWithBooking(
 export async function updateEvent(
   actor: AuditActor,
   id: string,
-  input: EventEditInput,
+  input: EventEditInput | EventScheduleInput,
 ): Promise<Event> {
   return txWithAudit(actor, async (tx, audit) => {
     const previous = await detachOccurrence(tx, audit, id);
+    const schedule = "mode" in input ? input : null;
+    const where = { eventId: id, cancelled: false };
+    const shift = (date: Date) => new Date(+date + (schedule?.minutes ?? 0) * 60_000);
+    if (schedule) {
+      if (
+        previous.status === "CANCELLED" ||
+        +previous.startsAt !== +new Date(schedule.expectedStartsAt) ||
+        +previous.endsAt !== +new Date(schedule.expectedEndsAt)
+      )
+        throw new ValidationError({}, [tr("calendar.schedule.stale")]);
+      if (schedule.mode === "resize" && shift(previous.endsAt) <= previous.startsAt)
+        throw new ValidationError({}, [tr("work.err.endsAfterStart")]);
+    }
     const event = await tx.event.update({
       where: { id },
-      data: {
-        title: input.title,
-        description: input.description ?? null,
-        startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
-        endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
-        status: input.status,
-        organizer: input.organizer ?? null,
-        contact: input.contact ?? null,
-      },
+      data:
+        "mode" in input
+          ? {
+              startsAt: input.mode === "move" ? shift(previous.startsAt) : previous.startsAt,
+              endsAt: shift(previous.endsAt),
+            }
+          : {
+              title: input.title,
+              description: input.description ?? null,
+              startsAt: resolveEventTime(input.startsAt, input.startsAtInstant),
+              endsAt: resolveEventTime(input.endsAt, input.endsAtInstant),
+              status: input.status,
+              organizer: input.organizer ?? null,
+              contact: input.contact ?? null,
+            },
     });
-    await audit({ action: "EventUpdated", entityType: "event", entityId: event.id });
+    await audit({
+      action: "EventUpdated",
+      entityType: "event",
+      entityId: event.id,
+      ...(schedule && {
+        data: {
+          from: {
+            startsAt: previous.startsAt.toISOString(),
+            endsAt: previous.endsAt.toISOString(),
+          },
+          to: { startsAt: event.startsAt.toISOString(), endsAt: event.endsAt.toISOString() },
+        },
+      }),
+    });
     // Editing the status to CANCELLED must release slots + enqueue a REMOVE, the
     // same as the dedicated cancel path — otherwise the bookings keep their slots.
     if (event.status === "CANCELLED") {
@@ -197,23 +230,45 @@ export async function updateEvent(
       });
       await enqueueEventCalendarOp(tx, event, "REMOVE");
     } else {
-      if (event.occurrenceKey) {
+      if (schedule || event.occurrenceKey) {
         const delta = event.startsAt.getTime() - previous.startsAt.getTime();
         const endDelta = event.endsAt.getTime() - previous.endsAt.getTime();
         if (delta || endDelta) {
-          const where = { eventId: id, cancelled: false };
           const data = (slot: { startsAt: Date; endsAt: Date }) =>
             moveEventInterval(slot, previous, event);
-          for (const slot of await tx.eventRoomBooking.findMany({ where })) {
-            await insertOrConflict(
-              () => tx.eventRoomBooking.update({ where: { id: slot.id }, data: data(slot) }),
+          const rooms = await tx.eventRoomBooking.findMany({ where, orderBy: { id: "asc" } });
+          const equipment = await tx.equipmentAllocation.findMany({
+            where,
+            orderBy: { id: "asc" },
+          });
+          // Check the final layout, not intermediate overlaps between this event's own slots.
+          if (rooms.length)
+            await tx.eventRoomBooking.updateMany({ where, data: { cancelled: true } });
+          if (equipment.length) {
+            await tx.equipmentAllocation.updateMany({ where, data: { cancelled: true } });
+          }
+          for (const slot of rooms) {
+            const interval = data(slot);
+            await updateScheduleSlot(
+              () =>
+                tx.eventRoomBooking.update({
+                  where: { id: slot.id },
+                  data: { ...interval, cancelled: false },
+                }),
               tr("work.err.event.roomAlreadyBooked"),
+              { ...interval, id: slot.id, roomId: slot.roomId },
             );
           }
-          for (const slot of await tx.equipmentAllocation.findMany({ where })) {
-            await insertOrConflict(
-              () => tx.equipmentAllocation.update({ where: { id: slot.id }, data: data(slot) }),
+          for (const slot of equipment) {
+            const interval = data(slot);
+            await updateScheduleSlot(
+              () =>
+                tx.equipmentAllocation.update({
+                  where: { id: slot.id },
+                  data: { ...interval, cancelled: false },
+                }),
               tr("work.err.event.equipmentAlreadyAllocated"),
+              { ...interval, id: slot.id, equipmentId: slot.equipmentId },
             );
           }
           await moveEventServiceWindows(tx, previous, event);
@@ -223,6 +278,32 @@ export async function updateEvent(
     }
     return event;
   });
+}
+
+type ScheduleSlot = { id: string; startsAt: Date; endsAt: Date } & (
+  { roomId: string } | { equipmentId: string }
+);
+
+export class EventScheduleConflict extends BookingConflictError {
+  constructor(
+    message: string,
+    readonly slot: ScheduleSlot,
+  ) {
+    super(message);
+  }
+}
+
+async function updateScheduleSlot(
+  run: () => Promise<unknown>,
+  message: string,
+  slot: ScheduleSlot,
+) {
+  try {
+    await insertOrConflict(run, message);
+  } catch (error) {
+    if (error instanceof BookingConflictError) throw new EventScheduleConflict(message, slot);
+    throw error;
+  }
 }
 
 /**

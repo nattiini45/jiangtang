@@ -11,6 +11,7 @@ import {
   cancelEvent,
   cancelRoomBooking,
   createEvent,
+  EventScheduleConflict,
   removeServiceWindow,
   reopenEvent,
   updateEvent,
@@ -126,6 +127,58 @@ async function makeEvent(
 }
 
 describe("event mutations", () => {
+  it("moves across the repeated Berlin hour and rejects stale or conflicting reschedules", async () => {
+    const roomId = fixtures.roomId;
+    const at = (time: string) => new Date(`2026-10-25T${time}:00Z`);
+    const window = (start: string, end: string) => ({ startsAt: at(start), endsAt: at(end) });
+    const create = async (startsAt: string, endsAt: string) => {
+      const interval = window(startsAt, endsAt);
+      const event = await db.event.create({
+        data: {
+          title: `${RUN} DST test`,
+          ...interval,
+          rooms: { create: { roomId, ...interval } },
+        },
+      });
+      eventIds.push(event.id);
+      eventUids.push(event.uid);
+      return event;
+    };
+    const event = await create("00:00", "00:30");
+    await db.eventRoomBooking.create({
+      data: { eventId: event.id, roomId, ...window("01:00", "01:30") },
+    });
+    const move = {
+      mode: "move" as const,
+      eventId: event.id,
+      expectedStartsAt: event.startsAt.toISOString(),
+      expectedEndsAt: event.endsAt.toISOString(),
+      minutes: 60,
+    };
+    const moved = await updateEvent(actor, event.id, move);
+    expect(moved).toMatchObject(window("01:00", "01:30"));
+    await expect(updateEvent(actor, event.id, move)).rejects.toBeInstanceOf(ValidationError);
+    await create("01:30", "02:00");
+    await expect(
+      updateEvent(actor, event.id, {
+        ...move,
+        mode: "resize",
+        minutes: 30,
+        expectedStartsAt: moved.startsAt.toISOString(),
+        expectedEndsAt: moved.endsAt.toISOString(),
+      }),
+    ).rejects.toBeInstanceOf(EventScheduleConflict);
+    expect(
+      await db.eventRoomBooking.findMany({
+        where: { eventId: event.id, cancelled: false },
+        orderBy: { startsAt: "asc" },
+      }),
+    ).toMatchObject([window("01:00", "01:30"), window("02:00", "02:30")]);
+    expect(
+      await db.activityLog.count({ where: { entityId: event.id, action: "EventUpdated" } }),
+    ).toBe(1);
+  });
+
   it("preserves every generic edit status pair, including same-status edits", async () => {
     const statuses: EventStatus[] = ["PLANNED", "CONFIRMED", "IN_PROGRESS", "DONE", "CANCELLED"];
     const ev = await makeEvent("2041-07-01T08:00", "2041-07-01T20:00");

@@ -79,6 +79,21 @@ export const eventCreateSchema = eventFields
   .refine(endsAfterStarts, endsAfterStartsIssue);
 export const eventEditSchema = eventCreateSchema;
 
+export const eventScheduleSchema = z.object({
+  eventId: z.string().min(1),
+  expectedStartsAt: eventInstantSchema,
+  expectedEndsAt: eventInstantSchema,
+  minutes: z
+    .number()
+    .int()
+    .min(-10_140)
+    .max(10_140)
+    .refine((minutes) => minutes !== 0),
+  mode: z.enum(["move", "resize"]),
+});
+
+export type EventScheduleInput = z.infer<typeof eventScheduleSchema>;
+
 // ── Bookable atoms ───────────────────────────────────────────────────────────
 const healthOverrideFields = {
   healthOverrideConfirmed: z
