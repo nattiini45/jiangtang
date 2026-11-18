@@ -46,6 +46,15 @@ import { registerTool } from "~/lib/mcp/tools.server";
 import { ticketActionMetadata } from "~/domains/tickets/tickets.transitions";
 import { eventAllowedActions } from "~/domains/events/events.actions";
 import { mcpActor, type McpContext } from "~/lib/mcp/types.server";
+import {
+  changeEventSeries,
+  createEventSeries,
+} from "~/domains/events/event-series.mutations.server";
+import {
+  eventSeriesSchema,
+  seriesDate,
+  seriesEventSchema,
+} from "~/domains/events/event-series.schema";
 
 const id = z.string().trim().min(1).max(200);
 const confirm = z.literal(true);
@@ -127,6 +136,37 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     server,
     ctx,
     {
+      name: "create_event_series",
+      description:
+        "Create repeating events in Europe/Berlin wall time (date and time without an offset). Weekly weekdays use Monday=1 through Sunday=7. Reports conflicting dates without blocking the other bookings.",
+      schema: z.object({ input: eventSeriesSchema }),
+      write: true,
+    },
+    ({ input }, context) => createEventSeries(mcpActor(context), input),
+  );
+  registerTool(
+    server,
+    ctx,
+    {
+      name: "change_event_series",
+      description:
+        "Change this occurrence and all following, without changing the recurrence rule or booked resources. Pass event:null to cancel them. Otherwise provide the replacement event, with its start on the selected occurrence date. Earlier dates and detached exceptions stay unchanged. Requires confirm:true.",
+      schema: z.object({
+        seriesId: id,
+        date: seriesDate,
+        event: seriesEventSchema.nullable(),
+        confirm,
+      }),
+      write: true,
+      destructive: true,
+    },
+    ({ seriesId, date, event }, context) =>
+      changeEventSeries(mcpActor(context), seriesId, date, event),
+  );
+  registerTool(
+    server,
+    ctx,
+    {
       name: "create_event",
       description: "Create an event. startsAt and endsAt must be ISO instants with a timezone.",
       schema: z.object({ input: eventInput }),
@@ -173,7 +213,7 @@ export function registerEventWrites(server: McpServer, ctx: McpContext): void {
     {
       name: "update_event",
       description:
-        "Replace event content and status. Requires confirm:true because cancellation frees bookings. Setting a cancelled event to PLANNED reopens it without restoring previous room or equipment bookings; rebook separately. This generic edit remains distinct from the UI's cancelled-only Reopen action.",
+        "Replace event content and status. A series occurrence becomes an independent exception. Requires confirm:true because cancellation frees bookings. Setting a cancelled event to PLANNED reopens it without restoring previous room or equipment bookings; rebook separately. This generic edit remains distinct from the UI's cancelled-only Reopen action.",
       schema: z.object({ id, input: eventEditSchema.safeExtend(instantFields), confirm }),
       write: true,
       destructive: true,

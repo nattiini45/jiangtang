@@ -42,6 +42,7 @@ export const ENTITY_TYPE = {
   equipment: "equipment",
   ticket: "ticket",
   event: "event",
+  eventSeries: "eventSeries",
   eventRoomBooking: "eventRoomBooking",
   equipmentAllocation: "equipmentAllocation",
   serviceWindow: "serviceWindow",
