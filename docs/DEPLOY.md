@@ -374,6 +374,12 @@ On an externally managed PostgreSQL installation, let the application role creat
 its `pgboss` schema to enable the background job queue. The bundled database already grants
 this. If the queue is unavailable, the app still starts and lifecycle cleanup uses its local timer.
 
+Email is off unless an administrator saves and enables an SMTP connection under **Administration
+→ Email**. Use STARTTLS (usually port 587) or direct TLS (usually port 465); the relay must present
+a trusted certificate. Send a test and check the delivery log for the relay's reply. An acceptance
+reply confirms that the relay accepted the message, not that it reached the inbox. Completed log
+entries are kept for 30 days, except the latest successful test for the active configuration.
+
 Everything else in the template is optional. Blank means off:
 
 | Group                                     | Blank behaviour                                                                     |

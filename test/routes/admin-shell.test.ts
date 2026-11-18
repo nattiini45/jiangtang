@@ -11,6 +11,7 @@ import { buildInfo } from "~/lib/version.server";
 import * as about from "~/routes/_desktop.admin.about/route";
 import * as admin from "~/routes/_desktop.admin._index/route";
 import * as legacy from "~/routes/_desktop.admin.index/route";
+import * as mail from "~/routes/_desktop.admin.mail/route";
 import * as structure from "~/routes/_desktop.admin.structure/route";
 
 const access = vi.hoisted(() => ({ role: "ADMIN" }));
@@ -34,13 +35,23 @@ describe("administration shell", () => {
     },
   );
 
-  it.each([admin, legacy, about, structure])(
+  it.each([admin, legacy, about, structure, mail])(
     "denies a member before returning admin data",
     async (route) => {
       access.role = "MEMBER";
       await expect(route.loader(args("/admin"))).rejects.toMatchObject({ status: 403 });
     },
   );
+
+  it("rejects an email settings write from a different origin before parsing it", async () => {
+    const request = new Request("http://localhost/admin/mail", {
+      method: "POST",
+      headers: { Origin: "https://other.example.test" },
+    });
+    await expect(mail.action({ request } as never)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
 
   it("keeps workspace and admin navigation separate for both roles", () => {
     const workspace = navigationFor(true, "/").entries.map((e) => e.to);
@@ -57,6 +68,7 @@ describe("administration shell", () => {
       "/admin/invitations",
       "/admin/structure",
       "/admin/search-index",
+      "/admin/mail",
       "/admin/about",
     ]) {
       const nav = navigationFor(true, path);
@@ -68,6 +80,7 @@ describe("administration shell", () => {
         "/admin/invitations",
         "/admin/structure",
         "/admin/search-index",
+        "/admin/mail",
         "/admin/about",
       ]);
     }

@@ -2,12 +2,14 @@ import type { Express } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { BootContext } from "~/server/boot";
 
-const { sessions, verifications, outbox, notifications } = vi.hoisted(() => ({
+const { sessions, verifications, outbox, notifications, mail } = vi.hoisted(() => ({
   sessions: vi.fn(),
   verifications: vi.fn(),
   outbox: vi.fn(),
   notifications: vi.fn(),
+  mail: vi.fn(),
 }));
+vi.mock("~/domains/mail/mail.server", () => ({ pruneMailDeliveries: mail }));
 vi.mock("~/domains/auth/auth.retention.server", () => ({
   pruneExpiredSessions: sessions,
   pruneExpiredVerifications: verifications,
@@ -31,6 +33,7 @@ beforeEach(() => {
   verifications.mockResolvedValue(0);
   notifications.mockResolvedValue(0);
   outbox.mockResolvedValue(0);
+  mail.mockResolvedValue(0);
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
 });
@@ -48,6 +51,7 @@ describe("lifecycle retention job", () => {
       verifications: 0,
       notifications: 0,
       outbox: 0,
+      mail: 0,
     });
     expect(sessions).toHaveBeenCalledExactlyOnceWith(NOW);
     expect(verifications).toHaveBeenCalledExactlyOnceWith(NOW);
@@ -61,10 +65,10 @@ describe("lifecycle retention job", () => {
     expect(console.log).toHaveBeenCalledExactlyOnceWith("[lifecycle-retention] pruned 2 sessions");
   });
 
-  it.each(["sessions", "verifications", "outbox", "notifications"] as const)(
+  it.each(["sessions", "verifications", "outbox", "notifications", "mail"] as const)(
     "recovers after a %s failure and still attempts the other categories",
     async (category) => {
-      const mocks = { sessions, verifications, outbox, notifications };
+      const mocks = { sessions, verifications, outbox, notifications, mail };
       mocks[category].mockRejectedValueOnce(new Error("synthetic private details"));
       await expect(pruneLifecycleData(NOW)).rejects.toThrow(
         `Lifecycle cleanup failed: ${category}`,

@@ -14,6 +14,7 @@ export const DESKTOP_PAGES = [
   "/admin/about",
   "/admin/search-index",
   "/admin/invitations",
+  "/admin/mail",
   "/admin/structure",
   "/admin/users",
   "/admin/users/new",
