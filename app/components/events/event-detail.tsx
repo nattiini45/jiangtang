@@ -1,4 +1,4 @@
-import { Form, Link } from "react-router";
+import { Form, Link, useNavigation } from "react-router";
 import { ZodForm, FormField, type FieldErrors } from "~/components/forms";
 import { DateCell } from "~/components/data-grid";
 import { Badge } from "~/components/ui/badge";
@@ -19,11 +19,18 @@ import type {
 import { eventStatusLabel, serviceWindowKindLabel } from "./labels";
 import { EventFormFields, type EventDefaults } from "./event-form-fields";
 import { EventReopenAction } from "./event-reopen-action";
+import {
+  EventSeriesResult,
+  EventSeriesScope,
+  SeriesConflicts,
+  type SeriesResult,
+} from "./event-series-fields";
 
 export interface EventActionData {
   form?: string;
   fieldErrors?: FieldErrors;
   error?: string;
+  seriesResult?: SeriesResult;
 }
 
 /** Inline conflict/error banner for a specific sub-form. */
@@ -59,6 +66,7 @@ export function EventDetailView({
   const locale = useLocale();
   const { event, rooms, allocations, serviceWindows, tickets } = detail;
   const cancelled = event.status === "CANCELLED";
+  const busy = useNavigation().state !== "idle";
   const [roomId, setRoomId] = useState("");
   const [equipmentId, setEquipmentId] = useState("");
 
@@ -91,6 +99,15 @@ export function EventDetailView({
         </p>
       ) : null}
 
+      {actionData?.seriesResult ? (
+        <EventSeriesResult result={actionData.seriesResult} />
+      ) : event.seriesId ? (
+        <section className="bg-card shadow-surface-2 flex flex-col gap-2 rounded-lg p-4 text-sm">
+          <p className="font-semibold">{t("events.series.member")}</p>
+          <SeriesConflicts dates={event.seriesConflictDates} />
+        </section>
+      ) : null}
+
       <EventReopenAction status={event.status} />
 
       {/* Timeline */}
@@ -108,7 +125,7 @@ export function EventDetailView({
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Rooms */}
-        <Card>
+        <Card id="event-rooms" className="scroll-mt-16">
           <CardHeader>
             <CardTitle>{t("events.detail.rooms")}</CardTitle>
           </CardHeader>
@@ -418,7 +435,12 @@ export function EventDetailView({
 
       {/* Edit + cancel */}
       {!cancelled ? (
-        <details className="bg-card shadow-surface-2 rounded-lg p-4">
+        <details
+          className="bg-card shadow-surface-2 rounded-lg p-4"
+          open={
+            actionData?.form === "updateEvent" || actionData?.form === "cancelEvent" || undefined
+          }
+        >
           <summary className="cursor-pointer text-base font-semibold">
             {t("events.detail.edit")}
           </summary>
@@ -428,6 +450,25 @@ export function EventDetailView({
             className="mt-4"
           >
             <input type="hidden" name="_action" value="updateEvent" />
+            {event.seriesId ? (
+              <>
+                <EventSeriesScope seriesId={event.seriesId} />
+                <div className="text-muted-foreground text-xs">
+                  <p>
+                    {rooms.length
+                      ? t("events.series.bookedRooms", {
+                          rooms: rooms.map(({ roomName }) => roomName).join(", "),
+                        })
+                      : t("events.detail.noRooms")}
+                  </p>
+                  <p>{t("events.series.roomHint")}</p>
+                  <a href="#event-rooms" className="text-foreground underline underline-offset-4">
+                    {t("events.series.manageRooms")}
+                  </a>
+                </div>
+              </>
+            ) : null}
+            <FormError when="updateEvent" actionData={actionData} />
             <input
               type="hidden"
               name="startsAtInstant"
@@ -439,23 +480,38 @@ export function EventDetailView({
               value={new Date(event.endsAt).toISOString()}
             />
             <EventFormFields defaults={editDefaults} />
-            <Button type="submit">{t("events.detail.saveChanges")}</Button>
+            <Button type="submit" disabled={busy}>
+              {t("events.detail.saveChanges")}
+            </Button>
           </ZodForm>
 
-          <Form
+          <ZodForm
             method="post"
-            className="mt-4 border-t pt-4"
+            className="mt-4 items-start border-t pt-4"
+            fieldErrors={errorsFor("cancelEvent", actionData)}
             onSubmit={(e) => {
-              if (!confirm(t("events.detail.confirmCancel", { title: event.title })))
+              const following = new FormData(e.currentTarget).get("cancelScope") === "following";
+              if (
+                !confirm(
+                  t(
+                    following
+                      ? "events.series.confirmCancelFollowing"
+                      : "events.detail.confirmCancel",
+                    { title: event.title },
+                  ),
+                )
+              )
                 e.preventDefault();
             }}
           >
             <input type="hidden" name="_action" value="cancelEvent" />
-            <Button type="submit" variant="destructive">
+            {event.seriesId ? <EventSeriesScope seriesId={event.seriesId} cancel /> : null}
+            <FormError when="cancelEvent" actionData={actionData} />
+            <Button type="submit" variant="destructive" disabled={busy}>
               {t("events.detail.cancelEvent")}
             </Button>
             <p className="text-muted-foreground mt-1 text-xs">{t("events.detail.cancelHint")}</p>
-          </Form>
+          </ZodForm>
         </details>
       ) : (
         <p className="text-muted-foreground text-sm">

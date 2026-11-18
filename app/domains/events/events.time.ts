@@ -3,6 +3,11 @@ import { berlinLocalString, berlinOffsetMs } from "~/lib/berlin-days";
 
 export const eventInstantSchema = z.iso.datetime();
 
+export function eventStartWeekday(start: string): number {
+  const day = new Date(start.slice(0, 10)).getUTCDay();
+  return day === 0 ? 7 : day;
+}
+
 export function matchingEventInstant(local: string, value?: string): Date | undefined {
   if (!eventInstantSchema.safeParse(value).success) return undefined;
   const instant = new Date(value!);
