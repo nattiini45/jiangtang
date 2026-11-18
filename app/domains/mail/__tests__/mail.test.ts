@@ -157,3 +157,21 @@ it("skips a pending message when its SMTP settings are replaced", async () => {
   ]);
   expect(await readMailSettings()).toMatchObject({ ready: false, passwordSet: false });
 });
+
+it("retries temporary authentication failures without recording either authentication reply", async () => {
+  await saveSmtp({}, smtp);
+  const row = await queueTestMail({}, mail);
+  sendMail
+    .mockRejectedValueOnce({ command: "AUTH PLAIN", responseCode: 454, response: "454 private" })
+    .mockRejectedValueOnce({ command: "AUTH PLAIN", responseCode: 535, response: "535 private" });
+  await expect(deliverMail({ data: { id: row.id }, retryCount: 0, retryLimit: 4 })).rejects.toThrow(
+    "will retry",
+  );
+  expect(await listMailDeliveries()).toMatchObject([
+    { status: "retrying", reason: "authentication", reply: null },
+  ]);
+  await deliverMail({ data: { id: row.id }, retryCount: 1, retryLimit: 4 });
+  expect(await listMailDeliveries()).toMatchObject([
+    { status: "failed", reason: "authentication", reply: null },
+  ]);
+});

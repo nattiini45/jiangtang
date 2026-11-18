@@ -306,6 +306,7 @@ function MailField({
       <FieldLabel className="text-sm">{t(`admin.mail.${name}`)}</FieldLabel>
       <Input
         {...props}
+        name={name}
         className={`${fieldClassName} h-control px-control`}
         defaultValue={value}
         autoComplete={name === "password" ? "new-password" : "off"}

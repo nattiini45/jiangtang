@@ -223,10 +223,9 @@ export async function deliverMail(
     };
     const authFailure = smtp.code === "EAUTH" || smtp.command?.startsWith("AUTH");
     failure = authFailure ? "authentication" : "transport";
+    const code = smtp.responseCode ?? 0;
     retry =
-      !authFailure &&
-      !(smtp.responseCode && smtp.responseCode >= 500) &&
-      job.retryCount < job.retryLimit;
+      job.retryCount < job.retryLimit && (authFailure ? code >= 400 && code < 500 : code < 500);
     reply = authFailure ? null : serverReply(smtp.response, config, message);
   }
   await db.mailDelivery.update({
