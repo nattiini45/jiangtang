@@ -56,7 +56,7 @@ for (const locale of ["en", "de"])
         await expect(page.locator("html")).toHaveAttribute("data-hydrated", "true");
         await page.locator('nav a[href="/admin"]').click();
         await expect(page).toHaveURL(/\/admin$/);
-        for (const slug of ["", "users", "invitations", "search-index", "about"]) {
+        for (const slug of ["", "users", "invitations", "search-index", "mail", "about"]) {
           const path = slug ? `/admin/${slug}` : "/admin";
           await page.locator(`nav a[href="${path}"]`).click();
           await expect(page).toHaveURL(new RegExp(`${path}$`));
@@ -65,8 +65,9 @@ for (const locale of ["en", "de"])
             "aria-current",
             "page",
           );
-          await expect(page.locator("nav a")).toHaveCount(7);
+          await expect(page.locator("nav a")).toHaveCount(8);
           await expect(page.locator('nav a[href="/admin/structure"]')).toBeInViewport();
+          await expect(page.locator('nav a[href="/admin/mail"]')).toBeInViewport();
           if (!slug) {
             await expect(page.locator('main a[href="/admin/about"]')).toBeInViewport();
             await expect(page.locator('main a[href="/admin/invitations"]')).toBeInViewport();
@@ -121,6 +122,11 @@ for (const locale of ["en", "de"])
           }
           if (slug === "invitations")
             await expect(page.getByTitle(longName, { exact: true })).toBeVisible();
+          if (slug === "mail") {
+            await expect(page.locator('main button[value="save"]')).toBeInViewport();
+            await expect(page.locator('main button[value="test"]')).toBeDisabled();
+            await expect(page.locator('main input[name="host"]')).toBeVisible();
+          }
           if (
             (density === "comfortable" && theme === "light") ||
             (locale === "de" && density === "compact" && theme === "dark")
