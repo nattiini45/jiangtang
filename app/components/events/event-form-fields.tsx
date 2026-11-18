@@ -16,7 +16,13 @@ export interface EventDefaults {
   contact?: string | null;
 }
 
-export function EventFormFields({ defaults = {} }: { defaults?: EventDefaults }) {
+export function EventFormFields({
+  defaults = {},
+  scheduling,
+}: {
+  defaults?: EventDefaults;
+  scheduling?: React.ReactNode;
+}) {
   const t = useT();
   const locale = useLocale();
   return (
@@ -46,6 +52,7 @@ export function EventFormFields({ defaults = {} }: { defaults?: EventDefaults })
           <Input type="datetime-local" name="endsAt" defaultValue={defaults.endsAt ?? ""} />
         </FormField>
       </div>
+      {scheduling}
 
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
         <FormField name="status" label={t("events.form.status")}>

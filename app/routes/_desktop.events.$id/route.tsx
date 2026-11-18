@@ -34,6 +34,8 @@ import {
   updateEvent,
 } from "~/domains/events/events.mutations.server";
 import { EventDetailView } from "~/components/events/event-detail";
+import { changeEventSeries } from "~/domains/events/event-series.mutations.server";
+import { seriesEventSchema } from "~/domains/events/event-series.schema";
 
 // Non-empty (trimmed) id for the cancel/remove branches below, which read the
 // target id straight off the form rather than through a zod object schema —
@@ -85,6 +87,63 @@ export async function action({ request, params }: Route.ActionArgs) {
   const obj = healthOverrideFromForm(formDataToObject(form));
 
   try {
+    if (
+      (intent === "updateEvent" && obj.editScope === "following") ||
+      (intent === "cancelEvent" && obj.cancelScope === "following")
+    ) {
+      const occurrence = (await getEventDetail(id))?.event;
+      if (!occurrence) throw new NotFoundError(t(locale, "err.event.notFound"));
+      if (
+        !occurrence.seriesId ||
+        !occurrence.occurrenceKey ||
+        occurrence.seriesId !== obj.seriesId ||
+        occurrence.status === "CANCELLED"
+      ) {
+        return { error: t(locale, "events.series.stale") };
+      }
+      const update = intent === "updateEvent";
+      const parsed = update
+        ? safeParse(
+            seriesEventSchema,
+            {
+              ...obj,
+              startsAtInstant: undefined,
+              endsAtInstant: undefined,
+            },
+            locale,
+          )
+        : null;
+      if (parsed && !parsed.success) {
+        return {
+          form: "updateEvent",
+          fieldErrors: {
+            ...parsed.fieldErrors,
+            ...(parsed.fieldErrors.status
+              ? { status: [t(locale, "events.series.activeStatus")] }
+              : {}),
+          },
+        };
+      }
+      try {
+        const seriesResult = await changeEventSeries(
+          actor,
+          occurrence.seriesId,
+          occurrence.occurrenceKey,
+          parsed?.data ?? null,
+        );
+        if (seriesResult.conflicts.length) return { seriesResult };
+      } catch (error) {
+        if (error instanceof ValidationError) {
+          return {
+            form: update ? "updateEvent" : "cancelEvent",
+            fieldErrors: error.fieldErrors,
+            error: error.formErrors[0] ?? (update ? undefined : t(locale, "events.series.stale")),
+          };
+        }
+        throw error;
+      }
+      return redirect(`/events/${id}`);
+    }
     switch (intent) {
       case "updateEvent": {
         const r = safeParse(eventEditSchema, obj, locale);

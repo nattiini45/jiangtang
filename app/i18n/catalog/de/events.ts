@@ -1,5 +1,46 @@
 /** Events: list, calendar, detail (rooms, allocations, service windows), subscribe, sync. */
 export const eventsDe = {
+  "events.series.schedule": "Wiederholung",
+  "events.series.frequency": "Wiederholen",
+  "events.series.once": "Keine Wiederholung",
+  "events.series.daily": "Täglich",
+  "events.series.weekly": "Wöchentlich",
+  "events.series.monthly": "Monatlich am selben Kalendertag",
+  "events.series.interval": "Abstand in Wochen",
+  "events.series.weekdays": "An diesen Tagen",
+  "events.series.end": "Endet",
+  "events.series.byDate": "An einem Datum",
+  "events.series.byCount": "Nach einer Anzahl von Terminen",
+  "events.series.lastDate": "Letzter Tag (einschließlich)",
+  "events.series.count": "Anzahl geplanter Termine",
+  "events.series.hint":
+    "Die Uhrzeit bleibt in Berlin gleich. Termine in mehr als einem Jahr werden später gebucht.",
+  "events.series.monthlyHint":
+    "Monate ohne diesen Kalendertag werden ausgelassen. Termine in mehr als einem Jahr werden später gebucht.",
+  "events.series.chooseWeekday": "Wähle den Wochentag des Startdatums mit aus.",
+  "events.series.validInterval": "Gib eine ganze Zahl von 1 bis 52 ein.",
+  "events.series.validEndDate": "Wähle ein gültiges Datum ab dem Startdatum.",
+  "events.series.activeStatus": "Wähle für eine Serie Geplant oder Bestätigt.",
+  "events.series.editScope": "Änderungen anwenden auf",
+  "events.series.cancelScope": "Welche Termine absagen?",
+  "events.series.one": "Diesen Termin",
+  "events.series.following": "Diesen und alle folgenden",
+  "events.series.singleHint": "Dieser Termin folgt der Serie nicht mehr.",
+  "events.series.editFollowingHint":
+    "Behalte das Startdatum bei und ändere Uhrzeit oder Details. Frühere Termine und Ausnahmen bleiben unverändert.",
+  "events.series.cancelFollowingHint": "Frühere Termine und Ausnahmen bleiben gebucht.",
+  "events.series.confirmCancelFollowing":
+    "„{title}“ und alle folgenden Termine der Serie absagen? Ihre Buchungen werden freigegeben.",
+  "events.series.member": "Teil einer Terminserie",
+  "events.series.stale":
+    "Die Serie dieses Termins hat sich geändert. Prüfe den Termin und wähle erneut, welche Termine du bearbeiten möchtest.",
+  "events.series.result": "Ergebnis der Serienbuchung",
+  "events.series.submit": "Serie erstellen",
+  "events.series.saved": "Gespeicherte Termine: {count}",
+  "events.series.skipped": "Ausgelassene Termine der Serie: {count}",
+  "events.series.skippedHint":
+    "Diese Termine werden nicht automatisch gebucht. Wenn wieder eine Buchung möglich ist, kannst du einen einzelnen Termin anlegen.",
+  "events.series.openFirst": "Ersten gespeicherten Termin öffnen",
   "nav.calendar": "Kalender",
   "calendar.meta": "Kalender · Jiangtang",
   "calendar.subtitle": "Veranstaltungen, Arbeit und die Termine von Räumen und Geräten.",
