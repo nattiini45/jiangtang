@@ -52,6 +52,7 @@ const NEW_BLOCKS = [
   "CustomFieldOption",
   "RoomFunction",
   "RoomFunctionKind",
+  "EventSeries",
 ] as const;
 
 /**
@@ -61,7 +62,7 @@ const NEW_BLOCKS = [
  * scalar. Resolving scalar -> owning field is the only way to scope correctly.
  */
 const NEW_RELATIONS_IN_EXISTING_BLOCKS: Record<string, string[]> = {
-  Event: ["projectId"],
+  Event: ["projectId", "seriesId"],
   Ticket: ["taskId", "functionId"],
   Equipment: ["kindId"],
   EquipmentModel: ["kindId"],
@@ -340,7 +341,7 @@ describe("schema guard", () => {
     expect(found.some((v) => v.rule === "scope" && v.where === "Note")).toBe(true);
   });
 
-  it("adds 25 owning-side relations, counts the +1, and leaves the 12 pre-existing omissions untouched", () => {
+  it("accounts for the owning-side relations and leaves the 12 pre-existing omissions untouched", () => {
     // Counted by this test, so drift surfaces as a number rather than as a quiet widening of
     // what the guard silently skips. The baseline had 22 owning-side relations, 10 carrying
     // onDelete and 12 omitting it. Those 12 are the baseline's and are not part of this change.
@@ -358,8 +359,8 @@ describe("schema guard", () => {
         if (/\bonDelete:/.test(f.attrs)) withAction++;
       }
     }
-    expect(owning).toBe(98);
-    expect(withAction).toBe(86);
+    expect(owning).toBe(99);
+    expect(withAction).toBe(87);
     expect(owning - withAction).toBe(12); // unchanged pre-existing baseline — the relation carries onDelete
   });
 });

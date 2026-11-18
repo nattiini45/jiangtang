@@ -89,8 +89,15 @@ export async function action({ request, params }: Route.ActionArgs) {
       case "updateEvent": {
         const r = safeParse(eventEditSchema, obj, locale);
         if (!r.success) return { form: "updateEvent", fieldErrors: r.fieldErrors };
-        const ev = await updateEvent(actor, id, r.data);
-        await emitChange({ entityType: "event", id: ev.id, op: "updated" });
+        try {
+          const ev = await updateEvent(actor, id, r.data);
+          await emitChange({ entityType: "event", id: ev.id, op: "updated" });
+        } catch (error) {
+          if (error instanceof BookingConflictError) {
+            return { form: "updateEvent", fieldErrors: { startsAt: [error.message] } };
+          }
+          throw error;
+        }
         return redirect(`/events/${id}`);
       }
       case "cancelEvent": {

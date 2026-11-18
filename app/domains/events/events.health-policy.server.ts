@@ -2,9 +2,12 @@ import type { Tx } from "~/lib/db.server";
 import { TransitionError, ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import type { RoomStatus } from "~/generated/prisma/client";
+import { EquipmentMobility, EquipmentStatus } from "~/generated/prisma/enums";
+import { NotFoundError } from "~/lib/errors.server";
 import {
   HEALTH_OVERRIDE_FIELDS,
   roomBookingAction,
+  equipmentAllocationAction,
   type HealthBookingAction,
 } from "./events.health-policy";
 
@@ -43,4 +46,26 @@ export async function roomBookingHealthOverride(
   `;
   if (!room) throw new ValidationError({ roomId: [tr("err.room.notFound")] });
   return bookingHealthOverride("room", room.status, roomBookingAction(room.status), input);
+}
+
+export async function equipmentBookingHealthOverride(
+  tx: Tx,
+  input: { equipmentId: string; healthOverrideConfirmed?: boolean; healthOverrideReason?: string },
+) {
+  const [equipment] = await tx.$queryRaw<
+    { mobility: EquipmentMobility; status: EquipmentStatus }[]
+  >`SELECT "mobility", "status" FROM "Equipment" WHERE "id" = ${input.equipmentId} FOR UPDATE`;
+  if (!equipment) throw new NotFoundError(tr("work.err.event.equipmentNotFound"));
+  if (equipment.mobility !== EquipmentMobility.POOLED) {
+    throw new ValidationError({ equipmentId: [tr("work.err.event.onlyPooled")] });
+  }
+  if (equipment.status === EquipmentStatus.RETIRED) {
+    throw new ValidationError({ equipmentId: [tr("work.err.event.retiredEquipment")] });
+  }
+  return bookingHealthOverride(
+    "equipment",
+    equipment.status,
+    equipmentAllocationAction(equipment.status, equipment.mobility),
+    input,
+  );
 }

@@ -22,6 +22,7 @@ import {
 
 const run = `mcp-event-${crypto.randomUUID()}`;
 const eventIds: string[] = [];
+const seriesIds: string[] = [];
 const eventUids: string[] = [];
 const ticketIds: string[] = [];
 const fixtures = { userId: "", campusId: "", roomId: "", equipmentId: "" };
@@ -107,6 +108,7 @@ afterAll(async () => {
   await db.serviceWindow.deleteMany({ where: { eventId: { in: eventIds } } });
   await db.calendarOutbox.deleteMany({ where: { eventUid: { in: eventUids } } });
   await db.event.deleteMany({ where: { id: { in: eventIds } } });
+  await db.eventSeries.deleteMany({ where: { id: { in: seriesIds } } });
   await db.equipment.deleteMany({ where: { id: fixtures.equipmentId } });
   await db.room.deleteMany({ where: { id: fixtures.roomId } });
   await db.campus.deleteMany({ where: { id: fixtures.campusId } });
@@ -218,10 +220,14 @@ describe("MCP event writer boundary", () => {
 
   it("publishes all writes with destructive annotations and ISO input schemas", async () => {
     const { tools } = await client.listTools();
-    expect(tools).toHaveLength(14);
+    expect(tools).toHaveLength(16);
     expect(tools.every((tool) => tool.annotations?.readOnlyHint === false)).toBe(true);
+    expect(
+      tools.find((tool) => tool.name === "create_event_series")?.annotations?.destructiveHint,
+    ).toBe(false);
     for (const name of [
       "cancel_event",
+      "change_event_series",
       "cancel_room_booking",
       "cancel_equipment_allocation",
       "remove_service_window",
@@ -254,6 +260,32 @@ describe("MCP event writer boundary", () => {
       spy.mockRestore();
       await readOnly.client.close();
       await readOnly.server.close();
+    }
+  });
+
+  it("creates and changes a series through the writer tools", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-01-02T12:00:00Z"));
+    try {
+      const event = { title: run, startsAt: "2026-03-29T10:00", endsAt: "2026-03-29T11:00" };
+      const created = await success("create_event_series", {
+        input: { event, rule: { frequency: "daily" }, end: { kind: "count", count: 1 } },
+      });
+      const seriesId = String(created.seriesId);
+      seriesIds.push(seriesId);
+      expect(created.eventIds).toHaveLength(1);
+      const id = String((created.eventIds as unknown[])[0]);
+      eventIds.push(id);
+      eventUids.push((await db.event.findUniqueOrThrow({ where: { id } })).uid);
+      const cancelled = await success("change_event_series", {
+        seriesId,
+        date: "2026-03-29",
+        event: null,
+        confirm: true,
+      });
+      expect(cancelled.cancelledIds).toEqual([id]);
+    } finally {
+      vi.useRealTimers();
     }
   });
 

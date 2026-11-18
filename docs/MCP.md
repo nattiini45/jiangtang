@@ -516,6 +516,15 @@ actions. Prompt and resource runtime guidance follows the request locale (`local
   PostgreSQL exclusion constraint at save is authoritative; conflicts do not overwrite bookings.
   `create_event_with_booking` is atomic for the event and its initial room booking; further calls
   are separate transactions and can leave partial progress. Canceling an event releases bookings.
+- `create_event_series` accepts offset-free Berlin wall times, a daily, weekly or monthly rule,
+  and an inclusive end date or count. It returns the saved event IDs and dates skipped because of
+  booking conflicts. The app materializes dates within 366 days of today and extends the window
+  automatically. If a month lacks the selected date, it is skipped. `get_event` includes the series
+  ID, original date, and recorded conflict dates for a linked occurrence.
+  Use `update_event` or `cancel_event` for one occurrence, or `change_event_series` to change or
+  cancel it and all following occurrences. Detached exceptions and previously skipped dates are
+  unaffected by series changes. If a moved date overlaps a booking, the old occurrence is
+  cancelled and returned in `cancelledIds`; the tool does not keep a booking at the old time.
 - A running time entry (`endsAt: null`) must start at or before the server's mutation-time now.
   Use `start_timer` to start your own timer at server time instead of guessing the server clock.
   Creation and changed updates reject future starts with localized 422 validation errors;

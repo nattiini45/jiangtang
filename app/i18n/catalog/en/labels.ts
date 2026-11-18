@@ -11,6 +11,7 @@ export const labelsEn = {
   "history.entity.equipment": "Equipment",
   "history.entity.ticket": "Ticket",
   "history.entity.event": "Event",
+  "history.entity.eventSeries": "Event series",
   "history.entity.eventRoomBooking": "Room booking",
   "history.entity.equipmentAllocation": "Equipment allocation",
   "history.entity.serviceWindow": "Service window",

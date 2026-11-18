@@ -51,6 +51,7 @@ export const ENTITY_TYPES = [
   "equipment",
   "ticket",
   "event",
+  "eventSeries",
   "eventRoomBooking",
   "equipmentAllocation",
   "serviceWindow",
