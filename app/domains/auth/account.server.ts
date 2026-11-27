@@ -5,6 +5,9 @@ import { ValidationError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
 import { msgKey } from "~/i18n";
 import { z } from "~/lib/validation.server";
+import type { NotificationType } from "~/generated/prisma/client";
+import { db } from "~/lib/db.server";
+import { emitChange } from "~/lib/realtime/emit.server";
 
 /**
  * Self-service account changes for the signed-in user. The password itself is
@@ -77,4 +80,24 @@ export async function changeOwnPassword(
     },
   );
   return headers;
+}
+
+export async function getNotificationEmailOptOuts(userId: string) {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { notificationEmailOptOuts: true },
+  });
+  return user?.notificationEmailOptOuts ?? [];
+}
+
+export async function saveNotificationEmailOptOuts(actor: AuthUser, optOuts: NotificationType[]) {
+  await txWithAudit(actor, async (tx, audit) => {
+    await tx.user.update({ where: { id: actor.id }, data: { notificationEmailOptOuts: optOuts } });
+    await audit({
+      action: "NotificationEmailPreferencesUpdated",
+      entityType: "user",
+      entityId: actor.id,
+    });
+  });
+  await emitChange({ entityType: "user", id: actor.id, op: "updated" });
 }

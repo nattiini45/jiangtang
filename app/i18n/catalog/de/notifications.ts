@@ -12,5 +12,10 @@ export const notificationsDe = {
   "notifications.type.TASK_DUE_SOON": "„{title}“ ist fällig am {date}",
   "notifications.type.BOOKING_CONFLICT": "Buchungskonflikt: {detail}",
   "notifications.type.WARRANTY_EXPIRING": "Garantie von „{name}“ läuft am {date} ab",
+  "notifications.email.subject.TASK_ASSIGNED": "Dir zugewiesen: „{item}“",
+  "notifications.email.subject.TASK_DUE_SOON": "Bald fällig: {item}",
+  "notifications.email.subject.BOOKING_CONFLICT": "Buchungskonflikt: {item}",
+  "notifications.email.subject.WARRANTY_EXPIRING": "Garantie läuft ab: {item}",
+  "notifications.email.more": "{title} und {count} weitere",
   "shell.notifications": "Benachrichtigungen",
 };

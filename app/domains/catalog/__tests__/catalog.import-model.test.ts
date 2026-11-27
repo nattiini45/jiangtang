@@ -712,6 +712,7 @@ describe("no migration, no fragment directory, no schema change", () => {
       "20261118120000_settings",
       "20261118130000_event_series",
       "20261118140000_mail_delivery",
+      "20261127121600_notification_email_preferences",
     ]);
     // The writer introduced no column: EquipmentModel is unchanged, and the only
     // new symbol is a function.

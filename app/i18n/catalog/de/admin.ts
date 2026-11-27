@@ -191,6 +191,8 @@ export const adminDe = {
   "admin.mail.reason.settingsChanged": "Die SMTP-Einstellungen wurden vor dem Versand geändert.",
   "admin.mail.reason.expired": "Die Nachricht ist vor dem Versand abgelaufen.",
   "admin.mail.reason.unavailable": "Die Hintergrundverarbeitung war nicht verfügbar.",
+  "admin.mail.reason.recipientUnavailable":
+    "Die Adresse ist keinem aktiven Konto mehr als bestätigt zugeordnet.",
   "admin.mail.reason.configuration":
     "Die verschlüsselten Einstellungen oder die Nachricht konnten nicht gelesen werden.",
   "admin.mail.reason.authentication": "Der SMTP-Server hat die Zugangsdaten abgelehnt.",
