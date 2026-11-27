@@ -158,20 +158,36 @@ it("skips a pending message when its SMTP settings are replaced", async () => {
   expect(await readMailSettings()).toMatchObject({ ready: false, passwordSet: false });
 });
 
-it("retries temporary authentication failures without recording either authentication reply", async () => {
+it("records temporary and permanent authentication replies without exposing credentials", async () => {
   await saveSmtp({}, smtp);
   const row = await queueTestMail({}, mail);
+  const plain = Buffer.from(`\0${smtp.username}\0${originalPassword}`).toString("base64");
+  const login = Buffer.from(originalPassword).toString("base64");
+  const cramMd5 = Buffer.from(`${smtp.username} ${"1a".repeat(16)}`).toString("base64");
   sendMail
-    .mockRejectedValueOnce({ command: "AUTH PLAIN", responseCode: 454, response: "454 private" })
-    .mockRejectedValueOnce({ command: "AUTH PLAIN", responseCode: 535, response: "535 private" });
+    .mockRejectedValueOnce({
+      command: `AUTH PLAIN ${plain}`,
+      responseCode: 454,
+      response: `454 Try again for ${smtp.username}`,
+    })
+    .mockRejectedValueOnce({
+      code: "EAUTH",
+      responseCode: 535,
+      response: `Use an app password for ${smtp.username}: ${originalPassword} ${login} ${cramMd5}\r\n535-${plain}`,
+    });
   await expect(deliverMail({ data: { id: row.id }, retryCount: 0, retryLimit: 4 })).rejects.toThrow(
     "will retry",
   );
   expect(await listMailDeliveries()).toMatchObject([
-    { status: "retrying", reason: "authentication", reply: null },
+    { status: "retrying", reason: "authentication", reply: "454 Try again for synthetic-login" },
   ]);
   await deliverMail({ data: { id: row.id }, retryCount: 1, retryLimit: 4 });
   expect(await listMailDeliveries()).toMatchObject([
-    { status: "failed", reason: "authentication", reply: null },
+    {
+      status: "failed",
+      reason: "authentication",
+      reply:
+        "535 Use an app password for synthetic-login: [redacted] [redacted] [redacted] 535-[redacted]",
+    },
   ]);
 });

@@ -136,21 +136,38 @@ export function queueTestMail(actor: AuditActor, mail: Omit<Mail, "kind">) {
   });
 }
 
-function serverReply(reply: unknown, smtp: SmtpConfig, message: z.output<typeof payloadSchema>) {
-  if (typeof reply !== "string") return null;
-  let safe = reply;
-  for (const secret of [smtp.password, smtp.username]) {
+function serverReply(
+  reply: string | undefined,
+  smtp: SmtpConfig,
+  message: z.output<typeof payloadSchema>,
+  authCode?: number,
+) {
+  const code = authCode && authCode >= 100 && authCode <= 599 ? String(authCode) : "";
+  if (/^3\d\d$/.test(code)) return code;
+  let safe = typeof reply === "string" ? reply : "";
+  if (authCode !== undefined && smtp.username) {
+    safe = safe.replace(/[A-Za-z0-9+/]+={0,2}/g, (token) => {
+      const decoded = Buffer.from(token, "base64").toString("utf8");
+      const cram = decoded.startsWith(`${smtp.username} `) && / [0-9a-f]{32}$/i.test(decoded);
+      return decoded.includes(`\0${smtp.username}\0`) ||
+        decoded === smtp.username ||
+        (smtp.password && decoded.includes(smtp.password)) ||
+        cram
+        ? "[redacted]"
+        : token;
+    });
+  }
+  for (const secret of [smtp.password, authCode === undefined ? smtp.username : ""]) {
     if (secret) safe = safe.replaceAll(secret, "[redacted]");
   }
   for (const link of message.text.match(/https?:\/\/\S+/gi) ?? []) {
     safe = safe.replaceAll(link, "[redacted]");
   }
-  return (
-    safe
-      .replace(/\p{C}+/gu, " ")
-      .trim()
-      .slice(0, 500) || null
-  );
+  safe = safe.replace(/\p{C}+/gu, " ").trim();
+  if (code && !new RegExp(`^${code}(?:[ -]|$)`).test(safe)) {
+    safe = safe ? `${code} ${safe}` : code;
+  }
+  return safe.slice(0, 500) || null;
 }
 
 export function mailWorkerReady() {
@@ -257,7 +274,7 @@ export async function deliverMail(
     const code = smtp.responseCode ?? 0;
     retry =
       job.retryCount < job.retryLimit && (authFailure ? code >= 400 && code < 500 : code < 500);
-    reply = authFailure ? null : serverReply(smtp.response, config, message);
+    reply = serverReply(smtp.response, config, message, authFailure ? code : undefined);
   }
   await db.mailDelivery.update({
     where: { id: row.id },
