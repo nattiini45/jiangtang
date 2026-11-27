@@ -13,5 +13,10 @@ export const notificationsEn = {
   "notifications.type.TASK_DUE_SOON": "“{title}” is due on {date}",
   "notifications.type.BOOKING_CONFLICT": "Booking conflict: {detail}",
   "notifications.type.WARRANTY_EXPIRING": "Warranty of “{name}” expires on {date}",
+  "notifications.email.subject.TASK_ASSIGNED": "Assigned to “{item}”",
+  "notifications.email.subject.TASK_DUE_SOON": "Due soon: {item}",
+  "notifications.email.subject.BOOKING_CONFLICT": "Booking conflict: {item}",
+  "notifications.email.subject.WARRANTY_EXPIRING": "Warranty expiring: {item}",
+  "notifications.email.more": "{title} and {count} more",
   "shell.notifications": "Notifications",
 } satisfies Record<keyof typeof notificationsDe, string>;

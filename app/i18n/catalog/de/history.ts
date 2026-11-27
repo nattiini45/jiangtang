@@ -17,6 +17,7 @@ export const historyDe = {
   "history.action.ModelPartFitsUnlinked": "Teileangaben vom Katalog gelöst",
   "history.action.PartTakenForDevice": "Teil für Gerät entnommen",
   "history.action.HomeLayoutUpdated": "Übersicht angepasst",
+  "history.action.NotificationEmailPreferencesUpdated": "E-Mail-Benachrichtigungen angepasst",
   "history.action.HomeRoundFinished": "Rundgang abgeschlossen",
   "history.entity.roomType": "Raumtyp",
   "history.action.RoomTypeReconciled": "Raumtyp aus der Bibliothek ergänzt",

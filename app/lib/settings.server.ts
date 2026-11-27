@@ -2,7 +2,7 @@ import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:cr
 import type { Prisma } from "~/generated/prisma/client";
 import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { readConfig } from "~/lib/config.server";
-import { db } from "~/lib/db.server";
+import { db, type Tx } from "~/lib/db.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import type { z } from "zod";
 
@@ -48,8 +48,8 @@ export async function hasSecretSetting(key: string) {
   return (await db.setting.count({ where: { key, ciphertext: { not: null } } })) > 0;
 }
 
-export async function getSecretSetting(key: string) {
-  const row = await db.setting.findUnique({ where: { key }, select: { ciphertext: true } });
+export async function getSecretSetting(key: string, client: Pick<Tx, "setting"> = db) {
+  const row = await client.setting.findUnique({ where: { key }, select: { ciphertext: true } });
   return row?.ciphertext ? openSecret(key, row.ciphertext) : null;
 }
 

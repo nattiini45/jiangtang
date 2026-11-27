@@ -8,6 +8,18 @@ export const accountDe = {
   "account.initials": "Initialen",
   "account.role": "Rolle",
   "account.menu": "Mein Konto",
+  "account.notificationEmail.heading": "E-Mail-Benachrichtigungen",
+  "account.notificationEmail.intro":
+    "Wähle, welche E-Mails du bei verfügbarem E-Mail-Versand erhältst. Deine Benachrichtigungen in Jiangtang bleiben unverändert.",
+  "account.notificationEmail.TASK_ASSIGNED": "Aufgabenzuweisungen",
+  "account.notificationEmail.BOOKING_CONFLICT": "Buchungskonflikte",
+  "account.notificationEmail.TASK_DUE_SOON": "Bald fällige Aufgaben (Sammelmail)",
+  "account.notificationEmail.WARRANTY_EXPIRING": "Ablaufende Garantien (Sammelmail)",
+  "account.notificationEmail.save": "E-Mail-Einstellungen speichern",
+  "account.notificationEmail.saving": "Wird gespeichert …",
+  "account.notificationEmail.saved": "E-Mail-Einstellungen gespeichert.",
+  "account.notificationEmail.error":
+    "Die E-Mail-Einstellungen konnten nicht gespeichert werden. Versuche es erneut.",
   "account.password.heading": "Passwort ändern",
   "account.password.intro":
     "Du bleibst in diesem Browser angemeldet; alle anderen Sitzungen werden abgemeldet.",

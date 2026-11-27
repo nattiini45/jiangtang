@@ -5,6 +5,7 @@ import { txWithAudit, type AuditActor } from "~/lib/audit.server";
 import { emitChange } from "~/lib/realtime/emit.server";
 import { NotFoundError } from "~/lib/errors.server";
 import { tr } from "~/i18n/request-locale.server";
+import { queueNotificationEmails } from "./notification-email.server";
 
 /**
  * Inbox writes. `createNotificationInTx` joins the triggering mutation's
@@ -45,6 +46,7 @@ export async function notifyUsers(
   const created = await txWithAudit(actor, async (tx) => {
     const rows = [];
     for (const input of inputs) rows.push(await createNotificationInTx(tx, input));
+    await queueNotificationEmails(tx, rows);
     return rows;
   });
   for (const row of created) {
@@ -60,16 +62,20 @@ export async function notifyTaskAssignedInTx(
   addedUserIds: string[],
   actorId?: string | null,
 ) {
+  const rows = [];
   for (const userId of addedUserIds) {
     if (actorId && userId === actorId) continue; // self-assignment is not news
-    await createNotificationInTx(tx, {
-      userId,
-      type: NotificationType.TASK_ASSIGNED,
-      entityType: "task",
-      entityId: task.id,
-      data: { title: task.title },
-    });
+    rows.push(
+      await createNotificationInTx(tx, {
+        userId,
+        type: NotificationType.TASK_ASSIGNED,
+        entityType: "task",
+        entityId: task.id,
+        data: { title: task.title },
+      }),
+    );
   }
+  await queueNotificationEmails(tx, rows);
 }
 
 export async function markNotificationRead(actor: AuditActor, id: string) {
@@ -171,30 +177,43 @@ export async function notifyBookingConflict(input: {
     where: { id: { in: input.conflictingEventIds } },
     select: { id: true, title: true, organizer: true },
   });
-  const recipients = new Set<string>();
-  for (const ev of organizers) {
-    if (!ev.organizer) continue;
+  const byId = new Map(organizers.map((event) => [event.id, event]));
+  const recipients = new Map<string, { id: string; title: string } | null>();
+  for (const id of input.conflictingEventIds) {
+    const ev = byId.get(id);
+    if (!ev?.organizer) continue;
     const user = await db.user.findFirst({
       where: { isActive: true, OR: [{ email: ev.organizer }, { name: ev.organizer }] },
       select: { id: true },
     });
-    if (user) recipients.add(user.id);
+    if (user && !recipients.has(user.id)) recipients.set(user.id, ev);
   }
   if (recipients.size === 0) {
     const admins = await db.user.findMany({
       where: { isActive: true, role: "ADMIN" },
       select: { id: true },
     });
-    for (const a of admins) recipients.add(a.id);
+    const event = byId.get(input.conflictingEventIds[0] ?? "");
+    const fallback =
+      event ??
+      (input.entityId
+        ? await db.event.findUnique({
+            where: { id: input.entityId },
+            select: { id: true, title: true },
+          })
+        : null);
+    for (const a of admins) recipients.set(a.id, fallback);
   }
-  const inputs: NotificationInput[] = [...recipients].map((userId) => ({
+  const detail =
+    typeof input.detail === "object" && !Array.isArray(input.detail) ? input.detail : {};
+  const inputs: NotificationInput[] = [...recipients].map(([userId, event]) => ({
     userId,
     type: NotificationType.BOOKING_CONFLICT,
     // Link to the conflicting event (the recipient's own booking), not the
     // booking sub-row — `entityHref` has no target for those.
     entityType: "event",
-    entityId: input.conflictingEventIds[0] ?? input.entityId,
-    data: input.detail,
+    entityId: event?.id ?? input.conflictingEventIds[0] ?? input.entityId,
+    data: event ? { ...detail, title: event.title, detail: event.title } : input.detail,
   }));
   return notifyUsers(input.actor, inputs);
 }

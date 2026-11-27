@@ -14,11 +14,15 @@ const worker = globalThis as typeof globalThis & {
   jiangtangMailWorker?: ReturnType<typeof getJobQueue>;
 };
 const SETTING = "smtp";
-const payloadSchema = z.object({ subject: z.string(), text: z.string() });
+const payloadSchema = z.object({
+  subject: z.string(),
+  text: z.string(),
+  verifiedRecipientId: z.string().optional(),
+});
 const day = 86_400_000;
 
-async function readSmtp() {
-  const raw = await getSecretSetting(SETTING);
+async function readSmtp(tx?: Tx) {
+  const raw = await getSecretSetting(SETTING, tx);
   return raw ? storedSmtpSchema.parse(JSON.parse(raw)) : null;
 }
 
@@ -88,10 +92,17 @@ type Mail = z.output<typeof payloadSchema> & {
   expiresAt?: Date;
 };
 
-export async function queueMail(tx: Tx, { kind, recipient, expiresAt, subject, text }: Mail) {
+export async function canQueueMail(tx: Tx) {
+  return mailWorkerReady() && (await readSmtp(tx).catch(() => null))?.enabled === true;
+}
+
+export async function queueMail(
+  tx: Tx,
+  { kind, recipient, expiresAt, subject, text, verifiedRecipientId }: Mail,
+) {
   const id = randomUUID();
   let reason: string | null = null;
-  const config = await readSmtp().catch(() => {
+  const config = await readSmtp(tx).catch(() => {
     reason = "configuration";
     return null;
   });
@@ -107,7 +118,9 @@ export async function queueMail(tx: Tx, { kind, recipient, expiresAt, subject, t
       status: reason ? "skipped" : "queued",
       reason,
       finishedAt: reason ? new Date() : null,
-      payload: reason ? null : sealSecret(`mail:${id}`, JSON.stringify({ subject, text })),
+      payload: reason
+        ? null
+        : sealSecret(`mail:${id}`, JSON.stringify({ subject, text, verifiedRecipientId })),
     },
     select: { id: true, status: true },
   });
@@ -190,6 +203,24 @@ export async function deliverMail(
     });
     return;
   }
+  const { verifiedRecipientId, ...content } = message;
+  if (
+    verifiedRecipientId &&
+    !(await db.user.count({
+      where: { id: verifiedRecipientId, email: row.recipient, isActive: true, emailVerified: true },
+    }))
+  ) {
+    await db.mailDelivery.update({
+      where: { id: row.id },
+      data: {
+        status: "skipped",
+        reason: "recipientUnavailable",
+        payload: null,
+        finishedAt: new Date(),
+      },
+    });
+    return;
+  }
   const transport = createTransport({
     host: config.host,
     port: config.port,
@@ -207,7 +238,7 @@ export async function deliverMail(
   const timeout = AbortSignal.timeout(45_000);
   try {
     const info = await transport.sendMail({
-      ...message,
+      ...content,
       signal: job.signal ? AbortSignal.any([job.signal, timeout]) : timeout,
       from: config.from,
       to: row.recipient,

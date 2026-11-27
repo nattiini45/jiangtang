@@ -185,6 +185,8 @@ export const adminEn = {
   "admin.mail.reason.settingsChanged": "SMTP settings changed before this message was sent.",
   "admin.mail.reason.expired": "This message expired before it could be sent.",
   "admin.mail.reason.unavailable": "The background worker was unavailable.",
+  "admin.mail.reason.recipientUnavailable":
+    "The recipient no longer has an active account with this verified address.",
   "admin.mail.reason.configuration": "The encrypted settings or message could not be read.",
   "admin.mail.reason.authentication": "The SMTP server rejected the credentials.",
   "admin.mail.reason.transport": "The SMTP server did not accept the message.",
