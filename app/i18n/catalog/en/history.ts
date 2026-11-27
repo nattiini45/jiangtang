@@ -19,6 +19,7 @@ export const historyEn = {
   "history.action.ModelPartFitsUnlinked": "Catalog part links removed",
   "history.action.PartTakenForDevice": "Part taken for device",
   "history.action.HomeLayoutUpdated": "Home arrangement updated",
+  "history.action.NotificationEmailPreferencesUpdated": "Email notification preferences updated",
   "history.action.HomeRoundFinished": "Round completed",
   "history.entity.roomType": "Room type",
   "history.action.RoomTypeReconciled": "Room type added from the library",

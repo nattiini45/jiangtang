@@ -9,6 +9,17 @@ export const accountEn = {
   "account.initials": "Initials",
   "account.role": "Role",
   "account.menu": "My account",
+  "account.notificationEmail.heading": "Email notifications",
+  "account.notificationEmail.intro":
+    "Choose which emails to receive when email delivery is available. Your in-app notifications stay the same.",
+  "account.notificationEmail.TASK_ASSIGNED": "Task assignments",
+  "account.notificationEmail.BOOKING_CONFLICT": "Booking conflicts",
+  "account.notificationEmail.TASK_DUE_SOON": "Tasks due soon (digest)",
+  "account.notificationEmail.WARRANTY_EXPIRING": "Expiring warranties (digest)",
+  "account.notificationEmail.save": "Save email preferences",
+  "account.notificationEmail.saving": "Saving…",
+  "account.notificationEmail.saved": "Email preferences saved.",
+  "account.notificationEmail.error": "Couldn't save your email preferences. Try again.",
   "account.password.heading": "Change password",
   "account.password.intro":
     "You stay signed in on this browser; every other session is signed out.",

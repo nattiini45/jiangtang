@@ -550,6 +550,7 @@ model User {
   timeEntriesCreated TimeEntry[]     @relation("TimeEntryCreatedBy")
   attachmentsCreated Attachment[]    @relation("AttachmentCreatedBy")
   notifications      Notification[]
+  notificationEmailOptOuts NotificationType[] @default([])
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)

@@ -1,12 +1,19 @@
 import * as React from "react";
-import { data, Form } from "react-router";
+import { data, Form, useNavigation } from "react-router";
 import { Button as SdkButton } from "@ui-sdk/react/button";
+import { Switch, SwitchThumb } from "@ui-sdk/react/switch";
 import type { Route } from "./+types/route";
 import { adminTwoFactorRequired, requireUser } from "~/lib/auth.server";
 import { toErrorResponse, ValidationError } from "~/lib/errors.server";
 import { safeParseForm, z } from "~/lib/validation.server";
-import { changeOwnPassword, changePasswordSchema } from "~/domains/auth/account.server";
+import {
+  changeOwnPassword,
+  changePasswordSchema,
+  getNotificationEmailOptOuts,
+  saveNotificationEmailOptOuts,
+} from "~/domains/auth/account.server";
 import { accountMailReady, requestEmailVerification } from "~/domains/auth/account-mail.server";
+import { NotificationType } from "~/generated/prisma/enums";
 import {
   createPersonalAccessToken,
   listPersonalAccessTokens,
@@ -40,6 +47,7 @@ type Intent =
   | "twoFactorDisable"
   | "twoFactorRegenerate"
   | "verifyEmail"
+  | "notificationEmail"
   | "tokenCreate"
   | "tokenRevoke";
 
@@ -54,6 +62,13 @@ interface AccountActionData {
 }
 
 const tokenRevokeSchema = z.object({ id: z.string().min(1) });
+const notificationTypes = Object.values(NotificationType);
+const notificationEmailSchema = z.object({
+  emailType: z.preprocess(
+    (value) => (value === undefined ? [] : Array.isArray(value) ? value : [value]),
+    z.array(z.enum(NotificationType)).max(notificationTypes.length),
+  ),
+});
 
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await requireUser(request);
@@ -68,6 +83,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       },
       twoFactorEnabled: user.twoFactorEnabled,
       canVerifyEmail: !user.emailVerified && (await accountMailReady()),
+      notificationEmailOptOuts: await getNotificationEmailOptOuts(user.id),
       mcpUrl: `${new URL(request.url).origin}/mcp`,
       twoFactorRequired:
         user.role === "ADMIN" && adminTwoFactorRequired() && !user.twoFactorEnabled,
@@ -97,6 +113,7 @@ export async function action({ request }: Route.ActionArgs) {
     requested === "twoFactorDisable" ||
     requested === "twoFactorRegenerate" ||
     requested === "verifyEmail" ||
+    requested === "notificationEmail" ||
     requested === "tokenCreate" ||
     requested === "tokenRevoke"
       ? requested
@@ -107,7 +124,10 @@ export async function action({ request }: Route.ActionArgs) {
   });
   try {
     if (
-      (intent === "tokenCreate" || intent === "tokenRevoke" || intent === "verifyEmail") &&
+      (intent === "tokenCreate" ||
+        intent === "tokenRevoke" ||
+        intent === "verifyEmail" ||
+        intent === "notificationEmail") &&
       request.headers.get("origin") !== new URL(request.url).origin
     ) {
       throw new Response(null, { status: 403 });
@@ -115,6 +135,16 @@ export async function action({ request }: Route.ActionArgs) {
     if (intent === "verifyEmail") {
       const changed = !user.emailVerified && (await requestEmailVerification(user.email, request));
       return reply({ changed });
+    }
+    if (intent === "notificationEmail") {
+      const result = await safeParseForm(request, notificationEmailSchema);
+      if (!result.success) return data(reply({ changed: false }), { status: 422 });
+      const enabled = new Set(result.data.emailType);
+      await saveNotificationEmailOptOuts(
+        user,
+        notificationTypes.filter((type) => !enabled.has(type)),
+      );
+      return reply({ changed: true });
     }
     if (intent === "tokenCreate") {
       const result = await safeParseForm(request, tokenCreateSchema);
@@ -193,6 +223,71 @@ function FormErrors({ errors }: { errors?: string[] }) {
     <p role="alert" className="text-destructive mt-4 text-sm">
       {errors.join(" ")}
     </p>
+  );
+}
+
+function NotificationEmailPreferences({
+  optOuts,
+  changed,
+}: {
+  optOuts: NotificationType[];
+  changed?: boolean;
+}) {
+  const t = useT();
+  const navigation = useNavigation();
+  const saving = navigation.formData?.get("intent") === "notificationEmail";
+  return (
+    <section className="mt-8" aria-labelledby="notification-email-heading">
+      <h2 id="notification-email-heading" className="scroll-mt-18 text-base font-semibold">
+        {t("account.notificationEmail.heading")}
+      </h2>
+      <p className="text-muted-foreground mt-1 text-sm">{t("account.notificationEmail.intro")}</p>
+      <Form
+        method="post"
+        action="/account"
+        preventScrollReset
+        aria-labelledby="notification-email-heading"
+        className="mt-3"
+      >
+        <input type="hidden" name="intent" value="notificationEmail" />
+        <fieldset className="bg-card shadow-surface-2 divide-y rounded-lg">
+          <legend className="sr-only">{t("account.notificationEmail.heading")}</legend>
+          {notificationTypes.map((type) => (
+            <label
+              key={type}
+              className="hover:bg-hover py-row flex cursor-pointer items-center justify-between gap-4 px-3 text-sm first-of-type:rounded-t-lg last:rounded-b-lg pointer-coarse:min-h-12"
+            >
+              {t(`account.notificationEmail.${type}`)}
+              <Switch
+                name="emailType"
+                value={type}
+                defaultChecked={!optOuts.includes(type)}
+                className="bg-switch-track data-checked:bg-fluid-accent relative h-5 w-[34px] shrink-0 rounded-full transition-colors duration-160 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring) motion-reduce:transition-none"
+              >
+                <SwitchThumb className="bg-switch-thumb absolute start-0.5 top-0.5 size-4 rounded-full shadow-(--switch-shadow) transition-transform duration-160 ease-(--ease-press) data-checked:translate-x-3.5 motion-reduce:transition-none rtl:data-checked:-translate-x-3.5" />
+              </Switch>
+            </label>
+          ))}
+        </fieldset>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <SdkButton
+            type="submit"
+            className={buttonVariants({ variant: "secondary" })}
+            disabled={saving}
+          >
+            {t(saving ? "account.notificationEmail.saving" : "account.notificationEmail.save")}
+          </SdkButton>
+          <p role="status" className="text-sm">
+            {changed && !saving ? t("account.notificationEmail.saved") : null}
+          </p>
+          {changed === false && !saving ? (
+            <p role="alert" className="text-destructive text-sm">
+              {t("account.notificationEmail.error")}
+            </p>
+          ) : null}
+        </div>
+      </Form>
+    </section>
   );
 }
 
@@ -390,6 +485,10 @@ export default function Account({ loaderData, actionData }: Route.ComponentProps
         <Button type="submit">{t("account.password.submit")}</Button>
       </ZodForm>
 
+      <NotificationEmailPreferences
+        optOuts={loaderData.notificationEmailOptOuts}
+        changed={of("notificationEmail")?.changed}
+      />
       <PersonalAccessTokens
         mcpUrl={loaderData.mcpUrl}
         tokens={loaderData.tokens}
